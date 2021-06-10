@@ -7,6 +7,8 @@ protobuf==3.17.3
 psutil==5.8.0
 scipy==1.6.3
 six==1.16.0
+torch==1.8.1
 tornado==6.1
+#tvm==0.8.dev1093+gcc3d60e6c
 typing-extensions==3.10.0.0
 xgboost==1.4.2

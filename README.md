@@ -16,12 +16,13 @@ Installation
     - instead, add it as `.pth` to venv:
         - if `virtualenvwrapper` is installed: 
           ```bash
-          $ add2virtualenv /home/ngl/gitrepos/tvm/python/ /home/ngl/gitrepos/tvm/vta/python/
+          $ add2virtualenv /home/ngl/gitrepos/tvm/python /home/ngl/gitrepos/tvm/vta/python
           ```
         - otherwise:
           ```bash
           $ cp ./setup/_virtualenv_path_extensions.pth ./venv/lib/python3.8/site-packages/
           ```
+          and **update** the absolute paths in the `.pth` file. 
           
 Structure
 -------------
