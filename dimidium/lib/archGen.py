@@ -10,6 +10,7 @@
 #  *
 #  *
 
+import json
 import tvm
 import tvm.relay as relay
 from dimidium.lib.oiVisitor import OiPipeline
@@ -27,7 +28,7 @@ class PrintMeta:
 
 def arch_gen(mod, params, debug=False):
 
-    oi_calc = OiCalculator(default_oi=1)
+    oi_calc = OiCalculator(default_oi=1.0)
     oi_pass = OiPipeline(size_t=32, oiCalc=oi_calc)
     assert oi_pass.info.name == "OiPipeline"
 
@@ -53,10 +54,12 @@ def arch_gen(mod, params, debug=False):
 
     oi_results = oi_pass.get_oi_results()
     bw_results = oi_pass.get_bw_results()
+    data_per_layer = oi_pass.get_data_per_layer()
 
     if debug:
         print(oi_results)
         print(bw_results)
+        print(json.dumps(data_per_layer, indent=2, sort_keys=False))
 
     ret = {'mod': mod2, 'oi_results': oi_results, 'bw_results': bw_results}
 
