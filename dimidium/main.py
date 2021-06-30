@@ -17,7 +17,7 @@ import numpy as np
 import tvm
 import tvm.relay as relay
 
-from lib.archGen import arch_gen
+from dimidium.lib.archGen import arch_gen
 
 
 __mandatory_keys__ = ['shape_dict']
@@ -52,9 +52,7 @@ if __name__ == '__main__':
     print("\t...done.\n")
 
     print("DOSA: Generating high-level architecture...")
-    archObj = arch_gen(mod, params, debug=True)
+    archDict = arch_gen(mod, params, debug=True)
     print("\t...done.\n")
-
-    json.dumps(archObj)
 
     print("\nDOSA finished successfully.\n")
