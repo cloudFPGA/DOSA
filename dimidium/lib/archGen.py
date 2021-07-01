@@ -61,7 +61,53 @@ def arch_gen(mod, params, debug=False):
         print(bw_results)
         print(json.dumps(data_per_layer, indent=2, sort_keys=False))
 
-    ret = {'mod': mod2, 'oi_results': oi_results, 'bw_results': bw_results}
+    ret = {'mod': mod2, 'oi_results': oi_results, 'bw_results': bw_results, 'dpl': data_per_layer}
 
     return ret
+
+
+def calculate_required_performance(detail_list, target_fps, used_batch_size=1, unit=1, debug_print=True):
+    """
+
+    :param detail_list: detailed layer list from model summary
+    :param target_fps: target framerate in Bytes per second
+    :param target_batch_size: in frames
+    :return:
+    """
+    # assert target_batch_size == 1
+    # calculate latency
+    e2e_latency = float(1)/float(target_fps)
+    n_layers = len(detail_list) - 2  # subtracting input & output
+    assert n_layers >= 1
+    latency_per_layer = e2e_latency/float(n_layers)
+    if debug_print:
+        print("calculating FLOPs for target e2e latency {}s ({}s for each layer if equal distribution is assumed).".format(e2e_latency, latency_per_layer))
+    annotated_list = []
+    cmpl_list = []
+    uinp_list = []
+    for e in detail_list:
+        # calculate input and output bandwidth
+        i_bw = e['inpB']*target_fps
+        o_bw = e['outB']*target_fps
+        # calculate FLOPs
+        req_flop = e['flop']*target_fps
+        req_flop_u = req_flop/unit
+        e['inpBs'] = i_bw
+        e['outBs'] = o_bw
+        e['rFLOP'] = req_flop
+        e['eqLat'] = latency_per_layer
+        annotated_list.append(e)
+        cmpl = e['cmpl']
+        if cmpl == 1:
+            continue
+        uinp = e['uinp']
+        name = e['name']
+        layer = e['layer']
+        cn = {'name': name + "_" + layer + "_engine", 'oi': cmpl, 'perf': req_flop_u}
+        un = {'name': name + "_" + layer + "_stream", 'oi': uinp, 'perf': req_flop_u}
+        cmpl_list.append(cn)
+        uinp_list.append(un)
+    if debug_print:
+        print(json.dumps(annotated_list, indent=2, sort_keys=False))
+    return annotated_list, cmpl_list, uinp_list
 

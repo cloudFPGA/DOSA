@@ -18,7 +18,7 @@ import tvm
 import tvm.relay as relay
 
 from dimidium.lib.archGen import arch_gen
-
+import dimidium.lib.plot_roofline as plot_roofline
 
 __mandatory_keys__ = ['shape_dict']
 
@@ -53,6 +53,15 @@ if __name__ == '__main__':
 
     print("DOSA: Generating high-level architecture...")
     archDict = arch_gen(mod, params, debug=True)
+    print("\t...done.\n")
+
+    print("DOSA: Generating and showing roofline...")
+    target_fps = user_constraints['target_fps']
+    used_batch = user_constraints['used_batch_n']
+    used_name = user_constraints['name']
+    plt = plot_roofline.generate_roofline_plt(archDict['dpl'], target_fps, used_batch, used_name,
+                                              show_splits=True, show_labels=True)
+    plot_roofline.show_roofline_plt(plt)
     print("\t...done.\n")
 
     print("\nDOSA finished successfully.\n")
