@@ -70,7 +70,7 @@ class OiPipeline:
                 res = {'num_layer': my_layer_num, 'name': hint, 'bw_total_B': bw_tmp,
                        'bw_data_B': bw_tmp, 'bw_param_B': 0}
                 obj.bw_results.append(res)
-                istr = "{:03}".format(my_layer_num)
+                istr = "{:06}".format(my_layer_num)
                 dpl = {'name': '(input)', 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
                        'layer': istr}
                 obj.data_per_layer[istr] = dpl
@@ -90,7 +90,7 @@ class OiPipeline:
                 res2 = {'num_layer': my_layer_num2, 'name': hint, 'bw_total_B': bw_tmp,
                         'bw_data_B': bw_tmp, 'bw_param_B': 0}
                 obj.bw_results.append(res2)
-                istr = "{:03}".format(my_layer_num2)
+                istr = "{:06}".format(my_layer_num2)
                 dpl2 = {'name': '(output)', 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
                         'layer': istr}
                 obj.data_per_layer[istr] = dpl2
@@ -144,7 +144,7 @@ class OiPipeline:
                 obj.bw_results.append(resBw)
                 resOi = {'num_layer': my_layer_num, 'name': my_name, 'oi_cmpl': oi_cmpl, 'oi_uinp': oi_uinp}
                 obj.oi_results.append(resOi)
-                istr = "{:03}".format(my_layer_num)
+                istr = "{:06}".format(my_layer_num)
                 dpl = {'name': my_name, 'cmpl': oi_cmpl, 'uinp': oi_uinp, 'flop': flop_total, 'parB': bw_param_B,
                        'inpB': bw_data_B, 'outB': out_bw, 'layer': istr}
                 obj.data_per_layer[istr] = dpl
