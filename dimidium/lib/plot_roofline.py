@@ -152,6 +152,7 @@ def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, 
     # line_style = 'dotted'
     line_style = 'solid'
 
+    plt.figure()
     plt.plot(ai_list, p_fpga_lutram_max, color='tab:orange', linewidth=MY_WIDTH, label='current Role LUTRAM bandwidth', linestyle=line_style, zorder=1)
     plt.plot(ai_list, p_fpga_ddr_max, color='tab:red', linewidth=MY_WIDTH, label='current Role DRAM bandwidth', linestyle=line_style, zorder=1)
     plt.plot(ai_list, p_fpga_bram_max, color='tab:blue', linewidth=MY_WIDTH, label='current Role BRAM bandwidth', linestyle=line_style, zorder=1)
@@ -315,8 +316,8 @@ def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, 
     return plt
 
 
-def show_roofline_plt(plt):
+def show_roofline_plt(plt, blocking=True):
     # plt.savefig('roofline.pdf', dpi=300, format="pdf")
     # plt.savefig('roofline.png', dpi=300, format="png")
-    plt.show()
+    plt.show(block=blocking)
 

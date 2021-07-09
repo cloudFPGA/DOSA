@@ -61,7 +61,11 @@ if __name__ == '__main__':
     used_name = user_constraints['name']
     plt = plot_roofline.generate_roofline_plt(archDict['dpl'], target_fps, used_batch, used_name,
                                               show_splits=True, show_labels=True)
-    plot_roofline.show_roofline_plt(plt)
+    plt2 = plot_roofline.generate_roofline_plt(archDict['fused_view'], target_fps, used_batch,
+                                               used_name + " (optimized)",
+                                               show_splits=True, show_labels=True)
+    # plot_roofline.show_roofline_plt(plt, blocking=False) not necessary...
+    plot_roofline.show_roofline_plt(plt2)
     print("\t...done.\n")
 
     print("\nDOSA finished successfully.\n")

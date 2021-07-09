@@ -63,9 +63,12 @@ class OiCalculator(object):
         flop_per_out_c = flop_per_in_c * in_channel + 1  # +1 is bias
         flop_total = flop_per_out_c * out_channel * batch_n
         # calculate bw requirements
-        param_B = size_b
-        for pd in param_dim[0]:
-            param_B *= pd
+        if len(param_dim) > 0:
+            param_B = size_b
+            for pd in param_dim[0]:
+                param_B *= pd
+        else:
+            param_B = 0
         input_B = size_b
         for e in layout_in:
             input_B *= e
@@ -89,9 +92,12 @@ class OiCalculator(object):
         flop_per_cc = 1  # exactly one addition per element
         flop_total = cc_per_batch * flop_per_cc * batch_n
         # calculate bw requirements
-        param_B = size_b
-        for pd in param_dim[0]:
-            param_B *= pd
+        if len(param_dim) > 0:
+            param_B = size_b
+            for pd in param_dim[0]:
+                param_B *= pd
+        else:
+            param_B = 0
         input_B = size_b
         for e in layout_in:
             input_B *= e
@@ -171,9 +177,12 @@ class OiCalculator(object):
         out_channel = layout_out[0]
         flop_per_out_channel = out_dim * flop_per_out_elem
         flop_total = out_channel * flop_per_out_channel
-        param_B = size_b
-        for pd in param_dim[0]:
-            param_B *= pd
+        if len(param_dim) > 0:
+            param_B = size_b
+            for pd in param_dim[0]:
+                param_B *= pd
+        else:
+            param_B = 0
         input_B = size_b
         for e in layout_in:
             input_B *= e
@@ -195,9 +204,12 @@ class OiCalculator(object):
         flop_per_cc = 1  # exactly one addition per element
         flop_total = cc_per_batch * flop_per_cc * batch_n
         # calculate bw requirements
-        param_B = size_b
-        for pd in param_dim[0]:
-            param_B *= pd
+        if len(param_dim) > 0:
+            param_B = size_b
+            for pd in param_dim[0]:
+                param_B *= pd
+        else:
+            param_B = 0
         input_B = size_b
         for e in layout_in:
             input_B *= e

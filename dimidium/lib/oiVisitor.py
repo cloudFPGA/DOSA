@@ -30,6 +30,12 @@ class OiPipeline:
         self.size_b = math.ceil(size_t/__bits_per_byte__)
         self.bw_layer_cnt = 0
         self.oiCalc = oiCalc
+        self.fn_cnt = 0
+        self.cur_fstr = "none"
+        self.fn_dict = {}
+        self.oi_fused_wise = {}
+        self.oi_main_view = {}
+        self.fn_call_cnts = {}
 
     def get_oi_results(self):
         return self.oi_results
@@ -39,6 +45,15 @@ class OiPipeline:
 
     def get_data_per_layer(self):
         return self.data_per_layer
+
+    def get_oi_fused_wise(self):
+        return self.oi_fused_wise
+
+    def get_oi_main_view(self):
+        return self.oi_main_view
+
+    def get_fn_call_cnts(self):
+        return self.fn_call_cnts
 
     # This function can define a pass.
     def transform_function(self, func, mod, ctx):
@@ -51,6 +66,21 @@ class OiPipeline:
                 # calculate input bw
                 bw_tmp = "unknown"
                 hint = "no_hint"
+                my_cnt = obj.fn_cnt
+                obj.fn_cnt += 1
+                if obj.fn_cnt > 9999:
+                    print("[DOSA:OICALC:ERROR] fn name overflow occurred!")
+                my_fstr = "{:04}".format(my_cnt)
+                my_name = 'fn_{}'.format(my_fstr)
+                obj.cur_fstr = my_name
+                obj.oi_fused_wise[obj.cur_fstr] = []
+                obj.fn_call_cnts[obj.cur_fstr] = 0
+
+                if my_cnt == 0:
+                    my_name = '(input)'
+                my_hash = str(hash(func))
+                obj.fn_dict[my_hash] = my_name
+
                 if hasattr(func, 'params'):
                     bw_tmp = obj.size_b
                     for p in func.params:
@@ -71,29 +101,30 @@ class OiPipeline:
                        'bw_data_B': bw_tmp, 'bw_param_B': 0}
                 obj.bw_results.append(res)
                 istr = "{:06}".format(my_layer_num)
-                dpl = {'name': '(input)', 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
+                dpl = {'name': my_name, 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
                        'layer': istr}
                 obj.data_per_layer[istr] = dpl
                 # visit body
                 self.visit(func.body)
                 # calculate output bw
-                my_layer_num2 = obj.bw_layer_cnt
-                obj.bw_layer_cnt += 1
-                bw_tmp = "unknown"
-                hint = "func_return"
-                if hasattr(func, 'ret_type'):
-                    bw_tmp = obj.size_b
-                    for d in func.ret_type.shape:
-                        bw_tmp *= int(d)
-                    if hasattr(func.ret_type, 'name_hint'):
-                        hint = func.ret_type.name_hint
-                res2 = {'num_layer': my_layer_num2, 'name': hint, 'bw_total_B': bw_tmp,
-                        'bw_data_B': bw_tmp, 'bw_param_B': 0}
-                obj.bw_results.append(res2)
-                istr = "{:06}".format(my_layer_num2)
-                dpl2 = {'name': '(output)', 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
-                        'layer': istr}
-                obj.data_per_layer[istr] = dpl2
+                if my_cnt == 0:
+                    my_layer_num2 = obj.bw_layer_cnt
+                    obj.bw_layer_cnt += 1
+                    bw_tmp = "unknown"
+                    hint = "func_return"
+                    if hasattr(func, 'ret_type'):
+                        bw_tmp = obj.size_b
+                        for d in func.ret_type.shape:
+                            bw_tmp *= int(d)
+                        if hasattr(func.ret_type, 'name_hint'):
+                            hint = func.ret_type.name_hint
+                    res2 = {'num_layer': my_layer_num2, 'name': hint, 'bw_total_B': bw_tmp,
+                            'bw_data_B': bw_tmp, 'bw_param_B': 0}
+                    obj.bw_results.append(res2)
+                    istr = "{:06}".format(my_layer_num2)
+                    dpl2 = {'name': '(output)', 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
+                            'layer': istr}
+                    obj.data_per_layer[istr] = dpl2
 
             def visit_call(self, call):
                 self.visit(call.op)  # necessary?
@@ -102,8 +133,20 @@ class OiPipeline:
 
                 # post order processing
                 my_layer_num = obj.bw_layer_cnt
-                my_name = str(call.op.name)
                 obj.bw_layer_cnt += 1
+                if obj.bw_layer_cnt > 999999:
+                    print("[DOSA:OICALC:ERROR] layer count overflow occurred!")
+                function_call = False
+                if type(call.op) is relay.function.Function:
+                    f_hash = str(hash(call.op))
+                    my_name = obj.fn_dict[f_hash]
+                    op_name = my_name
+                    function_call = True
+                else:
+                    my_name = str(call.op.name)
+                    op_name = my_name
+                    if obj.fn_cnt > 1:
+                        my_name = "{}_{}".format(obj.cur_fstr, str(call.op.name))
                 bw_data_B = 0
                 bw_param_B = 0
                 data_dim = []
@@ -137,7 +180,19 @@ class OiPipeline:
                 attrs = None
                 if hasattr(call, 'attrs'):
                     attrs = call.attrs
-                oi_cmpl, oi_uinp, flop_total = obj.oiCalc.calc(call.op.name, data_dim, param_dim, out_dim, attrs, obj.size_b)
+
+                if not function_call:
+                    oi_cmpl, oi_uinp, flop_total = obj.oiCalc.calc(call.op.name, data_dim, param_dim, out_dim, attrs, obj.size_b)
+                else:
+                    flop_total = 0
+                    name_sum_t = "fn("
+                    for e in obj.oi_fused_wise[my_name]:
+                        flop_total += e['flop']
+                        tmp_name = e['op'].split('.')[-1]
+                        name_sum_t += tmp_name + ", "
+                    name_summary = name_sum_t[:-2] + ")"
+                    oi_cmpl = float(flop_total) / bw_total_B
+                    oi_uinp = float(flop_total) / bw_data_B
 
                 resBw = {'num_layer': my_layer_num, 'name': my_name, 'bw_total_B': bw_total_B,
                          'bw_data_B': bw_data_B, 'bw_param_B': bw_param_B}
@@ -146,8 +201,13 @@ class OiPipeline:
                 obj.oi_results.append(resOi)
                 istr = "{:06}".format(my_layer_num)
                 dpl = {'name': my_name, 'cmpl': oi_cmpl, 'uinp': oi_uinp, 'flop': flop_total, 'parB': bw_param_B,
-                       'inpB': bw_data_B, 'outB': out_bw, 'layer': istr}
+                       'inpB': bw_data_B, 'outB': out_bw, 'layer': istr, 'fn': obj.cur_fstr, 'op': op_name}
                 obj.data_per_layer[istr] = dpl
+                obj.oi_fused_wise[obj.cur_fstr].append(dpl)
+                if function_call:
+                    dpl['layer'] = name_summary
+                    obj.oi_main_view[my_name] = dpl
+                    obj.fn_call_cnts[my_name] += 1
 
         return OiVisitor().visit(func)
 

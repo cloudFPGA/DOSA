@@ -11,17 +11,17 @@
 #  *
 
 
-def convert_oi_list_for_plot(dpl):
+def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
     cmpl_list = []
     uinp_list = []
     detail_list = []
     total_flops = 0
     total_uinp_B = 0
-    total_param_B =0
+    total_param_B = 0
     for l in dpl:
         e = dpl[l]
         cmpl = e['cmpl']
-        if cmpl == 1:
+        if cmpl == default_to_ignore:
             continue
         uinp = e['uinp']
         name = e['name']

@@ -36,8 +36,10 @@ def arch_gen(mod, params, debug=False):
     seq1 = tvm.transform.Sequential(
         [
             relay.transform.FoldConstant(),
+            relay.transform.DeadCodeElimination(),
+            relay.transform.FuseOps(),
+            relay.transform.EliminateCommonSubexpr(),
             tvm.transform.PrintIR(),
-            # relay.transform.FuseOps(),
         ]
     )
 
@@ -48,20 +50,31 @@ def arch_gen(mod, params, debug=False):
         ]
     )
 
-    with tvm.transform.PassContext(opt_level=2, instruments=[PrintMeta()]):
+    with tvm.transform.PassContext(opt_level=3, instruments=[PrintMeta()]):
         mod2 = seq1(mod)
         ignore = seq2_ro(mod2)
 
     oi_results = oi_pass.get_oi_results()
     bw_results = oi_pass.get_bw_results()
     data_per_layer = oi_pass.get_data_per_layer()
+    oi_fused_wise = oi_pass.get_oi_fused_wise()
+    oi_main_view = oi_pass.get_oi_main_view()
+    fn_call_stats = oi_pass.get_fn_call_cnts()
 
     if debug:
-        print(oi_results)
-        print(bw_results)
+        # print(oi_results)
+        # print(bw_results)
+        print("\n[DEBUG] data_per_layer")
         print(json.dumps(data_per_layer, indent=2, sort_keys=False))
+        print("\n[DEBUG] oi_fused_wise")
+        print(json.dumps(oi_fused_wise, indent=2, sort_keys=False))
+        print("\n[DEBUG] oi_main_view")
+        print(json.dumps(oi_main_view, indent=2, sort_keys=False))
+        print("\n[DEBUG] fn_call_stats")
+        print(json.dumps(fn_call_stats, indent=2, sort_keys=False))
 
-    ret = {'mod': mod2, 'oi_results': oi_results, 'bw_results': bw_results, 'dpl': data_per_layer}
+    ret = {'mod': mod2, 'oi_results': oi_results, 'bw_results': bw_results, 'dpl': data_per_layer,
+           'fused_view': oi_main_view}
 
     return ret
 
@@ -71,7 +84,7 @@ def calculate_required_performance(detail_list, target_fps, used_batch_size=1, u
 
     :param detail_list: detailed layer list from model summary
     :param target_fps: target framerate in Bytes per second
-    :param target_batch_size: in frames
+    :param used_batch_size: batch size that is configured in the neuronal network
     :return:
     """
     # assert target_batch_size == 1
