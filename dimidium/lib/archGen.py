@@ -23,7 +23,7 @@ class PrintMeta:
 
     def run_before_pass(self, mod, info):
         print("Running pass: {}".format(info))
-        print(mod)
+        # print(mod)
 
 
 def arch_gen(mod, params, debug=False):
@@ -36,9 +36,18 @@ def arch_gen(mod, params, debug=False):
     seq1 = tvm.transform.Sequential(
         [
             relay.transform.FoldConstant(),
+            relay.transform.FastMath(),
+            relay.transform.CanonicalizeCast(),
             relay.transform.DeadCodeElimination(),
             relay.transform.FuseOps(),
+            relay.transform.RemoveUnusedFunctions(),
             relay.transform.EliminateCommonSubexpr(),
+            tvm.transform.PrintIR(),
+            relay.transform.SimplifyInference(),
+            relay.transform.FoldExplicitPadding(),
+            relay.transform.ForwardFoldScaleAxis(),
+            relay.transform.InferType(),
+            # relay.transform.AnnotateSpans(),  # not working with input.1 name...
             tvm.transform.PrintIR(),
         ]
     )
