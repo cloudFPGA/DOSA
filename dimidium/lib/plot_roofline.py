@@ -71,7 +71,7 @@ def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, 
         plt.vlines(x=e['oi'], ymin=y_min, ymax=y_max, colors=color, linestyles=line_style, linewidth=line_width,
                    zorder=z_order)  # , label=e['name'])
         if show_labels:
-            plt.text(x=e['oi']*1.1, y=next(th), s=e['name'], color=color, fontsize=font_size, ha='left', va='top',
+            plt.text(x=e['oi']*1.02, y=next(th), s=e['name'], color=color, fontsize=font_size, ha='left', va='top',
                      rotation=90)
 
 
@@ -235,21 +235,6 @@ def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, 
     draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, cF_bigRole_dsp48_gflops, uinp_list,
                  y_min=-0.1, show_labels=show_labels)
 
-    # color3 = 'orchid'
-    color3 = 'aqua'
-    oai_avg = total['flops'] / (total['uinp_B'] + total['para_B'])
-    plt.vlines(x=oai_avg, ymin=-0.1, ymax=cF_bigRole_dsp48_gflops, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
-               zorder=6)
-    text = 'Engine avg.'
-    plt.text(x=oai_avg*1.1, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
-             rotation=90)
-    oai_avg2 = total['flops'] / total['uinp_B']
-    plt.vlines(x=oai_avg2, ymin=-0.1, ymax=cF_bigRole_dsp48_gflops, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
-               zorder=6)
-    text = 'Stream avg.'
-    plt.text(x=oai_avg2*1.1, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
-             rotation=90)
-
     annotated_list, cmpl_list2, uinp_list2 = calculate_required_performance(detail_list, target_fps, used_batch, unit=gigaU)
     draw_oi_marker(plt, color, marker1, cmpl_list2)
     draw_oi_marker(plt, color2, marker2, uinp_list2)
@@ -259,6 +244,23 @@ def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, 
     marker2_text = 'req. perf. f. Stream arch. (w/ {} fps, batch {})'.format(target_fps, used_batch)
     marker2_legend = mpl.lines.Line2D([], [], color=color2, marker=marker2, linestyle='None', markersize=10,
                                       label=marker2_text)
+
+    # color3 = 'orchid'
+    color3 = 'aqua'
+    oai_avg = total['flops'] / (total['uinp_B'] + total['para_B'])
+    plt.vlines(x=oai_avg, ymin=-0.1, ymax=cF_bigRole_dsp48_gflops, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
+               zorder=8)
+    text = 'Engine avg.'
+    plt.text(x=oai_avg*1.02, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
+             rotation=90, zorder=8)
+    print("[DOSA:roofline] Info: {} at {}".format(text, oai_avg))
+    oai_avg2 = total['flops'] / total['uinp_B']
+    plt.vlines(x=oai_avg2, ymin=-0.1, ymax=cF_bigRole_dsp48_gflops, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
+               zorder=8)
+    text = 'Stream avg.'
+    plt.text(x=oai_avg2*1.02, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
+             rotation=90, zorder=8)
+    print("[DOSA:roofline] Info: {} at {}".format(text, oai_avg2))
 
     # plt.scatter(x=[oai_avg], y=[total['total_flops']*target_fps], marker=marker1, color=color3, zorder=6,
     #             label='req. perf. Engine avg.')

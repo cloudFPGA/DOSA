@@ -21,7 +21,7 @@ def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
     for l in dpl:
         e = dpl[l]
         cmpl = e['cmpl']
-        if cmpl == default_to_ignore:
+        if cmpl == default_to_ignore or cmpl == 0:
             continue
         uinp = e['uinp']
         name = e['name']
