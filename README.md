@@ -28,6 +28,24 @@ Structure
 -------------
 
 - learning
+- dimidium: 
+    - first version of DOSA
+    - https://en.wikipedia.org/wiki/Dimidium
+
 t.b.c....
+
+
+Private TVM fork
+--------------------
+
+To store internal configurations, patches and changes, an IBM internal fork exists: https://github.ibm.com/cloudFPGA/tvm-for-dosa
+
+The internal repo can be added like this:
+```
+$ git remote add internal git@github.ibm.com:cloudFPGA/tvm-for-dosa.git
+$ git push -u internal main
+```
+
+on changes, just run `cmake` and `make -j4` again.
 
 
