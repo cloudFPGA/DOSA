@@ -54,6 +54,7 @@ def arch_gen(mod, params, debug=False):
         mod2 = seq1(mod)
         ignore = seq2_ro(mod2)
 
+    oi_pass.reorder_fn_calls()
     oi_results = oi_pass.get_oi_results()
     bw_results = oi_pass.get_bw_results()
     data_per_layer = oi_pass.get_data_per_layer()

@@ -10,6 +10,8 @@
 #  *
 #  *
 
+import re
+
 
 def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
     cmpl_list = []
@@ -38,4 +40,24 @@ def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
     return cmpl_list, uinp_list, total, detail_list
 
 
+# based on: https://www.oreilly.com/library/view/python-cookbook/0596001673/ch03s15.html
+def multiple_replce(text, repdict):
+    # Create a regular expression from all of the dictionary keys
+    regex = re.compile("|".join(map(re.escape, repdict.keys())))
+
+    # For each match, look up the corresponding value in the dictionary
+    return regex.sub(lambda match: repdict[match.group(0)], text)
+
+
+# based on: https://stackoverflow.com/questions/65542170/how-to-replace-all-occurence-of-string-in-a-nested-dict
+def replace_deep(dicttoreplace, repdict):
+    if isinstance(dicttoreplace, str):
+        return multiple_replce(dicttoreplace, repdict)
+    elif isinstance(dicttoreplace, dict):
+        return {multiple_replce(k, repdict): replace_deep(v, repdict) for k, v in dicttoreplace.items()}
+    elif isinstance(dicttoreplace, list):
+        return [replace_deep(v, repdict) for v in dicttoreplace]
+    else:
+        # nothing to do?
+        return dicttoreplace
 

@@ -15,6 +15,9 @@ import tvm
 import tvm.relay as relay
 import math
 
+from dimidium.lib.util import replace_deep
+
+
 __bits_per_byte__ = 8
 
 
@@ -55,6 +58,28 @@ class OiPipeline:
     def get_fn_call_cnts(self):
         return self.fn_call_cnts
 
+    def reorder_fn_calls(self):
+        tl = self.fn_cnt
+        repdict = {'FN_0000': 'fn_main'}
+        for i in range(1, tl):
+            o_str = "{:04}".format(i)
+            n_str = "{:04}".format(tl-i)
+            ok = 'FN_{}'.format(o_str)
+            nk = 'fn_{}'.format(n_str)
+            repdict[ok] = nk
+        new_oi_results = replace_deep(self.oi_results, repdict)
+        new_bw_results = replace_deep(self.bw_results, repdict)
+        new_dpl = replace_deep(self.data_per_layer, repdict)
+        new_oi_fused_wise = replace_deep(self.oi_fused_wise, repdict)
+        new_oi_main_view = replace_deep(self.oi_main_view, repdict)
+        new_fn_stats = replace_deep(self.fn_call_cnts, repdict)
+        self.oi_results = new_oi_results
+        self.bw_results = new_bw_results
+        self.data_per_layer = new_dpl
+        self.oi_fused_wise = new_oi_fused_wise
+        self.oi_main_view = new_oi_main_view
+        self.fn_call_cnts = new_fn_stats
+
     # This function can define a pass.
     def transform_function(self, func, mod, ctx):
         obj = self
@@ -71,7 +96,7 @@ class OiPipeline:
                 if obj.fn_cnt > 9999:
                     print("[DOSA:OICALC:ERROR] fn name overflow occurred!")
                 my_fstr = "{:04}".format(my_cnt)
-                my_name = 'fn_{}'.format(my_fstr)
+                my_name = 'FN_{}'.format(my_fstr)
                 obj.cur_fstr = my_name
                 obj.oi_fused_wise[obj.cur_fstr] = []
                 obj.fn_call_cnts[obj.cur_fstr] = 0
