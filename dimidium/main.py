@@ -19,6 +19,8 @@ import tvm.relay as relay
 
 from dimidium.lib.archGen import arch_gen
 import dimidium.lib.plot_roofline as plot_roofline
+import dimidium.lib.devices as dosa_devices
+
 
 __mandatory_keys__ = ['shape_dict']
 
@@ -60,9 +62,13 @@ if __name__ == '__main__':
     used_batch = user_constraints['used_batch_n']
     used_name = user_constraints['name']
     plt = plot_roofline.generate_roofline_plt(archDict['dpl'], target_fps, used_batch, used_name,
+                                              dosa_devices.cF_FMKU60_Themisto_1.get_perf_dict(),
+                                              dosa_devices.cF_FMKU60_Themisto_1.get_roofline_dict(),
                                               show_splits=True, show_labels=True)
     plt2 = plot_roofline.generate_roofline_plt(archDict['fused_view'], target_fps, used_batch,
                                                used_name + " (optimized)",
+                                               dosa_devices.cF_FMKU60_Themisto_1.get_perf_dict(),
+                                               dosa_devices.cF_FMKU60_Themisto_1.get_roofline_dict(),
                                                show_splits=True, show_labels=True)
     # plot_roofline.show_roofline_plt(plt, blocking=False) not necessary...
     plot_roofline.show_roofline_plt(plt2)

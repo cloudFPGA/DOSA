@@ -23,24 +23,10 @@ from matplotlib.patches import Ellipse
 from dimidium.lib.util import convert_oi_list_for_plot
 from dimidium.lib.archGen import calculate_required_performance
 
-kiloU = 1000.0
-megaU = 1000.0 * kiloU
-gigaU = 1000.0 * megaU
-nanoU = gigaU
+from dimidium.lib.units import *
 __ylim_min__ = 0.01
 __ylim_max__ = 100000
 
-# FPGA specs
-# UltraScale KU0600
-# Speedgrade -2
-freq_fpga_mhz = 156.0
-freq_fpga_ghz = 0.156
-freq_fpga = freq_fpga_mhz * megaU  #  Hz
-clk_fpga = 6.4  #  ns
-us_dsp48_s2_fmax_g = 0.661 # Ghz
-ku060_num_dsp = 2760.0
-dsp_flop_s = 4.0 * us_dsp48_s2_fmax_g
-us_dsp48_s2_gflops = ku060_num_dsp * dsp_flop_s  # 4 FLOPs per DSP per cycle, 2760 DSPs per FPGA
 
 
 # https://stackoverflow.com/questions/44970010/axes-class-set-explicitly-size-width-height-of-axes-in-given-units
@@ -91,40 +77,8 @@ def draw_oi_marker(plt, color, marker, oi_list, z_order=8):
     plt.scatter(x=x, y=y, marker=marker, color=color, zorder=z_order)
 
 
-def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, show_splits=True, show_labels=True):
-    cF_all_dsp48_gflops = 4.0 * ku060_num_dsp * freq_fpga_ghz
-    cF_1_dsp48_gflops = 4.0 * freq_fpga_ghz
-    cF_bigRole_dsp48_gflops = 1028.0 * 4.0 * freq_fpga_ghz
-
-    cF_mantle_dsp48_gflops = 938.0 * 4.0 * freq_fpga_ghz
-
-    # DRAM bandwidth
-    b_s_fpga_ddr_gBs = 10.0 # 10GB/s (one memory bank of FMKU60)
-
-    # b_s_mantle_ddr_gBs = 75.5/8  # based on Xilinx measurements
-
-    # BRAM bandwidth
-    fpga_brams = 1080
-    big_role_brams = 351
-    b_s_fpga_bram_Bs = (big_role_brams * 72/8) / (1/freq_fpga)  # 1080 BRAMs with 72 bit write per cycle each, Bytes/s
-    b_s_fpga_bram_gBs = b_s_fpga_bram_Bs / gigaU
-
-    # small_role_brams = 306
-    # b_s_mantle_bram_gBs = ((small_role_brams * 72/8) / (1/freq_fpga) ) / gigaU
-
-    # LUTRAM bandwidth (distributed RAM)
-    fpga_lutram_available_B = (9180 * 2 * 8)*8  # 146880 available LUTRAMs, 64bit/8Byte each, Bytes
-    big_role_lutram_available_B = 52640.0
-    small_role_lutram_available_B = 47040.0
-    b_s_fpga_lutram_Bs =  big_role_lutram_available_B / (1/freq_fpga)  # Bytes/s
-    b_s_fpga_lutram_gBs = b_s_fpga_lutram_Bs / gigaU
-
-    # b_s_mantle_lutram_gBs = (small_role_lutram_available_B / (1/freq_fpga)) / gigaU
-
-    # network bandwidth
-    b_s_fpga_eth_gBs = 10.0 / 8.0   # 10Gbe
-
-    # b_s_mantle_eth_gBs = 9.87 / 8.0
+def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, perf_dict, roofline_dict,
+                          show_splits=True, show_labels=True):
 
     # Arithmetic intensity vector
     ai_list_small = np.arange(0.01, 1, 0.01)
@@ -133,11 +87,11 @@ def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, 
     ai_list = np.concatenate((ai_list_small, ai_list_middle, ai_list_big))
 
     # Attainable performance
-    upper_limit = cF_bigRole_dsp48_gflops
-    p_fpga_ddr_max = [ap(x, upper_limit, b_s_fpga_ddr_gBs) for x in ai_list]
-    p_fpga_bram_max = [ap(x, upper_limit, b_s_fpga_bram_gBs) for x in ai_list]
-    p_fpga_network_max = [ap(x, upper_limit, b_s_fpga_eth_gBs) for x in ai_list]
-    p_fpga_lutram_max = [ap(x, upper_limit, b_s_fpga_lutram_gBs) for x in ai_list]
+    upper_limit = perf_dict['dsp48_gflops']
+    p_fpga_ddr_max = [ap(x, upper_limit, perf_dict['bw_ddr4_gBs']) for x in ai_list]
+    p_fpga_bram_max = [ap(x, upper_limit, perf_dict['bw_bram_gBs']) for x in ai_list]
+    p_fpga_network_max = [ap(x, upper_limit, perf_dict['bw_netw_gBs']) for x in ai_list]
+    p_fpga_lutram_max = [ap(x, upper_limit, perf_dict['bw_lutram_gBs']) for x in ai_list]
 
     # p_fpga_ddr_mantle = [ap(x, upper_limit, b_s_mantle_ddr_gBs) for x in ai_list]
     # p_fpga_bram_mantle = [ap(x, upper_limit, b_s_mantle_bram_gBs) for x in ai_list]
@@ -181,12 +135,12 @@ def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, 
     # plt.fill_between(np.arange(mantle_sweet_spot, ai_list[-1], 0.1), cF_bigRole_dsp48_gflops, cF_mantle_dsp48_gflops,
     #                 color='tomato', alpha=alpha, rasterized=True, zorder=2)
 
-    sweet_spot = 0.081
+    sweet_spot = roofline_dict['sweet_spot']
     color = 'darkmagenta'
     line_style = 'solid'  # otherwise we see the memory lines...
-    plt.hlines(y=cF_bigRole_dsp48_gflops, xmin=sweet_spot, xmax=ai_list[-1], colors=color, linestyles=line_style, linewidth=MY_WIDTH*1.2, zorder=3)
-    text = "{0:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE)".format(cF_bigRole_dsp48_gflops)
-    plt.text(x=sweet_spot, y=cF_bigRole_dsp48_gflops+100, s=text, color=color, fontsize=MY_SIZE_SMALL)
+    plt.hlines(y=upper_limit, xmin=sweet_spot, xmax=ai_list[-1], colors=color, linestyles=line_style, linewidth=MY_WIDTH*1.2, zorder=3)
+    text = "{0:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE)".format(upper_limit)
+    plt.text(x=sweet_spot, y=upper_limit+100, s=text, color=color, fontsize=MY_SIZE_SMALL)
 
     # custommarker = Path.circle()
     # color = 'darkturquoise'
@@ -230,9 +184,9 @@ def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, 
     # plt.text(x=oai*1.1, y=marker_line-55, s=text, color=color, fontsize=MY_SIZE*font_factor, ha='left', va='top')
 
     cmpl_list, uinp_list, total, detail_list = convert_oi_list_for_plot(detailed_analysis)
-    draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, cF_bigRole_dsp48_gflops, cmpl_list,
+    draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, upper_limit, cmpl_list,
                  y_min=-0.1, show_labels=show_labels)
-    draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, cF_bigRole_dsp48_gflops, uinp_list,
+    draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, upper_limit, uinp_list,
                  y_min=-0.1, show_labels=show_labels)
 
     annotated_list, cmpl_list2, uinp_list2 = calculate_required_performance(detail_list, target_fps, used_batch, unit=gigaU)
@@ -248,14 +202,14 @@ def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, 
     # color3 = 'orchid'
     color3 = 'aqua'
     oai_avg = total['flops'] / (total['uinp_B'] + total['para_B'])
-    plt.vlines(x=oai_avg, ymin=-0.1, ymax=cF_bigRole_dsp48_gflops, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
+    plt.vlines(x=oai_avg, ymin=-0.1, ymax=upper_limit, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
                zorder=8)
     text = 'Engine avg.'
     plt.text(x=oai_avg*1.02, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
              rotation=90, zorder=8)
     print("[DOSA:roofline] Info: {} at {}".format(text, oai_avg))
     oai_avg2 = total['flops'] / total['uinp_B']
-    plt.vlines(x=oai_avg2, ymin=-0.1, ymax=cF_bigRole_dsp48_gflops, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
+    plt.vlines(x=oai_avg2, ymin=-0.1, ymax=upper_limit, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
                zorder=8)
     text = 'Stream avg.'
     plt.text(x=oai_avg2*1.02, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
