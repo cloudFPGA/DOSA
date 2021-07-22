@@ -20,9 +20,14 @@ import tvm.relay as relay
 from dimidium.lib.archGen import arch_gen
 import dimidium.lib.plot_roofline as plot_roofline
 import dimidium.lib.devices as dosa_devices
+from dimidium.lib.util import OptimizationStrategies
 
 
-__mandatory_keys__ = ['shape_dict']
+__mandatory_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_fps', 'target_hw',
+                      'resource_budget', 'arch_gen_strategy', 'fallback_hw']
+__arch_gen_strategies__ = ['performance', 'resources', 'default', 'latency', 'throughput']
+__valid_fallback_hws__ = ['None']
+__valid_fallback_hws__.extend(dosa_devices.fallback_hw)
 
 
 def onnx_import(onnx_path, shape_dict, debug=False):
@@ -46,13 +51,55 @@ if __name__ == '__main__':
 
     for k in __mandatory_keys__:
         if k not in user_constraints:
-            print("ERROR: Mandatory key {} is missing in the constraints file {}. stop.".format(k, const_path))
+            print("ERROR: Mandatory key {} is missing in the constraints file {}. Stop.".format(k, const_path))
             exit(1)
+
+    arch_target_devices = []
+    for td in user_constraints['target_hw']:
+        if td not in dosa_devices.types:
+            print("ERROR: Target hardware {} is not supported. Stop.".format(td))
+            exit(1)
+        else:
+            arch_target_devices.append(dosa_devices.types_dict[td])
+
+    uags = user_constraints['arch_gen_strategy']
+    if uags not in __arch_gen_strategies__:
+        print("ERROR: Architecture optimization strategy {} is not supported. Stop.".format(uags))
+        exit(1)
+
+    arch_gen_strategy = OptimizationStrategies.DEFAULT
+    if uags == 'performance':
+        arch_gen_strategy = OptimizationStrategies.PERFORMANCE
+    elif uags == 'resources':
+        arch_gen_strategy = OptimizationStrategies.RESOURCES
+    elif uags == 'latency':
+        arch_gen_strategy = OptimizationStrategies.LATENCY
+    elif uags == 'throughput':
+        arch_gen_strategy = OptimizationStrategies.THROUGHPUT
+    else:
+        arch_gen_strategy = OptimizationStrategies.DEFAULT
+
+    arch_fallback_hw = None
+    if type(user_constraints['fallback_hw']) is list:
+        for fhw in user_constraints['fallback_hw']:
+            if fhw not in dosa_devices.fallback_hw:
+                print("ERROR: Fallback hardware {} is not supported in list of fallback_hw. Stop.".format(fhw))
+                exit(1)
+        arch_fallback_hw = user_constraints['fallback_hw']
+    else:
+        if user_constraints['fallback_hw'] != "None":
+            print("ERROR: Fallback hardware {} is not supported in non-list of fallback_hw. Stop."
+                  .format(user_constraints['fallback_hw']))
+            exit(1)
+        # arch_fallback_hw stays None
 
     print("DOSA: Importing ONNX...")
     mod, params = onnx_import(onnx_path, user_constraints['shape_dict'])
     print("\t...done.\n")
 
+    # TODO: remove temporary guards
+    assert arch_target_devices[0] == dosa_devices.cF_FMKU60_Themisto_1
+    assert len(arch_target_devices) == 1
     print("DOSA: Generating high-level architecture...")
     archDict = arch_gen(mod, params, debug=True)
     print("\t...done.\n")
@@ -62,13 +109,13 @@ if __name__ == '__main__':
     used_batch = user_constraints['used_batch_n']
     used_name = user_constraints['name']
     plt = plot_roofline.generate_roofline_plt(archDict['dpl'], target_fps, used_batch, used_name,
-                                              dosa_devices.cF_FMKU60_Themisto_1.get_perf_dict(),
-                                              dosa_devices.cF_FMKU60_Themisto_1.get_roofline_dict(),
+                                              arch_target_devices[0].get_performance_dict(),
+                                              arch_target_devices[0].get_roofline_dict(),
                                               show_splits=True, show_labels=True)
     plt2 = plot_roofline.generate_roofline_plt(archDict['fused_view'], target_fps, used_batch,
                                                used_name + " (optimized)",
-                                               dosa_devices.cF_FMKU60_Themisto_1.get_perf_dict(),
-                                               dosa_devices.cF_FMKU60_Themisto_1.get_roofline_dict(),
+                                               arch_target_devices[0].get_performance_dict(),
+                                               arch_target_devices[0].get_roofline_dict(),
                                                show_splits=True, show_labels=True)
     # plot_roofline.show_roofline_plt(plt, blocking=False) not necessary...
     plot_roofline.show_roofline_plt(plt2)

@@ -11,6 +11,15 @@
 #  *
 
 import re
+from enum import Enum
+
+
+class OptimizationStrategies(Enum):
+    PERFORMANCE = 1
+    RESOURCES = 2
+    LATENCY = 3
+    THROUGHPUT = PERFORMANCE
+    DEFAULT = PERFORMANCE
 
 
 def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):

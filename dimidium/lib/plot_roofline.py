@@ -28,7 +28,6 @@ __ylim_min__ = 0.01
 __ylim_max__ = 100000
 
 
-
 # https://stackoverflow.com/questions/44970010/axes-class-set-explicitly-size-width-height-of-axes-in-given-units
 # uses global variables...so better here instead of putting it in util
 def set_size(w, h, ax=None):
