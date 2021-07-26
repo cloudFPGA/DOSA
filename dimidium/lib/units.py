@@ -14,3 +14,5 @@ kiloU = 1000.0
 megaU = 1000.0 * kiloU
 gigaU = 1000.0 * megaU
 nanoU = gigaU
+
+config_bits_per_byte = 8

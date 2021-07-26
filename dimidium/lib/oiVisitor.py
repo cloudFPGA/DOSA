@@ -15,7 +15,8 @@ import tvm
 import tvm.relay as relay
 import math
 
-from dimidium.lib.util import replace_deep, config_bits_per_byte, dtype_to_size_b, bit_to_dtype
+from dimidium.lib.util import replace_deep, dtype_to_size_b, bit_to_dtype
+from dimidium.lib.units import config_bits_per_byte
 
 
 @relay.transform.function_pass(opt_level=1)

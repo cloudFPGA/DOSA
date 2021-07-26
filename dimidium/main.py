@@ -26,7 +26,8 @@ from dimidium.lib.util import config_bits_per_byte
 
 __mandatory_config_keys__ = ['input_latency', 'output_latency']
 __mandatory_user_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_sps', 'target_hw',
-                      'resource_budget', 'arch_gen_strategy', 'fallback_hw', 'used_input_size_t']
+                           'target_resource_budget', 'arch_gen_strategy', 'fallback_hw', 'used_input_size_t',
+                           'target_latency']
 __arch_gen_strategies__ = ['performance', 'resources', 'default', 'latency', 'throughput']
 __valid_fallback_hws__ = ['None']
 __valid_fallback_hws__.extend(dosa_devices.fallback_hw)
@@ -90,7 +91,6 @@ if __name__ == '__main__':
     else:
         arch_gen_strategy = OptimizationStrategies.DEFAULT
 
-    user_resource_budget = user_constraints['resource_budget']
 
     arch_fallback_hw = None
     if type(user_constraints['fallback_hw']) is list:
@@ -109,7 +109,9 @@ if __name__ == '__main__':
     print("DOSA: Importing ONNX...")
     mod, params = onnx_import(onnx_path, user_constraints['shape_dict'])
     target_sps = user_constraints['target_sps']
+    target_latency = user_constraints['target_latency']
     used_batch = user_constraints['used_batch_n']
+    target_resource_budget = user_constraints['resource_budget']
     used_name = user_constraints['name']
     used_in_size_t = user_constraints['used_input_size_t']
     sample_size_bit = used_in_size_t

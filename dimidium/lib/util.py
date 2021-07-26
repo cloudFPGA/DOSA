@@ -14,7 +14,7 @@ import re
 from enum import Enum
 import math
 
-config_bits_per_byte = 8
+from dimidium.lib.units import config_bits_per_byte
 
 
 class OptimizationStrategies(Enum):
