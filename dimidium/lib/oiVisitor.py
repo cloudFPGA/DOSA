@@ -15,22 +15,20 @@ import tvm
 import tvm.relay as relay
 import math
 
-from dimidium.lib.util import replace_deep
-
-
-__bits_per_byte__ = 8
+from dimidium.lib.util import replace_deep, config_bits_per_byte, dtype_to_size_b, bit_to_dtype
 
 
 @relay.transform.function_pass(opt_level=1)
 class OiPipeline:
     """Relay pass to calculate OIs"""
 
-    def __init__(self, size_t, oiCalc):
+    def __init__(self, fallback_size_t, oiCalc):
         self.oi_results = []
         self.bw_results = []
         self.data_per_layer = {}
-        self.size_t = size_t
-        self.size_b = math.ceil(size_t/__bits_per_byte__)
+        self.size_t = fallback_size_t
+        self.default_size_b = math.ceil(self.size_t/config_bits_per_byte)
+        self.default_dtype = bit_to_dtype(self.size_t)
         self.bw_layer_cnt = 0
         self.oiCalc = oiCalc
         self.fn_cnt = 0
@@ -106,15 +104,20 @@ class OiPipeline:
                 my_hash = str(hash(func))
                 obj.fn_dict[my_hash] = my_name
 
+                used_dtype = obj.default_dtype
                 if hasattr(func, 'params'):
-                    bw_tmp = obj.size_b
+                    bw_tmp = obj.default_size_b
                     for p in func.params:
                         # TODO use p.checked_type.dtype instead of size_b?
                         bw_type = None
                         if hasattr(p, 'checked_type'):
                             bw_type = p.checked_type
+                            bw_tmp = dtype_to_size_b(p.checked_type.dtype)
+                            used_dtype = p.checked_type.dtype
                         elif hasattr(p, 'type_annotation'):
                             bw_type = p.type_annotation
+                            bw_tmp = dtype_to_size_b(p.type_annotation.dtype)
+                            used_dtype = p.type_annotation.dtype
                         if bw_type is not None:
                             for d in bw_type.shape:
                                 bw_tmp *= int(d)
@@ -127,7 +130,7 @@ class OiPipeline:
                 obj.bw_results.append(res)
                 istr = "{:06}".format(my_layer_num)
                 dpl = {'name': my_name, 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
-                       'layer': istr}
+                       'layer': istr, 'fn': my_name, 'op': '(function)', 'dtype': used_dtype}
                 obj.data_per_layer[istr] = dpl
                 # visit body
                 self.visit(func.body)
@@ -138,7 +141,7 @@ class OiPipeline:
                     bw_tmp = "unknown"
                     hint = "func_return"
                     if hasattr(func, 'ret_type'):
-                        bw_tmp = obj.size_b
+                        bw_tmp = dtype_to_size_b(used_dtype)
                         for d in func.ret_type.shape:
                             bw_tmp *= int(d)
                         if hasattr(func.ret_type, 'name_hint'):
@@ -148,7 +151,7 @@ class OiPipeline:
                     obj.bw_results.append(res2)
                     istr = "{:06}".format(my_layer_num2)
                     dpl2 = {'name': '(output)', 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
-                            'layer': istr}
+                            'layer': istr,  'fn': my_name, 'op': '(function)', 'dtype': used_dtype}
                     obj.data_per_layer[istr] = dpl2
 
             def visit_call(self, call):
@@ -176,9 +179,15 @@ class OiPipeline:
                 bw_param_B = 0
                 data_dim = []
                 param_dim = []
+                used_dtype = None
                 for a in call.args:
-                    # TODO use checked_type.dtype instead of size_b?
-                    bw_tmp = obj.size_b
+                    # bw_tmp = obj.size_b
+                    bw_tmp = dtype_to_size_b(a.checked_type.dtype)
+                    if used_dtype is None:
+                        used_dtype = a.checked_type.dtype
+                    elif used_dtype != a.checked_type.dtype:
+                        print("[DOSA:OICALC:WARNING] different dtypes within one operation ({}). Ignoring."
+                              .format(op_name))
                     cur_dims = []
                     for d in a.checked_type.shape:
                         bw_tmp *= int(d)
@@ -195,7 +204,8 @@ class OiPipeline:
                 out_bw = 0
                 out_dim = []
                 if hasattr(call, 'checked_type'):
-                    out_bw = obj.size_b
+                    # out_bw = obj.size_b
+                    out_bw = dtype_to_size_b(call.checked_type.dtype)
                     cur_dims = []
                     for d in call.checked_type.shape:
                         out_bw *= int(d)
@@ -207,7 +217,8 @@ class OiPipeline:
                     attrs = call.attrs
 
                 if not function_call:
-                    oi_cmpl, oi_uinp, flop_total = obj.oiCalc.calc(call.op.name, data_dim, param_dim, out_dim, attrs, obj.size_b)
+                    oi_cmpl, oi_uinp, flop_total = obj.oiCalc.calc(call.op.name, data_dim, param_dim, out_dim, attrs,
+                                                                   dtype_to_size_b(used_dtype))
                 else:
                     flop_total = 0
                     name_sum_t = "fn("
@@ -226,7 +237,8 @@ class OiPipeline:
                 obj.oi_results.append(resOi)
                 istr = "{:06}".format(my_layer_num)
                 dpl = {'name': my_name, 'cmpl': oi_cmpl, 'uinp': oi_uinp, 'flop': flop_total, 'parB': bw_param_B,
-                       'inpB': bw_data_B, 'outB': out_bw, 'layer': istr, 'fn': obj.cur_fstr, 'op': op_name}
+                       'inpB': bw_data_B, 'outB': out_bw, 'layer': istr, 'fn': obj.cur_fstr, 'op': op_name,
+                       'dtype': used_dtype}
                 obj.data_per_layer[istr] = dpl
                 obj.oi_fused_wise[obj.cur_fstr].append(dpl)
                 if function_call:

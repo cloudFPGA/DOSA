@@ -12,8 +12,9 @@
 
 import sys
 import json
-import onnx
+import math
 import numpy as np
+import onnx
 import tvm
 import tvm.relay as relay
 
@@ -21,10 +22,11 @@ from dimidium.lib.archGen import arch_gen
 import dimidium.lib.plot_roofline as plot_roofline
 import dimidium.lib.devices as dosa_devices
 from dimidium.lib.util import OptimizationStrategies
+from dimidium.lib.util import config_bits_per_byte
 
-
-__mandatory_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_fps', 'target_hw',
-                      'resource_budget', 'arch_gen_strategy', 'fallback_hw']
+__mandatory_config_keys__ = ['input_latency', 'output_latency']
+__mandatory_user_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_sps', 'target_hw',
+                      'resource_budget', 'arch_gen_strategy', 'fallback_hw', 'used_input_size_t']
 __arch_gen_strategies__ = ['performance', 'resources', 'default', 'latency', 'throughput']
 __valid_fallback_hws__ = ['None']
 __valid_fallback_hws__.extend(dosa_devices.fallback_hw)
@@ -39,17 +41,26 @@ def onnx_import(onnx_path, shape_dict, debug=False):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print("USAGE: {} ./path/to/nn.onnx ./path/to/constraint.json".format(sys.argv[0]))
+    if len(sys.argv) != 4:
+        print("USAGE: {} ./path/to/dosa_config.json ./path/to/nn.onnx ./path/to/constraint.json".format(sys.argv[0]))
         exit(1)
 
-    onnx_path = sys.argv[1]
-    const_path = sys.argv[2]
+    dosa_config_path = sys.argv[1]
+    onnx_path = sys.argv[2]
+    const_path = sys.argv[3]
+
+    with open(dosa_config_path, 'r') as inp:
+        dosa_config = json.load(inp)
+
+    for k in __mandatory_config_keys__:
+        if k not in dosa_config:
+            print("ERROR: Mandatory key {} is missing in the configuration file {}. Stop.".format(k, const_path))
+            exit(1)
 
     with open(const_path, 'r') as inp:
         user_constraints = json.load(inp)
 
-    for k in __mandatory_keys__:
+    for k in __mandatory_user_keys__:
         if k not in user_constraints:
             print("ERROR: Mandatory key {} is missing in the constraints file {}. Stop.".format(k, const_path))
             exit(1)
@@ -79,6 +90,8 @@ if __name__ == '__main__':
     else:
         arch_gen_strategy = OptimizationStrategies.DEFAULT
 
+    user_resource_budget = user_constraints['resource_budget']
+
     arch_fallback_hw = None
     if type(user_constraints['fallback_hw']) is list:
         for fhw in user_constraints['fallback_hw']:
@@ -95,6 +108,18 @@ if __name__ == '__main__':
 
     print("DOSA: Importing ONNX...")
     mod, params = onnx_import(onnx_path, user_constraints['shape_dict'])
+    target_sps = user_constraints['target_sps']
+    used_batch = user_constraints['used_batch_n']
+    used_name = user_constraints['name']
+    used_in_size_t = user_constraints['used_input_size_t']
+    sample_size_bit = used_in_size_t
+    for inp_k in user_constraints['shape_dict']:
+        inp_v = user_constraints['shape_dict'][inp_k]
+        total_d = len(inp_v)
+        for i in range(1, total_d):  # exclude batch size
+            d = inp_v[i]
+            sample_size_bit *= d
+    used_sample_size = math.ceil(sample_size_bit/config_bits_per_byte)
     print("\t...done.\n")
 
     # TODO: remove temporary guards
@@ -105,14 +130,11 @@ if __name__ == '__main__':
     print("\t...done.\n")
 
     print("DOSA: Generating and showing roofline...")
-    target_fps = user_constraints['target_fps']
-    used_batch = user_constraints['used_batch_n']
-    used_name = user_constraints['name']
-    plt = plot_roofline.generate_roofline_plt(archDict['dpl'], target_fps, used_batch, used_name,
+    plt = plot_roofline.generate_roofline_plt(archDict['dpl'], target_sps, used_batch, used_name,
                                               arch_target_devices[0].get_performance_dict(),
                                               arch_target_devices[0].get_roofline_dict(),
                                               show_splits=True, show_labels=True)
-    plt2 = plot_roofline.generate_roofline_plt(archDict['fused_view'], target_fps, used_batch,
+    plt2 = plot_roofline.generate_roofline_plt(archDict['fused_view'], target_sps, used_batch,
                                                used_name + " (optimized)",
                                                arch_target_devices[0].get_performance_dict(),
                                                arch_target_devices[0].get_roofline_dict(),

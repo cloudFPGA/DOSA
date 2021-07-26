@@ -12,6 +12,9 @@
 
 import re
 from enum import Enum
+import math
+
+config_bits_per_byte = 8
 
 
 class OptimizationStrategies(Enum):
@@ -69,4 +72,32 @@ def replace_deep(dicttoreplace, repdict):
     else:
         # nothing to do?
         return dicttoreplace
+
+
+# Attainable performance
+# intensity, peak performance, bandwidth
+def ap(i, P_max, b_s):
+    # return np.minimum(np.float64(P_max), np.float64(b_s)*i)
+    return min(P_max, b_s*i)
+
+
+def dtype_to_bit(dtype):
+    if dtype == 'float32' or 'int32':
+        return 32
+    if dtype == 'float16' or 'int16':
+        return 16
+    return 32  # default
+
+
+def dtype_to_size_b(dtype):
+    bits = dtype_to_bit(dtype)
+    return math.ceil(bits/config_bits_per_byte)
+
+
+def bit_to_dtype(bit):
+    if bit == 32:
+        return 'float32'
+    if bit == 16:
+        return 'float16'
+    return 'int32'  # default
 

@@ -20,7 +20,7 @@ import matplotlib as mpl
 from matplotlib.path import Path
 from matplotlib.patches import Ellipse
 
-from dimidium.lib.util import convert_oi_list_for_plot
+from dimidium.lib.util import convert_oi_list_for_plot, ap
 from dimidium.lib.archGen import calculate_required_performance
 
 from dimidium.lib.units import *
@@ -40,13 +40,6 @@ def set_size(w, h, ax=None):
     figw = float(w)/(r-l)
     figh = float(h)/(t-b)
     ax.figure.set_size_inches(figw, figh)
-
-
-# Attainable performance
-# intensity, peak performance, bandwidth
-def ap(i, P_max, b_s):
-    # return np.minimum(np.float64(P_max), np.float64(b_s)*i)
-    return min(P_max, b_s*i)
 
 
 def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, z_order=5, y_min=0.1, show_labels=True):
@@ -76,7 +69,7 @@ def draw_oi_marker(plt, color, marker, oi_list, z_order=8):
     plt.scatter(x=x, y=y, marker=marker, color=color, zorder=z_order)
 
 
-def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, perf_dict, roofline_dict,
+def generate_roofline_plt(detailed_analysis, target_sps, used_batch, used_name, perf_dict, roofline_dict,
                           show_splits=True, show_labels=True):
 
     # Arithmetic intensity vector
@@ -188,13 +181,13 @@ def generate_roofline_plt(detailed_analysis, target_fps, used_batch, used_name, 
     draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, upper_limit, uinp_list,
                  y_min=-0.1, show_labels=show_labels)
 
-    annotated_list, cmpl_list2, uinp_list2 = calculate_required_performance(detail_list, target_fps, used_batch, unit=gigaU)
+    annotated_list, cmpl_list2, uinp_list2 = calculate_required_performance(detail_list, target_sps, used_batch, unit=gigaU)
     draw_oi_marker(plt, color, marker1, cmpl_list2)
     draw_oi_marker(plt, color2, marker2, uinp_list2)
-    marker1_text = 'req. perf. f. Engine arch. (w/ {} fps, batch {})'.format(target_fps, used_batch)
+    marker1_text = 'req. perf. f. Engine arch. (w/ {} sps, batch {})'.format(target_sps, used_batch)
     marker1_legend = mpl.lines.Line2D([], [], color=color, marker=marker1, linestyle='None', markersize=10,
                                       label=marker1_text)
-    marker2_text = 'req. perf. f. Stream arch. (w/ {} fps, batch {})'.format(target_fps, used_batch)
+    marker2_text = 'req. perf. f. Stream arch. (w/ {} sps, batch {})'.format(target_sps, used_batch)
     marker2_legend = mpl.lines.Line2D([], [], color=color2, marker=marker2, linestyle='None', markersize=10,
                                       label=marker2_text)
 

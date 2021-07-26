@@ -29,7 +29,7 @@ class PrintMeta:
 def arch_gen(mod, params, debug=False):
 
     oi_calc = OiCalculator(default_oi=1.0)
-    oi_pass = OiPipeline(size_t=32, oiCalc=oi_calc)
+    oi_pass = OiPipeline(fallback_size_t=32, oiCalc=oi_calc)
     assert oi_pass.info.name == "OiPipeline"
 
     # first, TVM optimization pass
@@ -89,17 +89,17 @@ def arch_gen(mod, params, debug=False):
     return ret
 
 
-def calculate_required_performance(detail_list, target_fps, used_batch_size=1, unit=1, debug_print=True):
+def calculate_required_performance(detail_list, target_sps, used_batch_size=1, unit=1, debug_print=True):
     """
 
     :param detail_list: detailed layer list from model summary
-    :param target_fps: target framerate in Bytes per second
+    :param target_sps: target samplerate in samples per second
     :param used_batch_size: batch size that is configured in the neuronal network
     :return:
     """
     # assert target_batch_size == 1
     # calculate latency
-    e2e_latency = float(1)/float(target_fps)
+    e2e_latency = float(1)/float(target_sps)
     n_layers = len(detail_list) - 2  # subtracting input & output
     assert n_layers >= 1
     latency_per_layer = e2e_latency/float(n_layers)
@@ -110,10 +110,10 @@ def calculate_required_performance(detail_list, target_fps, used_batch_size=1, u
     uinp_list = []
     for e in detail_list:
         # calculate input and output bandwidth
-        i_bw = e['inpB']*target_fps
-        o_bw = e['outB']*target_fps
+        i_bw = e['inpB']*target_sps
+        o_bw = e['outB']*target_sps
         # calculate FLOPs
-        req_flop = e['flop']*target_fps
+        req_flop = e['flop']*target_sps
         req_flop_u = req_flop/unit
         e['inpBs'] = i_bw
         e['outBs'] = o_bw
