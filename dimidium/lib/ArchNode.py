@@ -30,12 +30,15 @@ class ArchNode(object):
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.target_hw)
 
-    def __str__(self):
-        res = {'node_id': self.node_id, 'target_hw': str(self.target_hw), 'bricks': []}
+    def as_dict(self):
+        res = {'node_id': self.node_id, 'target_hw': str(self.target_hw), 'bricks': {}}
         for bi in self.bricks:
             b = self.bricks[bi]
-            res['bricks'].append(str(b))
-        ret = {'ArchNode': res}
+            res['bricks'][bi] = b.as_dict()
+        return res
+
+    def __str__(self):
+        ret = self.as_dict()
         return json.dumps(ret, indent=2)
 
     def add_brick(self, brick: ArchBrick):

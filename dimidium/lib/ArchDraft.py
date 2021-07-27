@@ -39,16 +39,19 @@ class ArchDraft(object):
     def __repr__(self):
         return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
 
-    def __str__(self):
+    def as_dict(self):
         res = {'name': self.name, 'version': self.version, 'strategy': str(self.strategy),
                'batch_size': self.batch_size, 'target_sps': self.target_sps, 'target_latency': self.target_latency,
                'target_resources': self.target_resources,
                'input': str(self.input_layer), 'output': str(self.output_layer),
-               'main_tvm_handle': str(self.main_tvm_handle)[:100], 'nodes': []}
+               'main_tvm_handle': str(self.main_tvm_handle)[:100], 'nodes': {}}
         for ni in self.nodes:
             n = self.nodes[ni]
-            res['nodes'].append(str(n))
-        ret = {'ArchDraft': res}
+            res['nodes'][ni] = n.as_dict()
+        return res
+
+    def __str__(self):
+        ret = self.as_dict()
         return json.dumps(ret, indent=2)
 
     def add_node(self, node: ArchNode):

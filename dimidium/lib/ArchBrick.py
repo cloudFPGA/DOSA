@@ -46,15 +46,18 @@ class ArchBrick(object):
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.brick_id, self.name)
 
-    def __str__(self):
+    def as_dict(self):
         res = {'name': self.name, 'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'fn_labe': self.fn_label, 'used_dtype': self.used_dtype,
-               'tvm_node': str(self.tvm_node)[:100], 'ops': []}
+               'tvm_node': str(self.tvm_node)[:100], 'ops': {}}
         for oi in self.ops:
             o = self.ops[oi]
-            res['ops'].append(str(o))
-        ret = {'ArchBrick': res}
+            res['ops'][oi] = o.as_dict()
+        return res
+
+    def __str__(self):
+        ret = self.as_dict()
         return json.dumps(ret, indent=2)
 
     def from_dpl_dict(self, dpl_dict):

@@ -41,12 +41,15 @@ class ArchOp(object):
     def __repr__(self):
         return "ArchOp({})".format(self.op_call)
 
-    def __str__(self):
+    def as_dict(self):
         res = {'name': self.name, 'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'layer_name': self.layer_name, 'parent_fn': self.parent_fn,
                'op_call': self.op_call, 'used_dtype': self.used_dtype, 'tvm_node': str(self.tvm_node)[:100]}
-        ret = {'ArchOp': res}
+        return res
+
+    def __str__(self):
+        ret = self.as_dict()
         return json.dumps(ret, indent=2)
 
     def from_dpl_dict(self, dpl_dict):
