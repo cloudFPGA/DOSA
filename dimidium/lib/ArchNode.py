@@ -12,8 +12,8 @@
 
 import json
 
-from dimidium.lib.util import OptimizationStrategies
 from dimidium.lib.ArchBrick import ArchBrick
+from dimidium.lib.devices.dosa_device import DosaBaseHw
 
 
 class ArchNode(object):
@@ -59,4 +59,7 @@ class ArchNode(object):
 
     def get_node_id(self):
         return self.node_id
+
+    def set_target_hw(self, target_hw: DosaBaseHw):
+        self.target_hw = target_hw
 

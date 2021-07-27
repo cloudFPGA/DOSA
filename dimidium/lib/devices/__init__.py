@@ -10,8 +10,11 @@
 #  *
 #  *
 
-import dimidium.lib.devices.cf_fmku60_role1 as cF_FMKU60_Themisto_1
-import dimidium.lib.devices.vcpu_dummy as vCPU_x86
+import dimidium.lib.devices.cf_fmku60_role1
+import dimidium.lib.devices.vcpu_dummy
+
+cF_FMKU60_Themisto_1 = cf_fmku60_role1.CfThemisto1('fpga', 'cF_FMKU60_Themisto-Role_1')
+vCPU_x86 = vcpu_dummy.VcpuDummy('cpu', 'CPU_dummy_x86-1')
 
 types = ['vCPU_x86', 'cF_FMKU60_Themisto_1']
 

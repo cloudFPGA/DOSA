@@ -11,7 +11,7 @@
 #  *
 
 from dimidium.lib.units import *
-
+from dimidium.lib.devices.dosa_device import DosaBaseHw
 
 # FPGA specs
 # UltraScale KU0600
@@ -60,22 +60,23 @@ b_s_fpga_eth_gBs = 10.0 / 8.0  # 10Gbe
 
 # b_s_mantle_eth_gBs = 9.87 / 8.0
 
-# TODO: consider creating a class/singelton?
 
+class CfThemisto1(DosaBaseHw):
 
-def get_performance_dict():
-    ret = {'fpga_freq_Hz': freq_fpga, 'dsp48_gflops': cF_bigRole_dsp48_gflops,
+    def __init__(self, hw_type, name):
+        super().__init__(hw_type, name)
+
+    def get_performance_dict(self):
+        ret = {'fpga_freq_Hz': freq_fpga, 'dsp48_gflops': cF_bigRole_dsp48_gflops,
            'bw_ddr4_gBs': b_s_fpga_ddr_gBs, 'bw_bram_gBs': b_s_fpga_bram_gBs,
            'bw_netw_gBs': b_s_fpga_eth_gBs, 'bw_lutram_gBs': b_s_fpga_lutram_gBs,
            'type': 'fpga'}
-    return ret
+        return ret
 
+    def get_roofline_dict(self):
+        ret = {'sweet_spot': 0.081}
+        return ret
 
-def get_roofline_dict():
-    ret = {'sweet_spot': 0.081}
-    return ret
-
-
-def get_resource_dict():
-    return
+    def get_resource_dict(self):
+        return
 
