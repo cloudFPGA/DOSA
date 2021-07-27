@@ -19,6 +19,7 @@ from dimidium.lib.util import OptimizationStrategies
 from dimidium.lib.ArchBrick import ArchBrick
 from dimidium.lib.ArchDraft import ArchDraft
 from dimidium.lib.ArchOp import ArchOp
+from dimidium.lib.ArchNode import ArchNode
 from dimidium.lib.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str, oiV_func_call_str
 
 
@@ -95,6 +96,10 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, ta
     inital_draft = create_arch_draft(name, strategy, batch_size, target_sps, target_latency, target_resources,
                                      data_per_layer, tvm_nodes)
 
+    if debug:
+        print("\n[DEBUG] initial draft:")
+        print(inital_draft)
+
     ret = {'mod': mod2, 'oi_results': oi_results, 'bw_results': bw_results, 'dpl': data_per_layer,
            'fused_view': oi_main_view}
 
@@ -159,6 +164,7 @@ def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, target
             main_fn_exec.append(layer)
 
     draft = ArchDraft(name, 'initial', strategy, batch_size, target_sps, target_latency, target_resources)
+    node_0 = ArchNode(0)
 
     # for fid in fn_view:
     #     fn = fn_view[fid]
@@ -168,11 +174,11 @@ def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, target
         brick = ArchBrick(dpl_dict=fn, tvm_node=t_node)
         fn_str = fn['name']
         if fn_str == oiV_input_str:
-            # brick.set_tvm_node(None)
+            # brick.set_tvm_handle(None)
             draft.set_input_layer(fn)
-            draft.set_tvm_node(t_node)
+            draft.set_tvm_handle(t_node)
         elif fn_str == oiV_output_str:
-            # brick.set_tvm_node(None)
+            # brick.set_tvm_handle(None)
             draft.set_output_layer(fn)
         else:
             for lid in data_per_layer:
@@ -181,6 +187,9 @@ def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, target
                     op_t = tvm_nodes[layer['tid']]
                     aop = ArchOp(dpl_dict=layer, tvm_node=op_t)
                     brick.add_arch_op(aop)
-            draft.add_brick(brick)
+            node_0.add_brick(brick)
+    draft.add_node(node_0)
 
     return draft
+
+

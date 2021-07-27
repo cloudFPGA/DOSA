@@ -10,7 +10,9 @@
 #  *
 #  *
 
+import json
 from tvm.relay import Expr
+
 from dimidium.lib.ArchOp import ArchOp
 
 
@@ -40,6 +42,20 @@ class ArchBrick(object):
         self.oid_cnt = 0
         if dpl_dict is not None:
             self.from_dpl_dict(dpl_dict)
+
+    def __repr__(self):
+        return "ArchBrick({}, {})".format(self.brick_id, self.name)
+
+    def __str__(self):
+        res = {'name': self.name, 'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
+               'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
+               'output_bytes': self.output_bytes, 'fn_labe': self.fn_label, 'used_dtype': self.used_dtype,
+               'tvm_node': str(self.tvm_node)[:100], 'ops': []}
+        for oi in self.ops:
+            o = self.ops[oi]
+            res['ops'].append(str(o))
+        ret = {'ArchBrick': res}
+        return json.dumps(ret, indent=2)
 
     def from_dpl_dict(self, dpl_dict):
         self.name = dpl_dict['name']

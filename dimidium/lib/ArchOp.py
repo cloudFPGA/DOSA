@@ -10,6 +10,7 @@
 #  *
 #  *
 
+import json
 from tvm.relay import Expr
 
 
@@ -36,6 +37,17 @@ class ArchOp(object):
         self.tvm_node = tvm_node
         if dpl_dict is not None:
             self.from_dpl_dict(dpl_dict)
+
+    def __repr__(self):
+        return "ArchOp({})".format(self.op_call)
+
+    def __str__(self):
+        res = {'name': self.name, 'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
+               'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
+               'output_bytes': self.output_bytes, 'layer_name': self.layer_name, 'parent_fn': self.parent_fn,
+               'op_call': self.op_call, 'used_dtype': self.used_dtype, 'tvm_node': str(self.tvm_node)[:100]}
+        ret = {'ArchOp': res}
+        return json.dumps(ret, indent=2)
 
     def from_dpl_dict(self, dpl_dict):
         self.name = dpl_dict['name']

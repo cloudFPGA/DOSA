@@ -10,8 +10,10 @@
 #  *
 #  *
 
+import json
+
 from dimidium.lib.util import OptimizationStrategies
-from dimidium.lib.ArchBrick import ArchBrick
+from dimidium.lib.ArchNode import ArchNode
 
 
 class ArchDraft(object):
@@ -28,27 +30,43 @@ class ArchDraft(object):
         self.target_sps = target_sps
         self.target_latency = target_latency
         self.target_resources = target_resources
-        self.main_tvm_node = tvm_node
-        self.bricks = {}
+        self.main_tvm_handle = tvm_node
+        self.nodes = {}
+        self.nid_cnt = 0
         self.input_layer = None
         self.output_layer = None
-        self.bid_cnt = 0
 
-    def add_brick(self, brick: ArchBrick):
+    def __repr__(self):
+        return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
+
+    def __str__(self):
+        res = {'name': self.name, 'version': self.version, 'strategy': str(self.strategy),
+               'batch_size': self.batch_size, 'target_sps': self.target_sps, 'target_latency': self.target_latency,
+               'target_resources': self.target_resources,
+               'input': str(self.input_layer), 'output': str(self.output_layer),
+               'main_tvm_handle': str(self.main_tvm_handle)[:100], 'nodes': []}
+        for ni in self.nodes:
+            n = self.nodes[ni]
+            res['nodes'].append(str(n))
+        ret = {'ArchDraft': res}
+        return json.dumps(ret, indent=2)
+
+    def add_node(self, node: ArchNode):
         # bstr = self._bstr_fmt_.format(self.bid_cnt)
-        b_id = self.bid_cnt
-        self.bid_cnt += 1
+        n_id = self.nid_cnt
+        self.nid_cnt += 1
         # if self.bid_cnt > self._bid_max_:
         #    print("[DOSA:ArchDraft:ERROR] Brick Id overflow occurred!")
-        brick.set_brick_id(b_id)
-        self.bricks[b_id] = brick
+        node.set_node_id(n_id)
+        self.nodes[n_id] = node
 
-    # def add_brick_dict(self, brick_dict):
-    #    nb = ArchBrick(brick_id=None, dpl_dict=brick_dict)
-    #    self.add_brick(nb)
+    # def insert_node(self, node: ArchNode):
+    #     """adds an ArchNode without overwriting it's node_id"""
+    #     n_id = node.get_node_id()
+    #     self.nodes[n_id] = node
 
-    def set_tvm_node(self, tvm_node):
-        self.main_tvm_node = tvm_node
+    def set_tvm_handle(self, tvm_node):
+        self.main_tvm_handle = tvm_node
 
     def set_input_layer(self, in_dpl):
         self.input_layer = in_dpl
