@@ -19,6 +19,13 @@ from dimidium.lib.util import replace_deep, dtype_to_size_b, bit_to_dtype
 from dimidium.lib.units import config_bits_per_byte
 
 
+oiV_fn_main_str = 'fn_main'
+oiV_input_str = '(input)'
+oiV_output_str = '(output)'
+oiV_func_str = '(function)'
+oiV_func_call_str = '(function_call)'
+
+
 @relay.transform.function_pass(opt_level=1)
 class OiPipeline:
     """Relay pass to calculate OIs"""
@@ -38,6 +45,8 @@ class OiPipeline:
         self.oi_fused_wise = {}
         self.oi_main_view = {}
         self.fn_call_cnts = {}
+        self.node_cnt = 0
+        self.tvm_nodes = {}
 
     def get_oi_results(self):
         return self.oi_results
@@ -59,7 +68,7 @@ class OiPipeline:
 
     def reorder_fn_calls(self):
         tl = self.fn_cnt
-        repdict = {'FN_0000': 'fn_main'}
+        repdict = {'FN_0000': oiV_fn_main_str}
         for i in range(1, tl):
             o_str = "{:04}".format(i)
             n_str = "{:04}".format(tl-i)
@@ -78,6 +87,10 @@ class OiPipeline:
         self.oi_fused_wise = new_oi_fused_wise
         self.oi_main_view = new_oi_main_view
         self.fn_call_cnts = new_fn_stats
+        # no need to reorder tvm nodes
+
+    def get_tvm_nodes(self):
+        return self.tvm_nodes
 
     # This function can define a pass.
     def transform_function(self, func, mod, ctx):
@@ -92,16 +105,21 @@ class OiPipeline:
                 hint = "no_hint"
                 my_cnt = obj.fn_cnt
                 obj.fn_cnt += 1
+                my_node_id = obj.node_cnt
+                obj.node_cnt += 1
                 if obj.fn_cnt > 9999:
                     print("[DOSA:OICALC:ERROR] fn name overflow occurred!")
                 my_fstr = "{:04}".format(my_cnt)
                 my_name = 'FN_{}'.format(my_fstr)
+                old_fstr = obj.cur_fstr
                 obj.cur_fstr = my_name
                 obj.oi_fused_wise[obj.cur_fstr] = []
                 obj.fn_call_cnts[obj.cur_fstr] = 0
 
+                fn_name = my_name
                 if my_cnt == 0:
-                    my_name = '(input)'
+                    my_name = oiV_input_str
+                    fn_name = oiV_fn_main_str
                 my_hash = str(hash(func))
                 obj.fn_dict[my_hash] = my_name
 
@@ -131,11 +149,14 @@ class OiPipeline:
                 obj.bw_results.append(res)
                 istr = "{:06}".format(my_layer_num)
                 dpl = {'name': my_name, 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
-                       'layer': istr, 'fn': my_name, 'op': '(function)', 'dtype': used_dtype}
+                       'layer': istr, 'fn': fn_name, 'op': oiV_func_str, 'dtype': used_dtype, 'tid': my_node_id}
                 obj.data_per_layer[istr] = dpl
+                obj.tvm_nodes[my_node_id] = func
                 # visit body
                 self.visit(func.body)
-                # calculate output bw
+                # reset fstr
+                obj.cur_fstr = old_fstr
+                # in case of main func, calculate output bw
                 if my_cnt == 0:
                     my_layer_num2 = obj.bw_layer_cnt
                     obj.bw_layer_cnt += 1
@@ -151,8 +172,8 @@ class OiPipeline:
                             'bw_data_B': bw_tmp, 'bw_param_B': 0}
                     obj.bw_results.append(res2)
                     istr = "{:06}".format(my_layer_num2)
-                    dpl2 = {'name': '(output)', 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
-                            'layer': istr,  'fn': my_name, 'op': '(function)', 'dtype': used_dtype}
+                    dpl2 = {'name': oiV_output_str, 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
+                            'layer': istr,  'fn': fn_name, 'op': oiV_func_str, 'dtype': used_dtype, 'tid': my_node_id}
                     obj.data_per_layer[istr] = dpl2
 
             def visit_call(self, call):
@@ -169,13 +190,17 @@ class OiPipeline:
                 if type(call.op) is relay.function.Function:
                     f_hash = str(hash(call.op))
                     my_name = obj.fn_dict[f_hash]
-                    op_name = my_name
+                    # op_name = my_name
+                    op_name = oiV_func_call_str
                     function_call = True
                 else:
                     my_name = str(call.op.name)
                     op_name = my_name
                     if obj.fn_cnt > 1:
                         my_name = "{}_{}".format(obj.cur_fstr, str(call.op.name))
+                my_node_id = obj.node_cnt
+                obj.node_cnt += 1
+
                 bw_data_B = 0
                 bw_param_B = 0
                 data_dim = []
@@ -239,8 +264,9 @@ class OiPipeline:
                 istr = "{:06}".format(my_layer_num)
                 dpl = {'name': my_name, 'cmpl': oi_cmpl, 'uinp': oi_uinp, 'flop': flop_total, 'parB': bw_param_B,
                        'inpB': bw_data_B, 'outB': out_bw, 'layer': istr, 'fn': obj.cur_fstr, 'op': op_name,
-                       'dtype': used_dtype}
+                       'dtype': used_dtype, 'tid': my_node_id}
                 obj.data_per_layer[istr] = dpl
+                obj.tvm_nodes[my_node_id] = call
                 obj.oi_fused_wise[obj.cur_fstr].append(dpl)
                 if function_call:
                     dpl['layer'] = name_summary

@@ -91,7 +91,6 @@ if __name__ == '__main__':
     else:
         arch_gen_strategy = OptimizationStrategies.DEFAULT
 
-
     arch_fallback_hw = None
     if type(user_constraints['fallback_hw']) is list:
         for fhw in user_constraints['fallback_hw']:
@@ -111,7 +110,7 @@ if __name__ == '__main__':
     target_sps = user_constraints['target_sps']
     target_latency = user_constraints['target_latency']
     used_batch = user_constraints['used_batch_n']
-    target_resource_budget = user_constraints['resource_budget']
+    target_resource_budget = user_constraints['target_resource_budget']
     used_name = user_constraints['name']
     used_in_size_t = user_constraints['used_input_size_t']
     sample_size_bit = used_in_size_t
@@ -128,7 +127,8 @@ if __name__ == '__main__':
     assert arch_target_devices[0] == dosa_devices.cF_FMKU60_Themisto_1
     assert len(arch_target_devices) == 1
     print("DOSA: Generating high-level architecture...")
-    archDict = arch_gen(mod, params, debug=True)
+    archDict = arch_gen(mod, params, used_name, arch_gen_strategy, used_batch, target_sps, target_latency,
+                        target_resource_budget, debug=True)
     print("\t...done.\n")
 
     print("DOSA: Generating and showing roofline...")

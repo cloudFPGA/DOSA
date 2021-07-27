@@ -6,38 +6,34 @@
 #  *     Authors: NGL
 #  *
 #  *     Description:
-#  *        Class of the architectural bricks for DOSA
+#  *        Class of the architectural operation that are part of DOSA bricks
 #  *
 #  *
 
 from tvm.relay import Expr
-from dimidium.lib.ArchOp import ArchOp
 
 
-class ArchBrick(object):
-
+class ArchOp(object):
     """
     dpl = {'name': my_name, 'cmpl': oi_cmpl, 'uinp': oi_uinp, 'flop': flop_total, 'parB': bw_param_B,
            'inpB': bw_data_B, 'outB': out_bw, 'layer': istr, 'fn': obj.cur_fstr, 'op': op_name,
            'dtype': used_dtype}
     """
 
-    def __init__(self, brick_id=None, dpl_dict=None, tvm_node=None):
+    def __init__(self, op_id=None, dpl_dict=None, tvm_node=None):
         self.name = None
-        self.brick_id = brick_id
+        self.op_id = op_id
         self.oi_engine = 0
         self.oi_stream = 0
         self.flops = 0
         self.parameter_bytes = 0
         self.input_bytes = 0
         self.output_bytes = 0
-        self.fn_label = 0
-        # self.parent_fn = None
-        # self.op_call = None
+        self.layer_name = 0
+        self.parent_fn = None
+        self.op_call = None
         self.used_dtype = None
         self.tvm_node = tvm_node
-        self.ops = {}
-        self.oid_cnt = 0
         if dpl_dict is not None:
             self.from_dpl_dict(dpl_dict)
 
@@ -49,21 +45,14 @@ class ArchBrick(object):
         self.parameter_bytes = dpl_dict['parB']
         self.input_bytes = dpl_dict['inpB']
         self.output_bytes = dpl_dict['outB']
-        self.fn_label = dpl_dict['layer']
-        # self.parent_fn = dpl_dict['fn']
-        # self.op_call = dpl_dict['op']
+        self.layer_name = dpl_dict['layer']
+        self.parent_fn = dpl_dict['fn']
+        self.op_call = dpl_dict['op']
         self.used_dtype = dpl_dict['dtype']
 
-    def set_brick_id(self, brick_id):
-        self.brick_id = brick_id
+    def set_op_id(self, op_id):
+        self.op_id = op_id
 
     def set_tvm_node(self, tvm_node: Expr):
         self.tvm_node = tvm_node
-
-    def add_arch_op(self, op: ArchOp):
-        o_id = self.oid_cnt
-        self.oid_cnt += 1
-        op.set_op_id(o_id)
-        self.ops[o_id] = op
-
 

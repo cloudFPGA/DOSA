@@ -199,14 +199,14 @@ def generate_roofline_plt(detailed_analysis, target_sps, used_batch, used_name, 
     text = 'Engine avg.'
     plt.text(x=oai_avg*1.02, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
              rotation=90, zorder=8)
-    print("[DOSA:roofline] Info: {} at {}".format(text, oai_avg))
+    print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg, used_name))
     oai_avg2 = total['flops'] / total['uinp_B']
     plt.vlines(x=oai_avg2, ymin=-0.1, ymax=upper_limit, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
                zorder=8)
     text = 'Stream avg.'
     plt.text(x=oai_avg2*1.02, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
              rotation=90, zorder=8)
-    print("[DOSA:roofline] Info: {} at {}".format(text, oai_avg2))
+    print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg2, used_name))
 
     # plt.scatter(x=[oai_avg], y=[total['total_flops']*target_fps], marker=marker1, color=color3, zorder=6,
     #             label='req. perf. Engine avg.')
