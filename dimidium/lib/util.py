@@ -18,38 +18,17 @@ from dimidium.lib.units import config_bits_per_byte
 
 
 class OptimizationStrategies(Enum):
-    PERFORMANCE = 1
+    THROUGHPUT = 1
     RESOURCES = 2
     LATENCY = 3
-    THROUGHPUT = PERFORMANCE
-    DEFAULT = PERFORMANCE
+    PERFORMANCE = THROUGHPUT
+    DEFAULT = THROUGHPUT
 
 
-def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
-    cmpl_list = []
-    uinp_list = []
-    detail_list = []
-    total_flops = 0
-    total_uinp_B = 0
-    total_param_B = 0
-    for l in dpl:
-        e = dpl[l]
-        cmpl = e['cmpl']
-        if cmpl == default_to_ignore or cmpl == 0:
-            continue
-        uinp = e['uinp']
-        name = e['name']
-        layer = e['layer']
-        cn = {'name': name + "_" + layer + "_engine", 'oi': cmpl}
-        un = {'name': name + "_" + layer + "_stream", 'oi': uinp}
-        total_flops += e['flop']
-        total_param_B += e['parB']
-        total_uinp_B += e['inpB']
-        cmpl_list.append(cn)
-        uinp_list.append(un)
-        detail_list.append(e)
-    total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
-    return cmpl_list, uinp_list, total, detail_list
+class BrickImplTypes(Enum):
+    UNDECIDED = 0
+    STREAM = 1
+    ENGINE = 2
 
 
 # based on: https://www.oreilly.com/library/view/python-cookbook/0596001673/ch03s15.html

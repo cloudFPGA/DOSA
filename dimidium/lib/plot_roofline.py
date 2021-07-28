@@ -20,8 +20,7 @@ import matplotlib as mpl
 from matplotlib.path import Path
 from matplotlib.patches import Ellipse
 
-from dimidium.lib.util import convert_oi_list_for_plot, ap
-from dimidium.lib.archGen import calculate_required_performance
+from dimidium.lib.util import ap, OptimizationStrategies
 
 from dimidium.lib.units import *
 __ylim_min__ = 0.01
@@ -42,10 +41,13 @@ def set_size(w, h, ax=None):
     ax.figure.set_size_inches(figw, figh)
 
 
-def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, z_order=5, y_min=0.1, show_labels=True):
+def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, x_min, x_max, z_order=5, y_min=0.1, show_labels=True):
     text_height_values = [65, 120, 55, 100, 180]
     th = itertools.cycle(text_height_values)
     for e in oi_list:
+        if e['oi'] > x_max or e['oi'] < x_min:
+            print("[DOSA:roofline] Warning: required OI {} of {} out of range, skipping.".format(e['oi'], e['name']))
+            continue
         plt.vlines(x=e['oi'], ymin=y_min, ymax=y_max, colors=color, linestyles=line_style, linewidth=line_width,
                    zorder=z_order)  # , label=e['name'])
         if show_labels:
@@ -59,7 +61,7 @@ def draw_oi_marker(plt, color, marker, oi_list, z_order=8):
     for e in oi_list:
         x.append(e['oi'])
         if not (__ylim_min__ < e['perf'] < __ylim_max__):
-            print("[DOSA:roofline] Warning: required performance {} out of range.".format(e['perf']))
+            print("[DOSA:roofline] Warning: required performance {} of {} out of range.".format(e['perf'], e['name']))
             if __ylim_min__ > e['perf']:
                 y.append(__ylim_min__)
             else:
@@ -69,9 +71,84 @@ def draw_oi_marker(plt, color, marker, oi_list, z_order=8):
     plt.scatter(x=x, y=y, marker=marker, color=color, zorder=z_order)
 
 
-def generate_roofline_plt(detailed_analysis, target_sps, used_batch, used_name, perf_dict, roofline_dict,
-                          show_splits=True, show_labels=True):
+def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
+    cmpl_list = []
+    uinp_list = []
+    detail_list = []
+    total_flops = 0
+    total_uinp_B = 0
+    total_param_B = 0
+    for l in dpl:
+        e = dpl[l]
+        cmpl = e['cmpl']
+        if cmpl == default_to_ignore or cmpl == 0:
+            continue
+        uinp = e['uinp']
+        name = e['name']
+        layer = e['layer']
+        cn = {'name': name + "_" + layer + "_engine", 'oi': cmpl}
+        un = {'name': name + "_" + layer + "_stream", 'oi': uinp}
+        total_flops += e['flop']
+        total_param_B += e['parB']
+        total_uinp_B += e['inpB']
+        cmpl_list.append(cn)
+        uinp_list.append(un)
+        detail_list.append(e)
+    total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
+    return cmpl_list, uinp_list, total, detail_list
 
+
+def generate_roofline_plt(arch_draft, show_splits=True, show_labels=True):
+    unit = gigaU
+    target_string = ""
+    if arch_draft.strategy == OptimizationStrategies.THROUGHPUT:
+        target_string = "{} sps".format(arch_draft.target_sps)
+    elif arch_draft.strategy == OptimizationStrategies.LATENCY:
+        target_string = "{} s/req".format(arch_draft.target_latency)
+    else:
+        target_string = "max {} nodes".format(arch_draft.target_resources)
+    cmpl_list = []
+    uinp_list = []
+    cmpl_list2 = []
+    uinp_list2 = []
+    total_flops = 0
+    total_uinp_B = 0
+    total_param_B = 0
+    for bb in arch_draft.brick_iter_gen():
+        cn = {'name': "{}_engine".format(bb.brick_id), 'oi': bb.oi_engine}
+        un = {'name': "{}_stream".format(bb.brick_id), 'oi': bb.oi_stream}
+        if bb.req_flops > 0:
+            req_flop_u_e = bb.req_flops / unit
+            req_flop_u_s = req_flop_u_e
+        else:
+            req_flop_u_e = bb.req_flops_engine / unit
+            req_flop_u_s = bb.req_flops_stream / unit
+        cn2 = {'name': "{}_engine".format(bb.brick_id), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
+        un2 = {'name': "{}_stream".format(bb.brick_id), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
+        total_flops += bb.flops
+        total_uinp_B += bb.input_bytes
+        total_param_B += bb.parameter_bytes
+        cmpl_list.append(cn)
+        uinp_list.append(un)
+        cmpl_list2.append(cn2)
+        uinp_list2.append(un2)
+    total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
+    plt_name = "{} (draft: {})".format(arch_draft.name, arch_draft.version)
+    return draw_roofline(plt_name, arch_draft.batch_size, arch_draft.target_hw_set[0].get_performance_dict(),
+                         arch_draft.target_hw_set[0].get_roofline_dict(), target_string, cmpl_list, uinp_list,
+                         cmpl_list2, uinp_list2, total, show_splits, show_labels)
+
+
+def generate_roofline_plt_old(detailed_analysis, target_sps, used_batch, used_name, perf_dict, roofline_dict,
+                          show_splits=True, show_labels=True):
+    cmpl_list, uinp_list, total, detail_list = convert_oi_list_for_plot(detailed_analysis)
+    annotated_list, cmpl_list2, uinp_list2 = calculate_required_performance(detail_list, target_sps, used_batch, unit=gigaU)
+    return draw_roofline(used_name, used_batch, perf_dict, roofline_dict, "{} sps".format(target_sps), cmpl_list,
+                         uinp_list, cmpl_list2, uinp_list2, total, show_splits, show_labels)
+
+
+def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string, cmpl_list, uinp_list, cmpl_list2, uinp_list2,
+                  total, show_splits=True, show_labels=True):
     # Arithmetic intensity vector
     ai_list_small = np.arange(0.01, 1, 0.01)
     ai_list_middle = np.arange(1, 1500, 0.1)
@@ -175,19 +252,17 @@ def generate_roofline_plt(detailed_analysis, target_sps, used_batch, used_name, 
     # text = 'Particle Methods'
     # plt.text(x=oai*1.1, y=marker_line-55, s=text, color=color, fontsize=MY_SIZE*font_factor, ha='left', va='top')
 
-    cmpl_list, uinp_list, total, detail_list = convert_oi_list_for_plot(detailed_analysis)
     draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, upper_limit, cmpl_list,
-                 y_min=-0.1, show_labels=show_labels)
+                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels)
     draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, upper_limit, uinp_list,
-                 y_min=-0.1, show_labels=show_labels)
+                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels)
 
-    annotated_list, cmpl_list2, uinp_list2 = calculate_required_performance(detail_list, target_sps, used_batch, unit=gigaU)
     draw_oi_marker(plt, color, marker1, cmpl_list2)
     draw_oi_marker(plt, color2, marker2, uinp_list2)
-    marker1_text = 'req. perf. f. Engine arch. (w/ {} sps, batch {})'.format(target_sps, used_batch)
+    marker1_text = 'req. perf. f. Engine arch. (w/ {}, batch {})'.format(target_string, used_batch)
     marker1_legend = mpl.lines.Line2D([], [], color=color, marker=marker1, linestyle='None', markersize=10,
                                       label=marker1_text)
-    marker2_text = 'req. perf. f. Stream arch. (w/ {} sps, batch {})'.format(target_sps, used_batch)
+    marker2_text = 'req. perf. f. Stream arch. (w/ {}, batch {})'.format(target_string, used_batch)
     marker2_legend = mpl.lines.Line2D([], [], color=color2, marker=marker2, linestyle='None', markersize=10,
                                       label=marker2_text)
 
@@ -268,4 +343,53 @@ def show_roofline_plt(plt, blocking=True):
     # plt.savefig('roofline.pdf', dpi=300, format="pdf")
     # plt.savefig('roofline.png', dpi=300, format="png")
     plt.show(block=blocking)
+
+
+def calculate_required_performance(detail_list, target_sps, used_batch_size=1, unit=1, debug_print=False):
+    """
+
+    :param detail_list: detailed layer list from model summary
+    :param target_sps: target samplerate in samples per second
+    :param used_batch_size: batch size that is configured in the neuronal network
+    :return:
+    """
+    # assert target_batch_size == 1
+    # calculate latency
+    e2e_latency = float(1) / float(target_sps)
+    n_layers = len(detail_list) - 2  # subtracting input & output
+    assert n_layers >= 1
+    latency_per_layer = e2e_latency / float(n_layers)
+    if debug_print:
+        print(
+            "calculating FLOPs for target e2e latency {}s ({}s for each layer if equal distribution is assumed).".format(
+                e2e_latency, latency_per_layer))
+    annotated_list = []
+    cmpl_list = []
+    uinp_list = []
+    for e in detail_list:
+        # calculate input and output bandwidth
+        i_bw = e['inpB'] * target_sps
+        o_bw = e['outB'] * target_sps
+        # calculate FLOPs
+        req_flop = e['flop'] * target_sps
+        req_flop_u = req_flop / unit
+        e['inpBs'] = i_bw
+        e['outBs'] = o_bw
+        e['rFLOP'] = req_flop
+        e['eqLat'] = latency_per_layer
+        annotated_list.append(e)
+        cmpl = e['cmpl']
+        if cmpl == 1:
+            continue
+        uinp = e['uinp']
+        name = e['name']
+        layer = e['layer']
+        cn = {'name': name + "_" + layer + "_engine", 'oi': cmpl, 'perf': req_flop_u}
+        un = {'name': name + "_" + layer + "_stream", 'oi': uinp, 'perf': req_flop_u}
+        cmpl_list.append(cn)
+        uinp_list.append(un)
+    if debug_print:
+        print(json.dumps(annotated_list, indent=2, sort_keys=False))
+    return annotated_list, cmpl_list, uinp_list
+
 

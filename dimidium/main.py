@@ -107,40 +107,48 @@ if __name__ == '__main__':
 
     print("DOSA: Importing ONNX...")
     mod, params = onnx_import(onnx_path, user_constraints['shape_dict'])
-    target_sps = user_constraints['target_sps']
-    target_latency = user_constraints['target_latency']
+    target_sps = user_constraints['target_sps']  # in #/s
+    target_latency = user_constraints['target_latency']  # in s per sample
     used_batch = user_constraints['used_batch_n']
-    target_resource_budget = user_constraints['target_resource_budget']
+    target_resource_budget = user_constraints['target_resource_budget']  # in number of nodes
     used_name = user_constraints['name']
     used_in_size_t = user_constraints['used_input_size_t']
     sample_size_bit = used_in_size_t
     for inp_k in user_constraints['shape_dict']:
         inp_v = user_constraints['shape_dict'][inp_k]
         total_d = len(inp_v)
+        if used_batch != inp_v[0]:
+            print("ERROR: Batch sizes in constraint file contradict each other ({} != {}). Stop."
+                  .format(used_batch, inp_v[0]))
+            exit(1)
         for i in range(1, total_d):  # exclude batch size
             d = inp_v[i]
             sample_size_bit *= d
-    used_sample_size = math.ceil(sample_size_bit/config_bits_per_byte)
+    used_sample_size = math.ceil(sample_size_bit / config_bits_per_byte)
     print("\t...done.\n")
 
     # TODO: remove temporary guards
     assert arch_target_devices[0] == dosa_devices.cF_FMKU60_Themisto_1
     assert len(arch_target_devices) == 1
     print("DOSA: Generating high-level architecture...")
-    archDict = arch_gen(mod, params, used_name, arch_gen_strategy, used_batch, target_sps, target_latency,
-                        target_resource_budget, debug=True)
+    archDict = arch_gen(mod, params, used_name, arch_gen_strategy, used_batch, used_sample_size, target_sps,
+                        target_latency,
+                        target_resource_budget, arch_target_devices, arch_fallback_hw, debug=True)
     print("\t...done.\n")
 
     print("DOSA: Generating and showing roofline...")
-    plt = plot_roofline.generate_roofline_plt(archDict['dpl'], target_sps, used_batch, used_name,
-                                              arch_target_devices[0].get_performance_dict(),
-                                              arch_target_devices[0].get_roofline_dict(),
-                                              show_splits=True, show_labels=True)
-    plt2 = plot_roofline.generate_roofline_plt(archDict['fused_view'], target_sps, used_batch,
-                                               used_name + " (optimized)",
-                                               arch_target_devices[0].get_performance_dict(),
-                                               arch_target_devices[0].get_roofline_dict(),
-                                               show_splits=True, show_labels=True)
+    plt = plot_roofline.generate_roofline_plt_old(archDict['base_dpl'], target_sps, used_batch,
+                                                  used_name + " (basis)",
+                                                  arch_target_devices[0].get_performance_dict(),
+                                                  arch_target_devices[0].get_roofline_dict(),
+                                                  show_splits=True, show_labels=True)
+    # plt2 = plot_roofline.generate_roofline_plt_old(archDict['fused_view'], target_sps, used_batch,
+    #                                                used_name + " (optimized)",
+    #                                                arch_target_devices[0].get_performance_dict(),
+    #                                                arch_target_devices[0].get_roofline_dict(),
+    #                                                show_splits=True, show_labels=True)
+    plt2 = plot_roofline.generate_roofline_plt(archDict['draft'], show_splits=True, show_labels=True)
+
     # plot_roofline.show_roofline_plt(plt, blocking=False) not necessary...
     plot_roofline.show_roofline_plt(plt2)
     print("\t...done.\n")

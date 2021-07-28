@@ -34,3 +34,5 @@ class VcpuDummy(DosaBaseHw):
     def get_resource_dict(self):
         return
 
+    def get_max_flops(self):
+        return cpu_gflops * gigaU

@@ -14,6 +14,7 @@ import json
 
 from dimidium.lib.util import OptimizationStrategies
 from dimidium.lib.ArchNode import ArchNode
+from dimidium.lib.devices.dosa_device import DosaBaseHw
 
 
 class ArchDraft(object):
@@ -21,7 +22,7 @@ class ArchDraft(object):
     # _bstr_fmt_ = "{:06}"
     # _bid_max_ = 99999
 
-    def __init__(self, name, version, strategy: OptimizationStrategies, batch_size, target_sps=-1, target_latency=-1,
+    def __init__(self, name, version, strategy: OptimizationStrategies, batch_size, sample_size, target_sps=-1, target_latency=-1,
                  target_resources=-1, tvm_node=None):
         self.name = name
         self.version = version
@@ -31,10 +32,17 @@ class ArchDraft(object):
         self.target_latency = target_latency
         self.target_resources = target_resources
         self.main_tvm_handle = tvm_node
+        self.sample_size_B = sample_size
         self.nodes = {}
         self.nid_cnt = 0
         self.input_layer = None
         self.output_layer = None
+        self.calc_throughput = -1
+        self.calc_latency = -1
+        self.calc_resources = -1
+        self.target_hw_set = []
+        self.fallback_hw_set = []
+        self.tmp_notes = {}
 
     def __repr__(self):
         return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
@@ -76,4 +84,24 @@ class ArchDraft(object):
 
     def set_output_layer(self, out_dpl):
         self.output_layer = out_dpl
+
+    def brick_iter_gen(self):
+        for ni in self.nodes:
+            nn = self.nodes[ni]
+            for bi in nn.bricks:
+                bb = nn.bricks[bi]
+                yield bb
+
+    def get_bricks_num(self):
+        ret = 0
+        for ni in self.nodes:
+            ret += len(self.nodes[ni].bricks)
+        return ret
+
+    def add_possible_target_hw(self, nth: DosaBaseHw):
+        self.target_hw_set.append(nth)
+
+    def add_possible_fallback_hw(self, nfh: DosaBaseHw):
+        self.fallback_hw_set.append(nfh)
+
 

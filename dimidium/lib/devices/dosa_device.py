@@ -33,3 +33,8 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
     def get_resource_dict(self):
         print("[DOSA:DEVICES:ERROR] NOT YET IMPLEMENTED.")
 
+    @abc.abstractmethod
+    def get_max_flops(self):
+        print("[DOSA:DEVICES:ERROR] NOT YET IMPLEMENTED.")
+
+

@@ -10,6 +10,7 @@
 #  *
 #  *
 
+import copy
 import json
 import tvm
 import tvm.relay as relay
@@ -21,6 +22,7 @@ from dimidium.lib.ArchDraft import ArchDraft
 from dimidium.lib.ArchOp import ArchOp
 from dimidium.lib.ArchNode import ArchNode
 from dimidium.lib.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str, oiV_func_call_str
+from dimidium.lib.devices import types_dict as device_types_dict
 
 
 @tvm.instrument.pass_instrument
@@ -32,8 +34,8 @@ class PrintMeta:
         # print(mod)
 
 
-def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, target_sps=-1, target_latency=-1,
-             target_resources=-1, debug=False):
+def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sample_size, target_sps=-1, target_latency=-1,
+             target_resources=-1, arch_target_devices=None, arch_fallback_devices=None, debug=False):
     oi_calc = OiCalculator(default_oi=1.0)
     oi_pass = OiPipeline(fallback_size_t=32, oiCalc=oi_calc)
     assert oi_pass.info.name == "OiPipeline"
@@ -93,68 +95,28 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, ta
         print("\n[DEBUG] fn_call_stats")
         print(json.dumps(fn_call_stats, indent=2, sort_keys=False))
 
-    inital_draft = create_arch_draft(name, strategy, batch_size, target_sps, target_latency, target_resources,
+    inital_draft = create_arch_draft(name, strategy, batch_size, sample_size, target_sps, target_latency, target_resources,
                                      data_per_layer, tvm_nodes)
+
+    for do in arch_target_devices:
+        inital_draft.add_possible_target_hw(do)
+
+    if arch_fallback_devices is not None:
+        for d in arch_fallback_devices:
+            do = device_types_dict[d]
+            inital_draft.add_possible_fallback_hw(do)
 
     if debug:
         print("\n[DEBUG] initial draft:")
         print(inital_draft)
 
-    ret = {'mod': mod2, 'oi_results': oi_results, 'bw_results': bw_results, 'dpl': data_per_layer,
-           'fused_view': oi_main_view}
+    annotated_draft = annotate_required_performance(inital_draft)
 
+    ret = {'mod': mod2, 'base_dpl': data_per_layer, 'fused_view': oi_main_view, 'draft': annotated_draft}
     return ret
 
 
-def calculate_required_performance(detail_list, target_sps, used_batch_size=1, unit=1, debug_print=False):
-    """
-
-    :param detail_list: detailed layer list from model summary
-    :param target_sps: target samplerate in samples per second
-    :param used_batch_size: batch size that is configured in the neuronal network
-    :return:
-    """
-    # assert target_batch_size == 1
-    # calculate latency
-    e2e_latency = float(1) / float(target_sps)
-    n_layers = len(detail_list) - 2  # subtracting input & output
-    assert n_layers >= 1
-    latency_per_layer = e2e_latency / float(n_layers)
-    if debug_print:
-        print(
-            "calculating FLOPs for target e2e latency {}s ({}s for each layer if equal distribution is assumed).".format(
-                e2e_latency, latency_per_layer))
-    annotated_list = []
-    cmpl_list = []
-    uinp_list = []
-    for e in detail_list:
-        # calculate input and output bandwidth
-        i_bw = e['inpB'] * target_sps
-        o_bw = e['outB'] * target_sps
-        # calculate FLOPs
-        req_flop = e['flop'] * target_sps
-        req_flop_u = req_flop / unit
-        e['inpBs'] = i_bw
-        e['outBs'] = o_bw
-        e['rFLOP'] = req_flop
-        e['eqLat'] = latency_per_layer
-        annotated_list.append(e)
-        cmpl = e['cmpl']
-        if cmpl == 1:
-            continue
-        uinp = e['uinp']
-        name = e['name']
-        layer = e['layer']
-        cn = {'name': name + "_" + layer + "_engine", 'oi': cmpl, 'perf': req_flop_u}
-        un = {'name': name + "_" + layer + "_stream", 'oi': uinp, 'perf': req_flop_u}
-        cmpl_list.append(cn)
-        uinp_list.append(un)
-    if debug_print:
-        print(json.dumps(annotated_list, indent=2, sort_keys=False))
-    return annotated_list, cmpl_list, uinp_list
-
-
-def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, target_sps, target_latency,
+def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, sample_size, target_sps, target_latency,
                       target_resources, data_per_layer, tvm_nodes):
     # construct main function calls
     main_fn_exec = []
@@ -163,7 +125,7 @@ def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, target
         if layer['fn'] == oiV_fn_main_str:
             main_fn_exec.append(layer)
 
-    draft = ArchDraft(name, 'initial', strategy, batch_size, target_sps, target_latency, target_resources)
+    draft = ArchDraft(name, 'initial', strategy, batch_size, sample_size, target_sps, target_latency, target_resources)
     node_0 = ArchNode(0)
 
     # for fid in fn_view:
@@ -191,5 +153,67 @@ def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, target
     draft.add_node(node_0)
 
     return draft
+
+
+def annotate_required_performance(input_draft: ArchDraft):
+    arch_draft = copy.deepcopy(input_draft)
+    if arch_draft.strategy == OptimizationStrategies.THROUGHPUT:
+        if arch_draft.target_sps < 0:
+            print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_sps ({}). Stop."
+                  .format(arch_draft.strategy, arch_draft.target_sps))
+            exit(1)
+        # optimizing towards throughput
+        target_throughput = arch_draft.target_sps * arch_draft.sample_size_B
+        # annotate input & output
+        arch_draft.input_layer['inp_Bs'] = arch_draft.input_layer['inpB'] * arch_draft.target_sps
+        arch_draft.input_layer['out_Bs'] = arch_draft.input_layer['outB'] * arch_draft.target_sps
+        arch_draft.output_layer['inp_Bs'] = arch_draft.output_layer['inpB'] * arch_draft.target_sps
+        arch_draft.output_layer['out_Bs'] = arch_draft.output_layer['outB'] * arch_draft.target_sps
+        # annotate bricks
+        # for ni in arch_draft.nodes:
+        #     nn = arch_draft.nodes[ni]
+        #     for bi in nn.bricks:
+        #        brick = nn.bricks[bi]
+        for brick in arch_draft.brick_iter_gen():
+            brick.input_bw_Bs = brick.input_bytes * arch_draft.target_sps
+            brick.output_bw_Bs = brick.output_bytes * arch_draft.target_sps
+            brick.req_flops = brick.flops * arch_draft.target_sps
+            # calc_latency is depending on mode
+    elif arch_draft.strategy == OptimizationStrategies.LATENCY:
+        # optimizing towards latency
+        if arch_draft.target_latency < 0:
+            print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_latency ({}). Stop."
+                  .format(arch_draft.strategy, arch_draft.target_latency))
+            exit(1)
+            # first, try with 1/N distribution
+            latency_per_brick = arch_draft.target_latency / arch_draft.get_bricks_num()
+            for brick in arch_draft.brick_iter_gen():
+                brick.req_latency = latency_per_brick
+                brick.req_perf_engine = (brick.oi_engine * brick.input_bytes) / latency_per_brick
+                brick.req_perf_stream = (brick.oi_stream * brick.input_bytes) / latency_per_brick
+    else:
+        # optimizing towards resource footprint
+        if arch_draft.target_resources < 0:
+            print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_resources ({}). Stop."
+                  .format(arch_draft.strategy, arch_draft.target_resources))
+            exit(1)
+        # find max resources in flops
+        max_resources = 0
+        max_res_dev = "unknown"
+        for d in arch_draft.target_hw_set:
+            dr = d.get_max_flops()
+            if dr > max_resources:
+                max_resources = dr
+                max_res_dev = d.name
+        allowed_resources = max_resources * arch_draft.target_resources
+        arch_draft.tmp_notes['max_res_dev'] = max_res_dev
+        arch_draft.tmp_notes['allowed_resources'] = allowed_resources
+        # first, try with 1/N distribution
+        resource_per_brick = allowed_resources / arch_draft.get_bricks_num()
+        for brick in arch_draft.brick_iter_gen():
+            brick.req_flops = resource_per_brick
+    arch_draft.version += '_annotated'
+    return arch_draft
+
 
 

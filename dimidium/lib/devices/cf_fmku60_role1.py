@@ -80,3 +80,7 @@ class CfThemisto1(DosaBaseHw):
     def get_resource_dict(self):
         return
 
+    def get_max_flops(self):
+        return cF_bigRole_dsp48_gflops * gigaU
+
+

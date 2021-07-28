@@ -26,6 +26,9 @@ class ArchNode(object):
         self.target_hw = target_hw
         self.bricks = {}
         self.bid_cnt = 0
+        # TODO: add vertical node "twins"
+        #  i.e. so that the data is parallelized -> need smth like offset?
+        self.latency_to_next_node = 0
 
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.target_hw)
