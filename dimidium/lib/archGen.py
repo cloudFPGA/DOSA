@@ -112,7 +112,23 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
 
     annotated_draft = annotate_required_performance(inital_draft)
 
-    ret = {'mod': mod2, 'base_dpl': data_per_layer, 'fused_view': oi_main_view, 'draft': annotated_draft}
+    if debug:
+        other_opts = []
+        for opt_s in OptimizationStrategies:
+            if opt_s == strategy:
+                continue
+            inital_draft.strategy = opt_s
+            new_draft = annotate_required_performance(inital_draft)
+            # opt_s_n = str(opt_s).split('.')[-1]
+            # other_opts[opt_s_n] = new_draft
+            other_opts.append(new_draft)
+        inital_draft.strategy = strategy
+
+    ret = {'mod': mod2, 'base_dpl': data_per_layer, 'fused_view': oi_main_view, 'draft': annotated_draft,
+           'debug_obj': None}
+    if debug:
+        ret['debug_obj'] = {}
+        ret['debug_obj']['other_opts'] = other_opts
     return ret
 
 
@@ -185,12 +201,13 @@ def annotate_required_performance(input_draft: ArchDraft):
             print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_latency ({}). Stop."
                   .format(arch_draft.strategy, arch_draft.target_latency))
             exit(1)
-            # first, try with 1/N distribution
-            latency_per_brick = arch_draft.target_latency / arch_draft.get_bricks_num()
-            for brick in arch_draft.brick_iter_gen():
-                brick.req_latency = latency_per_brick
-                brick.req_perf_engine = (brick.oi_engine * brick.input_bytes) / latency_per_brick
-                brick.req_perf_stream = (brick.oi_stream * brick.input_bytes) / latency_per_brick
+        # first, try with 1/N distribution
+        latency_per_brick = arch_draft.target_latency / float(arch_draft.get_bricks_num())
+        for brick in arch_draft.brick_iter_gen():
+            brick.req_latency = latency_per_brick
+            # brick.req_perf_engine = (brick.oi_engine * brick.input_bytes) / latency_per_brick
+            # brick.req_perf_stream = (brick.oi_stream * brick.input_bytes) / latency_per_brick
+            brick.req_flops = brick.flops / latency_per_brick
     else:
         # optimizing towards resource footprint
         if arch_draft.target_resources < 0:

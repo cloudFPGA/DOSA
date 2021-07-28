@@ -133,7 +133,7 @@ def generate_roofline_plt(arch_draft, show_splits=True, show_labels=True):
         cmpl_list2.append(cn2)
         uinp_list2.append(un2)
     total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
-    plt_name = "{} (draft: {})".format(arch_draft.name, arch_draft.version)
+    plt_name = "{} (draft: {}, opt: {})".format(arch_draft.name, arch_draft.version, str(arch_draft.strategy).split('.')[-1])
     return draw_roofline(plt_name, arch_draft.batch_size, arch_draft.target_hw_set[0].get_performance_dict(),
                          arch_draft.target_hw_set[0].get_roofline_dict(), target_string, cmpl_list, uinp_list,
                          cmpl_list2, uinp_list2, total, show_splits, show_labels)

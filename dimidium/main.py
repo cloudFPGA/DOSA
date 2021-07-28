@@ -131,9 +131,10 @@ if __name__ == '__main__':
     assert arch_target_devices[0] == dosa_devices.cF_FMKU60_Themisto_1
     assert len(arch_target_devices) == 1
     print("DOSA: Generating high-level architecture...")
+    debug_mode = True
     archDict = arch_gen(mod, params, used_name, arch_gen_strategy, used_batch, used_sample_size, target_sps,
                         target_latency,
-                        target_resource_budget, arch_target_devices, arch_fallback_hw, debug=True)
+                        target_resource_budget, arch_target_devices, arch_fallback_hw, debug=debug_mode)
     print("\t...done.\n")
 
     print("DOSA: Generating and showing roofline...")
@@ -148,6 +149,11 @@ if __name__ == '__main__':
     #                                                arch_target_devices[0].get_roofline_dict(),
     #                                                show_splits=True, show_labels=True)
     plt2 = plot_roofline.generate_roofline_plt(archDict['draft'], show_splits=True, show_labels=True)
+    if debug_mode:
+        plt2_orig = plt2
+        plt3 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][0])
+        plt4 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][1])
+        plt2 = plt4
 
     # plot_roofline.show_roofline_plt(plt, blocking=False) not necessary...
     plot_roofline.show_roofline_plt(plt2)
