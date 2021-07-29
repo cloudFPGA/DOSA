@@ -250,14 +250,14 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
                 selected_impl = fallback_impl_type
             if selected_impl == BrickImplTypes.ENGINE:
                 cur_oi = bb.oi_engine
-                # cur_inp = bb.input_bytes + bb.parameter_bytes
+                cur_inp = bb.input_bytes + bb.parameter_bytes
             else:
                 cur_oi = bb.oi_stream
-                # cur_inp = bb.input_bytes
+                cur_inp = bb.input_bytes
             if cur_perf == 0 or cur_oi == 0:
                 continue
             cur_local_tp = cur_perf / cur_oi
-            req_local_tp = bb.input_bytes * draft.target_sps
+            req_local_tp = cur_inp * draft.target_sps
             # local_time = cur_inp / local_tp
             if cur_local_tp < req_local_tp:
                 print("[DOSA:archVerify:ERROR] Brick {} does not fulfill local throughput requirement (req: {} current: {} B/s)."
