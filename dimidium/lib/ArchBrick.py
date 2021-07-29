@@ -51,6 +51,7 @@ class ArchBrick(object):
         self.calc_latency = -1
         self.req_latency = -1
         self.selected_impl_type = BrickImplTypes.UNDECIDED
+        self.calc_flops = -1
 
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.brick_id, self.name)

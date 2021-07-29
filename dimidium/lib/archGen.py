@@ -16,7 +16,7 @@ import tvm
 import tvm.relay as relay
 from dimidium.lib.oiVisitor import OiPipeline
 from dimidium.lib.oiCalculation import OiCalculator
-from dimidium.lib.util import OptimizationStrategies
+from dimidium.lib.util import OptimizationStrategies, BrickImplTypes
 from dimidium.lib.ArchBrick import ArchBrick
 from dimidium.lib.ArchDraft import ArchDraft
 from dimidium.lib.ArchOp import ArchOp
@@ -111,6 +111,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
         print(inital_draft)
 
     annotated_draft = annotate_required_performance(inital_draft)
+    still_valid = check_annotations(annotated_draft)
 
     if debug:
         other_opts = []
@@ -121,6 +122,8 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
             new_draft = annotate_required_performance(inital_draft)
             # opt_s_n = str(opt_s).split('.')[-1]
             # other_opts[opt_s_n] = new_draft
+            if opt_s == OptimizationStrategies.LATENCY:
+                check_annotations(new_draft)
             other_opts.append(new_draft)
         inital_draft.strategy = strategy
 
@@ -233,4 +236,67 @@ def annotate_required_performance(input_draft: ArchDraft):
     return arch_draft
 
 
+def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE):
+    if draft.strategy == OptimizationStrategies.THROUGHPUT:
+        target_throughput = draft.target_sps * draft.sample_size_B
+        # TODO: consider vertical parallelized nodes
+        #  maybe with "flop_paralleization_factor" per brick?
+        for bb in draft.brick_iter_gen():
+            cur_perf = bb.calc_flops
+            if cur_perf < 0:
+                cur_perf = bb.req_flops
+            selected_impl = bb.selected_impl_type
+            if selected_impl == BrickImplTypes.UNDECIDED:
+                selected_impl = fallback_impl_type
+            if selected_impl == BrickImplTypes.ENGINE:
+                cur_oi = bb.oi_engine
+                # cur_inp = bb.input_bytes + bb.parameter_bytes
+            else:
+                cur_oi = bb.oi_stream
+                # cur_inp = bb.input_bytes
+            if cur_perf == 0 or cur_oi == 0:
+                continue
+            cur_local_tp = cur_perf / cur_oi
+            req_local_tp = bb.input_bytes * draft.target_sps
+            # local_time = cur_inp / local_tp
+            if cur_local_tp < req_local_tp:
+                print("[DOSA:archVerify:ERROR] Brick {} does not fulfill local throughput requirement (req: {} current: {} B/s)."
+                      .format(repr(bb), req_local_tp, cur_local_tp))
+                return False
+        print("[DOSA:archVerify:INFO] Draft {} fulfills throughput requirement.".format(repr(draft)))
+        return True
+    elif draft.strategy == OptimizationStrategies.LATENCY:
+        total_time = 0
+        # TODO: consider vertical parallelized nodes
+        #  maybe with "flop_paralleization_factor" per brick?
+        for bb in draft.brick_iter_gen():
+            cur_perf = bb.calc_flops
+            if cur_perf < 0:
+                cur_perf = bb.req_flops
+            # selected_impl = bb.selected_impl_type
+            # if selected_impl == BrickImplTypes.UNDECIDED:
+            #     selected_impl = fallback_impl_type
+            # if selected_impl == BrickImplTypes.ENGINE:
+            #     cur_oi = bb.oi_engine
+            #     cur_inp = bb.input_bytes + bb.parameter_bytes
+            # else:
+            #     cur_oi = bb.oi_stream
+            #     cur_inp = bb.input_bytes
+            if cur_perf == 0 or bb.flops == 0:
+                continue
+            local_time = bb.flops / cur_perf
+            total_time += local_time
+        for ni in draft.nodes:
+            nn = draft.nodes[ni]
+            total_time += nn.latency_to_next_node
+        if total_time > draft.target_latency:
+            print("[DOSA:archVerify:ERROR] Draft {} does not fulfill latency requirement (req: {} current: {} s)."
+                  .format(repr(draft), draft.target_latency, total_time))
+            return False
+        print("[DOSA:archVerify:INFO] Draft {} fulfills latency requirement.".format(repr(draft)))
+        return True
+    else:
+        # checking resource footprint
+        print("not yet implemented")
+    return False
 
