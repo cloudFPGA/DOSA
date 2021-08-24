@@ -268,7 +268,7 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
     elif draft.strategy == OptimizationStrategies.LATENCY:
         total_time = 0
         # TODO: consider vertical parallelized nodes
-        #  maybe with "flop_paralleization_factor" per brick?
+        #  maybe with "flop_parallelization_factor" per brick?
         for bb in draft.brick_iter_gen():
             cur_perf = bb.calc_flops
             if cur_perf < 0:

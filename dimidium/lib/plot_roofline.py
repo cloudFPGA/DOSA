@@ -46,8 +46,13 @@ def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, 
     th = itertools.cycle(text_height_values)
     for e in oi_list:
         if e['oi'] > x_max or e['oi'] < x_min:
-            print("[DOSA:roofline] Warning: required OI {} of {} out of range, skipping.".format(e['oi'], e['name']))
-            continue
+            print("[DOSA:roofline] Warning: required OI {} of {} out of range, correcting it to borders."
+                  .format(e['oi'], e['name']))
+            # continue
+            if e['oi'] > x_max:
+                e['oi'] = x_max
+            else:
+                e['oi'] = x_min
         plt.vlines(x=e['oi'], ymin=y_min, ymax=y_max, colors=color, linestyles=line_style, linewidth=line_width,
                    zorder=z_order)  # , label=e['name'])
         if show_labels:
@@ -61,7 +66,8 @@ def draw_oi_marker(plt, color, marker, oi_list, z_order=8):
     for e in oi_list:
         x.append(e['oi'])
         if not (__ylim_min__ < e['perf'] < __ylim_max__):
-            print("[DOSA:roofline] Warning: required performance {} of {} out of range.".format(e['perf'], e['name']))
+            print("[DOSA:roofline] Warning: required performance {} of {} out of range, correcting it."
+                  .format(e['perf'], e['name']))
             if __ylim_min__ > e['perf']:
                 y.append(__ylim_min__)
             else:
@@ -252,9 +258,9 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # text = 'Particle Methods'
     # plt.text(x=oai*1.1, y=marker_line-55, s=text, color=color, fontsize=MY_SIZE*font_factor, ha='left', va='top')
 
-    draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, upper_limit, cmpl_list,
+    draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, __ylim_max__, cmpl_list,
                  ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels)
-    draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, upper_limit, uinp_list,
+    draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, __ylim_max__, uinp_list,
                  ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels)
 
     draw_oi_marker(plt, color, marker1, cmpl_list2)
@@ -317,8 +323,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
 
     plt.xscale('log', base=10)
     plt.yscale('log', base=10)
-    # plt.ylim(0.1, 1500)
-    plt.ylim(0.01, 100000)
+    # plt.ylim(0.01, 100000)
+    plt.ylim(__ylim_min__, __ylim_max__)
     plt.xlim(ai_list[0], ai_list[-1])
 
     plt.xlabel('operational intensity (OI) [FLOPS/Byte]', fontsize=MY_SIZE)

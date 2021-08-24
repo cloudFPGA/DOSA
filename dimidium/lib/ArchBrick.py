@@ -59,7 +59,7 @@ class ArchBrick(object):
     def as_dict(self):
         res = {'name': self.name, 'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
-               'output_bytes': self.output_bytes, 'fn_labe': self.fn_label, 'used_dtype': self.used_dtype,
+               'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': self.used_dtype,
                'tvm_node': str(self.tvm_node)[:100], 'ops': {}, 'req_perf': self.req_flops,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs}
         for oi in self.ops:
