@@ -88,7 +88,7 @@ class DosaRoofline(object):
 
     def from_perf_dict(self, perf_dict):
         if 'dsp48_gflops' in perf_dict:
-            self.roof_F = perf_dict['dsl48_gflops'] * units.gigaU
+            self.roof_F = perf_dict['dsp48_gflops'] * units.gigaU
         else:
             self.roof_F = perf_dict['cpu_gflops'] * units.gigaU
         self.net_bw_B = perf_dict['bw_netw_gBs'] * units.gigaU

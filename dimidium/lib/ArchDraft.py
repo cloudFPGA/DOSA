@@ -79,10 +79,16 @@ class ArchDraft(object):
         node.set_node_id(n_id)
         self.nodes[n_id] = node
 
-    # def insert_node(self, node: ArchNode):
-    #     """adds an ArchNode without overwriting it's node_id"""
-    #     n_id = node.get_node_id()
-    #     self.nodes[n_id] = node
+    def insert_node(self, node: ArchNode, new_id):
+        if new_id > self.nid_cnt or new_id < 0:
+            print("[DOSA:ArchDraft:ERROR] insert node with invalid new_id, skipping.")
+            return
+        for i in reversed(range(new_id, self.nid_cnt)):
+            self.nodes[i+1] = self.nodes[i]
+            self.nodes[i+1].set_node_id(i+1)
+        node.set_node_id(new_id)
+        self.nodes[new_id] = node
+        self.nid_cnt += 1
 
     def set_tvm_handle(self, tvm_node):
         self.main_tvm_handle = tvm_node
@@ -117,4 +123,36 @@ class ArchDraft(object):
     def add_possible_fallback_hw(self, nfh: DosaBaseHw):
         self.fallback_hw_set.append(nfh)
 
+    def legalize(self):
+        # 0. split based on "used_perf"
+        # build list of original nodes
+        orig_nodes_handles = []
+        for nn in self.node_iter_gen():
+            orig_nodes_handles.append(nn)
+        for nn in orig_nodes_handles:
+            nn.update_used_perf()
+            all_new_nodes = []
+            cur_node = nn
+            while cur_node.used_perf_F > nn.max_perf_F:
+                cur_used_perf_F = 0
+                for i in range(0, cur_node.bid_cnt):
+                    cur_used_perf_F += cur_node.bricks[i].req_flops
+                    if cur_used_perf_F > nn.max_perf_F:
+                        if i == 0:
+                            i = 1
+                        new_node = cur_node.split_horizontal(i)  # including update_used_perf
+                        all_new_nodes.append(new_node)
+                        cur_node = new_node
+                        break
+            if len(all_new_nodes) > 0:
+                new_nid = nn.get_node_id() + 1
+                for new_node in all_new_nodes:
+                    self.insert_node(new_node, new_nid)
+                    new_nid += 1
+        assert len(self.nodes) == self.nid_cnt
+        # 1. compute parallelization for engine and stream (i.e. regions 1 and 4)
+        # 2. select engine or stream: check if both in same region, select the region that is "to the right"
+        # 3. data parallelization for all above IN_HOUSE
+        # 4. merge sequential nodes (no data par, no twins, same target_hw) if possible, based on used_perf,
+        # (i.e move bricks after each other)
 

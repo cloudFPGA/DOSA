@@ -10,6 +10,7 @@
 #  *
 #  *
 
+import copy
 import json
 
 from dimidium.lib.ArchBrick import ArchBrick
@@ -83,6 +84,25 @@ class ArchNode(object):
         del self.bricks[self.bid_cnt-1]
         self.bid_cnt -= 1
 
+    def split_horizontal(self, b_id_to_new_node):
+        if b_id_to_new_node == 0 or b_id_to_new_node >= self.bid_cnt or b_id_to_new_node < 0:
+            print("[DOSA:ArchNode:ERROR] invalid split attempt, skipping.")
+            return None
+        new_node = ArchNode(target_hw=self.target_hw)
+        new_node.max_perf_F = self.max_perf_F
+        new_node.roofline = self.roofline
+        new_node.latency_to_next_node = self.latency_to_next_node
+        self.successors.append(new_node)
+        new_node.predecessors.append(self)
+        for i in range(b_id_to_new_node, self.bid_cnt):
+            new_node.add_brick(self.bricks[i])
+        for i in reversed(range(b_id_to_new_node, self.bid_cnt)):
+            del self.bricks[i]
+        self.bid_cnt = len(self.bricks)
+        self.update_used_perf()
+        new_node.update_used_perf()
+        return new_node  # afterwards draft.add_node/insert_node must be called
+
     # def add_brick_dict(self, brick_dict):
     #    nb = ArchBrick(brick_id=None, dpl_dict=brick_dict)
     #    self.add_brick(nb)
@@ -92,6 +112,11 @@ class ArchNode(object):
 
     def get_node_id(self):
         return self.node_id
+
+    def local_brick_iter_gen(self):
+        for bi in self.bricks:
+            bb = self.bricks[bi]
+            yield bb
 
     def set_target_hw(self, target_hw: DosaBaseHw):
         self.target_hw = target_hw
@@ -113,7 +138,13 @@ class ArchNode(object):
     def update_roofline(self):
         assert self.target_hw is not None
         nrl = DosaRoofline()
-        nrl.from_perf_dict(self.target_hw.get_performance_dict)
+        nrl.from_perf_dict(self.target_hw.get_performance_dict())
         self.roofline = nrl
         self.max_perf_F = nrl.roof_F
+
+    def update_used_perf(self):
+        total_perf_F = 0
+        for lb in self.local_brick_iter_gen():
+            total_perf_F += lb.req_flops
+        self.used_perf_F = total_perf_F
 

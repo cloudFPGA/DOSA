@@ -149,6 +149,7 @@ if __name__ == '__main__':
     #                                                arch_target_devices[0].get_roofline_dict(),
     #                                                show_splits=True, show_labels=True)
     plt2 = plot_roofline.generate_roofline_plt(archDict['draft'], show_splits=True, show_labels=True)
+    # TODO: generate rooflines per node
     if debug_mode:
         plt2_orig = plt2
         plt3 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][0])

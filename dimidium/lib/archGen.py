@@ -114,6 +114,8 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
         print(annotated_draft)
 
     still_valid = check_annotations(annotated_draft)
+    best_draft = find_best_draft(annotated_draft)
+    still_valid = check_annotations(best_draft)
 
     if debug:
         other_opts = []
@@ -305,30 +307,36 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
 
 
 # update draft so that roofline and types are possible
-def legalize_draft(input_draft: ArchDraft) -> ArchDraft:
+def find_best_draft(input_draft: ArchDraft) -> ArchDraft:
     draft = copy.deepcopy(input_draft)
-    assert len(draft.target_hw_set >= 1)
-    assert len(draft.fallback_hw_set >= 1)
-    # TODO: for each target hw, create legal draft and count number of nodes
+    assert len(draft.target_hw_set) >= 1
+    assert len(draft.fallback_hw_set) >= 1
+    draft_list = []
+    node_count_list = []   # index equals index in target_hw_set and draft_list
+    for thw in draft.target_hw_set:
+        # A) for each target hw, create legal draft and count number of nodes
+        tmp_draft = copy.deepcopy(draft)
+        # populate first target hw
+        for nn in tmp_draft.node_iter_gen():
+            nn.set_target_hw(thw)  # this includes the generation of the roofline
+        # legalize this version
+        tmp_draft.legalize()
+        # save state
+        node_count_list.append(tmp_draft.nid_cnt)
+        draft_list.append(tmp_draft)
     #  then, select the type of hw with the lowest number of nodes
-    #  then, for not full nodes, see if other hw could be used
-    #  then, check if all operations can be implemented?
-    # 0. populate first target hw
-    thw = draft.target_hw_set[0]
-    # TODO: select target_hw candidate based on peak req. perf and sum of perf?
-    #  or, combine all rooflines and select later?
-    for nn in draft.node_iter_gen():
-        nn.set_target_hw(thw)  # this includes the generation of the roofline
-    # TODO 1. split based on possible implementations
-    # 2. split based on "used_perf"
-    # 3. compute parallelization for engine and stream (i.e. regions 1 and 4)
-    # 4. select engine or stream: check if both in same region, select the region that is "to the right"
-    # 5. data parallelization for all above IN_HOUSE
-    # 6. merge sequential nodes (no data par, no twins, same target_hw) if possible, based on used_perf,
-    # (i.e move bricks after each other)
+    best_version_i = node_count_list.index(min(node_count_list))
+    best_draft = draft_list[best_version_i]
+    draft = best_draft
+    # TODO: B) then, for not full nodes, see if other hw could be used
+    # TODO C) then, check if all operations can be implemented?
+    #  split accordingly and merge again?
+    # TODO D) annotate network latencies
+    draft.version = 'selected_best'
     return draft
 
 
 def optimize_draft(draft: ArchDraft) -> [ArchDraft]:
     return False
+
 
