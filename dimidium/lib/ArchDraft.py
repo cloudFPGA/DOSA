@@ -52,7 +52,15 @@ class ArchDraft(object):
                'batch_size': self.batch_size, 'target_sps': self.target_sps, 'target_latency': self.target_latency,
                'target_resources': self.target_resources,
                'input': str(self.input_layer), 'output': str(self.output_layer),
-               'main_tvm_handle': str(self.main_tvm_handle)[:100], 'nodes': {}}
+               'main_tvm_handle': str(self.main_tvm_handle)[:100],
+               'target_hw_set': [], 'fallback_hw_set': [],
+               'nodes': {}}
+        for thw in self.target_hw_set:
+            tn = type(thw).__name__
+            res['target_hw_set'].append(tn)
+        for fhw in self.fallback_hw_set:
+            fn = type(fhw).__name__
+            res['fallback_hw_set'].append(fn)
         for ni in self.nodes:
             n = self.nodes[ni]
             res['nodes'][ni] = n.as_dict()
@@ -91,6 +99,11 @@ class ArchDraft(object):
             for bi in nn.bricks:
                 bb = nn.bricks[bi]
                 yield bb
+
+    def node_iter_gen(self):
+        for ni in self.nodes:
+            nn = self.nodes[ni]
+            yield nn
 
     def get_bricks_num(self):
         ret = 0

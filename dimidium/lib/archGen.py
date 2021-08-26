@@ -300,14 +300,30 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
     else:
         # checking resource footprint
         print("not yet implemented")
+    # TODO: if roofline present, check if all bricks in all nodes are "IN_HOUSE"
     return False
 
 
 # update draft so that roofline and types are possible
-def legalize_draft(draft: ArchDraft):
-    return False
+def legalize_draft(input_draft: ArchDraft) -> ArchDraft:
+    draft = copy.deepcopy(input_draft)
+    assert len(draft.target_hw_set >= 1)
+    assert len(draft.fallback_hw_set >= 1)
+    # 0. populate first target hw
+    thw = draft.target_hw_set[0]
+    # TODO: select target_hw candidate based on peak req. perf and sum of perf?
+    #  or, combine all rooflines and select later?
+    for nn in draft.node_iter_gen():
+        nn.set_target_hw(thw)  # this includes the generation of the roofline
+    # TODO 1. split based on possible implementations
+    # 2. split based on "used_perf"
+    # 3. compute parallelization for engine and stream (i.e. regions 1 and 4)
+    # 4. select engine or stream: check if both in same region, select the region that is "to the right"
+    # 5. data parallelization for all above IN_HOUSE
+    # 6. merge sequential nodes (no data par, no twins) if possible, based on used_perf, (or move bricks)
+    return draft
 
 
-def optimize_draft(draft: ArchDraft):
+def optimize_draft(draft: ArchDraft) -> [ArchDraft]:
     return False
 
