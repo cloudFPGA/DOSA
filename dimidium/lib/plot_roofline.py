@@ -20,7 +20,7 @@ import matplotlib as mpl
 from matplotlib.path import Path
 from matplotlib.patches import Ellipse
 
-from dimidium.lib.util import ap, OptimizationStrategies
+from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies
 
 from dimidium.lib.units import *
 __ylim_min__ = 0.01
@@ -60,10 +60,18 @@ def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, 
                      rotation=90)
 
 
-def draw_oi_marker(plt, color, marker, oi_list, z_order=8):
+def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8):
     x = []
     y = []
     for e in oi_list:
+        if e['oi'] > x_max or e['oi'] < x_min:
+            print("[DOSA:roofline] Warning: required OI {} of {} out of range, correcting it to borders."
+                  .format(e['oi'], e['name']))
+            # continue
+            if e['oi'] > x_max:
+                e['oi'] = x_max
+            else:
+                e['oi'] = x_min
         x.append(e['oi'])
         if not (__ylim_min__ < e['perf'] < __ylim_max__):
             print("[DOSA:roofline] Warning: required performance {} of {} out of range, correcting it."
@@ -163,15 +171,15 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
 
     # Attainable performance
     upper_limit = perf_dict['dsp48_gflops']
-    p_fpga_ddr_max = [ap(x, upper_limit, perf_dict['bw_ddr4_gBs']) for x in ai_list]
-    p_fpga_bram_max = [ap(x, upper_limit, perf_dict['bw_bram_gBs']) for x in ai_list]
-    p_fpga_network_max = [ap(x, upper_limit, perf_dict['bw_netw_gBs']) for x in ai_list]
-    p_fpga_lutram_max = [ap(x, upper_limit, perf_dict['bw_lutram_gBs']) for x in ai_list]
+    p_fpga_ddr_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_dram_gBs']) for x in ai_list]
+    p_fpga_bram_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_bram_gBs']) for x in ai_list]
+    p_fpga_network_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_netw_gBs']) for x in ai_list]
+    p_fpga_lutram_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_lutram_gBs']) for x in ai_list]
 
-    # p_fpga_ddr_mantle = [ap(x, upper_limit, b_s_mantle_ddr_gBs) for x in ai_list]
-    # p_fpga_bram_mantle = [ap(x, upper_limit, b_s_mantle_bram_gBs) for x in ai_list]
-    # p_fpga_network_mantle = [ap(x, upper_limit, b_s_mantle_eth_gBs) for x in ai_list]
-    # p_fpga_lutram_mantle = [ap(x, upper_limit, b_s_mantle_lutram_gBs) for x in ai_list]
+    # p_fpga_ddr_mantle = [rf_attainable_performance(x, upper_limit, b_s_mantle_ddr_gBs) for x in ai_list]
+    # p_fpga_bram_mantle = [rf_attainable_performance(x, upper_limit, b_s_mantle_bram_gBs) for x in ai_list]
+    # p_fpga_network_mantle = [rf_attainable_performance(x, upper_limit, b_s_mantle_eth_gBs) for x in ai_list]
+    # p_fpga_lutram_mantle = [rf_attainable_performance(x, upper_limit, b_s_mantle_lutram_gBs) for x in ai_list]
 
     # plots
     # fig, ax1 = plt.subplots()
@@ -263,8 +271,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, __ylim_max__, uinp_list,
                  ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels)
 
-    draw_oi_marker(plt, color, marker1, cmpl_list2)
-    draw_oi_marker(plt, color2, marker2, uinp_list2)
+    draw_oi_marker(plt, color, marker1, cmpl_list2, ai_list[0], ai_list[-1])
+    draw_oi_marker(plt, color2, marker2, uinp_list2, ai_list[0], ai_list[-1])
     marker1_text = 'req. perf. f. Engine arch. (w/ {}, batch {})'.format(target_string, used_batch)
     marker1_legend = mpl.lines.Line2D([], [], color=color, marker=marker1, linestyle='None', markersize=10,
                                       label=marker1_text)

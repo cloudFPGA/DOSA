@@ -106,11 +106,13 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
             do = device_types_dict[d]
             inital_draft.add_possible_fallback_hw(do)
 
-    if debug:
-        print("\n[DEBUG] initial draft:")
-        print(inital_draft)
-
     annotated_draft = annotate_required_performance(inital_draft)
+
+    if debug:
+        print("\n[DEBUG] initial annotated draft:")
+        # print(inital_draft)
+        print(annotated_draft)
+
     still_valid = check_annotations(annotated_draft)
 
     if debug:
@@ -298,5 +300,14 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
     else:
         # checking resource footprint
         print("not yet implemented")
+    return False
+
+
+# update draft so that roofline and types are possible
+def legalize_draft(draft: ArchDraft):
+    return False
+
+
+def optimize_draft(draft: ArchDraft):
     return False
 

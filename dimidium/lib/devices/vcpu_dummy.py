@@ -16,6 +16,7 @@ from dimidium.lib.devices.dosa_device import DosaBaseHw
 
 network_bandwidth_gBs = 10.0/8.0
 cpu_gflops = 200  # from some benchmark for Intel i7 8th gen
+dram_bandwith_gBs = 80.0
 
 
 class VcpuDummy(DosaBaseHw):
@@ -24,7 +25,8 @@ class VcpuDummy(DosaBaseHw):
         super().__init__(hw_type, name)
 
     def get_performance_dict(self):
-        ret = {'type': 'x86', 'cpu_gflops': cpu_gflops, 'bw_netw_gBs': network_bandwidth_gBs}
+        ret = {'type': 'x86', 'cpu_gflops': cpu_gflops, 'bw_netw_gBs': network_bandwidth_gBs,
+               'bw_dram_gBs': dram_bandwith_gBs}
         return ret
 
     def get_roofline_dict(self):

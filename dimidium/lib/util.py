@@ -55,9 +55,16 @@ def replace_deep(dicttoreplace, repdict):
 
 # Attainable performance
 # intensity, peak performance, bandwidth
-def ap(i, P_max, b_s):
+def rf_attainable_performance(i, P_max, b_s):
     # return np.minimum(np.float64(P_max), np.float64(b_s)*i)
     return min(P_max, b_s*i)
+
+
+def rf_calc_sweet_spot(oi_list, roof_F, b_s):
+    for oi in oi_list:
+        if b_s*oi >= roof_F:
+            return oi
+    return -1
 
 
 def dtype_to_bit(dtype):

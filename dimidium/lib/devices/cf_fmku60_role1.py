@@ -68,7 +68,7 @@ class CfThemisto1(DosaBaseHw):
 
     def get_performance_dict(self):
         ret = {'fpga_freq_Hz': freq_fpga, 'dsp48_gflops': cF_bigRole_dsp48_gflops,
-           'bw_ddr4_gBs': b_s_fpga_ddr_gBs, 'bw_bram_gBs': b_s_fpga_bram_gBs,
+           'bw_dram_gBs': b_s_fpga_ddr_gBs, 'bw_bram_gBs': b_s_fpga_bram_gBs,
            'bw_netw_gBs': b_s_fpga_eth_gBs, 'bw_lutram_gBs': b_s_fpga_lutram_gBs,
            'type': 'fpga'}
         return ret
