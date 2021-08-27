@@ -21,10 +21,12 @@ from matplotlib.path import Path
 from matplotlib.patches import Ellipse
 
 from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies
+from dimidium.lib.ArchDraft import ArchDraft
+from dimidium.lib.ArchNode import ArchNode
 
 from dimidium.lib.units import *
-__ylim_min__ = 0.01
-__ylim_max__ = 100000
+from dimidium.lib.devices.dosa_roofline import config_global_rf_ylim_min as __ylim_min__
+from dimidium.lib.devices.dosa_roofline import config_global_rf_ylim_max as __ylim_max__
 
 
 # https://stackoverflow.com/questions/44970010/axes-class-set-explicitly-size-width-height-of-axes-in-given-units
@@ -112,7 +114,7 @@ def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
     return cmpl_list, uinp_list, total, detail_list
 
 
-def generate_roofline_plt(arch_draft, show_splits=True, show_labels=True):
+def generate_roofline_plt(arch_draft: ArchDraft, show_splits=True, show_labels=True):
     unit = gigaU
     target_string = ""
     if arch_draft.strategy == OptimizationStrategies.THROUGHPUT:
@@ -151,6 +153,49 @@ def generate_roofline_plt(arch_draft, show_splits=True, show_labels=True):
     return draw_roofline(plt_name, arch_draft.batch_size, arch_draft.target_hw_set[0].get_performance_dict(),
                          arch_draft.target_hw_set[0].get_roofline_dict(), target_string, cmpl_list, uinp_list,
                          cmpl_list2, uinp_list2, total, show_splits, show_labels)
+
+
+def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft, show_splits=True, show_labels=True):
+        unit = gigaU
+        target_string = ""
+        if parent_draft.strategy == OptimizationStrategies.THROUGHPUT:
+            target_string = "{} sps".format(parent_draft.target_sps)
+        elif parent_draft.strategy == OptimizationStrategies.LATENCY:
+            target_string = "{} s/req".format(parent_draft.target_latency)
+        else:
+            target_string = "max {} nodes".format(parent_draft.target_resources)
+        cmpl_list = []
+        uinp_list = []
+        cmpl_list2 = []
+        uinp_list2 = []
+        total_flops = 0
+        total_uinp_B = 0
+        total_param_B = 0
+        for bb in arch_node.local_brick_iter_gen():
+            cn = {'name': "{}_{}_engine".format(bb.brick_id, bb.fn_label), 'oi': bb.oi_engine}
+            un = {'name': "{}_{}_stream".format(bb.brick_id, bb.fn_label), 'oi': bb.oi_stream}
+            if bb.req_flops > 0:
+                req_flop_u_e = bb.req_flops / unit
+                req_flop_u_s = req_flop_u_e
+            else:
+                req_flop_u_e = bb.req_flops_engine / unit
+                req_flop_u_s = bb.req_flops_stream / unit
+            cn2 = {'name': "{}_{}_engine".format(bb.brick_id, bb.fn_label), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
+            un2 = {'name': "{}_{}_stream".format(bb.brick_id, bb.fn_label), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
+            total_flops += bb.flops
+            total_uinp_B += bb.input_bytes
+            total_param_B += bb.parameter_bytes
+            cmpl_list.append(cn)
+            uinp_list.append(un)
+            cmpl_list2.append(cn2)
+            uinp_list2.append(un2)
+        total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
+        plt_name = "{} (draft: {}, node: {}, opt: {})".format(parent_draft.name, parent_draft.version,
+                                                              arch_node.get_node_id(),
+                                                              str(parent_draft.strategy).split('.')[-1])
+        return draw_roofline(plt_name, parent_draft.batch_size, arch_node.target_hw.get_performance_dict(),
+                             arch_node.target_hw.get_roofline_dict(), target_string, cmpl_list, uinp_list,
+                             cmpl_list2, uinp_list2, total, show_splits, show_labels)
 
 
 def generate_roofline_plt_old(detailed_analysis, target_sps, used_batch, used_name, perf_dict, roofline_dict,

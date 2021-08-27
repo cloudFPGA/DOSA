@@ -16,6 +16,9 @@ from enum import Enum
 from dimidium.lib.util import rf_attainable_performance, BrickImplTypes, rf_calc_sweet_spot
 import dimidium.lib.units as units
 
+config_global_rf_ylim_min = 0.01
+config_global_rf_ylim_max = 100000
+
 __deactivated_bw_value__ = -1
 
 
@@ -36,8 +39,8 @@ class DosaRoofline(object):
     oi_list = np.concatenate((oi_list_small, oi_list_middle, oi_list_big))
 
     # Perf boundaries
-    ylim_min = 0.01 * units.gigaU
-    ylim_max = 100000 * units.gigaU
+    ylim_min = config_global_rf_ylim_min * units.gigaU
+    ylim_max = config_global_rf_ylim_max * units.gigaU
 
     def __init__(self, rl_F=0, net_bw_B=0, dram_bw_B=0,
                  bram_bw_B=__deactivated_bw_value__,

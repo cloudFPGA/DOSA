@@ -149,15 +149,19 @@ if __name__ == '__main__':
     #                                                arch_target_devices[0].get_roofline_dict(),
     #                                                show_splits=True, show_labels=True)
     plt2 = plot_roofline.generate_roofline_plt(archDict['draft'], show_splits=True, show_labels=True)
-    # TODO: generate rooflines per node
+    plt_nodes = []
+    for nn in archDict['draft'].node_iter_gen():
+        new_plt = plot_roofline.generate_roofline_for_node_plt(nn, archDict['draft'],
+                                                               show_splits=True, show_labels=True)
+        plt_nodes.append(new_plt)
+    last_plt = plt_nodes[-1]
     if debug_mode:
-        plt2_orig = plt2
         plt3 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][0])
         plt4 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][1])
-        plt2 = plt4
+        last_plt = plt4
 
     # plot_roofline.show_roofline_plt(plt, blocking=False) not necessary...
-    plot_roofline.show_roofline_plt(plt2)
+    plot_roofline.show_roofline_plt(last_plt)
     print("\t...done.\n")
 
     print("\nDOSA finished successfully.\n")

@@ -131,7 +131,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
             other_opts.append(new_draft)
         inital_draft.strategy = strategy
 
-    ret = {'mod': mod2, 'base_dpl': data_per_layer, 'fused_view': oi_main_view, 'draft': annotated_draft,
+    ret = {'mod': mod2, 'base_dpl': data_per_layer, 'fused_view': oi_main_view, 'draft': best_draft,
            'debug_obj': None}
     if debug:
         ret['debug_obj'] = {}
