@@ -180,62 +180,9 @@ def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, sample
 
 def annotate_required_performance(input_draft: ArchDraft):
     arch_draft = copy.deepcopy(input_draft)
-    if arch_draft.strategy == OptimizationStrategies.THROUGHPUT:
-        if arch_draft.target_sps < 0:
-            print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_sps ({}). Stop."
-                  .format(arch_draft.strategy, arch_draft.target_sps))
-            exit(1)
-        # optimizing towards throughput
-        target_throughput = arch_draft.target_sps * arch_draft.sample_size_B
-        # annotate input & output
-        arch_draft.input_layer['inp_Bs'] = arch_draft.input_layer['inpB'] * arch_draft.target_sps
-        arch_draft.input_layer['out_Bs'] = arch_draft.input_layer['outB'] * arch_draft.target_sps
-        arch_draft.output_layer['inp_Bs'] = arch_draft.output_layer['inpB'] * arch_draft.target_sps
-        arch_draft.output_layer['out_Bs'] = arch_draft.output_layer['outB'] * arch_draft.target_sps
-        # annotate bricks
-        # for ni in arch_draft.nodes:
-        #     nn = arch_draft.nodes[ni]
-        #     for bi in nn.bricks:
-        #        brick = nn.bricks[bi]
-        for brick in arch_draft.brick_iter_gen():
-            brick.input_bw_Bs = brick.input_bytes * arch_draft.target_sps
-            brick.output_bw_Bs = brick.output_bytes * arch_draft.target_sps
-            brick.req_flops = brick.flops * arch_draft.target_sps
-            # calc_latency is depending on mode
-    elif arch_draft.strategy == OptimizationStrategies.LATENCY:
-        # optimizing towards latency
-        if arch_draft.target_latency < 0:
-            print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_latency ({}). Stop."
-                  .format(arch_draft.strategy, arch_draft.target_latency))
-            exit(1)
-        # first, try with 1/N distribution
-        latency_per_brick = arch_draft.target_latency / float(arch_draft.get_bricks_num())
-        for brick in arch_draft.brick_iter_gen():
-            brick.req_latency = latency_per_brick
-            # brick.req_perf_engine = (brick.oi_engine * brick.input_bytes) / latency_per_brick
-            # brick.req_perf_stream = (brick.oi_stream * brick.input_bytes) / latency_per_brick
-            brick.req_flops = brick.flops / latency_per_brick
-    else:
-        # optimizing towards resource footprint
-        if arch_draft.target_resources < 0:
-            print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_resources ({}). Stop."
-                  .format(arch_draft.strategy, arch_draft.target_resources))
-            exit(1)
-        # find max resources in flops
-        max_resources = 0
-        max_res_dev = "unknown"
-        for d in arch_draft.target_hw_set:
-            dr = d.get_max_flops()
-            if dr > max_resources:
-                max_resources = dr
-                max_res_dev = d.name
-        allowed_resources = max_resources * arch_draft.target_resources
-        arch_draft.tmp_notes['max_res_dev'] = max_res_dev
-        arch_draft.tmp_notes['allowed_resources'] = allowed_resources
-        # first, try with 1/N distribution
-        resource_per_brick = allowed_resources / arch_draft.get_bricks_num()
-        for brick in arch_draft.brick_iter_gen():
-            brick.req_flops = resource_per_brick
+    rc = arch_draft.update_required_perf()
+    if rc != 0:
+        exit(1)
     arch_draft.version += '_annotated'
     return arch_draft
 

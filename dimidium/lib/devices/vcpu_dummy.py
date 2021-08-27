@@ -38,3 +38,7 @@ class VcpuDummy(DosaBaseHw):
 
     def get_max_flops(self):
         return cpu_gflops * gigaU
+
+    def get_comm_latency_s(self):
+        return 500 * mikroU  # TODO update
+

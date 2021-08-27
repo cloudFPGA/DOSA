@@ -28,7 +28,7 @@ class ArchNode(object):
         self.target_hw = target_hw
         self.bricks = {}
         self.bid_cnt = 0
-        self.latency_to_next_node = 0
+        # self.latency_to_next_node = 0
         self.number_of_round_robin = 0  # data parallelization
         self.twins = []  # compute parallelization
         self.predecessors = []
@@ -91,7 +91,7 @@ class ArchNode(object):
         new_node = ArchNode(target_hw=self.target_hw)
         new_node.max_perf_F = self.max_perf_F
         new_node.roofline = self.roofline
-        new_node.latency_to_next_node = self.latency_to_next_node
+        # new_node.latency_to_next_node = self.latency_to_next_node
         self.successors.append(new_node)
         new_node.predecessors.append(self)
         for i in range(b_id_to_new_node, self.bid_cnt):

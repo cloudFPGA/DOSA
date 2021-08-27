@@ -83,4 +83,6 @@ class CfThemisto1(DosaBaseHw):
     def get_max_flops(self):
         return cF_bigRole_dsp48_gflops * gigaU
 
+    def get_comm_latency_s(self):
+        return 0.1 * mikroU
 

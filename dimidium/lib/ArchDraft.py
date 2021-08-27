@@ -150,9 +150,74 @@ class ArchDraft(object):
                     self.insert_node(new_node, new_nid)
                     new_nid += 1
         assert len(self.nodes) == self.nid_cnt
+        self.update_required_perf()  # to consider new latencies
         # 1. compute parallelization for engine and stream (i.e. regions 1 and 4)
         # 2. select engine or stream: check if both in same region, select the region that is "to the right"
         # 3. data parallelization for all above IN_HOUSE
         # 4. merge sequential nodes (no data par, no twins, same target_hw) if possible, based on used_perf,
         # (i.e move bricks after each other)
 
+    def update_required_perf(self):
+        if self.strategy == OptimizationStrategies.THROUGHPUT:
+            if self.target_sps < 0:
+                print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_sps ({}). Stop."
+                      .format(self.strategy, self.target_sps))
+                return -1
+            # optimizing towards throughput
+            target_throughput = self.target_sps * self.sample_size_B
+            # annotate input & output
+            self.input_layer['inp_Bs'] = self.input_layer['inpB'] * self.target_sps
+            self.input_layer['out_Bs'] = self.input_layer['outB'] * self.target_sps
+            self.output_layer['inp_Bs'] = self.output_layer['inpB'] * self.target_sps
+            self.output_layer['out_Bs'] = self.output_layer['outB'] * self.target_sps
+            # annotate bricks
+            # pipelined design: no communication latency
+            for brick in self.brick_iter_gen():
+                brick.input_bw_Bs = brick.input_bytes * self.target_sps
+                brick.output_bw_Bs = brick.output_bytes * self.target_sps
+                brick.req_flops = brick.flops * self.target_sps
+                # calc_latency is depending on mode
+        elif self.strategy == OptimizationStrategies.LATENCY:
+            # optimizing towards latency
+            if self.target_latency < 0:
+                print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_latency ({}). Stop."
+                      .format(self.strategy, self.target_latency))
+                return -1
+            # first, try with 1/N distribution
+            # consider communication latency
+            comm_latency = 0
+            for nn in self.node_iter_gen():
+                if nn.target_hw is not None:
+                    cl1 = nn.target_hw.get_comm_latency_s
+                    # just consider it two times, don't consider successor
+                    comm_latency += 2 * cl1
+            compute_latency = self.target_latency - comm_latency
+            latency_per_brick = compute_latency / float(self.get_bricks_num())
+            for brick in self.brick_iter_gen():
+                brick.req_latency = latency_per_brick
+                # brick.req_perf_engine = (brick.oi_engine * brick.input_bytes) / latency_per_brick
+                # brick.req_perf_stream = (brick.oi_stream * brick.input_bytes) / latency_per_brick
+                brick.req_flops = brick.flops / latency_per_brick
+        else:
+            # optimizing towards resource footprint
+            if self.target_resources < 0:
+                print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_resources ({}). Stop."
+                      .format(self.strategy, self.target_resources))
+                return -1
+            # find max resources in flops
+            max_resources = 0
+            max_res_dev = "unknown"
+            for d in self.target_hw_set:
+                dr = d.get_max_flops()
+                if dr > max_resources:
+                    max_resources = dr
+                    max_res_dev = d.name
+            allowed_resources = max_resources * self.target_resources
+            self.tmp_notes['max_res_dev'] = max_res_dev
+            self.tmp_notes['allowed_resources'] = allowed_resources
+            # first, try with 1/N distribution
+            # ignore latency etc.
+            resource_per_brick = allowed_resources / self.get_bricks_num()
+            for brick in self.brick_iter_gen():
+                brick.req_flops = resource_per_brick
+        return 0
