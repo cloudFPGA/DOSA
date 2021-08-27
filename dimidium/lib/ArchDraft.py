@@ -198,7 +198,10 @@ class ArchDraft(object):
                     lb.set_impl_type(BrickImplTypes.ENGINE)
                 else:
                     lb.set_impl_type(BrickImplTypes.STREAM)
-        # 3. data parallelization for all above IN_HOUSE
+        # ensure all are decided
+        for bb in self.brick_iter_gen():
+            assert bb.selected_impl_type != BrickImplTypes.UNDECIDED
+        # 3. data parallelization for all above IN_HOUSE, based on selected impl type
         # 4. merge sequential nodes (no data par, no twins, same target_hw) if possible, based on used_perf,
         # (i.e move bricks after each other)
         # 5. for each node: turn lone engine impls into streams

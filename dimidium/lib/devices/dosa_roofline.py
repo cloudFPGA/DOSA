@@ -72,6 +72,8 @@ class DosaRoofline(object):
         self.sp_bram = __deactivated_bw_value__
 
     def get_region(self, oi_FB, req_perf_F) -> RooflineRegions:
+        if oi_FB < 0.001 or req_perf_F < 0.001:
+            return RooflineRegions.IN_HOUSE
         # TODO: do not assume DRAM BW is always higher than network BW?
         if req_perf_F >= self.roof_F:
             return RooflineRegions.ABOVE_TOP
