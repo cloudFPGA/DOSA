@@ -20,7 +20,7 @@ import matplotlib as mpl
 from matplotlib.path import Path
 from matplotlib.patches import Ellipse
 
-from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies
+from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies, BrickImplTypes
 from dimidium.lib.ArchDraft import ArchDraft
 from dimidium.lib.ArchNode import ArchNode
 
@@ -150,13 +150,15 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=True, show_labels=T
         uinp_list2.append(un2)
     total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
     plt_name = "{} (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
-                                                            str(arch_draft.strategy).split('.')[-1], arch_draft.nid_cnt)
+                                                            str(arch_draft.strategy).split('.')[-1],
+                                                            arch_draft.get_total_nodes_cnt())
     return draw_roofline(plt_name, arch_draft.batch_size, arch_draft.target_hw_set[0].get_performance_dict(),
                          arch_draft.target_hw_set[0].get_roofline_dict(), target_string, cmpl_list, uinp_list,
                          cmpl_list2, uinp_list2, total, show_splits, show_labels)
 
 
-def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft, show_splits=True, show_labels=True):
+def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft, show_splits=True, show_labels=True,
+                                   selected_only=False):
         unit = gigaU
         target_string = ""
         if parent_draft.strategy == OptimizationStrategies.THROUGHPUT:
@@ -186,10 +188,18 @@ def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft,
             total_flops += bb.flops
             total_uinp_B += bb.input_bytes
             total_param_B += bb.parameter_bytes
-            cmpl_list.append(cn)
-            uinp_list.append(un)
-            cmpl_list2.append(cn2)
-            uinp_list2.append(un2)
+            if selected_only:
+                if bb.selected_impl_type == BrickImplTypes.ENGINE:
+                    cmpl_list.append(cn)
+                    cmpl_list2.append(cn2)
+                elif bb.selected_impl_type == BrickImplTypes.STREAM:
+                    uinp_list.append(un)
+                    uinp_list2.append(un2)
+            else:
+                cmpl_list.append(cn)
+                uinp_list.append(un)
+                cmpl_list2.append(cn2)
+                uinp_list2.append(un2)
         total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
         plt_name = "{} (draft: {}, node: {}, dpl: {}, opt: {})".format(parent_draft.name, parent_draft.version,
                                                               arch_node.get_node_id(), arch_node.data_parallelism_level,

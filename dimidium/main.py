@@ -152,7 +152,7 @@ if __name__ == '__main__':
     plt_nodes = []
     for nn in archDict['draft'].node_iter_gen():
         new_plt = plot_roofline.generate_roofline_for_node_plt(nn, archDict['draft'],
-                                                               show_splits=True, show_labels=True)
+                                                               show_splits=True, show_labels=True, selected_only=True)
         plt_nodes.append(new_plt)
     last_plt = plt_nodes[-1]
     if debug_mode:

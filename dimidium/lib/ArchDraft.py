@@ -13,10 +13,10 @@
 import math
 import json
 
-from dimidium.lib.util import OptimizationStrategies
+from dimidium.lib.util import OptimizationStrategies, BrickImplTypes
 from dimidium.lib.ArchNode import ArchNode
 from dimidium.lib.devices.dosa_device import DosaBaseHw
-from dimidium.lib.devices.dosa_roofline import RooflineRegions
+from dimidium.lib.devices.dosa_roofline import RooflineRegions, get_rightmost_roofline_region
 
 
 class ArchDraft(object):
@@ -125,6 +125,12 @@ class ArchDraft(object):
     def add_possible_fallback_hw(self, nfh: DosaBaseHw):
         self.fallback_hw_set.append(nfh)
 
+    def get_total_nodes_cnt(self):
+        total_nodes = 0
+        for nn in self.node_iter_gen():
+            total_nodes += nn.data_parallelism_level
+        return total_nodes
+
     def legalize(self):
         # 0. split based on "used_perf"
         # build list of original nodes
@@ -179,9 +185,25 @@ class ArchDraft(object):
                     split_factor_up = 2
                 nn.split_vertical(factor=split_factor_up)  # including update of used perf
         # 2. select engine or stream: check if both in same region, select the region that is "to the right"
+        for nn in self.node_iter_gen():
+            if nn.bid_cnt == 1:
+                # only one brick -> stream
+                nn.bricks[0].set_impl_type(BrickImplTypes.STREAM)
+                continue
+            for lb in nn.local_brick_iter_gen():
+                r1 = nn.roofline.get_region(lb.oi_engine, lb.req_flops)
+                r2 = nn.roofline.get_region(lb.oi_stream, lb.req_flops)
+                br = get_rightmost_roofline_region(r1, r2)
+                if br == 1:
+                    lb.set_impl_type(BrickImplTypes.ENGINE)
+                else:
+                    lb.set_impl_type(BrickImplTypes.STREAM)
         # 3. data parallelization for all above IN_HOUSE
         # 4. merge sequential nodes (no data par, no twins, same target_hw) if possible, based on used_perf,
         # (i.e move bricks after each other)
+        # 5. for each node: turn lone engine impls into streams
+        #  (i.e. if the sequence is 1 engine, 2 stream, and 3 engine --> first engine doesn't make sense)
+        #  in other words: ensure that all engine sets are bigger or equal 2
 
     def update_required_perf(self):
         if self.strategy == OptimizationStrategies.THROUGHPUT:

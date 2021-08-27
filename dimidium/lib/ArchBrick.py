@@ -96,4 +96,13 @@ class ArchBrick(object):
         op.set_op_id(o_id)
         self.ops[o_id] = op
 
+    def set_impl_type(self, it: BrickImplTypes):
+        self.selected_impl_type = it
+        if it == BrickImplTypes.STREAM:
+            self.req_flops_stream = self.req_flops
+            self.req_flops_engine = -1
+        elif it == BrickImplTypes.ENGINE:
+            self.req_flops_engine = self.req_flops
+            self.req_flops_stream = -1
+
 

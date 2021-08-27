@@ -30,6 +30,20 @@ class RooflineRegions(Enum):
     ABOVE_BRAM = 4
 
 
+# compare roofline regions and return the better: 1 or 2, if equal also 1 will be returned
+def get_rightmost_roofline_region(r1: RooflineRegions, r2: RooflineRegions):
+    if r1 == RooflineRegions.IN_HOUSE or r2 == RooflineRegions.ABOVE_TOP:
+        return 1
+    if r2 == RooflineRegions.IN_HOUSE or r1 == RooflineRegions.ABOVE_TOP:
+        return 2
+    if (r1 == RooflineRegions.ABOVE_NETWORK or r1 == RooflineRegions.ABOVE_DRAM) \
+            and (r2 == RooflineRegions.ABOVE_DRAM or r2 == RooflineRegions.ABOVE_BRAM):
+        return 1
+    if r1 == RooflineRegions.ABOVE_BRAM and r2 == RooflineRegions.ABOVE_BRAM:
+        return 1
+    return 2
+
+
 class DosaRoofline(object):
 
     # operational intensity vector
