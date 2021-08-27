@@ -16,6 +16,7 @@ import json
 from dimidium.lib.ArchBrick import ArchBrick
 from dimidium.lib.devices.dosa_device import DosaBaseHw
 from dimidium.lib.devices.dosa_roofline import DosaRoofline
+from dimidium.lib.util import BrickImplTypes
 
 
 class ArchNode(object):
@@ -29,8 +30,8 @@ class ArchNode(object):
         self.bricks = {}
         self.bid_cnt = 0
         # self.latency_to_next_node = 0
-        self.number_of_round_robin = 0  # data parallelization
-        self.twins = []  # compute parallelization
+        self.data_parallelism_level = 1  # round robin data parallelization, 1 = NO parallelism
+        # self.twins = []  # compute parallelization
         self.predecessors = []
         self.successors = []
         self.roofline = None
@@ -42,11 +43,11 @@ class ArchNode(object):
 
     def as_dict(self):
         res = {'node_id': self.node_id, 'target_hw': str(self.target_hw),
-               'data_paral_level': self.number_of_round_robin, 'twin_nodes': [],
+               'data_paral_level': self.data_parallelism_level,  # 'twin_nodes': [],
                'pred_nodes': [], 'succ_nodes': [],
                'bricks': {}}
-        for tn in self.twins:
-            res['twin_nodes'].append(tn.node_id)
+        # for tn in self.twins:
+        #    res['twin_nodes'].append(tn.node_id)
         for pn in self.predecessors:
             res['pred_nodes'].append(pn.node_id)
         for sn in self.successors:
@@ -103,9 +104,16 @@ class ArchNode(object):
         new_node.update_used_perf()
         return new_node  # afterwards draft.add_node/insert_node must be called
 
-    # def add_brick_dict(self, brick_dict):
-    #    nb = ArchBrick(brick_id=None, dpl_dict=brick_dict)
-    #    self.add_brick(nb)
+    def split_vertical(self, factor=2):
+        assert factor > 1
+        self.data_parallelism_level *= factor
+        for lb in self.local_brick_iter_gen():
+            lb.req_flops /= factor
+            if lb.selected_impl_type == BrickImplTypes.STREAM:
+                lb.req_flops_stream /= factor
+            elif lb.selected_impl_type == BrickImplTypes.ENGINE:
+                lb.req_flops_engine /= factor
+        self.update_used_perf()
 
     def set_node_id(self, node_id):
         self.node_id = node_id
@@ -131,9 +139,9 @@ class ArchNode(object):
         assert type(p) is ArchNode
         self.successors.append(p)
 
-    def add_twin_node(self, t):
-        assert type(t) is ArchNode
-        self.twins.append(t)
+    # def add_twin_node(self, t):
+    #     assert type(t) is ArchNode
+    #     self.twins.append(t)
 
     def update_roofline(self):
         assert self.target_hw is not None

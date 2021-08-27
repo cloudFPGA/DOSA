@@ -10,11 +10,13 @@
 #  *
 #  *
 
+import math
 import json
 
 from dimidium.lib.util import OptimizationStrategies
 from dimidium.lib.ArchNode import ArchNode
 from dimidium.lib.devices.dosa_device import DosaBaseHw
+from dimidium.lib.devices.dosa_roofline import RooflineRegions
 
 
 class ArchDraft(object):
@@ -152,6 +154,30 @@ class ArchDraft(object):
         assert len(self.nodes) == self.nid_cnt
         self.update_required_perf()  # to consider new latencies
         # 1. compute parallelization for engine and stream (i.e. regions 1 and 4)
+        #  update: compute parallelization (i.e. blocking of compute ops) is difficult, hence also round robin here
+        for nn in self.node_iter_gen():
+            # only nodes with one brick should be affected
+            need_to_split = False
+            split_factor = 0
+            for lb in nn.local_brick_iter_gen():
+                # engine and stream
+                rr = nn.roofline.get_region(lb.oi_stream, lb.req_flops)
+                if rr == RooflineRegions.ABOVE_TOP or rr == RooflineRegions.ABOVE_BRAM:
+                    need_to_split = True
+                    nsf = lb.req_flops / nn.max_perf_F
+                    if nsf > split_factor:
+                        split_factor = nsf
+                rr = nn.roofline.get_region(lb.oi_engine, lb.req_flops)
+                if rr == RooflineRegions.ABOVE_TOP or rr == RooflineRegions.ABOVE_BRAM:
+                    need_to_split = True
+                    nsf = lb.req_flops / nn.max_perf_F
+                    if nsf > split_factor:
+                        split_factor = nsf
+            if need_to_split:
+                split_factor_up = math.ceil(split_factor)
+                if split_factor_up < 2:
+                    split_factor_up = 2
+                nn.split_vertical(factor=split_factor_up)  # including update of used perf
         # 2. select engine or stream: check if both in same region, select the region that is "to the right"
         # 3. data parallelization for all above IN_HOUSE
         # 4. merge sequential nodes (no data par, no twins, same target_hw) if possible, based on used_perf,
@@ -172,11 +198,13 @@ class ArchDraft(object):
             self.output_layer['out_Bs'] = self.output_layer['outB'] * self.target_sps
             # annotate bricks
             # pipelined design: no communication latency
-            for brick in self.brick_iter_gen():
-                brick.input_bw_Bs = brick.input_bytes * self.target_sps
-                brick.output_bw_Bs = brick.output_bytes * self.target_sps
-                brick.req_flops = brick.flops * self.target_sps
-                # calc_latency is depending on mode
+            for node in self.node_iter_gen():
+                # take data parallelism into account
+                local_data_par_level = node.data_parallelism_level
+                for brick in node.local_brick_iter_gen():
+                    brick.input_bw_Bs = brick.input_bytes * (self.target_sps/local_data_par_level)
+                    brick.output_bw_Bs = brick.output_bytes * (self.target_sps/local_data_par_level)
+                    brick.req_flops = brick.flops * (self.target_sps/local_data_par_level)
         elif self.strategy == OptimizationStrategies.LATENCY:
             # optimizing towards latency
             if self.target_latency < 0:
@@ -188,16 +216,25 @@ class ArchDraft(object):
             comm_latency = 0
             for nn in self.node_iter_gen():
                 if nn.target_hw is not None:
-                    cl1 = nn.target_hw.get_comm_latency_s
+                    cl1 = nn.target_hw.get_comm_latency_s()
                     # just consider it two times, don't consider successor
                     comm_latency += 2 * cl1
             compute_latency = self.target_latency - comm_latency
+            if compute_latency < 0:
+                print("[DOSA:archGen:ERROR] Communication latency ({}) is higher than target latency ({}). "
+                      .format(comm_latency, self.target_latency) +
+                      "Impossible to generate architecture. Stop.")
+                return -1
             latency_per_brick = compute_latency / float(self.get_bricks_num())
-            for brick in self.brick_iter_gen():
-                brick.req_latency = latency_per_brick
-                # brick.req_perf_engine = (brick.oi_engine * brick.input_bytes) / latency_per_brick
-                # brick.req_perf_stream = (brick.oi_stream * brick.input_bytes) / latency_per_brick
-                brick.req_flops = brick.flops / latency_per_brick
+            for node in self.node_iter_gen():
+                # take data parallelism into account
+                local_data_par_level = node.data_parallelism_level
+                for brick in node.local_brick_iter_gen():
+                    brick.req_latency = latency_per_brick
+                    # calc_latency is depending on mode
+                    # brick.req_perf_engine = (brick.oi_engine * brick.input_bytes) / latency_per_brick
+                    # brick.req_perf_stream = (brick.oi_stream * brick.input_bytes) / latency_per_brick
+                    brick.req_flops = brick.flops / (latency_per_brick*local_data_par_level)
         else:
             # optimizing towards resource footprint
             if self.target_resources < 0:
@@ -216,7 +253,7 @@ class ArchDraft(object):
             self.tmp_notes['max_res_dev'] = max_res_dev
             self.tmp_notes['allowed_resources'] = allowed_resources
             # first, try with 1/N distribution
-            # ignore latency etc.
+            # ignore latency, data_par etc.
             resource_per_brick = allowed_resources / self.get_bricks_num()
             for brick in self.brick_iter_gen():
                 brick.req_flops = resource_per_brick

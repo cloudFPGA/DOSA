@@ -190,56 +190,62 @@ def annotate_required_performance(input_draft: ArchDraft):
 def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE):
     if draft.strategy == OptimizationStrategies.THROUGHPUT:
         target_throughput = draft.target_sps * draft.sample_size_B
-        # TODO: consider vertical parallelized nodes
-        #  maybe with "flop_paralleization_factor" per brick?
-        for bb in draft.brick_iter_gen():
-            cur_perf = bb.calc_flops
-            if cur_perf < 0:
-                cur_perf = bb.req_flops
-            selected_impl = bb.selected_impl_type
-            if selected_impl == BrickImplTypes.UNDECIDED:
-                selected_impl = fallback_impl_type
-            if selected_impl == BrickImplTypes.ENGINE:
-                cur_oi = bb.oi_engine
-                cur_inp = bb.input_bytes + bb.parameter_bytes
-            else:
-                cur_oi = bb.oi_stream
-                cur_inp = bb.input_bytes
-            if cur_perf == 0 or cur_oi == 0:
-                continue
-            cur_local_tp = cur_perf / cur_oi
-            req_local_tp = cur_inp * draft.target_sps
-            # local_time = cur_inp / local_tp
-            if cur_local_tp < req_local_tp:
-                print("[DOSA:archVerify:ERROR] Brick {} does not fulfill local throughput requirement (req: {} current: {} B/s)."
-                      .format(repr(bb), req_local_tp, cur_local_tp))
-                return False
+        for node in draft.node_iter_gen():
+            # take data parallelism into account
+            local_data_par_level = node.data_parallelism_level
+            for bb in node.local_brick_iter_gen():
+                cur_perf = bb.calc_flops
+                if cur_perf < 0:
+                    cur_perf = bb.req_flops
+                selected_impl = bb.selected_impl_type
+                if selected_impl == BrickImplTypes.UNDECIDED:
+                    selected_impl = fallback_impl_type
+                if selected_impl == BrickImplTypes.ENGINE:
+                    cur_oi = bb.oi_engine
+                    cur_inp = bb.input_bytes + bb.parameter_bytes
+                else:
+                    cur_oi = bb.oi_stream
+                    cur_inp = bb.input_bytes
+                if cur_perf == 0 or cur_oi == 0:
+                    continue
+                total_cur_perf = cur_perf * local_data_par_level
+                cur_local_tp = total_cur_perf / cur_oi
+                req_local_tp = cur_inp * draft.target_sps
+                # local_time = cur_inp / local_tp
+                if cur_local_tp < req_local_tp:
+                    print("[DOSA:archVerify:ERROR] Brick {} does not fulfill local throughput requirement (req: {} current: {} B/s)."
+                          .format(repr(bb), req_local_tp, cur_local_tp))
+                    return False
         print("[DOSA:archVerify:INFO] Draft {} fulfills throughput requirement.".format(repr(draft)))
         return True
     elif draft.strategy == OptimizationStrategies.LATENCY:
         total_time = 0
-        # TODO: consider vertical parallelized nodes
-        #  maybe with "flop_parallelization_factor" per brick?
-        for bb in draft.brick_iter_gen():
-            cur_perf = bb.calc_flops
-            if cur_perf < 0:
-                cur_perf = bb.req_flops
-            # selected_impl = bb.selected_impl_type
-            # if selected_impl == BrickImplTypes.UNDECIDED:
-            #     selected_impl = fallback_impl_type
-            # if selected_impl == BrickImplTypes.ENGINE:
-            #     cur_oi = bb.oi_engine
-            #     cur_inp = bb.input_bytes + bb.parameter_bytes
-            # else:
-            #     cur_oi = bb.oi_stream
-            #     cur_inp = bb.input_bytes
-            if cur_perf == 0 or bb.flops == 0:
-                continue
-            local_time = bb.flops / cur_perf
-            total_time += local_time
+        for node in draft.node_iter_gen():
+            # take data parallelism into account
+            local_data_par_level = node.data_parallelism_level
+            for bb in node.local_brick_iter_gen():
+                cur_perf = bb.calc_flops
+                if cur_perf < 0:
+                    cur_perf = bb.req_flops
+                # selected_impl = bb.selected_impl_type
+                # if selected_impl == BrickImplTypes.UNDECIDED:
+                #     selected_impl = fallback_impl_type
+                # if selected_impl == BrickImplTypes.ENGINE:
+                #     cur_oi = bb.oi_engine
+                #     cur_inp = bb.input_bytes + bb.parameter_bytes
+                # else:
+                #     cur_oi = bb.oi_stream
+                #     cur_inp = bb.input_bytes
+                if cur_perf == 0 or bb.flops == 0:
+                    continue
+                total_cur_perf = cur_perf * local_data_par_level
+                local_time = bb.flops / total_cur_perf
+                total_time += local_time
         for ni in draft.nodes:
             nn = draft.nodes[ni]
-            total_time += nn.latency_to_next_node
+            if nn.target_hw is not None:
+                cl1 = nn.target_hw.get_comm_latency_s()
+                total_time += 2 * cl1
         if total_time > draft.target_latency:
             print("[DOSA:archVerify:ERROR] Draft {} does not fulfill latency requirement (req: {} current: {} s)."
                   .format(repr(draft), draft.target_latency, total_time))
