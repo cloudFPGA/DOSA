@@ -21,8 +21,8 @@ from dimidium.lib.ArchBrick import ArchBrick
 from dimidium.lib.ArchDraft import ArchDraft
 from dimidium.lib.ArchOp import ArchOp
 from dimidium.lib.ArchNode import ArchNode
-from dimidium.lib.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str, oiV_func_call_str
-from dimidium.lib.devices import types_dict as device_types_dict
+from dimidium.lib.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str
+from dimidium.devices import types_dict as device_types_dict
 
 
 @tvm.instrument.pass_instrument

@@ -15,8 +15,8 @@ import json
 
 from dimidium.lib.util import OptimizationStrategies, BrickImplTypes
 from dimidium.lib.ArchNode import ArchNode
-from dimidium.lib.devices.dosa_device import DosaBaseHw
-from dimidium.lib.devices.dosa_roofline import RooflineRegions, get_rightmost_roofline_region
+from dimidium.devices.dosa_device import DosaBaseHw
+from dimidium.devices.dosa_roofline import RooflineRegions, get_rightmost_roofline_region
 
 
 class ArchDraft(object):

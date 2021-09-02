@@ -13,14 +13,12 @@
 import sys
 import json
 import math
-import numpy as np
 import onnx
-import tvm
 import tvm.relay as relay
 
 from dimidium.lib.archGen import arch_gen
 import dimidium.lib.plot_roofline as plot_roofline
-import dimidium.lib.devices as dosa_devices
+import dimidium.devices as dosa_devices
 from dimidium.lib.util import OptimizationStrategies
 from dimidium.lib.util import config_bits_per_byte
 

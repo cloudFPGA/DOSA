@@ -10,12 +10,11 @@
 #  *
 #  *
 
-import copy
 import json
 
 from dimidium.lib.ArchBrick import ArchBrick
-from dimidium.lib.devices.dosa_device import DosaBaseHw
-from dimidium.lib.devices.dosa_roofline import DosaRoofline
+from dimidium.devices.dosa_device import DosaBaseHw
+from dimidium.devices.dosa_roofline import DosaRoofline
 from dimidium.lib.util import BrickImplTypes
 
 
