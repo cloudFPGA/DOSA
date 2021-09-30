@@ -156,7 +156,8 @@ if __name__ == '__main__':
     if debug_mode:
         plt3 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][0])
         plt4 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][1])
-        last_plt = plt4
+        plt5 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][2])
+        last_plt = plt5
 
     # plot_roofline.show_roofline_plt(plt, blocking=False) not necessary...
     plot_roofline.show_roofline_plt(last_plt)

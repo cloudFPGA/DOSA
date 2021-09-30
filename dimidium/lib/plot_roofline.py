@@ -111,7 +111,7 @@ def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
     return cmpl_list, uinp_list, total, detail_list
 
 
-def generate_roofline_plt(arch_draft: ArchDraft, show_splits=True, show_labels=True):
+def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=True):
     unit = gigaU
     target_string = ""
     if arch_draft.strategy == OptimizationStrategies.THROUGHPUT:

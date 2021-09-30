@@ -119,6 +119,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
 
     if debug:
         other_opts = []
+        other_opts.append(annotated_draft)
         for opt_s in OptimizationStrategies:
             if opt_s == strategy:
                 continue
