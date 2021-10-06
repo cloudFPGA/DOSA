@@ -207,6 +207,8 @@ class ArchDraft(object):
         # 5. for each node: turn lone engine impls into streams
         #  (i.e. if the sequence is 1 engine, 2 stream, and 3 engine --> first engine doesn't make sense)
         #  in other words: ensure that all engine sets are bigger or equal 2
+        # 6. update kernel uuids
+        self.update_uuids()
 
     def update_required_perf(self):
         if self.strategy == OptimizationStrategies.THROUGHPUT:
@@ -283,3 +285,12 @@ class ArchDraft(object):
             for brick in self.brick_iter_gen():
                 brick.req_flops = resource_per_brick
         return 0
+
+    def update_uuids(self):
+        next_kuuid = 0
+        next_buuid = 0
+        for nn in self.node_iter_gen():
+            next_kuuid = nn.update_kernel_uuids(next_kuuid)
+            next_buuid = nn.update_brick_uuids(next_buuid)
+
+

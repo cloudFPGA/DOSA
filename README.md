@@ -55,3 +55,12 @@ On changes, just run `make -j4` again to build TVM (`cmake ..` not really necess
 From time to time a `git pull origin main` is recommended to pull latest changes from TVM.
 
 
+DOSA examples
+--------------------
+
+- `cifar10` example with CNN from https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
+- `crnn` example from https://codingvision.net/pytorch-crnn-seq2seq-digits-recognition-ctc
+
+
+
+

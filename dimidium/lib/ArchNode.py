@@ -155,3 +155,19 @@ class ArchNode(object):
             total_perf_F += lb.req_flops
         self.used_perf_F = total_perf_F
 
+    def update_kernel_uuids(self, kuuid_start):
+        # TODO: take parallelism into account?
+        next_uuid = kuuid_start
+        for bb in self.local_brick_iter_gen():
+            next_uuid = bb.update_global_ids(next_uuid)
+        return next_uuid
+
+    def update_brick_uuids(self, buuid_start):
+        # TODO: take parallelism into account?
+        next_uuid = buuid_start
+        for bb in self.local_brick_iter_gen():
+            bb.set_brick_uuid(next_uuid)
+            next_uuid += 1
+        return next_uuid
+
+

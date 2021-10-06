@@ -96,7 +96,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
         print(json.dumps(fn_call_stats, indent=2, sort_keys=False))
 
     inital_draft = create_arch_draft(name, strategy, batch_size, sample_size, target_sps, target_latency, target_resources,
-                                     data_per_layer, tvm_nodes)
+                                     data_per_layer, tvm_nodes, mod2)
 
     for do in arch_target_devices:
         inital_draft.add_possible_target_hw(do)
@@ -141,7 +141,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
 
 
 def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, sample_size, target_sps, target_latency,
-                      target_resources, data_per_layer, tvm_nodes):
+                      target_resources, data_per_layer, tvm_nodes, tvm_handle):
     # construct main function calls
     main_fn_exec = []
     for lid in data_per_layer:
@@ -149,7 +149,8 @@ def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, sample
         if layer['fn'] == oiV_fn_main_str:
             main_fn_exec.append(layer)
 
-    draft = ArchDraft(name, 'initial', strategy, batch_size, sample_size, target_sps, target_latency, target_resources)
+    draft = ArchDraft(name, 'initial', strategy, batch_size, sample_size, target_sps, target_latency, target_resources,
+                      tvm_node=tvm_handle)
     node_0 = ArchNode(0)
 
     # for fid in fn_view:

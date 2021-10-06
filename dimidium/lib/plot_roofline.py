@@ -128,16 +128,16 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
     total_uinp_B = 0
     total_param_B = 0
     for bb in arch_draft.brick_iter_gen():
-        cn = {'name': "{}_engine".format(bb.brick_id), 'oi': bb.oi_engine}
-        un = {'name': "{}_stream".format(bb.brick_id), 'oi': bb.oi_stream}
+        cn = {'name': "{}_engine".format(bb.local_brick_id), 'oi': bb.oi_engine}
+        un = {'name': "{}_stream".format(bb.local_brick_id), 'oi': bb.oi_stream}
         if bb.req_flops > 0:
             req_flop_u_e = bb.req_flops / unit
             req_flop_u_s = req_flop_u_e
         else:
             req_flop_u_e = bb.req_flops_engine / unit
             req_flop_u_s = bb.req_flops_stream / unit
-        cn2 = {'name': "{}_engine".format(bb.brick_id), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
-        un2 = {'name': "{}_stream".format(bb.brick_id), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
+        cn2 = {'name': "{}_engine".format(bb.local_brick_id), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
+        un2 = {'name': "{}_stream".format(bb.local_brick_id), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
         total_flops += bb.flops
         total_uinp_B += bb.input_bytes
         total_param_B += bb.parameter_bytes
@@ -172,16 +172,16 @@ def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft,
         total_uinp_B = 0
         total_param_B = 0
         for bb in arch_node.local_brick_iter_gen():
-            cn = {'name': "{}_{}_engine".format(bb.brick_id, bb.fn_label), 'oi': bb.oi_engine}
-            un = {'name': "{}_{}_stream".format(bb.brick_id, bb.fn_label), 'oi': bb.oi_stream}
+            cn = {'name': "{}_{}_engine".format(bb.local_brick_id, bb.fn_label), 'oi': bb.oi_engine}
+            un = {'name': "{}_{}_stream".format(bb.local_brick_id, bb.fn_label), 'oi': bb.oi_stream}
             if bb.req_flops > 0:
                 req_flop_u_e = bb.req_flops / unit
                 req_flop_u_s = req_flop_u_e
             else:
                 req_flop_u_e = bb.req_flops_engine / unit
                 req_flop_u_s = bb.req_flops_stream / unit
-            cn2 = {'name': "{}_{}_engine".format(bb.brick_id, bb.fn_label), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
-            un2 = {'name': "{}_{}_stream".format(bb.brick_id, bb.fn_label), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
+            cn2 = {'name': "{}_{}_engine".format(bb.local_brick_id, bb.fn_label), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
+            un2 = {'name': "{}_{}_stream".format(bb.local_brick_id, bb.fn_label), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
             total_flops += bb.flops
             total_uinp_B += bb.input_bytes
             total_param_B += bb.parameter_bytes

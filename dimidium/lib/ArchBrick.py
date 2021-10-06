@@ -27,7 +27,8 @@ class ArchBrick(object):
 
     def __init__(self, brick_id=None, dpl_dict=None, tvm_node=None):
         self.name = None
-        self.brick_id = brick_id
+        self.local_brick_id = brick_id
+        self.brick_uuid = None
         self.oi_engine = 0
         self.oi_stream = 0
         self.flops = 0
@@ -54,10 +55,11 @@ class ArchBrick(object):
         self.calc_flops = -1
 
     def __repr__(self):
-        return "ArchBrick({}, {})".format(self.brick_id, self.name)
+        return "ArchBrick({}, {})".format(self.local_brick_id, self.name)
 
     def as_dict(self):
-        res = {'name': self.name, 'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
+        res = {'name': self.name, 'brick_uuid': self.brick_uuid,
+               'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': self.used_dtype,
                'tvm_node': str(self.tvm_node)[:100], 'ops': {}, 'req_perf': self.req_flops,
@@ -70,6 +72,11 @@ class ArchBrick(object):
     def __str__(self):
         ret = self.as_dict()
         return json.dumps(ret, indent=2)
+
+    def local_op_iter_gen(self):
+        for oi in self.ops:
+            o = self.ops[oi]
+            yield o
 
     def from_dpl_dict(self, dpl_dict):
         self.name = dpl_dict['name']
@@ -85,7 +92,7 @@ class ArchBrick(object):
         self.used_dtype = dpl_dict['dtype']
 
     def set_brick_id(self, brick_id):
-        self.brick_id = brick_id
+        self.local_brick_id = brick_id
 
     def set_tvm_node(self, tvm_node: Expr):
         self.tvm_node = tvm_node
@@ -93,7 +100,7 @@ class ArchBrick(object):
     def add_arch_op(self, op: ArchOp):
         o_id = self.oid_cnt
         self.oid_cnt += 1
-        op.set_op_id(o_id)
+        op.set_local_op_id(o_id)
         self.ops[o_id] = op
 
     def set_impl_type(self, it: BrickImplTypes):
@@ -105,4 +112,13 @@ class ArchBrick(object):
             self.req_flops_engine = self.req_flops
             self.req_flops_stream = -1
 
+    def update_global_ids(self, gid_start):
+        next_gid = gid_start
+        for op in self.local_op_iter_gen():
+            op.set_global_op_id(next_gid)
+            next_gid += 1
+        return next_gid
+
+    def set_brick_uuid(self, buuid):
+        self.brick_uuid = buuid
 

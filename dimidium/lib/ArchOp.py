@@ -23,7 +23,9 @@ class ArchOp(object):
 
     def __init__(self, op_id=None, dpl_dict=None, tvm_node=None):
         self.name = None
-        self.op_id = op_id
+        self.local_op_id = op_id
+        self.global_op_id = None
+        self.kernel_uuid = self.global_op_id  # alias, to be sure
         self.oi_engine = 0
         self.oi_stream = 0
         self.flops = 0
@@ -42,7 +44,8 @@ class ArchOp(object):
         return "ArchOp({})".format(self.op_call)
 
     def as_dict(self):
-        res = {'name': self.name, 'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
+        res = {'name': self.name, 'local_id': self.local_op_id, 'global_id': self.global_op_id,
+               'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'layer_name': self.layer_name, 'parent_fn': self.parent_fn,
                'op_call': self.op_call, 'used_dtype': self.used_dtype, 'tvm_node': str(self.tvm_node)[:100]}
@@ -65,9 +68,14 @@ class ArchOp(object):
         self.op_call = dpl_dict['op']
         self.used_dtype = dpl_dict['dtype']
 
-    def set_op_id(self, op_id):
-        self.op_id = op_id
+    def set_local_op_id(self, op_id):
+        self.local_op_id = op_id
+
+    def set_global_op_id(self, gid):
+        self.global_op_id = gid
 
     def set_tvm_node(self, tvm_node: Expr):
         self.tvm_node = tvm_node
 
+    def get_kernel_uuid(self):
+        return self.global_op_id
