@@ -44,10 +44,7 @@ if __name__ == '__main__':
 
     print("DOSA: Parsing constraints...")
     user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw = parse_uc_dict(const_path)
-    print("\t...done.\n")
 
-    print("DOSA: Importing ONNX...")
-    mod_i, params_i = onnx_import(onnx_path, user_constraints['shape_dict'])
     target_sps = user_constraints['target_sps']  # in #/s
     target_latency = user_constraints['target_latency']  # in s per sample
     used_batch = user_constraints['used_batch_n']
@@ -66,6 +63,10 @@ if __name__ == '__main__':
             d = inp_v[i]
             sample_size_bit *= d
     used_sample_size = math.ceil(sample_size_bit / config_bits_per_byte)
+    print("\t...done.\n")
+
+    print("DOSA: Importing ONNX...")
+    mod_i, params_i = onnx_import(onnx_path, user_constraints['shape_dict'])
     print("\t...done.\n")
 
     print("DOSA: Executing TVM optimization passes...")
