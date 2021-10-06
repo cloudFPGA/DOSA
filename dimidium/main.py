@@ -16,9 +16,9 @@ import math
 import onnx
 import tvm.relay as relay
 
-from dimidium.lib.archGen import arch_gen
+from dimidium.middleend.archGen import arch_gen
 import dimidium.lib.plot_roofline as plot_roofline
-import dimidium.devices as dosa_devices
+import dimidium.backend.devices as dosa_devices
 from dimidium.lib.util import OptimizationStrategies
 from dimidium.lib.util import config_bits_per_byte
 

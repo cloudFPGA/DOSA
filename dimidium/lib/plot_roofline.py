@@ -18,12 +18,12 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies, BrickImplTypes
-from dimidium.lib.ArchDraft import ArchDraft
-from dimidium.lib.ArchNode import ArchNode
+from dimidium.middleend.ArchDraft import ArchDraft
+from dimidium.middleend.ArchNode import ArchNode
 
 from dimidium.lib.units import *
-from dimidium.devices.dosa_roofline import config_global_rf_ylim_min as __ylim_min__
-from dimidium.devices.dosa_roofline import config_global_rf_ylim_max as __ylim_max__
+from dimidium.backend.devices.dosa_roofline import config_global_rf_ylim_min as __ylim_min__
+from dimidium.backend.devices.dosa_roofline import config_global_rf_ylim_max as __ylim_max__
 
 
 # https://stackoverflow.com/questions/44970010/axes-class-set-explicitly-size-width-height-of-axes-in-given-units

@@ -11,7 +11,7 @@
 #  *
 
 from dimidium.lib.units import *
-from dimidium.devices.dosa_device import DosaBaseHw
+from dimidium.backend.devices import DosaBaseHw
 
 # FPGA specs
 # UltraScale KU0600
