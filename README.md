@@ -43,6 +43,7 @@ Git submodules
 --------------
 
 - `hls4ml` in `dimidium/backend/3rd_party_libs/`
+- `haddoc2` in `dimidium/backend/3rd_party_libs/`
 
 
 Private DOSA related forks
@@ -55,7 +56,7 @@ To store internal configurations, patches and changes, IBM internal forks of som
 https://github.ibm.com/cloudFPGA/tvm-for-dosa
 
 The internal repo can be added like this:
-```
+```bash
 $ git remote add internal git@github.ibm.com:cloudFPGA/tvm-for-dosa.git
 $ git push -u internal main
 ```
@@ -70,12 +71,25 @@ https://github.ibm.com/cloudFPGA/hls4ml-for-dosa
 
 
 The internal repo can be added like this:
-```
+```bash
 $ git remote add internal git@github.ibm.com:cloudFPGA/hls4ml-for-dosa.git
 $ git push -u internal master
 ```
 
 Since hls4ml is a git submodule, also ensure that `.gitmodules` points to the internal fork.
+
+### haddoc2
+
+https://github.ibm.com/cloudFPGA/haddoc2-for-dosa
+
+The internal repo can be added like this:
+```bash
+$ git remote add internal git@github.ibm.com:cloudFPGA/haddoc2-for-dosa.git
+$ git push -u internal master
+```
+
+
+Since haddoc2 is a git submodule, also ensure that `.gitmodules` points to the internal fork.
 
 
 
