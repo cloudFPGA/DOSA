@@ -39,10 +39,20 @@ Structure
 t.b.c....
 
 
-Private TVM fork
---------------------
+Git submodules
+--------------
 
-To store internal configurations, patches and changes, an IBM internal fork exists: https://github.ibm.com/cloudFPGA/tvm-for-dosa
+- `hls4ml` in `dimidium/backend/3rd_party_libs/`
+
+
+Private DOSA related forks
+-----------------------------
+
+To store internal configurations, patches and changes, IBM internal forks of some open source project exist. 
+
+### TVM
+
+https://github.ibm.com/cloudFPGA/tvm-for-dosa
 
 The internal repo can be added like this:
 ```
@@ -53,6 +63,20 @@ $ git push -u internal main
 
 On changes, just run `make -j4` again to build TVM (`cmake ..` not really necessary).
 From time to time a `git pull origin main` is recommended to pull latest changes from TVM.
+
+### hls4ml
+
+https://github.ibm.com/cloudFPGA/hls4ml-for-dosa
+
+
+The internal repo can be added like this:
+```
+$ git remote add internal git@github.ibm.com:cloudFPGA/hls4ml-for-dosa.git
+$ git push -u internal master
+```
+
+Since hls4ml is a git submodule, also ensure that `.gitmodules` points to the internal fork.
+
 
 
 DOSA examples
