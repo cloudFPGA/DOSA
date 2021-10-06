@@ -14,7 +14,7 @@ import math
 import json
 
 from dimidium.lib.util import OptimizationStrategies, BrickImplTypes
-from dimidium.middleend.ArchNode import ArchNode
+from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.backend.devices import DosaBaseHw
 from dimidium.backend.devices.dosa_roofline import RooflineRegions, get_rightmost_roofline_region
 

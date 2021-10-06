@@ -16,14 +16,14 @@ import tvm
 # import tvm.relay as relay
 
 from dimidium.frontend.TvmPrintMeta import PrintMeta
-from dimidium.middleend.oiVisitor import OiPipeline
-from dimidium.middleend.oiCalculation import OiCalculator
+from dimidium.middleend.astProc.oiVisitor import OiPipeline
+from dimidium.middleend.astProc.oiCalculation import OiCalculator
 from dimidium.lib.util import OptimizationStrategies, BrickImplTypes
-from dimidium.middleend.ArchBrick import ArchBrick
-from dimidium.middleend.ArchDraft import ArchDraft
-from dimidium.middleend.ArchOp import ArchOp
-from dimidium.middleend.ArchNode import ArchNode
-from dimidium.middleend.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str
+from dimidium.middleend.archGen.ArchBrick import ArchBrick
+from dimidium.middleend.archGen.ArchDraft import ArchDraft
+from dimidium.middleend.archGen.ArchOp import ArchOp
+from dimidium.middleend.archGen.ArchNode import ArchNode
+from dimidium.middleend.astProc.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str
 from dimidium.backend.devices import types_dict as device_types_dict
 
 

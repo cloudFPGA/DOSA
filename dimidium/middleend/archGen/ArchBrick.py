@@ -13,7 +13,7 @@
 import json
 from tvm.relay import Expr
 
-from dimidium.middleend.ArchOp import ArchOp
+from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.lib.util import BrickImplTypes
 
 

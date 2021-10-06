@@ -16,7 +16,7 @@ import math
 
 from dimidium.frontend.user_constraints import parse_uc_dict
 from dimidium.frontend.model_import import onnx_import, tvm_optimization_pass
-from dimidium.middleend.archGen import arch_gen
+from dimidium.middleend.archGen.archGen import arch_gen
 import dimidium.lib.plot_roofline as plot_roofline
 import dimidium.backend.devices as dosa_devices
 from dimidium.lib.util import config_bits_per_byte

@@ -12,7 +12,7 @@
 
 import json
 
-from dimidium.middleend.ArchBrick import ArchBrick
+from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.devices import DosaBaseHw
 from dimidium.backend.devices.dosa_roofline import DosaRoofline
 from dimidium.lib.util import BrickImplTypes

@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies, BrickImplTypes
-from dimidium.middleend.ArchDraft import ArchDraft
-from dimidium.middleend.ArchNode import ArchNode
+from dimidium.middleend.archGen.ArchDraft import ArchDraft
+from dimidium.middleend.archGen.ArchNode import ArchNode
 
 from dimidium.lib.units import *
 from dimidium.backend.devices.dosa_roofline import config_global_rf_ylim_min as __ylim_min__
