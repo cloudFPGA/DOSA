@@ -13,7 +13,9 @@
 import copy
 import json
 import tvm
-import tvm.relay as relay
+# import tvm.relay as relay
+
+from dimidium.frontend.TvmPrintMeta import PrintMeta
 from dimidium.middleend.oiVisitor import OiPipeline
 from dimidium.middleend.oiCalculation import OiCalculator
 from dimidium.lib.util import OptimizationStrategies, BrickImplTypes
@@ -25,37 +27,11 @@ from dimidium.middleend.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_out
 from dimidium.backend.devices import types_dict as device_types_dict
 
 
-@tvm.instrument.pass_instrument
-class PrintMeta:
-    """Print the name of the pass, the IR, only before passes execute."""
-
-    def run_before_pass(self, mod, info):
-        print("Running pass: {}".format(info))
-        # print(mod)
-
-
 def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sample_size, target_sps=-1, target_latency=-1,
              target_resources=-1, arch_target_devices=None, arch_fallback_devices=None, debug=False):
     oi_calc = OiCalculator(default_oi=1.0)
     oi_pass = OiPipeline(fallback_size_t=32, oiCalc=oi_calc)
     assert oi_pass.info.name == "OiPipeline"
-
-    # first, TVM optimization pass
-    seq1_calls = [
-        relay.transform.FoldConstant(),
-        relay.transform.FastMath(),
-        relay.transform.CanonicalizeCast(),
-        relay.transform.DeadCodeElimination(),
-        relay.transform.FuseOps(),
-        relay.transform.RemoveUnusedFunctions(),
-        relay.transform.EliminateCommonSubexpr(),
-        # tvm.transform.PrintIR(),
-        relay.transform.SimplifyInference(),
-        relay.transform.FoldExplicitPadding(),
-        relay.transform.ForwardFoldScaleAxis(),
-        relay.transform.InferType(),
-        # relay.transform.AnnotateSpans(),  # not working with input.1 name...
-    ]
 
     # "read only" passes
     seq2ro_calls = [
@@ -65,14 +41,11 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
     pass_instruments = []
     if debug:
         pass_instruments.append(PrintMeta())
-        seq1_calls.append(tvm.transform.PrintIR())
 
-    seq1 = tvm.transform.Sequential(seq1_calls)
     seq2_ro = tvm.transform.Sequential(seq2ro_calls)
 
     with tvm.transform.PassContext(opt_level=3, instruments=pass_instruments):
-        mod2 = seq1(mod)
-        ignore = seq2_ro(mod2)
+        ignore = seq2_ro(mod)
 
     oi_pass.reorder_fn_calls()
     oi_results = oi_pass.get_oi_results()
@@ -96,7 +69,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
         print(json.dumps(fn_call_stats, indent=2, sort_keys=False))
 
     inital_draft = create_arch_draft(name, strategy, batch_size, sample_size, target_sps, target_latency, target_resources,
-                                     data_per_layer, tvm_nodes, mod2)
+                                     data_per_layer, tvm_nodes, mod)
 
     for do in arch_target_devices:
         inital_draft.add_possible_target_hw(do)
@@ -132,7 +105,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
             other_opts.append(new_draft)
         inital_draft.strategy = strategy
 
-    ret = {'mod': mod2, 'base_dpl': data_per_layer, 'fused_view': oi_main_view, 'draft': best_draft,
+    ret = {'mod': mod, 'base_dpl': data_per_layer, 'fused_view': oi_main_view, 'draft': best_draft,
            'debug_obj': None}
     if debug:
         ret['debug_obj'] = {}

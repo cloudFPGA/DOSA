@@ -6,7 +6,7 @@
 #  *     Authors: NGL
 #  *
 #  *     Description:
-#  *        Middleend part of DOSA,
-#  *           including oiVisitors, OperatorSetGenerators, and archGen
+#  *        Frontend part of DOSA,
+#  *           including onnx import, TVM opt and user constraint checking
 #  *
 #  *

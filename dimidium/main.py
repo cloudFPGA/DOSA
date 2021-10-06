@@ -13,30 +13,15 @@
 import sys
 import json
 import math
-import onnx
-import tvm.relay as relay
 
+from dimidium.frontend.user_constraints import parse_uc_dict
+from dimidium.frontend.model_import import onnx_import, tvm_optimization_pass
 from dimidium.middleend.archGen import arch_gen
 import dimidium.lib.plot_roofline as plot_roofline
 import dimidium.backend.devices as dosa_devices
-from dimidium.lib.util import OptimizationStrategies
 from dimidium.lib.util import config_bits_per_byte
 
 __mandatory_config_keys__ = ['input_latency', 'output_latency']
-__mandatory_user_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_sps', 'target_hw',
-                           'target_resource_budget', 'arch_gen_strategy', 'fallback_hw', 'used_input_size_t',
-                           'target_latency']
-__arch_gen_strategies__ = ['performance', 'resources', 'default', 'latency', 'throughput']
-__valid_fallback_hws__ = ['None']
-__valid_fallback_hws__.extend(dosa_devices.fallback_hw)
-
-
-def onnx_import(onnx_path, shape_dict, debug=False):
-    onnx_model = onnx.load(onnx_path)
-    mod, params = relay.frontend.from_onnx(onnx_model, shape_dict, freeze_params=True)
-    if debug:
-        print(mod.astext(show_meta_data=False))
-    return mod, params
 
 
 if __name__ == '__main__':
@@ -55,56 +40,14 @@ if __name__ == '__main__':
         if k not in dosa_config:
             print("ERROR: Mandatory key {} is missing in the configuration file {}. Stop.".format(k, const_path))
             exit(1)
+    debug_mode = True
 
-    with open(const_path, 'r') as inp:
-        user_constraints = json.load(inp)
-
-    for k in __mandatory_user_keys__:
-        if k not in user_constraints:
-            print("ERROR: Mandatory key {} is missing in the constraints file {}. Stop.".format(k, const_path))
-            exit(1)
-
-    arch_target_devices = []
-    for td in user_constraints['target_hw']:
-        if td not in dosa_devices.types:
-            print("ERROR: Target hardware {} is not supported. Stop.".format(td))
-            exit(1)
-        else:
-            arch_target_devices.append(dosa_devices.types_dict[td])
-
-    uags = user_constraints['arch_gen_strategy']
-    if uags not in __arch_gen_strategies__:
-        print("ERROR: Architecture optimization strategy {} is not supported. Stop.".format(uags))
-        exit(1)
-
-    arch_gen_strategy = OptimizationStrategies.DEFAULT
-    if uags == 'performance':
-        arch_gen_strategy = OptimizationStrategies.PERFORMANCE
-    elif uags == 'resources':
-        arch_gen_strategy = OptimizationStrategies.RESOURCES
-    elif uags == 'latency':
-        arch_gen_strategy = OptimizationStrategies.LATENCY
-    elif uags == 'throughput':
-        arch_gen_strategy = OptimizationStrategies.THROUGHPUT
-    else:
-        arch_gen_strategy = OptimizationStrategies.DEFAULT
-
-    arch_fallback_hw = None
-    if type(user_constraints['fallback_hw']) is list:
-        for fhw in user_constraints['fallback_hw']:
-            if fhw not in dosa_devices.fallback_hw:
-                print("ERROR: Fallback hardware {} is not supported in list of fallback_hw. Stop.".format(fhw))
-                exit(1)
-        arch_fallback_hw = user_constraints['fallback_hw']
-    else:
-        if user_constraints['fallback_hw'] != "None":
-            print("ERROR: Fallback hardware {} is not supported in non-list of fallback_hw. Stop."
-                  .format(user_constraints['fallback_hw']))
-            exit(1)
-        # arch_fallback_hw stays None
+    print("DOSA: Parsing constraints...")
+    user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw = parse_uc_dict(const_path)
+    print("\t...done.\n")
 
     print("DOSA: Importing ONNX...")
-    mod, params = onnx_import(onnx_path, user_constraints['shape_dict'])
+    mod_i, params_i = onnx_import(onnx_path, user_constraints['shape_dict'])
     target_sps = user_constraints['target_sps']  # in #/s
     target_latency = user_constraints['target_latency']  # in s per sample
     used_batch = user_constraints['used_batch_n']
@@ -125,11 +68,14 @@ if __name__ == '__main__':
     used_sample_size = math.ceil(sample_size_bit / config_bits_per_byte)
     print("\t...done.\n")
 
+    print("DOSA: Executing TVM optimization passes...")
+    mod, params = tvm_optimization_pass(mod_i, params_i, debug=debug_mode)
+    print("\t...done.\n")
+
     # TODO: remove temporary guards
     assert arch_target_devices[0] == dosa_devices.cF_FMKU60_Themisto_1
     assert len(arch_target_devices) == 1
     print("DOSA: Generating high-level architecture...")
-    debug_mode = True
     archDict = arch_gen(mod, params, used_name, arch_gen_strategy, used_batch, used_sample_size, target_sps,
                         target_latency,
                         target_resource_budget, arch_target_devices, arch_fallback_hw, debug=debug_mode)
