@@ -12,8 +12,11 @@
 
 import abc
 from dimidium.backend.devices.dosa_device import DosaHwClasses
-from dimidium.middleend.archGen.ArchBrick import ArchBrick
+# from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.buildTools.BaseBuild import BaseBuild
+
+# to init relay_ops
+import dimidium.backend.operatorSets.relay_ops as relay_ops
 
 
 class BaseOSG(metaclass=abc.ABCMeta):
@@ -26,13 +29,18 @@ class BaseOSG(metaclass=abc.ABCMeta):
         self.device_class = device_class
         self.framework_path = framework_path
         self.build_tool = build_tool
+        self.relay2osg = relay_ops.op
 
     @abc.abstractmethod
-    def annotate_brick(self, brick_node: ArchBrick):
+    def annotate_brick(self, brick_node):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
     @abc.abstractmethod
-    def generate_brick(self, brick_node: ArchBrick):
+    def generate_brick(self, brick_node):
+        print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
+
+    @abc.abstractmethod
+    def generate_bricks(self, brick_nodes):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
     @abc.abstractmethod
@@ -40,22 +48,28 @@ class BaseOSG(metaclass=abc.ABCMeta):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
     @abc.abstractmethod
-    def estimate_flops_brick(self, brick_node: ArchBrick):
+    def estimate_flops_brick(self, brick_node):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
 
 class UndecidedOSG(BaseOSG):
-    def annotate_brick(self, brick_node: ArchBrick):
+    def annotate_brick(self, brick_node):
         pass
 
-    def generate_brick(self, brick_node: ArchBrick):
+    def generate_brick(self, brick_node):
+        pass
+
+    def generate_bricks(self, brick_nodes):
         pass
 
     def comm_wrap_brick(self, todo):
         pass
 
-    def estimate_flops_brick(self, brick_node: ArchBrick):
+    def estimate_flops_brick(self, brick_node):
         pass
+
+
+placeholderOSG = UndecidedOSG('OSG_placholder', DosaHwClasses.UNDECIDED, "/none/", BaseBuild('dummy'))
 
 
 

@@ -126,3 +126,7 @@ def get_op_dict_copy():
     return copy.deepcopy(op)
 
 
+# automatic ops init?
+if len(op) < 1:
+    init_ops()
+

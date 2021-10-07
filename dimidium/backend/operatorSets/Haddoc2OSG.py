@@ -6,7 +6,7 @@
 #  *     Authors: NGL
 #  *
 #  *     Description:
-#  *        DOSA OSG to implement hls4ml on FPGAs
+#  *        DOSA OSG to implement haddoc2 on FPGAs
 #  *
 #  *
 
@@ -16,10 +16,10 @@ from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
 
 
-class Hls4mlOSG(BaseOSG):
+class Haddoc2OSG(BaseOSG):
 
     def __init__(self):
-        super().__init__('hls4ml OSG', DosaHwClasses.FPGA_xilinx, '/t/b/a', BaseHwBuild('fpga_dummy'))
+        super().__init__('haddoc2 OSG', DosaHwClasses.FPGA_xilinx, '/t/b/a', BaseHwBuild('fpga_dummy'))
         self.dosaHwTypes = [cF_FMKU60_Themisto_1]
         self.relay2osg = {}
 

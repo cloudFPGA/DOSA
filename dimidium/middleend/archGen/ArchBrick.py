@@ -15,7 +15,7 @@ from tvm.relay import Expr
 
 from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.lib.util import BrickImplTypes
-from dimidium.backend.operatorSets import placeholderOSG, BaseOSG
+from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG
 
 
 class ArchBrick(object):

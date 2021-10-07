@@ -20,6 +20,8 @@ from dimidium.middleend.archGen.archGen import arch_gen
 import dimidium.lib.plot_roofline as plot_roofline
 import dimidium.backend.devices as dosa_devices
 from dimidium.lib.util import config_bits_per_byte
+from dimidium.backend.operatorSets.osgs import builtin_OSGs
+
 
 __mandatory_config_keys__ = ['input_latency', 'output_latency']
 
@@ -41,6 +43,11 @@ if __name__ == '__main__':
             print("ERROR: Mandatory key {} is missing in the configuration file {}. Stop.".format(k, const_path))
             exit(1)
     debug_mode = True
+
+    print("DOSA: Building OSGs...")
+    available_OSGs = builtin_OSGs
+    # TODO: extend this list with custom OSGs here
+    print("\t...done.\n")
 
     print("DOSA: Parsing constraints...")
     user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw = parse_uc_dict(const_path)
