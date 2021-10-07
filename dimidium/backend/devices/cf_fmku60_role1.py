@@ -11,7 +11,7 @@
 #  *
 
 from dimidium.lib.units import *
-from dimidium.backend.devices import DosaBaseHw
+from dimidium.backend.devices import DosaHwClasses, DosaBaseHw
 
 # FPGA specs
 # UltraScale KU0600
@@ -63,14 +63,14 @@ b_s_fpga_eth_gBs = 10.0 / 8.0  # 10Gbe
 
 class CfThemisto1(DosaBaseHw):
 
-    def __init__(self, hw_type, name):
-        super().__init__(hw_type, name)
+    def __init__(self, name):
+        super().__init__(DosaHwClasses.FPGA_xilinx, 'cF_FMKU60_Themisto_1', name)
 
     def get_performance_dict(self):
         ret = {'fpga_freq_Hz': freq_fpga, 'dsp48_gflops': cF_bigRole_dsp48_gflops,
            'bw_dram_gBs': b_s_fpga_ddr_gBs, 'bw_bram_gBs': b_s_fpga_bram_gBs,
            'bw_netw_gBs': b_s_fpga_eth_gBs, 'bw_lutram_gBs': b_s_fpga_lutram_gBs,
-           'type': 'fpga'}
+           'type': str(self.hw_type)}
         return ret
 
     def get_roofline_dict(self):

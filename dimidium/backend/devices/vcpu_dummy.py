@@ -11,7 +11,7 @@
 #  *
 
 from dimidium.lib.units import *
-from dimidium.backend.devices import DosaBaseHw
+from dimidium.backend.devices import DosaHwClasses, DosaBaseHw
 
 
 network_bandwidth_gBs = 10.0/8.0
@@ -21,11 +21,11 @@ dram_bandwith_gBs = 80.0
 
 class VcpuDummy(DosaBaseHw):
 
-    def __init__(self, hw_type, name):
-        super().__init__(hw_type, name)
+    def __init__(self, name):
+        super().__init__(DosaHwClasses.CPU_x86, 'vCPU_x86', name)
 
     def get_performance_dict(self):
-        ret = {'type': 'x86', 'cpu_gflops': cpu_gflops, 'bw_netw_gBs': network_bandwidth_gBs,
+        ret = {'type': str(self.hw_type), 'cpu_gflops': cpu_gflops, 'bw_netw_gBs': network_bandwidth_gBs,
                'bw_dram_gBs': dram_bandwith_gBs}
         return ret
 

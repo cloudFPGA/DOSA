@@ -34,7 +34,7 @@ def parse_uc_dict(path):
 
     arch_target_devices = []
     for td in user_constraints['target_hw']:
-        if td not in dosa_devices.types:
+        if td not in dosa_devices.types_str:
             print("ERROR: Target hardware {} is not supported. Stop.".format(td))
             exit(1)
         else:

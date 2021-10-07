@@ -11,15 +11,23 @@
 #  *
 
 import abc
+from enum import Enum
 
-from dimidium.lib.units import *
+
+class DosaHwClasses(Enum):
+    UNDECIDED = 0
+    CPU_generic = 1
+    FPGA_generic = 2
+    CPU_x86 = 3
+    FPGA_xilinx = 4
 
 
 class DosaBaseHw(metaclass=abc.ABCMeta):
 
-    def __init__(self, hw_type, name):
+    def __init__(self, hw_type: DosaHwClasses, type_str, name):
         self.hw_type = hw_type
         self.name = name
+        self.type_str = type_str
 
     @abc.abstractmethod
     def get_performance_dict(self):

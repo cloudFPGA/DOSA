@@ -15,6 +15,7 @@ from tvm.relay import Expr
 
 from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.lib.util import BrickImplTypes
+from dimidium.backend.operatorSets import placeholderOSG, BaseOSG
 
 
 class ArchBrick(object):
@@ -53,6 +54,8 @@ class ArchBrick(object):
         self.req_latency = -1
         self.selected_impl_type = BrickImplTypes.UNDECIDED
         self.calc_flops = -1
+        self.selected_osg = placeholderOSG
+        self.possible_osgs = []
 
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.local_brick_id, self.name)
@@ -121,4 +124,15 @@ class ArchBrick(object):
 
     def set_brick_uuid(self, buuid):
         self.brick_uuid = buuid
+
+    def set_osg(self, osg: BaseOSG):
+        self.selected_osg = osg
+
+    def add_possible_osg(self, osg: BaseOSG):
+        self.possible_osgs.append(osg)
+        self.possible_osgs = list(set(self.possible_osgs))
+
+    def remove_possible_osg(self, osg: BaseOSG):
+        delme = self.possible_osgs.index(osg)
+        del self.possible_osgs[delme]
 
