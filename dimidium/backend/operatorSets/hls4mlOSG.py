@@ -20,8 +20,9 @@ from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 class Hls4mlOSG(BaseOSG):
 
     def __init__(self):
-        super().__init__('hls4ml OSG', [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx], '/t/b/a',
+        super().__init__('hls4ml OSG', [DosaHwClasses.FPGA_xilinx], '/t/b/a',
                          BaseHwBuild('fpga_dummy'))
+        # no DosaHwClasses.FPGA_generic, since it is bound to xilinx?
 
     def init(self, dosa_hw_classes_dict):
         self.select_dosa_hw_types(dosa_hw_classes_dict)
