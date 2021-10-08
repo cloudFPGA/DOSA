@@ -261,6 +261,7 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
                    (target: {}, fallback: {} possible: {})."
                   .format(repr(draft), draft.target_hw_set, draft.fallback_hw_set, draft.possible_hw_types))
             return False
+    print("[DOSA:archVerify:INFO] Draft {} fulfills resoyrce type requirements.".format(repr(draft)))
     # TODO: if roofline present, check if all bricks in all nodes are "IN_HOUSE"
     return True
 

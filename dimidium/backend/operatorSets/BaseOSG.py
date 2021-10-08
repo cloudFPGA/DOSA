@@ -12,7 +12,6 @@
 
 import abc
 from dimidium.backend.devices.dosa_device import DosaHwClasses
-# from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.buildTools.BaseBuild import BaseBuild
 from dimidium.lib.util import deep_update
 
@@ -65,7 +64,10 @@ class BaseOSG(metaclass=abc.ABCMeta):
                 print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
                 return False
             if op_str_list[0] in self.relay2osg:
-                return self.relay2osg[op_str_list[0]]
+                if callable(self.relay2osg[op_str_list[0]]):
+                    return True
+                else:
+                    return self.relay2osg[op_str_list[0]]
             return False
         elif len(op_str_list) == 2:
             if op_str_list[0] not in relay_ops.op:
@@ -76,7 +78,10 @@ class BaseOSG(metaclass=abc.ABCMeta):
                 return False
             if op_str_list[0] in self.relay2osg:
                 if op_str_list[1] in self.relay2osg[op_str_list[0]]:
-                    return self.relay2osg[op_str_list[0]][op_str_list[1]]
+                    if callable(self.relay2osg[op_str_list[0]][op_str_list[1]]):
+                        return True
+                    else:
+                        return self.relay2osg[op_str_list[0]][op_str_list[1]]
             return False
         else:
             print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))

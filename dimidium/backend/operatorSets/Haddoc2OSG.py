@@ -12,9 +12,9 @@
 
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
-from dimidium.backend.devices.builtin import cF_FMKU60_Themisto_1
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
+from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 
 
 class Haddoc2OSG(BaseOSG):
