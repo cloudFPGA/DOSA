@@ -91,6 +91,10 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     still_valid = check_annotations(best_draft)
 
     if debug:
+        print("\n[DEBUG] best draft found:")
+        print(best_draft)
+
+    if debug:
         other_opts = []
         other_opts.append(annotated_draft)
         for opt_s in OptimizationStrategies:
@@ -278,6 +282,8 @@ def find_best_draft(input_draft: ArchDraft) -> ArchDraft:
         tmp_draft = copy.deepcopy(draft)
         # populate first target hw
         for nn in tmp_draft.node_iter_gen():
+            # TODO: check if target hw is possible for this node?
+            #  or consider this later?
             nn.set_target_hw(thw)  # this includes the generation of the roofline
         # legalize this version
         tmp_draft.legalize()

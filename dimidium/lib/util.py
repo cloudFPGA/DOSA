@@ -13,6 +13,7 @@
 import re
 from enum import Enum
 import math
+import copy
 
 from dimidium.lib.units import config_bits_per_byte
 
@@ -61,6 +62,14 @@ def deep_update(dicttoupdate, new_value):
         else:
             dicttoupdate[e] = new_value
     return dicttoupdate
+
+
+def list_compare(l1, l2):
+    l1c = copy.deepcopy(l1)
+    l2c = copy.deepcopy(l2)
+    l1c.sort()
+    l2c.sort()
+    return l1 == l2
 
 
 # Attainable performance

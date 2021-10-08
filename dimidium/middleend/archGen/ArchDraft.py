@@ -99,6 +99,15 @@ class ArchDraft(object):
         self.nodes[new_id] = node
         self.nid_cnt += 1
 
+    def delete_node(self, id_to_delete):
+        if id_to_delete > self.nid_cnt or id_to_delete < 0:
+            print("[DOSA:ArchDraft:ERROR] delete node with invalid id, skipping.")
+            return
+        del self.nodes[id_to_delete]
+        self.nid_cnt -= 1
+        for i in range(id_to_delete, self.nid_cnt):
+            self.nodes[i].set_node_id(i)
+
     def set_tvm_handle(self, tvm_node):
         self.main_tvm_handle = tvm_node
 
@@ -218,13 +227,76 @@ class ArchDraft(object):
         for bb in self.brick_iter_gen():
             assert bb.selected_impl_type != BrickImplTypes.UNDECIDED
         # 3. data parallelization for all above IN_HOUSE, based on selected impl type
+        for nn in self.node_iter_gen():
+            # only nodes with one brick should be affected
+            need_to_split = False
+            split_factor = 0
+            for lb in nn.local_brick_iter_gen():
+                oi_selected = lb.get_oi_selected_impl()
+                rr = nn.roofline.get_region(oi_selected, lb.req_flops)
+                # TODO: 1. depending on impl type, network or DRAM is relevant
+                #   check also for user_inp?
+                #   -> because oi_stream must be below network even if Enigne is selected
+                #   2. not max_perf_F is relevant, but the intersection with network or BRAM
+                #   -> different split factor
+                if rr != RooflineRegions.IN_HOUSE:
+                    need_to_split = True
+                    nsf = lb.req_flops / nn.max_perf_F
+                    if nsf > split_factor:
+                        split_factor = nsf
+            if need_to_split:
+                split_factor_up = math.ceil(split_factor)
+                if split_factor_up < 2:
+                    split_factor_up = 2
+                nn.split_vertical(factor=split_factor_up)  # including update of used perf
         # 4. merge sequential nodes (no data par, no twins, same target_hw) if possible, based on used_perf,
-        # (i.e move bricks after each other)
+        #  (i.e move bricks after each other)
+        node_ids_to_delete = []
+        for ni in range(0, len(self.nodes)):
+            if ni in node_ids_to_delete:
+                continue
+            n1 = self.nodes[ni]
+            if n1.data_parallelism_level > 1:
+                continue
+            if ni < (len(self.nodes) - 1):
+                n2 = self.nodes[n1+1]
+                if n1.target_hw == n2.target_hw:
+                    # TODO: move bricks after each other?
+                    #  does it make sense? just reduces the resource usage somewhere else?
+                    if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
+                        # merge nodes totally
+                        node_ids_to_delete.append(n1+1)
+                        for bb in n2.local_brick_iter_gen():
+                            n1.add_brick(bb)
+        for nd in node_ids_to_delete:
+            self.delete_node(nd)
         # 5. for each node: turn lone engine impls into streams
-        #  (i.e. if the sequence is 1 engine, 2 stream, and 3 engine --> first engine doesn't make sense)
+        #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
         #  in other words: ensure that all engine sets are bigger or equal 2
-        # 6. update kernel uuids
+        for nn in self.node_iter_gen():
+            # only nodes with one brick should be affected
+            cur_engine_set = []
+            turn_engine_to_stream_list = []
+            for bi in range(0, nn.bid_cnt):
+                bb = nn.bricks[bi]
+                if bb.selected_impl_type == BrickImplTypes.STREAM:
+                    if len(cur_engine_set) < 2:
+                        turn_engine_to_stream_list.extend(cur_engine_set)
+                    cur_engine_set = []
+                    continue
+                cur_engine_set.append(bi)
+            # last time
+            if len(cur_engine_set) < 2:
+                turn_engine_to_stream_list.extend(cur_engine_set)
+            for bi in turn_engine_to_stream_list:
+                bb = nn.bricks[bi]
+                bb.set_impl_type(BrickImplTypes.STREAM)
+        # 6. update OSGs and possible hw targets
+        self.update_possible_osgs()
+        self.update_possible_hw_types()
+        # 7. update kernel uuids & req. perf
         self.update_uuids()
+        self.update_required_perf()
 
     def update_required_perf(self):
         if self.strategy == OptimizationStrategies.THROUGHPUT:

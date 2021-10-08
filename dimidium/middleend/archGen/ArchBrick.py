@@ -122,6 +122,16 @@ class ArchBrick(object):
             self.req_flops_engine = self.req_flops
             self.req_flops_stream = -1
 
+    def get_oi_selected_impl(self, fallback_impl_type=BrickImplTypes.ENGINE):
+        if self.selected_impl_type == BrickImplTypes.STREAM:
+            return self.oi_stream
+        elif self.selected_impl_type == BrickImplTypes.ENGINE:
+            return self.oi_engine
+        else:
+            if fallback_impl_type == BrickImplTypes.STREAM:
+                return self.oi_stream
+            return self.oi_engine
+
     def update_global_ids(self, gid_start):
         next_gid = gid_start
         for op in self.local_op_iter_gen():
