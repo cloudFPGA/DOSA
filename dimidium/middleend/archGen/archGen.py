@@ -24,11 +24,10 @@ from dimidium.middleend.archGen.ArchDraft import ArchDraft
 from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.astProc.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str
-from dimidium.backend.devices import types_dict as device_types_dict
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 
 
-def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], batch_size=1, sample_size=1, target_sps=-1, target_latency=-1,
+def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices, batch_size=1, sample_size=1, target_sps=-1, target_latency=-1,
              target_resources=-1, arch_target_devices=None, arch_fallback_devices=None, debug=False):
     oi_calc = OiCalculator(default_oi=1.0)
     oi_pass = OiPipeline(fallback_size_t=32, oiCalc=oi_calc)
@@ -77,7 +76,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
 
     if arch_fallback_devices is not None:
         for d in arch_fallback_devices:
-            do = device_types_dict[d]
+            do = available_devices.types_dict[d]
             inital_draft.add_possible_fallback_hw(do)
 
     annotated_draft = annotate_required_performance(inital_draft)

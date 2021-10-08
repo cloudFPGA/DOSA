@@ -11,7 +11,8 @@
 #  *
 
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
-from dimidium.backend.devices import DosaHwClasses, cF_FMKU60_Themisto_1
+from dimidium.backend.devices.dosa_device import DosaHwClasses
+from dimidium.backend.devices.builtin import cF_FMKU60_Themisto_1
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
 

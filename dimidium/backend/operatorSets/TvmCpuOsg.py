@@ -13,7 +13,8 @@
 from dimidium.lib.util import deep_update
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
-from dimidium.backend.devices import DosaHwClasses, vCPU_x86
+from dimidium.backend.devices.dosa_device import DosaHwClasses
+from dimidium.backend.devices.builtin import vCPU_x86
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.buildTools.BaseBuild import BaseSwBuild
 

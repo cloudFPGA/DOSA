@@ -11,7 +11,7 @@
 #  *
 
 from dimidium.lib.units import *
-from dimidium.backend.devices import DosaHwClasses, DosaBaseHw
+from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
 
 
 network_bandwidth_gBs = 10.0/8.0

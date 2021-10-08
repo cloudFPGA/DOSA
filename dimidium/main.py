@@ -18,8 +18,7 @@ from dimidium.frontend.user_constraints import parse_uc_dict
 from dimidium.frontend.model_import import onnx_import, tvm_optimization_pass
 from dimidium.middleend.archGen.archGen import arch_gen
 import dimidium.lib.plot_roofline as plot_roofline
-import dimidium.backend.devices as dosa_devices
-from dimidium.lib.util import config_bits_per_byte
+import dimidium.backend.devices.builtin as builtin_devices
 from dimidium.backend.operatorSets.osgs import builtin_OSGs
 
 
@@ -44,16 +43,19 @@ if __name__ == '__main__':
             exit(1)
     debug_mode = True
 
-    print("DOSA: Building OSGs...")
+    print("DOSA: Building OSGs and device library...")
+    available_devices = builtin_devices
+    # TODO: extend this object with custom devices
     available_OSGs = builtin_OSGs
     # TODO: extend this list with custom OSGs here
     # init osgs
     for osg in available_OSGs:
-        osg.init(dosa_devices.classes_dict)
+        osg.init(available_devices.classes_dict)
     print("\t...done.\n")
 
     print("DOSA: Parsing constraints...")
-    user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw = parse_uc_dict(const_path)
+    user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw = parse_uc_dict(const_path,
+                                                                                               available_devices)
 
     target_sps = user_constraints['target_sps']  # in #/s
     target_latency = user_constraints['target_latency']  # in s per sample
@@ -61,18 +63,7 @@ if __name__ == '__main__':
     target_resource_budget = user_constraints['target_resource_budget']  # in number of nodes
     used_name = user_constraints['name']
     used_in_size_t = user_constraints['used_input_size_t']
-    sample_size_bit = used_in_size_t
-    for inp_k in user_constraints['shape_dict']:
-        inp_v = user_constraints['shape_dict'][inp_k]
-        total_d = len(inp_v)
-        if used_batch != inp_v[0]:
-            print("ERROR: Batch sizes in constraint file contradict each other ({} != {}). Stop."
-                  .format(used_batch, inp_v[0]))
-            exit(1)
-        for i in range(1, total_d):  # exclude batch size
-            d = inp_v[i]
-            sample_size_bit *= d
-    used_sample_size = math.ceil(sample_size_bit / config_bits_per_byte)
+    used_sample_size = user_constraints['used_sample_size']
     print("\t...done.\n")
 
     print("DOSA: Importing ONNX...")
@@ -84,10 +75,10 @@ if __name__ == '__main__':
     print("\t...done.\n")
 
     # TODO: remove temporary guards
-    assert arch_target_devices[0] == dosa_devices.cF_FMKU60_Themisto_1
+    assert arch_target_devices[0] == builtin_devices.cF_FMKU60_Themisto_1
     assert len(arch_target_devices) == 1
     print("DOSA: Generating high-level architecture...")
-    archDict = arch_gen(mod, params, used_name, arch_gen_strategy, available_OSGs,
+    archDict = arch_gen(mod, params, used_name, arch_gen_strategy, available_OSGs, available_devices,
                         used_batch, used_sample_size, target_sps, target_latency, target_resource_budget,
                         arch_target_devices, arch_fallback_hw, debug=debug_mode)
     print("\t...done.\n")
