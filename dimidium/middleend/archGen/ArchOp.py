@@ -12,6 +12,7 @@
 
 import json
 from tvm.relay import Expr
+from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG
 
 
 class ArchOp(object):
@@ -37,6 +38,8 @@ class ArchOp(object):
         self.op_call = None
         self.used_dtype = None
         self.tvm_node = tvm_node
+        self.selected_osg = placeholderOSG
+        self.possible_osgs = []
         if dpl_dict is not None:
             self.from_dpl_dict(dpl_dict)
 
@@ -79,3 +82,14 @@ class ArchOp(object):
 
     def get_kernel_uuid(self):
         return self.global_op_id
+
+    def set_osg(self, osg: BaseOSG):
+        self.selected_osg = osg
+
+    def add_possible_osg(self, osg: BaseOSG):
+        self.possible_osgs.append(osg)
+        self.possible_osgs = list(set(self.possible_osgs))
+
+    def remove_possible_osg(self, osg: BaseOSG):
+        delme = self.possible_osgs.index(osg)
+        del self.possible_osgs[delme]

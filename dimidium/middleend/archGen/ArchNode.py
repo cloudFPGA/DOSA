@@ -36,6 +36,7 @@ class ArchNode(object):
         self.roofline = None
         self.max_perf_F = -1
         self.used_perf_F = -1
+        self.possible_hw_types = []
 
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.target_hw)
@@ -51,6 +52,10 @@ class ArchNode(object):
             res['pred_nodes'].append(pn.node_id)
         for sn in self.successors:
             res['succ_nodes'].append(sn.node_id)
+        res['possible_hw_types'] = []
+        for ph in self.possible_hw_types:
+            phs = repr(ph)
+            res['possible_hw_types'].append(phs)
         for bi in self.bricks:
             b = self.bricks[bi]
             res['bricks'][bi] = b.as_dict()
@@ -169,5 +174,30 @@ class ArchNode(object):
             bb.set_brick_uuid(next_uuid)
             next_uuid += 1
         return next_uuid
+
+    def update_possible_osgs(self):
+        for bb in self.local_brick_iter_gen():
+            bb.update_possible_osgs()
+
+    def update_possible_hw_types(self):
+        cur_possible_hw_types = []
+        for bb in self.local_brick_iter_gen():
+            bb.update_possible_hw_types()
+            bb_phw = bb.possible_hw_types
+            # add all possibilities
+            for bb_pht in bb_phw:
+                if bb_pht not in cur_possible_hw_types:
+                    cur_possible_hw_types.append(bb_pht)
+        not_possible_hw_types = []
+        for bb in self.local_brick_iter_gen():
+            # now, remove all non-common options
+            bb_phw = bb.possible_hw_types
+            for cpht in cur_possible_hw_types:
+                if cpht not in bb_phw:
+                    not_possible_hw_types.append(cpht)
+        not_possible_hw_types = list(set(not_possible_hw_types))
+        for npht in not_possible_hw_types:
+            del cur_possible_hw_types[cur_possible_hw_types.index(npht)]
+        self.possible_hw_types = cur_possible_hw_types
 
 

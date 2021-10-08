@@ -53,6 +53,16 @@ def replace_deep(dicttoreplace, repdict):
         return dicttoreplace
 
 
+def deep_update(dicttoupdate, new_value):
+    for e in dicttoupdate:
+        if type(dicttoupdate[e]) == dict:
+            nv = deep_update(dicttoupdate[e], new_value)
+            dicttoupdate[e] = nv
+        else:
+            dicttoupdate[e] = new_value
+    return dicttoupdate
+
+
 # Attainable performance
 # intensity, peak performance, bandwidth
 def rf_attainable_performance(i, P_max, b_s):

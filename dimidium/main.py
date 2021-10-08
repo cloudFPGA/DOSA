@@ -47,6 +47,9 @@ if __name__ == '__main__':
     print("DOSA: Building OSGs...")
     available_OSGs = builtin_OSGs
     # TODO: extend this list with custom OSGs here
+    # init osgs
+    for osg in available_OSGs:
+        osg.init(dosa_devices.classes_dict)
     print("\t...done.\n")
 
     print("DOSA: Parsing constraints...")
@@ -84,9 +87,9 @@ if __name__ == '__main__':
     assert arch_target_devices[0] == dosa_devices.cF_FMKU60_Themisto_1
     assert len(arch_target_devices) == 1
     print("DOSA: Generating high-level architecture...")
-    archDict = arch_gen(mod, params, used_name, arch_gen_strategy, used_batch, used_sample_size, target_sps,
-                        target_latency,
-                        target_resource_budget, arch_target_devices, arch_fallback_hw, debug=debug_mode)
+    archDict = arch_gen(mod, params, used_name, arch_gen_strategy, available_OSGs,
+                        used_batch, used_sample_size, target_sps, target_latency, target_resource_budget,
+                        arch_target_devices, arch_fallback_hw, debug=debug_mode)
     print("\t...done.\n")
 
     print("DOSA: Generating and showing roofline...")

@@ -15,6 +15,8 @@ import json
 
 from dimidium.lib.util import OptimizationStrategies, BrickImplTypes
 from dimidium.middleend.archGen.ArchNode import ArchNode
+from dimidium.middleend.archGen.ArchBrick import ArchBrick
+from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.backend.devices import DosaBaseHw
 from dimidium.backend.devices.dosa_roofline import RooflineRegions, get_rightmost_roofline_region
 
@@ -45,6 +47,7 @@ class ArchDraft(object):
         self.target_hw_set = []
         self.fallback_hw_set = []
         self.tmp_notes = {}
+        self.possible_hw_types = []
 
     def __repr__(self):
         return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
@@ -63,6 +66,10 @@ class ArchDraft(object):
         for fhw in self.fallback_hw_set:
             fn = type(fhw).__name__
             res['fallback_hw_set'].append(fn)
+        res['possible_hw_types'] = []
+        for ph in self.possible_hw_types:
+            phs = repr(ph)
+            res['possible_hw_types'].append(phs)
         for ni in self.nodes:
             n = self.nodes[ni]
             res['nodes'][ni] = n.as_dict()
@@ -112,6 +119,15 @@ class ArchDraft(object):
         for ni in self.nodes:
             nn = self.nodes[ni]
             yield nn
+
+    def op_iter_gen(self):
+        for ni in self.nodes:
+            nn = self.nodes[ni]
+            for bi in nn.bricks:
+                bb = nn.bricks[bi]
+                for op in bb.ops:
+                    oo = bb.ops[op]
+                    yield oo
 
     def get_bricks_num(self):
         ret = 0
@@ -293,4 +309,28 @@ class ArchDraft(object):
             next_kuuid = nn.update_kernel_uuids(next_kuuid)
             next_buuid = nn.update_brick_uuids(next_buuid)
 
+    def update_possible_osgs(self):
+        for nn in self.node_iter_gen():
+            nn.update_possible_osgs()
+
+    def update_possible_hw_types(self):
+        cur_possible_hw_types = []
+        for nn in self.node_iter_gen():
+            nn.update_possible_hw_types()
+            nn_phw = nn.possible_hw_types
+            # add all possibilities
+            for nn_pht in nn_phw:
+                if nn_pht not in cur_possible_hw_types:
+                    cur_possible_hw_types.append(nn_pht)
+        not_possible_hw_types = []
+        for nn in self.node_iter_gen():
+            nn_phw = nn.possible_hw_types
+            # now, remove all non-common options
+            for cpht in cur_possible_hw_types:
+                if cpht not in nn_phw:
+                    not_possible_hw_types.append(cpht)
+        not_possible_hw_types = list(set(not_possible_hw_types))
+        for npht in not_possible_hw_types:
+            del cur_possible_hw_types[cur_possible_hw_types.index(npht)]
+        self.possible_hw_types = cur_possible_hw_types
 

@@ -56,6 +56,8 @@ class ArchBrick(object):
         self.calc_flops = -1
         self.selected_osg = placeholderOSG
         self.possible_osgs = []
+        self.available_osgs = []
+        self.possible_hw_types = []
 
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.local_brick_id, self.name)
@@ -66,10 +68,15 @@ class ArchBrick(object):
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': self.used_dtype,
                'tvm_node': str(self.tvm_node)[:100], 'ops': {}, 'req_perf': self.req_flops,
-               'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs}
+               'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
+               'selected OSG': repr(self.selected_osg)}
         for oi in self.ops:
             o = self.ops[oi]
             res['ops'][oi] = o.as_dict()
+        res['possible OSGs'] = []
+        for po in self.possible_osgs:
+            pos = repr(po)
+            res['possible OSGs'].append(pos)
         return res
 
     def __str__(self):
@@ -128,11 +135,35 @@ class ArchBrick(object):
     def set_osg(self, osg: BaseOSG):
         self.selected_osg = osg
 
-    def add_possible_osg(self, osg: BaseOSG):
-        self.possible_osgs.append(osg)
-        self.possible_osgs = list(set(self.possible_osgs))
+    # def add_possible_osg(self, osg: BaseOSG):
+    #     self.possible_osgs.append(osg)
+    #     self.possible_osgs = list(set(self.possible_osgs))
 
-    def remove_possible_osg(self, osg: BaseOSG):
-        delme = self.possible_osgs.index(osg)
-        del self.possible_osgs[delme]
+    # def remove_possible_osg(self, osg: BaseOSG):
+    #     delme = self.possible_osgs.index(osg)
+    #     del self.possible_osgs[delme]
+
+    def add_available_osg(self, osg: BaseOSG):
+        self.available_osgs.append(osg)
+        self.available_osgs = list(set(self.available_osgs))
+
+    def update_possible_osgs(self):
+        cur_possible_osgs = self.available_osgs
+        not_possible_osgs = []
+        for op in self.local_op_iter_gen():
+            op_posg = op.possible_osgs
+            for bpo in cur_possible_osgs:
+                if bpo not in op_posg:
+                    not_possible_osgs.append(bpo)
+        not_possible_osgs = list(set(not_possible_osgs))
+        for npo in not_possible_osgs:
+            del cur_possible_osgs[cur_possible_osgs.index(npo)]
+        self.possible_osgs = cur_possible_osgs
+
+    def update_possible_hw_types(self):
+        new_possible_hw_types = []
+        for osg in self.possible_osgs:
+            new_possible_hw_types.extend(osg.dosaHwTypes)
+        self.possible_hw_types = list(set(new_possible_hw_types))
+
 

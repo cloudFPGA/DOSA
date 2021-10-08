@@ -25,9 +25,10 @@ from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.astProc.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str
 from dimidium.backend.devices import types_dict as device_types_dict
+from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 
 
-def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sample_size, target_sps=-1, target_latency=-1,
+def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], batch_size=1, sample_size=1, target_sps=-1, target_latency=-1,
              target_resources=-1, arch_target_devices=None, arch_fallback_devices=None, debug=False):
     oi_calc = OiCalculator(default_oi=1.0)
     oi_pass = OiPipeline(fallback_size_t=32, oiCalc=oi_calc)
@@ -68,7 +69,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
         print("\n[DEBUG] fn_call_stats")
         print(json.dumps(fn_call_stats, indent=2, sort_keys=False))
 
-    inital_draft = create_arch_draft(name, strategy, batch_size, sample_size, target_sps, target_latency, target_resources,
+    inital_draft = create_arch_draft(name, strategy, available_osgs, batch_size, sample_size, target_sps, target_latency, target_resources,
                                      data_per_layer, tvm_nodes, mod)
 
     for do in arch_target_devices:
@@ -113,7 +114,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, batch_size, sa
     return ret
 
 
-def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, sample_size, target_sps, target_latency,
+def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [BaseOSG], batch_size, sample_size, target_sps, target_latency,
                       target_resources, data_per_layer, tvm_nodes, tvm_handle):
     # construct main function calls
     main_fn_exec = []
@@ -150,6 +151,13 @@ def create_arch_draft(name, strategy: OptimizationStrategies, batch_size, sample
             node_0.add_brick(brick)
     draft.add_node(node_0)
 
+    # annotate OSGs
+    for bb in draft.brick_iter_gen():
+        for osg in available_osgs:
+            osg.annotate_brick(bb)
+    draft.update_possible_osgs()
+    draft.update_possible_hw_types()
+
     return draft
 
 
@@ -162,7 +170,7 @@ def annotate_required_performance(input_draft: ArchDraft):
     return arch_draft
 
 
-def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE):
+def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE):
     if draft.strategy == OptimizationStrategies.THROUGHPUT:
         target_throughput = draft.target_sps * draft.sample_size_B
         for node in draft.node_iter_gen():
@@ -230,8 +238,32 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
     else:
         # checking resource footprint
         print("not yet implemented")
-    # TODO: if roofline present, check if all bricks in all nodes are "IN_HOUSE"
     return False
+
+
+def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE):
+    perf_result = check_perf_annotations(draft, fallback_impl_type)
+    if not perf_result:
+        return False
+    # check if resources are possible
+    draft.update_possible_hw_types()
+    one_possilbe_hw = False
+    for phw in draft.possible_hw_types:
+        if phw in draft.target_hw_set:
+            one_possilbe_hw = True
+    if not one_possilbe_hw:
+        print("[DOSA:archVerify:INFO] Draft {} does not fulfill resource type requirement (target: {} possible: {})."
+              .format(repr(draft), draft.target_hw_set, draft.possible_hw_types))
+        for phw in draft.possible_hw_types:
+            if phw in draft.fallback_hw_set:
+                one_possilbe_hw = True
+        if not one_possilbe_hw:
+            print("[DOSA:archVerify:ERROR] Draft {} does not fulfill resource or fallback type requirement \
+                   (target: {}, fallback: {} possible: {})."
+                  .format(repr(draft), draft.target_hw_set, draft.fallback_hw_set, draft.possible_hw_types))
+            return False
+    # TODO: if roofline present, check if all bricks in all nodes are "IN_HOUSE"
+    return True
 
 
 # update draft so that roofline and types are possible

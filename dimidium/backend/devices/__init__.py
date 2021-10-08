@@ -17,6 +17,8 @@ import dimidium.backend.devices.vcpu_dummy
 cF_FMKU60_Themisto_1 = cf_fmku60_role1.CfThemisto1('cF_FMKU60_Themisto-Role_1')
 vCPU_x86 = vcpu_dummy.VcpuDummy('CPU_dummy_x86-1')
 
+# TODO: make types and classes extendable
+
 types = [vCPU_x86, cF_FMKU60_Themisto_1]
 
 # types_str = ['vCPU_x86', 'cF_FMKU60_Themisto_1']
@@ -29,4 +31,11 @@ for e in types:
 
 # fallback_hw = ['vCPU_x86']
 fallback_hw = [vCPU_x86.type_str]
+
+classes_dict = {}
+classes_dict[DosaHwClasses.UNDECIDED] = []
+classes_dict[DosaHwClasses.CPU_generic] = [vCPU_x86]
+classes_dict[DosaHwClasses.FPGA_generic] = [cF_FMKU60_Themisto_1]
+classes_dict[DosaHwClasses.CPU_x86] = [vCPU_x86]
+classes_dict[DosaHwClasses.FPGA_xilinx] = [cF_FMKU60_Themisto_1]
 
