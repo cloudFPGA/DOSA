@@ -69,7 +69,7 @@ class ArchBrick(object):
                'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': self.used_dtype,
                'tvm_node': str(self.tvm_node)[:100], 'ops': {}, 'req_perf': self.req_flops,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
-               'selected OSG': repr(self.selected_osg)}
+               'selected OSG': repr(self.selected_osg), 'selected impl. type:': repr(self.selected_impl_type)}
         for oi in self.ops:
             o = self.ops[oi]
             res['ops'][oi] = o.as_dict()

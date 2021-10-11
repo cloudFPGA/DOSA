@@ -216,6 +216,10 @@ class ArchDraft(object):
                 nn.bricks[0].set_impl_type(BrickImplTypes.STREAM)
                 continue
             for lb in nn.local_brick_iter_gen():
+                if lb.flops == 0:
+                    # means re-mapping of input -> always stream in FPGAs
+                    lb.set_impl_type(BrickImplTypes.STREAM)
+                    continue
                 r1 = nn.roofline.get_region(lb.oi_engine, lb.req_flops)
                 r2 = nn.roofline.get_region(lb.oi_stream, lb.req_flops)
                 br = get_rightmost_roofline_region(r1, r2)
@@ -240,16 +244,18 @@ class ArchDraft(object):
                 ap_engine = nn.roofline.get_max_perf_at_oi(lb.oi_engine, ignore_net=True)
                 ap_stream = nn.roofline.get_max_perf_at_oi(lb.oi_stream)
                 if lb.selected_impl_type == BrickImplTypes.ENGINE:
-                    r_stream = nn.roofline.get_region(lb.oi_stream, lb.req_flops)
-                    if lb.req_flops > ap_engine:
-                        need_to_split = True
-                        nsf = lb.req_flops / ap_engine
-                        if nsf > split_factor:
-                            split_factor = nsf
+                    # r_stream = nn.roofline.get_region(lb.oi_stream, lb.req_flops)
                     # oi_stream must be below network even if Enigne is selected
-                    elif r_stream != RooflineRegions.IN_HOUSE:
+                    # if r_stream != RooflineRegions.IN_HOUSE:
+                    # TODO: how to consider only user data? 
+                    if lb.req_flops > ap_stream:
                         need_to_split = True
                         nsf = lb.req_flops / ap_stream
+                        if nsf > split_factor:
+                            split_factor = nsf
+                    elif lb.req_flops > ap_engine:
+                        need_to_split = True
+                        nsf = lb.req_flops / ap_engine
                         if nsf > split_factor:
                             split_factor = nsf
                 else:
@@ -263,7 +269,27 @@ class ArchDraft(object):
                 if split_factor_up < 2:
                     split_factor_up = 2
                 nn.split_vertical(factor=split_factor_up)  # including update of used perf
-        # 4. merge sequential nodes (no data par, no twins, same target_hw) if possible, based on used_perf,
+        # 4. for each node: turn lone engine impls into streams
+        #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
+        #  in other words: ensure that all engine sets are bigger or equal 2
+        for nn in self.node_iter_gen():
+            cur_engine_set = []
+            turn_engine_to_stream_list = []
+            for bi in range(0, nn.bid_cnt):
+                bb = nn.bricks[bi]
+                if bb.selected_impl_type == BrickImplTypes.STREAM:
+                    if len(cur_engine_set) < 2:
+                        turn_engine_to_stream_list.extend(cur_engine_set)
+                    cur_engine_set = []
+                    continue
+                cur_engine_set.append(bi)
+            # last time
+            if len(cur_engine_set) < 2:
+                turn_engine_to_stream_list.extend(cur_engine_set)
+            for bi in turn_engine_to_stream_list:
+                bb = nn.bricks[bi]
+                bb.set_impl_type(BrickImplTypes.STREAM)
+        # 5. merge sequential nodes (no data par, no twins, same target_hw) if possible, based on used_perf,
         #  (i.e move bricks after each other)
         node_ids_to_delete = []
         for ni in range(0, len(self.nodes)):
@@ -288,27 +314,6 @@ class ArchDraft(object):
                             n1.add_brick(bb)
         for nd in node_ids_to_delete:
             self.delete_node(nd)
-        # 5. for each node: turn lone engine impls into streams
-        #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
-        #  in other words: ensure that all engine sets are bigger or equal 2
-        for nn in self.node_iter_gen():
-            # only nodes with one brick should be affected
-            cur_engine_set = []
-            turn_engine_to_stream_list = []
-            for bi in range(0, nn.bid_cnt):
-                bb = nn.bricks[bi]
-                if bb.selected_impl_type == BrickImplTypes.STREAM:
-                    if len(cur_engine_set) < 2:
-                        turn_engine_to_stream_list.extend(cur_engine_set)
-                    cur_engine_set = []
-                    continue
-                cur_engine_set.append(bi)
-            # last time
-            if len(cur_engine_set) < 2:
-                turn_engine_to_stream_list.extend(cur_engine_set)
-            for bi in turn_engine_to_stream_list:
-                bb = nn.bricks[bi]
-                bb.set_impl_type(BrickImplTypes.STREAM)
         # 6. update OSGs and possible hw targets
         self.update_possible_osgs()
         self.update_possible_hw_types()
