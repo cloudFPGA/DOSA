@@ -16,6 +16,7 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import multiprocessing
 
 from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies, BrickImplTypes
 from dimidium.middleend.archGen.ArchDraft import ArchDraft
@@ -412,10 +413,17 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     return plt
 
 
-def show_roofline_plt(plt, blocking=True):
+def show_roofline_plt(plt, blocking=True, waiting=True):
     # plt.savefig('roofline.pdf', dpi=300, format="pdf")
     # plt.savefig('roofline.png', dpi=300, format="png")
-    plt.show(block=blocking)
+    if not waiting:
+        plt.show(block=blocking)
+    else:
+        p = multiprocessing.Process(target=plt.show)
+        p.start()
+        input("[DOSA:roofline] Hit [enter] to close roofline plots.")
+        plt.close('all')
+        p.terminate()
 
 
 def calculate_required_performance(detail_list, target_sps, used_batch_size=1, unit=1, debug_print=False):

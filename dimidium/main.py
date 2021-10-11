@@ -108,8 +108,9 @@ if __name__ == '__main__':
         plt5 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][2])
         last_plt = plt5
 
-    # plot_roofline.show_roofline_plt(plt, blocking=False) not necessary...
-    plot_roofline.show_roofline_plt(last_plt)
+    plot_roofline.show_roofline_plt(last_plt, waiting=True)
     print("\t...done.\n")
 
     print("\nDOSA finished successfully.\n")
+
+
