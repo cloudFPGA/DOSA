@@ -51,7 +51,11 @@ class ArchOp(object):
                'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'layer_name': self.layer_name, 'parent_fn': self.parent_fn,
-               'op_call': self.op_call, 'used_dtype': self.used_dtype, 'tvm_node': str(self.tvm_node)[:100]}
+               'op_call': self.op_call, 'used_dtype': self.used_dtype, 'tvm_node': str(self.tvm_node)[:100]} #,
+               # 'possible OSGs': [], 'selected OSG': repr(self.selected_osg)}
+        # for po in self.possible_osgs:
+        #     pos = repr(po)
+        #     res['possible OSGs'].append(pos)
         return res
 
     def __str__(self):

@@ -58,7 +58,7 @@ class ArchDraft(object):
                'target_resources': self.target_resources,
                'input': str(self.input_layer), 'output': str(self.output_layer),
                'main_tvm_handle': str(self.main_tvm_handle)[:100],
-               'target_hw_set': [], 'fallback_hw_set': [],
+               'possible_hw_types': [], 'target_hw_set': [], 'fallback_hw_set': [],
                'nodes': {}}
         for thw in self.target_hw_set:
             tn = type(thw).__name__
@@ -66,7 +66,6 @@ class ArchDraft(object):
         for fhw in self.fallback_hw_set:
             fn = type(fhw).__name__
             res['fallback_hw_set'].append(fn)
-        res['possible_hw_types'] = []
         for ph in self.possible_hw_types:
             phs = repr(ph)
             res['possible_hw_types'].append(phs)
@@ -244,10 +243,8 @@ class ArchDraft(object):
                 ap_engine = nn.roofline.get_max_perf_at_oi(lb.oi_engine, ignore_net=True)
                 ap_stream = nn.roofline.get_max_perf_at_oi(lb.oi_stream)
                 if lb.selected_impl_type == BrickImplTypes.ENGINE:
-                    # r_stream = nn.roofline.get_region(lb.oi_stream, lb.req_flops)
                     # oi_stream must be below network even if Enigne is selected
-                    # if r_stream != RooflineRegions.IN_HOUSE:
-                    # TODO: how to consider only user data? 
+                    # ap_stream is containing only user data to transmit
                     if lb.req_flops > ap_stream:
                         need_to_split = True
                         nsf = lb.req_flops / ap_stream
@@ -272,6 +269,7 @@ class ArchDraft(object):
         # 4. for each node: turn lone engine impls into streams
         #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
         #  in other words: ensure that all engine sets are bigger or equal 2
+        #  no need to update req. perf or split nodes, is already considered in step 3
         for nn in self.node_iter_gen():
             cur_engine_set = []
             turn_engine_to_stream_list = []

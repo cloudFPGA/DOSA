@@ -67,13 +67,14 @@ class ArchBrick(object):
                'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': self.used_dtype,
-               'tvm_node': str(self.tvm_node)[:100], 'ops': {}, 'req_perf': self.req_flops,
+               'tvm_node': str(self.tvm_node)[:100], 'req_perf': self.req_flops,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
-               'selected OSG': repr(self.selected_osg), 'selected impl. type:': repr(self.selected_impl_type)}
+               'possible OSGs': [], 'selected OSG': repr(self.selected_osg),
+               'selected impl. type:': repr(self.selected_impl_type),
+               'ops': {},}
         for oi in self.ops:
             o = self.ops[oi]
             res['ops'][oi] = o.as_dict()
-        res['possible OSGs'] = []
         for po in self.possible_osgs:
             pos = repr(po)
             res['possible OSGs'].append(pos)

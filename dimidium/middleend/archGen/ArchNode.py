@@ -44,7 +44,7 @@ class ArchNode(object):
     def as_dict(self):
         res = {'node_id': self.node_id, 'target_hw': str(self.target_hw),
                'data_paral_level': self.data_parallelism_level,  # 'twin_nodes': [],
-               'pred_nodes': [], 'succ_nodes': [],
+               'pred_nodes': [], 'succ_nodes': [], 'possible_hw_types': [],
                'bricks': {}}
         # for tn in self.twins:
         #    res['twin_nodes'].append(tn.node_id)
@@ -52,7 +52,6 @@ class ArchNode(object):
             res['pred_nodes'].append(pn.node_id)
         for sn in self.successors:
             res['succ_nodes'].append(sn.node_id)
-        res['possible_hw_types'] = []
         for ph in self.possible_hw_types:
             phs = repr(ph)
             res['possible_hw_types'].append(phs)

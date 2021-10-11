@@ -146,10 +146,12 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
         total_flops += bb.flops
         total_uinp_B += bb.input_bytes
         total_param_B += bb.parameter_bytes
-        cmpl_list.append(cn)
-        uinp_list.append(un)
-        cmpl_list2.append(cn2)
-        uinp_list2.append(un2)
+        if bb.selected_impl_type == BrickImplTypes.UNDECIDED or bb.selected_impl_type == BrickImplTypes.ENGINE:
+            cmpl_list.append(cn)
+            cmpl_list2.append(cn2)
+        if bb.selected_impl_type == BrickImplTypes.UNDECIDED or bb.selected_impl_type == BrickImplTypes.STREAM:
+            uinp_list.append(un)
+            uinp_list2.append(un2)
     total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
     plt_name = "{} (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
                                                             str(arch_draft.strategy).split('.')[-1],
