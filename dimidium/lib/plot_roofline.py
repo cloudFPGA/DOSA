@@ -40,13 +40,15 @@ def set_size(w, h, ax=None):
     ax.figure.set_size_inches(figw, figh)
 
 
-def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, x_min, x_max, z_order=5, y_min=0.1, show_labels=True):
+def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, x_min, x_max, z_order=5, y_min=0.1,
+                 show_labels=True, print_debug=False):
     text_height_values = [65, 120, 55, 100, 180]
     th = itertools.cycle(text_height_values)
     for e in oi_list:
         if e['oi'] > x_max or e['oi'] < x_min:
-            print("[DOSA:roofline] Warning: required OI {} of {} out of range, correcting it to borders."
-                  .format(e['oi'], e['name']))
+            if print_debug:
+                print("[DOSA:roofline] Warning: required OI {} of {} out of range, correcting it to borders."
+                      .format(e['oi'], e['name']))
             # continue
             if e['oi'] > x_max:
                 e['oi'] = x_max
@@ -59,13 +61,14 @@ def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, 
                      rotation=90)
 
 
-def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8):
+def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8, print_debug=False):
     x = []
     y = []
     for e in oi_list:
         if e['oi'] > x_max or e['oi'] < x_min:
-            print("[DOSA:roofline] Warning: required OI {} of {} out of range, correcting it to borders."
-                  .format(e['oi'], e['name']))
+            if print_debug:
+                print("[DOSA:roofline] Warning: required OI {} of {} out of range, correcting it to borders."
+                      .format(e['oi'], e['name']))
             # continue
             if e['oi'] > x_max:
                 e['oi'] = x_max
@@ -73,8 +76,9 @@ def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8):
                 e['oi'] = x_min
         x.append(e['oi'])
         if not (__ylim_min__ < e['perf'] < __ylim_max__):
-            print("[DOSA:roofline] Warning: required performance {} of {} out of range, correcting it."
-                  .format(e['perf'], e['name']))
+            if print_debug:
+                print("[DOSA:roofline] Warning: required performance {} of {} out of range, correcting it."
+                      .format(e['perf'], e['name']))
             if __ylim_min__ > e['perf']:
                 y.append(__ylim_min__)
             else:
@@ -111,7 +115,7 @@ def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
     return cmpl_list, uinp_list, total, detail_list
 
 
-def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=True):
+def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=True, print_debug=False):
     unit = gigaU
     target_string = ""
     if arch_draft.strategy == OptimizationStrategies.THROUGHPUT:
@@ -151,11 +155,11 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
                                                             arch_draft.get_total_nodes_cnt())
     return draw_roofline(plt_name, arch_draft.batch_size, arch_draft.target_hw_set[0].get_performance_dict(),
                          arch_draft.target_hw_set[0].get_roofline_dict(), target_string, cmpl_list, uinp_list,
-                         cmpl_list2, uinp_list2, total, show_splits, show_labels)
+                         cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug)
 
 
 def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft, show_splits=True, show_labels=True,
-                                   selected_only=False):
+                                   selected_only=False, print_debug=False):
         unit = gigaU
         target_string = ""
         if parent_draft.strategy == OptimizationStrategies.THROUGHPUT:
@@ -203,19 +207,19 @@ def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft,
                                                               str(parent_draft.strategy).split('.')[-1])
         return draw_roofline(plt_name, parent_draft.batch_size, arch_node.target_hw.get_performance_dict(),
                              arch_node.target_hw.get_roofline_dict(), target_string, cmpl_list, uinp_list,
-                             cmpl_list2, uinp_list2, total, show_splits, show_labels)
+                             cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug)
 
 
 def generate_roofline_plt_old(detailed_analysis, target_sps, used_batch, used_name, perf_dict, roofline_dict,
-                          show_splits=True, show_labels=True):
+                          show_splits=True, show_labels=True, print_debug=False):
     cmpl_list, uinp_list, total, detail_list = convert_oi_list_for_plot(detailed_analysis)
     annotated_list, cmpl_list2, uinp_list2 = calculate_required_performance(detail_list, target_sps, used_batch, unit=gigaU)
     return draw_roofline(used_name, used_batch, perf_dict, roofline_dict, "{} sps".format(target_sps), cmpl_list,
-                         uinp_list, cmpl_list2, uinp_list2, total, show_splits, show_labels)
+                         uinp_list, cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug)
 
 
 def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string, cmpl_list, uinp_list, cmpl_list2, uinp_list2,
-                  total, show_splits=True, show_labels=True):
+                  total, show_splits=True, show_labels=True, print_debug=False):
     # Arithmetic intensity vector
     ai_list_small = np.arange(0.01, 1, 0.01)
     ai_list_middle = np.arange(1, 1500, 0.1)
@@ -320,12 +324,12 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # plt.text(x=oai*1.1, y=marker_line-55, s=text, color=color, fontsize=MY_SIZE*font_factor, ha='left', va='top')
 
     draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, __ylim_max__, cmpl_list,
-                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels)
+                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug)
     draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, __ylim_max__, uinp_list,
-                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels)
+                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug)
 
-    draw_oi_marker(plt, color, marker1, cmpl_list2, ai_list[0], ai_list[-1])
-    draw_oi_marker(plt, color2, marker2, uinp_list2, ai_list[0], ai_list[-1])
+    draw_oi_marker(plt, color, marker1, cmpl_list2, ai_list[0], ai_list[-1], print_debug=print_debug)
+    draw_oi_marker(plt, color2, marker2, uinp_list2, ai_list[0], ai_list[-1], print_debug=print_debug)
     marker1_text = 'req. perf. f. Engine arch. (w/ {}, batch {})'.format(target_string, used_batch)
     marker1_legend = mpl.lines.Line2D([], [], color=color, marker=marker1, linestyle='None', markersize=10,
                                       label=marker1_text)
@@ -341,14 +345,16 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     text = 'Engine avg.'
     plt.text(x=oai_avg*1.02, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
              rotation=90, zorder=8)
-    print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg, used_name))
+    if print_debug:
+        print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg, used_name))
     oai_avg2 = total['flops'] / total['uinp_B']
     plt.vlines(x=oai_avg2, ymin=-0.1, ymax=upper_limit, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
                zorder=8)
     text = 'Stream avg.'
     plt.text(x=oai_avg2*1.02, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
              rotation=90, zorder=8)
-    print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg2, used_name))
+    if print_debug:
+        print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg2, used_name))
 
     # plt.scatter(x=[oai_avg], y=[total['total_flops']*target_fps], marker=marker1, color=color3, zorder=6,
     #             label='req. perf. Engine avg.')

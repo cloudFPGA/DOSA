@@ -91,6 +91,22 @@ class DosaRoofline(object):
             return RooflineRegions.ABOVE_NETWORK
         return RooflineRegions.IN_HOUSE
 
+    def get_max_perf_at_oi(self, oi_FB, ignore_net=False, ignore_bram=False):
+        if oi_FB < 0.001:
+            oi_FB = 0.01
+        ap_net = rf_attainable_performance(oi_FB, self.roof_F, self.net_bw_B)
+        ap_dram = rf_attainable_performance(oi_FB, self.roof_F, self.dram_bw_B)
+        if self.bram_bw_B != __deactivated_bw_value__:
+            ap_bram = rf_attainable_performance(oi_FB, self.roof_F, self.bram_bw_B)
+        else:
+            ap_bram = -1
+            ignore_bram = True
+        if ap_net <= ap_dram and (ap_net <= ap_bram or ignore_bram) and not ignore_net:
+            return ap_net
+        if (ap_dram <= ap_net or ignore_net) and (ap_dram <= ap_bram or ignore_bram):
+            return ap_dram
+        return ap_bram
+
     def get_ap(self, oi_FB, consider_type=BrickImplTypes.ENGINE):
         ap_net = rf_attainable_performance(oi_FB, self.roof_F, self.net_bw_B)
         ap_dram = rf_attainable_performance(oi_FB, self.roof_F, self.dram_bw_B)

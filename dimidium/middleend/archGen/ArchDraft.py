@@ -234,16 +234,30 @@ class ArchDraft(object):
             for lb in nn.local_brick_iter_gen():
                 oi_selected = lb.get_oi_selected_impl()
                 rr = nn.roofline.get_region(oi_selected, lb.req_flops)
-                # TODO: 1. depending on impl type, network or DRAM is relevant
-                #   check also for user_inp?
-                #   -> because oi_stream must be below network even if Enigne is selected
-                #   2. not max_perf_F is relevant, but the intersection with network or BRAM
-                #   -> different split factor
-                if rr != RooflineRegions.IN_HOUSE:
-                    need_to_split = True
-                    nsf = lb.req_flops / nn.max_perf_F
-                    if nsf > split_factor:
-                        split_factor = nsf
+                if rr == RooflineRegions.IN_HOUSE:
+                    # nothing to do in all cases
+                    continue
+                ap_engine = nn.roofline.get_max_perf_at_oi(lb.oi_engine, ignore_net=True)
+                ap_stream = nn.roofline.get_max_perf_at_oi(lb.oi_stream)
+                if lb.selected_impl_type == BrickImplTypes.ENGINE:
+                    r_stream = nn.roofline.get_region(lb.oi_stream, lb.req_flops)
+                    if lb.req_flops > ap_engine:
+                        need_to_split = True
+                        nsf = lb.req_flops / ap_engine
+                        if nsf > split_factor:
+                            split_factor = nsf
+                    # oi_stream must be below network even if Enigne is selected
+                    elif r_stream != RooflineRegions.IN_HOUSE:
+                        need_to_split = True
+                        nsf = lb.req_flops / ap_stream
+                        if nsf > split_factor:
+                            split_factor = nsf
+                else:
+                    if lb.req_flops > ap_stream:
+                        need_to_split = True
+                        nsf = lb.req_flops / ap_stream
+                        if nsf > split_factor:
+                            split_factor = nsf
             if need_to_split:
                 split_factor_up = math.ceil(split_factor)
                 if split_factor_up < 2:
@@ -259,12 +273,16 @@ class ArchDraft(object):
             if n1.data_parallelism_level > 1:
                 continue
             if ni < (len(self.nodes) - 1):
-                n2 = self.nodes[n1+1]
+                n2 = self.nodes[ni+1]
+                if n2.data_parallelism_level > 1:
+                    continue
                 if n1.target_hw == n2.target_hw:
                     # TODO: move bricks after each other?
                     #  does it make sense? just reduces the resource usage somewhere else?
                     if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
                         # merge nodes totally
+                        print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
+                              .format(n1.node_id, n2.node_id))
                         node_ids_to_delete.append(n1+1)
                         for bb in n2.local_brick_iter_gen():
                             n1.add_brick(bb)

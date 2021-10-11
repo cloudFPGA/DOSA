@@ -81,10 +81,10 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
 
     annotated_draft = annotate_required_performance(inital_draft)
 
-    if debug:
-        print("\n[DEBUG] initial annotated draft:")
-        # print(inital_draft)
-        print(annotated_draft)
+    # if debug:
+    #     print("\n[DEBUG] initial annotated draft:")
+    #     # print(inital_draft)
+    #     print(annotated_draft)
 
     still_valid = check_annotations(annotated_draft)
     best_draft = find_best_draft(annotated_draft)
