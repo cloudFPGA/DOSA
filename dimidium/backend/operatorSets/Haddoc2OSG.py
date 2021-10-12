@@ -22,8 +22,10 @@ class Haddoc2OSG(BaseOSG):
     def __init__(self):
         super().__init__('haddoc2 OSG', [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx], '/t/b/a',
                          BaseHwBuild('fpga_dummy'))
+        self.priority = 99
 
-    def init(self, dosa_hw_classes_dict):
+    def init(self, dosa_hw_classes_dict, priority_internal):
+        self.priority_internal = priority_internal
         self.select_dosa_hw_types(dosa_hw_classes_dict)
         # relay2osg annotation,
         #  based on https://github.com/DreamIP/haddoc2/blob/master/lib/python/parseNetTopology.py

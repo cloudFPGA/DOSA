@@ -23,8 +23,10 @@ class TvmCpuOsg(BaseOSG):
     def __init__(self):
         super().__init__('Tvm CPU OSG', [DosaHwClasses.CPU_generic, DosaHwClasses.CPU_x86], '/t/b/a',
                          BaseSwBuild('tvm_dummy'))
+        self.priority = 49
 
-    def init(self, dosa_hw_classes_dict):
+    def init(self, dosa_hw_classes_dict, priority_internal):
+        self.priority_internal = priority_internal
         self.select_dosa_hw_types(dosa_hw_classes_dict)
         # this one will support everything
         # self.relay2osg = {x: self._generate_tvm_module for x in relay_op_list}

@@ -23,8 +23,10 @@ class Hls4mlOSG(BaseOSG):
         super().__init__('hls4ml OSG', [DosaHwClasses.FPGA_xilinx], '/t/b/a',
                          BaseHwBuild('fpga_dummy'))
         # no DosaHwClasses.FPGA_generic, since it is bound to xilinx?
+        self.priority = 92
 
-    def init(self, dosa_hw_classes_dict):
+    def init(self, dosa_hw_classes_dict, priority_internal):
+        self.priority_internal = priority_internal
         self.select_dosa_hw_types(dosa_hw_classes_dict)
         # relay2osg annotation,
         #  based on https://github.com/fastmachinelearning/hls4ml/blob/master/hls4ml/model/hls_layers.py

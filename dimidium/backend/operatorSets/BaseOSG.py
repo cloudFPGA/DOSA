@@ -32,6 +32,8 @@ class BaseOSG(metaclass=abc.ABCMeta):
         #self.relay2osg = {x: False for x in relay_ops.op}
         self.relay2osg = deep_update(relay_ops.get_op_dict_copy(), False)
         self.dosaHwTypes = []
+        self.priority = -1
+        self.priority_internal = -1
 
     def __repr__(self):
         return "OSG({}, for {})".format(self.name, self.device_classes)
@@ -46,7 +48,7 @@ class BaseOSG(metaclass=abc.ABCMeta):
                         self.dosaHwTypes.append(nhc)
 
     @abc.abstractmethod
-    def init(self, dosa_hw_classes_dict):
+    def init(self, dosa_hw_classes_dict, priority_internal):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
     def annotate_brick(self, brick_node):
@@ -106,7 +108,7 @@ class BaseOSG(metaclass=abc.ABCMeta):
 
 class UndecidedOSG(BaseOSG):
 
-    def init(self, dosa_hw_classes_dict):
+    def init(self, dosa_hw_classes_dict, priority_internal):
         # self.select_dosa_hw_types(dosa_hw_classes_dict)
         # should not be initialized
         pass
@@ -127,4 +129,24 @@ class UndecidedOSG(BaseOSG):
 placeholderOSG = UndecidedOSG('OSG_placholder', [DosaHwClasses.UNDECIDED], "/none/", BaseBuild('dummy'))
 
 
+def sort_osg_list(osg_list, use_internal_prio=True):
+    osgs_by_priority = {}
+    for osg in osg_list:
+        osg_prio = osg.priority_internal
+        if not use_internal_prio:
+            osg_prio = osg.priority
+        if osg_prio in osgs_by_priority.keys():
+            osgs_by_priority[osg_prio].append(osg)
+        else:
+            osgs_by_priority[osg_prio] = [osg]
+    osgs_sorted = sorted(osgs_by_priority)
+    if not use_internal_prio:
+        osgs_sorted.reverse()  # reverse, since 0 is lowest external prio
+    ret_list = []
+    for prio in osgs_sorted:
+        osg_list = osgs_by_priority[prio]
+        # if len(osg_list) > 1:
+        # just use any order?
+        ret_list.extend(osg_list)
+    return ret_list
 

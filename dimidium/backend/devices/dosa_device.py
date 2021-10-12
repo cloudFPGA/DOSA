@@ -35,6 +35,15 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
     def __repr__(self):
         return "DosaHwType({}, for {})".format(self.name, self.hw_class)
 
+    def __eq__(self, other):
+        if not isinstance(other, DosaBaseHw):
+            return False
+        return self.hw_class == other.hw_class and self.type_str == other.type_str
+        # TODO: consider also name?
+
+    def __hash__(self):
+        return hash((self.hw_class, self.name, self.type_str))
+
     @abc.abstractmethod
     def get_performance_dict(self):
         print("[DOSA:DEVICES:ERROR] NOT YET IMPLEMENTED.")

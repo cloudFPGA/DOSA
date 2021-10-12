@@ -20,6 +20,7 @@ from dimidium.middleend.archGen.archGen import arch_gen
 import dimidium.lib.plot_roofline as plot_roofline
 import dimidium.backend.devices.builtin as builtin_devices
 from dimidium.backend.operatorSets.osgs import builtin_OSGs
+from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 
 
 __mandatory_config_keys__ = ['input_latency', 'output_latency']
@@ -46,11 +47,14 @@ if __name__ == '__main__':
     print("DOSA: Building OSGs and device library...")
     available_devices = builtin_devices
     # TODO: extend this object with custom devices
-    available_OSGs = builtin_OSGs
+    all_OSGs = builtin_OSGs
+    available_OSGs = sort_osg_list(all_OSGs, use_internal_prio=False)
     # TODO: extend this list with custom OSGs here
     # init osgs
+    prio_int = 0  # get unique internal priorities
     for osg in available_OSGs:
-        osg.init(available_devices.classes_dict)
+        osg.init(available_devices.classes_dict, prio_int)
+        prio_int += 1
     print("\t...done.\n")
 
     print("DOSA: Parsing constraints...")

@@ -19,6 +19,7 @@ from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
 from dimidium.backend.devices.dosa_roofline import RooflineRegions, get_rightmost_roofline_region
+from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 
 
 class ArchDraft(object):
@@ -361,13 +362,45 @@ class ArchDraft(object):
         # 8. decide for OSG
         for nn in self.node_iter_gen():
             decided_hw_class = nn.selected_hw_type.hw_class
+            # for now, decide for one OSG, if possible (i.e. avoid switching at all costs)
+            # TODO: later, consider individual switching costs
+            all_possible_osgs = []
             for lb in nn.local_brick_iter_gen():
                 for posg in lb.possible_osgs:
                     if decided_hw_class in posg.device_classes:
-                        # order represents priority, so take fist one
-                        lb.selected_osg = posg
+                        if posg not in all_possible_osgs:
+                            all_possible_osgs.append(posg)
+            all_possible_sorted = sort_osg_list(all_possible_osgs)
+            found_consens = False
+            consens_osg = None
+            if len(all_possible_sorted) >= 1:
+                not_possible_osgs = []
+                for cur_posg in all_possible_sorted:
+                    suitable = True
+                    if cur_posg in not_possible_osgs:
                         continue
-                # TODO: consider switching costs
+                    for lb in nn.local_brick_iter_gen():
+                        if cur_posg not in lb.possible_osgs:
+                            not_possible_osgs.append(cur_posg)
+                            suitable = False
+                    if suitable:
+                        # oder still represents priority, so take this one
+                        found_consens = True
+                        consens_osg = cur_posg
+                        break
+            if found_consens:
+                for lb in nn.local_brick_iter_gen():
+                    lb.selected_osg = consens_osg
+            else:
+                # no common osg found, use whatever is best
+                print("[DOSA:archGen:INFO] couldn't find common OSG for node {}, use individual ones \
+                (higher switching costs).".format(nn.node_id))
+                for lb in nn.local_brick_iter_gen():
+                    for posg in lb.possible_osgs:
+                        if decided_hw_class in posg.device_classes:
+                            # order represents priority, so take first possible one
+                            lb.selected_osg = posg
+                            continue
         # 9. update kernel uuids & req. perf
         self.update_uuids()
         self.update_required_perf()

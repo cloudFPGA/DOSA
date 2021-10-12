@@ -15,7 +15,7 @@ from tvm.relay import Expr
 
 from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.lib.util import BrickImplTypes
-from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG
+from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG, sort_osg_list
 
 
 class ArchBrick(object):
@@ -169,8 +169,7 @@ class ArchBrick(object):
         not_possible_osgs = list(set(not_possible_osgs))
         for npo in not_possible_osgs:
             del cur_possible_osgs[cur_possible_osgs.index(npo)]
-        self.possible_osgs = cur_possible_osgs
-        # TODO: update order based on priorities
+        self.possible_osgs = sort_osg_list(cur_possible_osgs)
 
     def update_possible_hw_types(self):
         new_possible_hw_types = []
