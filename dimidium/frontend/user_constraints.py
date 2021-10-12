@@ -15,7 +15,7 @@ import json
 
 from dimidium.lib.util import OptimizationStrategies, config_bits_per_byte
 
-__mandatory_user_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_sps', 'target_hw',
+__mandatory_user_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_sps', 'targeted_hw',
                            'target_resource_budget', 'arch_gen_strategy', 'fallback_hw', 'used_input_size_t',
                            'target_latency']
 __arch_gen_strategies__ = ['performance', 'resources', 'default', 'latency', 'throughput']
@@ -33,7 +33,7 @@ def parse_uc_dict(path, dosa_devices):
             exit(1)
 
     arch_target_devices = []
-    for td in user_constraints['target_hw']:
+    for td in user_constraints['targeted_hw']:
         if td not in dosa_devices.types_str:
             print("ERROR: Target hardware {} is not supported. Stop.".format(td))
             exit(1)

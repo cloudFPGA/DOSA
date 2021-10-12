@@ -18,6 +18,12 @@ import copy
 from dimidium.lib.units import config_bits_per_byte
 
 
+# Dosa Return Value
+class DosaRv(Enum):
+    OK = 0
+    ERROR = 1
+
+
 class OptimizationStrategies(Enum):
     THROUGHPUT = 1
     RESOURCES = 2

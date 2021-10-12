@@ -18,7 +18,7 @@ import tvm
 from dimidium.frontend.TvmPrintMeta import PrintMeta
 from dimidium.middleend.astProc.oiVisitor import OiPipeline
 from dimidium.middleend.astProc.oiCalculation import OiCalculator
-from dimidium.lib.util import OptimizationStrategies, BrickImplTypes
+from dimidium.lib.util import OptimizationStrategies, BrickImplTypes, DosaRv
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.middleend.archGen.ArchDraft import ArchDraft
 from dimidium.middleend.archGen.ArchOp import ArchOp
@@ -167,7 +167,7 @@ def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [
 def annotate_required_performance(input_draft: ArchDraft):
     arch_draft = copy.deepcopy(input_draft)
     rc = arch_draft.update_required_perf()
-    if rc != 0:
+    if rc != DosaRv.OK:
         exit(1)
     arch_draft.version += '_annotated'
     return arch_draft
@@ -229,8 +229,8 @@ def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.E
                 total_time += local_time
         for ni in draft.nodes:
             nn = draft.nodes[ni]
-            if nn.target_hw is not None:
-                cl1 = nn.target_hw.get_comm_latency_s()
+            if nn.targeted_hw is not None:
+                cl1 = nn.targeted_hw.get_comm_latency_s()
                 total_time += 2 * cl1
         if total_time > draft.target_latency:
             print("[DOSA:archVerify:ERROR] Draft {} does not fulfill latency requirement (req: {} current: {} s)."
@@ -284,19 +284,26 @@ def find_best_draft(input_draft: ArchDraft) -> ArchDraft:
         for nn in tmp_draft.node_iter_gen():
             # TODO: check if target hw is possible for this node?
             #  or consider this later?
-            nn.set_target_hw(thw)  # this includes the generation of the roofline
+            nn.set_targeted_hw(thw)  # this includes the generation of the roofline
         # legalize this version
-        tmp_draft.legalize()
+        rv = tmp_draft.legalize()
+        if rv != DosaRv.OK:
+            continue
         # save state
         node_count_list.append(tmp_draft.nid_cnt)
         draft_list.append(tmp_draft)
+    if len(draft_list) == 0:
+        print("[DOSA:archGen:ERROR] unable to find legal architecture draft. Stop.")
+        exit(1)
     #  then, select the type of hw with the lowest number of nodes
     best_version_i = node_count_list.index(min(node_count_list))
     best_draft = draft_list[best_version_i]
+    # TODO: add additional cost factor to devices? E.g. if 3 small nodes are cheaper then 1 big one?
     draft = best_draft
     # TODO: B) then, for not full nodes, see if other hw could be used
-    # TODO C) then, check if all operations can be implemented?
+    # C) then, check if all operations can be implemented?
     #  split accordingly and merge again?
+    #  --> done in legalizing
     # TODO D) annotate network latencies
     draft.version = 'selected_best'
     return draft

@@ -13,11 +13,11 @@
 import math
 import json
 
-from dimidium.lib.util import OptimizationStrategies, BrickImplTypes
+from dimidium.lib.util import OptimizationStrategies, BrickImplTypes, DosaRv
 from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.middleend.archGen.ArchOp import ArchOp
-from dimidium.backend.devices.dosa_device import DosaBaseHw
+from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
 from dimidium.backend.devices.dosa_roofline import RooflineRegions, get_rightmost_roofline_region
 
 
@@ -26,7 +26,8 @@ class ArchDraft(object):
     # _bstr_fmt_ = "{:06}"
     # _bid_max_ = 99999
 
-    def __init__(self, name, version, strategy: OptimizationStrategies, batch_size, sample_size, target_sps=-1, target_latency=-1,
+    def __init__(self, name, version, strategy: OptimizationStrategies, batch_size, sample_size, target_sps=-1,
+                 target_latency=-1,
                  target_resources=-1, tvm_node=None):
         self.name = name
         self.version = version
@@ -92,8 +93,8 @@ class ArchDraft(object):
             print("[DOSA:ArchDraft:ERROR] insert node with invalid new_id, skipping.")
             return
         for i in reversed(range(new_id, self.nid_cnt)):
-            self.nodes[i+1] = self.nodes[i]
-            self.nodes[i+1].set_node_id(i+1)
+            self.nodes[i + 1] = self.nodes[i]
+            self.nodes[i + 1].set_node_id(i + 1)
         node.set_node_id(new_id)
         self.nodes[new_id] = node
         self.nid_cnt += 1
@@ -205,8 +206,8 @@ class ArchDraft(object):
                         split_factor = nsf
             if need_to_split:
                 split_factor_up = math.ceil(split_factor)
-                if split_factor_up < 2:
-                    split_factor_up = 2
+                if split_factor_up < 1:
+                    split_factor_up = 1
                 nn.split_vertical(factor=split_factor_up)  # including update of used perf
         # 2. select engine or stream: check if both in same region, select the region that is "to the right"
         for nn in self.node_iter_gen():
@@ -263,8 +264,8 @@ class ArchDraft(object):
                             split_factor = nsf
             if need_to_split:
                 split_factor_up = math.ceil(split_factor)
-                if split_factor_up < 2:
-                    split_factor_up = 2
+                if split_factor_up < 1:
+                    split_factor_up = 1
                 nn.split_vertical(factor=split_factor_up)  # including update of used perf
         # 4. for each node: turn lone engine impls into streams
         #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
@@ -287,7 +288,7 @@ class ArchDraft(object):
             for bi in turn_engine_to_stream_list:
                 bb = nn.bricks[bi]
                 bb.set_impl_type(BrickImplTypes.STREAM)
-        # 5. merge sequential nodes (no data par, no twins, same target_hw) if possible, based on used_perf,
+        # 5. merge sequential nodes (no data par, no twins, same targeted_hw) if possible, based on used_perf,
         #  (i.e move bricks after each other)
         node_ids_to_delete = []
         for ni in range(0, len(self.nodes)):
@@ -297,17 +298,17 @@ class ArchDraft(object):
             if n1.data_parallelism_level > 1:
                 continue
             if ni < (len(self.nodes) - 1):
-                n2 = self.nodes[ni+1]
+                n2 = self.nodes[ni + 1]
                 if n2.data_parallelism_level > 1:
                     continue
-                if n1.target_hw == n2.target_hw:
+                if n1.targeted_hw == n2.targeted_hw:
                     # TODO: move bricks after each other?
                     #  does it make sense? just reduces the resource usage somewhere else?
                     if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
                         # merge nodes totally
                         print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
                               .format(n1.node_id, n2.node_id))
-                        node_ids_to_delete.append(n1+1)
+                        node_ids_to_delete.append(n1 + 1)
                         for bb in n2.local_brick_iter_gen():
                             n1.add_brick(bb)
         for nd in node_ids_to_delete:
@@ -315,16 +316,71 @@ class ArchDraft(object):
         # 6. update OSGs and possible hw targets
         self.update_possible_osgs()
         self.update_possible_hw_types()
-        # 7. update kernel uuids & req. perf
+        # 7. decide for hw, if targeted hw is possible, use this one
+        #  if not, use other possible hw with largest roof_F
+        #  if only smaller roof_F are available, use fallback hw
+        #  (optimizing hw --> not part of legalizing)
+        for nn in self.node_iter_gen():
+            if nn.targeted_hw in nn.possible_hw_types:
+                nn.selected_hw_type = nn.targeted_hw
+            else:
+                targeted_roof_F = nn.targeted_hw.get_roof_F()
+                max_roof_F = 0
+                selected_hw = None
+                for phw in nn.possible_hw_types:
+                    # if only smaller roof_F are available, use fallback hw
+                    phw_roof_F = phw.get_roof_F()
+                    if phw_roof_F >= targeted_roof_F:
+                        if phw_roof_F > max_roof_F:
+                            max_roof_F = phw_roof_F
+                            selected_hw = phw
+                if selected_hw is not None:
+                    nn.selected_hw_type = selected_hw
+                    print("[DOSA:archGen:INFO] Targeted hw {} not possible for node {}, selected {} instead."
+                          .format(nn.targeted_hw, nn.node_id, nn.selected_hw_type))
+                else:
+                    if len(self.fallback_hw_set) > 0:
+                        fallback_hw_found = False
+                        for fhw in self.fallback_hw_set:
+                            if fhw in nn.possible_hw_types:
+                                # take first one, order represents priority
+                                nn.selected_hw_type = fhw
+                                fallback_hw_found = True
+                                print("[DOSA:archGen:WARNING] Targeted hw {} not possible for node {}, forced to use \
+                                      fallback hw {} instead.".format(nn.targeted_hw, nn.node_id,
+                                                                        nn.selected_hw_type))
+                                break
+                        if not fallback_hw_found:
+                            print("[DOSA:archGen:ERROR] Targeted hw {} not possible for node {}, failed to find \
+                                  replacement or fallback. Impossible to legalize draft"
+                                  .format(nn.targeted_hw, nn.node_id))
+                            return DosaRv.ERROR
+        # ensure, all HW is decided
+        for nn in self.node_iter_gen():
+            assert nn.selected_hw_type != placeholderHw
+        # 8. decide for OSG
+        for nn in self.node_iter_gen():
+            decided_hw_class = nn.selected_hw_type.hw_class
+            for lb in nn.local_brick_iter_gen():
+                for posg in lb.possible_osgs:
+                    if decided_hw_class in posg.device_classes:
+                        # order represents priority, so take fist one
+                        lb.selected_osg = posg
+                        continue
+                # TODO: consider switching costs
+        # 9. update kernel uuids & req. perf
         self.update_uuids()
         self.update_required_perf()
+        return DosaRv.OK
 
     def update_required_perf(self):
         if self.strategy == OptimizationStrategies.THROUGHPUT:
             if self.target_sps < 0:
-                print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_sps ({}). Stop."
-                      .format(self.strategy, self.target_sps))
-                return -1
+                print(
+                    "[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint \
+                    target_sps ({}). Stop."
+                    .format(self.strategy, self.target_sps))
+                return DosaRv.ERROR
             # optimizing towards throughput
             target_throughput = self.target_sps * self.sample_size_B
             # annotate input & output
@@ -338,21 +394,23 @@ class ArchDraft(object):
                 # take data parallelism into account
                 local_data_par_level = node.data_parallelism_level
                 for brick in node.local_brick_iter_gen():
-                    brick.input_bw_Bs = brick.input_bytes * (self.target_sps/local_data_par_level)
-                    brick.output_bw_Bs = brick.output_bytes * (self.target_sps/local_data_par_level)
-                    brick.req_flops = brick.flops * (self.target_sps/local_data_par_level)
+                    brick.input_bw_Bs = brick.input_bytes * (self.target_sps / local_data_par_level)
+                    brick.output_bw_Bs = brick.output_bytes * (self.target_sps / local_data_par_level)
+                    brick.req_flops = brick.flops * (self.target_sps / local_data_par_level)
         elif self.strategy == OptimizationStrategies.LATENCY:
             # optimizing towards latency
             if self.target_latency < 0:
-                print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_latency ({}). Stop."
-                      .format(self.strategy, self.target_latency))
-                return -1
+                print(
+                    "[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint \
+                     target_latency ({}). Stop."
+                    .format(self.strategy, self.target_latency))
+                return DosaRv.ERROR
             # first, try with 1/N distribution
             # consider communication latency
             comm_latency = 0
             for nn in self.node_iter_gen():
-                if nn.target_hw is not None:
-                    cl1 = nn.target_hw.get_comm_latency_s()
+                if nn.targeted_hw is not None:
+                    cl1 = nn.targeted_hw.get_comm_latency_s()
                     # just consider it two times, don't consider successor
                     comm_latency += 2 * cl1
             compute_latency = self.target_latency - comm_latency
@@ -370,13 +428,15 @@ class ArchDraft(object):
                     # calc_latency is depending on mode
                     # brick.req_perf_engine = (brick.oi_engine * brick.input_bytes) / latency_per_brick
                     # brick.req_perf_stream = (brick.oi_stream * brick.input_bytes) / latency_per_brick
-                    brick.req_flops = brick.flops / (latency_per_brick*local_data_par_level)
+                    brick.req_flops = brick.flops / (latency_per_brick * local_data_par_level)
         else:
             # optimizing towards resource footprint
             if self.target_resources < 0:
-                print("[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint target_resources ({}). Stop."
-                      .format(self.strategy, self.target_resources))
-                return -1
+                print(
+                    "[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint \
+                    target_resources ({}). Stop."
+                    .format(self.strategy, self.target_resources))
+                return DosaRv.ERROR
             # find max resources in flops
             max_resources = 0
             max_res_dev = "unknown"
@@ -393,7 +453,7 @@ class ArchDraft(object):
             resource_per_brick = allowed_resources / self.get_bricks_num()
             for brick in self.brick_iter_gen():
                 brick.req_flops = resource_per_brick
-        return 0
+        return DosaRv.OK
 
     def update_uuids(self):
         next_kuuid = 0
@@ -426,4 +486,3 @@ class ArchDraft(object):
         for npht in not_possible_hw_types:
             del cur_possible_hw_types[cur_possible_hw_types.index(npht)]
         self.possible_hw_types = cur_possible_hw_types
-

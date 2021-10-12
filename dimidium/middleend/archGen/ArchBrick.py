@@ -170,6 +170,7 @@ class ArchBrick(object):
         for npo in not_possible_osgs:
             del cur_possible_osgs[cur_possible_osgs.index(npo)]
         self.possible_osgs = cur_possible_osgs
+        # TODO: update order based on priorities
 
     def update_possible_hw_types(self):
         new_possible_hw_types = []

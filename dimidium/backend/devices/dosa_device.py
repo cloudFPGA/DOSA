@@ -13,6 +13,8 @@
 import abc
 from enum import Enum
 
+import dimidium.lib.units as units
+
 
 class DosaHwClasses(Enum):
     UNDECIDED = 0
@@ -24,13 +26,14 @@ class DosaHwClasses(Enum):
 
 class DosaBaseHw(metaclass=abc.ABCMeta):
 
-    def __init__(self, hw_type: DosaHwClasses, type_str, name):
-        self.hw_type = hw_type
+    def __init__(self, hw_class: DosaHwClasses, type_str, name):
+        self.hw_class = hw_class
         self.name = name
         self.type_str = type_str
+        self.roof_F = 0
 
     def __repr__(self):
-        return "DosaHwType({}, for {})".format(self.name, self.hw_type)
+        return "DosaHwType({}, for {})".format(self.name, self.hw_class)
 
     @abc.abstractmethod
     def get_performance_dict(self):
@@ -51,4 +54,38 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def get_comm_latency_s(self):
         print("[DOSA:DEVICES:ERROR] NOT YET IMPLEMENTED.")
+
+    def get_roof_F(self):
+        perf_dict = self.get_performance_dict()
+        if 'dsp48_gflops' in perf_dict:
+            self.roof_F = perf_dict['dsp48_gflops'] * units.gigaU
+        else:
+            self.roof_F = perf_dict['cpu_gflops'] * units.gigaU
+        return self.roof_F
+
+
+class UndecidedDosaHw(DosaBaseHw):
+
+    def __init__(self, name):
+        super().__init__(DosaHwClasses.UNDECIDED, 'dosa_undecided_hw', name)
+
+    def get_performance_dict(self):
+        ret = {'type': str(self.hw_class), 'cpu_gflops': 1, 'bw_netw_gBs': 1,
+               'bw_dram_gBs': 1}
+        return ret
+
+    def get_roofline_dict(self):
+        pass
+
+    def get_resource_dict(self):
+        pass
+
+    def get_max_flops(self):
+        pass
+
+    def get_comm_latency_s(self):
+        pass
+
+
+placeholderHw = UndecidedDosaHw('DOSA_placeholder')
 

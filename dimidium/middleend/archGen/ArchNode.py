@@ -13,7 +13,7 @@
 import json
 
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
-from dimidium.backend.devices.dosa_device import DosaBaseHw
+from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
 from dimidium.backend.devices.dosa_roofline import DosaRoofline
 from dimidium.lib.util import BrickImplTypes
 
@@ -25,7 +25,7 @@ class ArchNode(object):
 
     def __init__(self, node_id=-1, target_hw=None):
         self.node_id = node_id
-        self.target_hw = target_hw
+        self.targeted_hw = target_hw
         self.bricks = {}
         self.bid_cnt = 0
         # self.latency_to_next_node = 0
@@ -37,14 +37,16 @@ class ArchNode(object):
         self.max_perf_F = -1
         self.used_perf_F = -1
         self.possible_hw_types = []
+        self.selected_hw_type = placeholderHw
 
     def __repr__(self):
-        return "ArchNode({}, {})".format(self.node_id, self.target_hw)
+        return "ArchNode({}, {})".format(self.node_id, self.targeted_hw)
 
     def as_dict(self):
-        res = {'node_id': self.node_id, 'target_hw': str(self.target_hw),
+        res = {'node_id': self.node_id, 'targeted_hw': str(self.targeted_hw),
                'data_paral_level': self.data_parallelism_level,  # 'twin_nodes': [],
                'pred_nodes': [], 'succ_nodes': [], 'possible_hw_types': [],
+               'selected_hw_type': repr(self.selected_hw_type),
                'bricks': {}}
         # for tn in self.twins:
         #    res['twin_nodes'].append(tn.node_id)
@@ -92,7 +94,7 @@ class ArchNode(object):
         if b_id_to_new_node == 0 or b_id_to_new_node >= self.bid_cnt or b_id_to_new_node < 0:
             print("[DOSA:ArchNode:ERROR] invalid split attempt, skipping.")
             return None
-        new_node = ArchNode(target_hw=self.target_hw)
+        new_node = ArchNode(target_hw=self.targeted_hw)
         new_node.max_perf_F = self.max_perf_F
         new_node.roofline = self.roofline
         # new_node.latency_to_next_node = self.latency_to_next_node
@@ -129,8 +131,8 @@ class ArchNode(object):
             bb = self.bricks[bi]
             yield bb
 
-    def set_target_hw(self, target_hw: DosaBaseHw):
-        self.target_hw = target_hw
+    def set_targeted_hw(self, target_hw: DosaBaseHw):
+        self.targeted_hw = target_hw
         self.update_roofline()
         self.used_perf_F = -1
 
@@ -147,9 +149,9 @@ class ArchNode(object):
     #     self.twins.append(t)
 
     def update_roofline(self):
-        assert self.target_hw is not None
+        assert self.targeted_hw is not None
         nrl = DosaRoofline()
-        nrl.from_perf_dict(self.target_hw.get_performance_dict())
+        nrl.from_perf_dict(self.targeted_hw.get_performance_dict())
         self.roofline = nrl
         self.max_perf_F = nrl.roof_F
 

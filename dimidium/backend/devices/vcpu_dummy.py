@@ -25,7 +25,7 @@ class VcpuDummy(DosaBaseHw):
         super().__init__(DosaHwClasses.CPU_x86, 'vCPU_x86', name)
 
     def get_performance_dict(self):
-        ret = {'type': str(self.hw_type), 'cpu_gflops': cpu_gflops, 'bw_netw_gBs': network_bandwidth_gBs,
+        ret = {'type': str(self.hw_class), 'cpu_gflops': cpu_gflops, 'bw_netw_gBs': network_bandwidth_gBs,
                'bw_dram_gBs': dram_bandwith_gBs}
         return ret
 

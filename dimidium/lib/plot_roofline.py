@@ -208,8 +208,8 @@ def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft,
         plt_name = "{} (draft: {}, node: {}, dpl: {}, opt: {})".format(parent_draft.name, parent_draft.version,
                                                               arch_node.get_node_id(), arch_node.data_parallelism_level,
                                                               str(parent_draft.strategy).split('.')[-1])
-        return draw_roofline(plt_name, parent_draft.batch_size, arch_node.target_hw.get_performance_dict(),
-                             arch_node.target_hw.get_roofline_dict(), target_string, cmpl_list, uinp_list,
+        return draw_roofline(plt_name, parent_draft.batch_size, arch_node.targeted_hw.get_performance_dict(),
+                             arch_node.targeted_hw.get_roofline_dict(), target_string, cmpl_list, uinp_list,
                              cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug)
 
 
