@@ -46,35 +46,41 @@ config_dosa_flops_per_dsp_xilinx_fpgas = 0.5  # usually, 2 DSPs are required for
 config_dsps_per_dosa_flops_xilinx_fpgas = (1 / config_dosa_flops_per_dsp_xilinx_fpgas)
 config_dosa_flops_explanation_str = 'using {} DSPs per FLOPS'.format(config_dsps_per_dosa_flops_xilinx_fpgas)
 
+config_dosa_kappa = 1.0
+
+config_dosa_lambda_dict = {DosaDtype.UNKNOWN: 1.0, DosaDtype.float32: 1.0, DosaDtype.float16: 1.0, DosaDtype.int32: 1.0,
+                           DosaDtype.int16: 1.0, DosaDtype.uint8: 1.0, DosaDtype.double: 1.0}
+
 
 def get_flops_conv_factor(dtype: DosaDtype):
     # based on Xilinx resources and @Parker2014
+    ret = config_default_dosa_flops_conv_factor
     if dtype == DosaDtype.float32:
         # requires 2 DSPs
         # return 1.0
-        return 2.0 / config_dsps_per_dosa_flops_xilinx_fpgas
+        ret = (2.0 / config_dsps_per_dosa_flops_xilinx_fpgas)
     elif dtype == DosaDtype.float16:
         # also requires 2 DPSs
         # return 1.0
-        return 2.0 / config_dsps_per_dosa_flops_xilinx_fpgas
+        ret = (2.0 / config_dsps_per_dosa_flops_xilinx_fpgas)
     elif dtype == DosaDtype.int32:
         # requires 4 DPSs
         # return 2.0
-        return 4.0 / config_dsps_per_dosa_flops_xilinx_fpgas
+        ret = (4.0 / config_dsps_per_dosa_flops_xilinx_fpgas)
     elif dtype == DosaDtype.int16:
         # requires 1 DSP
         # return 0.5
-        return 1.0 / config_dsps_per_dosa_flops_xilinx_fpgas
+        ret = (1.0 / config_dsps_per_dosa_flops_xilinx_fpgas)
     elif dtype == DosaDtype.uint8:
         # requires 0 or 0.5 DSPs
         # return 0.25  # or 0.2?
         # using 0.3 as middle between 0 and 0.5
-        return 0.3 / config_dsps_per_dosa_flops_xilinx_fpgas
+        ret = (0.3 / config_dsps_per_dosa_flops_xilinx_fpgas)
     elif dtype == DosaDtype.double:
         # requires 8 DSPs
         # return 4
-        return 8.0 / config_dsps_per_dosa_flops_xilinx_fpgas
-    # if dtype == DosaDtype.UNKNOWN:
-    return config_default_dosa_flops_conv_factor
+        ret = (8.0 / config_dsps_per_dosa_flops_xilinx_fpgas)
+    # elif dtype == DosaDtype.UNKNOWN:
+    return ret * config_dosa_lambda_dict[dtype]
 
 

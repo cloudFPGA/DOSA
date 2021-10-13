@@ -12,7 +12,7 @@
 
 from dimidium.lib.units import *
 from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
-from dimidium.lib.dosa_dtype import config_dosa_flops_per_dsp_xilinx_fpgas
+from dimidium.lib.dosa_dtype import config_dosa_flops_per_dsp_xilinx_fpgas, config_dosa_kappa
 
 # FPGA specs
 # UltraScale KU0600
@@ -73,7 +73,7 @@ class CfThemisto1(DosaBaseHw):
         super().__init__(DosaHwClasses.FPGA_xilinx, 'cF_FMKU60_Themisto_1', name)
 
     def get_performance_dict(self):
-        ret = {'fpga_freq_Hz': freq_fpga, 'dsp48_gflops': cF_bigRole_dsp48_gflops,
+        ret = {'fpga_freq_Hz': freq_fpga, 'dsp48_gflops': (cF_bigRole_dsp48_gflops * config_dosa_kappa),
            'bw_dram_gBs': b_s_fpga_ddr_gBs, 'bw_bram_gBs': b_s_fpga_bram_gBs,
            'bw_netw_gBs': b_s_fpga_eth_gBs, 'bw_lutram_gBs': b_s_fpga_lutram_gBs,
            'type': str(self.hw_class)}
@@ -89,7 +89,7 @@ class CfThemisto1(DosaBaseHw):
         return
 
     def get_max_flops(self):
-        return cF_bigRole_dsp48_gflops * gigaU
+        return cF_bigRole_dsp48_gflops * gigaU * config_dosa_kappa
 
     def get_comm_latency_s(self):
         return 0.1 * mikroU
