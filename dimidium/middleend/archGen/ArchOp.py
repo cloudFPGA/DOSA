@@ -12,7 +12,10 @@
 
 import json
 from tvm.relay import Expr
+
 from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG
+from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype, get_flops_conv_factor, \
+    config_default_dosa_flops_conv_factor
 
 
 class ArchOp(object):
@@ -36,7 +39,9 @@ class ArchOp(object):
         self.layer_name = 0
         self.parent_fn = None
         self.op_call = None
-        self.used_dtype = None
+        self.used_dtype = DosaDtype.UNKNOWN
+        self.flops_conv_factor = config_default_dosa_flops_conv_factor
+        self.tvm_dtype = None
         self.tvm_node = tvm_node
         self.selected_osg = placeholderOSG
         self.possible_osgs = []
@@ -51,7 +56,7 @@ class ArchOp(object):
                'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'layer_name': self.layer_name, 'parent_fn': self.parent_fn,
-               'op_call': self.op_call, 'used_dtype': self.used_dtype, 'tvm_node': str(self.tvm_node)[:100]} #,
+               'op_call': self.op_call, 'used_dtype': repr(self.used_dtype), 'tvm_node': str(self.tvm_node)[:100]} #,
                # 'possible OSGs': [], 'selected OSG': repr(self.selected_osg)}
         # for po in self.possible_osgs:
         #     pos = repr(po)
@@ -73,7 +78,9 @@ class ArchOp(object):
         self.layer_name = dpl_dict['layer']
         self.parent_fn = dpl_dict['fn']
         self.op_call = dpl_dict['op']
-        self.used_dtype = dpl_dict['dtype']
+        self.tvm_dtype = dpl_dict['dtype']
+        self.used_dtype = convert_tvmDtype_to_DosaDtype(self.tvm_dtype)
+        self.flops_conv_factor = get_flops_conv_factor(self.used_dtype)
 
     def set_local_op_id(self, op_id):
         self.local_op_id = op_id

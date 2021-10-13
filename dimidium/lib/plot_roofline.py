@@ -23,6 +23,7 @@ from dimidium.middleend.archGen.ArchDraft import ArchDraft
 from dimidium.middleend.archGen.ArchNode import ArchNode
 
 from dimidium.lib.units import *
+from dimidium.lib.dosa_dtype import config_dosa_flops_explanation_str
 from dimidium.backend.devices.dosa_roofline import config_global_rf_ylim_min as __ylim_min__
 from dimidium.backend.devices.dosa_roofline import config_global_rf_ylim_max as __ylim_max__
 
@@ -43,7 +44,8 @@ def set_size(w, h, ax=None):
 
 def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, x_min, x_max, z_order=5, y_min=0.1,
                  show_labels=True, print_debug=False):
-    text_height_values = [65, 120, 55, 100, 180]
+    # text_height_values = [65, 120, 55, 100, 180]
+    text_height_values = [0.65, 1.20, 0.55, 1.00, 1.80]
     th = itertools.cycle(text_height_values)
     for e in oi_list:
         if e['oi'] > x_max or e['oi'] < x_min:
@@ -58,7 +60,10 @@ def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, 
         plt.vlines(x=e['oi'], ymin=y_min, ymax=y_max, colors=color, linestyles=line_style, linewidth=line_width,
                    zorder=z_order)  # , label=e['name'])
         if show_labels:
-            plt.text(x=e['oi']*1.02, y=next(th), s=e['name'], color=color, fontsize=font_size, ha='left', va='top',
+            text_y_shift_factor = 1.0
+            if len(e['name']) > 15:
+                text_y_shift_factor = 50.0
+            plt.text(x=e['oi']*1.02, y=next(th)*text_y_shift_factor, s=e['name'], color=color, fontsize=font_size, ha='left', va='top',
                      rotation=90)
 
 
@@ -224,10 +229,11 @@ def generate_roofline_plt_old(detailed_analysis, target_sps, used_batch, used_na
 def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string, cmpl_list, uinp_list, cmpl_list2, uinp_list2,
                   total, show_splits=True, show_labels=True, print_debug=False):
     # Arithmetic intensity vector
+    ai_list_very_small = np.arange(0.001, 0.01, 0.001)
     ai_list_small = np.arange(0.01, 1, 0.01)
     ai_list_middle = np.arange(1, 1500, 0.1)
     ai_list_big = np.arange(1501, 10100, 1)
-    ai_list = np.concatenate((ai_list_small, ai_list_middle, ai_list_big))
+    ai_list = np.concatenate((ai_list_very_small, ai_list_small, ai_list_middle, ai_list_big))
 
     # Attainable performance
     upper_limit = perf_dict['dsp48_gflops']
@@ -282,8 +288,12 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     color = 'darkmagenta'
     line_style = 'solid'  # otherwise we see the memory lines...
     plt.hlines(y=upper_limit, xmin=sweet_spot, xmax=ai_list[-1], colors=color, linestyles=line_style, linewidth=MY_WIDTH*1.2, zorder=3)
-    text = "{0:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE)".format(upper_limit)
-    plt.text(x=sweet_spot, y=upper_limit+100, s=text, color=color, fontsize=MY_SIZE_SMALL)
+    # text = "{0:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE, {})".format(upper_limit)
+    text = "{:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE, {})"\
+        .format(upper_limit, config_dosa_flops_explanation_str)
+    # text_space = 100
+    text_space = 10
+    plt.text(x=sweet_spot, y=upper_limit+text_space, s=text, color=color, fontsize=MY_SIZE_SMALL)
 
     # custommarker = Path.circle()
     # color = 'darkturquoise'

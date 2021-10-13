@@ -15,6 +15,8 @@ from tvm.relay import Expr
 
 from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.lib.util import BrickImplTypes
+from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype, get_flops_conv_factor, \
+    config_default_dosa_flops_conv_factor
 from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG, sort_osg_list
 
 
@@ -39,7 +41,9 @@ class ArchBrick(object):
         self.fn_label = 0
         # self.parent_fn = None
         # self.op_call = None
-        self.used_dtype = None
+        self.used_dtype = DosaDtype.UNKNOWN
+        self.flops_conv_factor = config_default_dosa_flops_conv_factor
+        self.tvm_dtype = None
         self.tvm_node = tvm_node
         self.ops = {}
         self.oid_cnt = 0
@@ -66,12 +70,12 @@ class ArchBrick(object):
         res = {'name': self.name, 'brick_uuid': self.brick_uuid,
                'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
-               'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': self.used_dtype,
+               'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': repr(self.used_dtype),
                'tvm_node': str(self.tvm_node)[:100], 'req_perf': self.req_flops,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
                'possible OSGs': [], 'selected OSG': repr(self.selected_osg),
                'selected impl. type:': repr(self.selected_impl_type),
-               'ops': {},}
+               'ops': {}}
         for oi in self.ops:
             o = self.ops[oi]
             res['ops'][oi] = o.as_dict()
@@ -100,7 +104,9 @@ class ArchBrick(object):
         self.fn_label = dpl_dict['layer']
         # self.parent_fn = dpl_dict['fn']
         # self.op_call = dpl_dict['op']
-        self.used_dtype = dpl_dict['dtype']
+        self.tvm_dtype = dpl_dict['dtype']
+        self.used_dtype = convert_tvmDtype_to_DosaDtype(self.tvm_dtype)
+        self.flops_conv_factor = get_flops_conv_factor(self.used_dtype)
 
     def set_brick_id(self, brick_id):
         self.local_brick_id = brick_id

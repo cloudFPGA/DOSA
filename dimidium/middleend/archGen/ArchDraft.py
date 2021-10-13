@@ -431,7 +431,8 @@ class ArchDraft(object):
                 for brick in node.local_brick_iter_gen():
                     brick.input_bw_Bs = brick.input_bytes * (self.target_sps / local_data_par_level)
                     brick.output_bw_Bs = brick.output_bytes * (self.target_sps / local_data_par_level)
-                    brick.req_flops = brick.flops * (self.target_sps / local_data_par_level)
+                    orig_req_flops = brick.flops * (self.target_sps / local_data_par_level)
+                    brick.req_flops = orig_req_flops * brick.flops_conv_factor
         elif self.strategy == OptimizationStrategies.LATENCY:
             # optimizing towards latency
             if self.target_latency < 0:
@@ -463,7 +464,8 @@ class ArchDraft(object):
                     # calc_latency is depending on mode
                     # brick.req_perf_engine = (brick.oi_engine * brick.input_bytes) / latency_per_brick
                     # brick.req_perf_stream = (brick.oi_stream * brick.input_bytes) / latency_per_brick
-                    brick.req_flops = brick.flops / (latency_per_brick * local_data_par_level)
+                    orig_req_flops = brick.flops / (latency_per_brick * local_data_par_level)
+                    brick.req_flops = orig_req_flops * brick.flops_conv_factor
         else:
             # optimizing towards resource footprint
             if self.target_resources < 0:
@@ -487,7 +489,8 @@ class ArchDraft(object):
             # ignore latency, data_par etc.
             resource_per_brick = allowed_resources / self.get_bricks_num()
             for brick in self.brick_iter_gen():
-                brick.req_flops = resource_per_brick
+                orig_req_flops = resource_per_brick
+                brick.req_flops = orig_req_flops * brick.flops_conv_factor
         return DosaRv.OK
 
     def update_uuids(self):

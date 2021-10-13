@@ -12,6 +12,7 @@
 
 from dimidium.lib.units import *
 from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
+from dimidium.lib.dosa_dtype import config_dosa_flops_per_dsp_xilinx_fpgas
 
 # FPGA specs
 # UltraScale KU0600
@@ -22,14 +23,19 @@ freq_fpga = freq_fpga_mhz * megaU  # Hz
 clk_fpga = 6.4  # ns
 us_dsp48_s2_fmax_g = 0.661  # Ghz
 ku060_num_dsp = 2760.0
-dsp_flop_s = 4.0 * us_dsp48_s2_fmax_g
+# dsp_flop_s = 4.0 * us_dsp48_s2_fmax_g
+dsp_flop_s = config_dosa_flops_per_dsp_xilinx_fpgas * us_dsp48_s2_fmax_g
 us_dsp48_s2_gflops = ku060_num_dsp * dsp_flop_s  # 4 FLOPs per DSP per cycle, 2760 DSPs per FPGA
 
-cF_all_dsp48_gflops = 4.0 * ku060_num_dsp * freq_fpga_ghz
-cF_1_dsp48_gflops = 4.0 * freq_fpga_ghz
-cF_bigRole_dsp48_gflops = 1028.0 * 4.0 * freq_fpga_ghz
+# cF_all_dsp48_gflops = 4.0 * ku060_num_dsp * freq_fpga_ghz
+cF_all_dsp48_gflops = config_dosa_flops_per_dsp_xilinx_fpgas * ku060_num_dsp * freq_fpga_ghz
+# cF_1_dsp48_gflops = 4.0 * freq_fpga_ghz
+cF_1_dsp48_gflops = config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
+# cF_bigRole_dsp48_gflops = 1028.0 * 4.0 * freq_fpga_ghz
+cF_bigRole_dsp48_gflops = 1028.0 * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
 
-cF_mantle_dsp48_gflops = 938.0 * 4.0 * freq_fpga_ghz
+# cF_mantle_dsp48_gflops = 938.0 * 4.0 * freq_fpga_ghz
+cF_mantle_dsp48_gflops = 938.0 * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
 
 # DRAM bandwidth
 b_s_fpga_ddr_gBs = 10.0  # 10GB/s (one memory bank of FMKU60)
@@ -74,7 +80,9 @@ class CfThemisto1(DosaBaseHw):
         return ret
 
     def get_roofline_dict(self):
-        ret = {'sweet_spot': 0.081}
+        # ret = {'sweet_spot': 0.081}  # old DSP calc
+        # ret = {'sweet_spot': 0.1566}  # for BRAM
+        ret = {'sweet_spot': 0.0100}  # for LUTRAM
         return ret
 
     def get_resource_dict(self):

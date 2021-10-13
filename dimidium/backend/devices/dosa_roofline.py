@@ -17,7 +17,8 @@ from dimidium.lib.util import rf_attainable_performance, BrickImplTypes, rf_calc
 import dimidium.lib.units as units
 
 config_global_rf_ylim_min = 0.01
-config_global_rf_ylim_max = 100000
+# config_global_rf_ylim_max = 100000
+config_global_rf_ylim_max = 10000
 
 __deactivated_bw_value__ = -1
 

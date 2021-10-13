@@ -92,13 +92,13 @@ if __name__ == '__main__':
                                                   used_name + " (basis)",
                                                   arch_target_devices[0].get_performance_dict(),
                                                   arch_target_devices[0].get_roofline_dict(),
-                                                  show_splits=True, show_labels=True, print_debug=False)
+                                                  show_splits=False, show_labels=True, print_debug=False)
     # plt2 = plot_roofline.generate_roofline_plt_old(archDict['fused_view'], target_sps, used_batch,
     #                                                used_name + " (optimized)",
     #                                                arch_target_devices[0].get_performance_dict(),
     #                                                arch_target_devices[0].get_roofline_dict(),
     #                                                show_splits=True, show_labels=True)
-    plt2 = plot_roofline.generate_roofline_plt(archDict['draft'], show_splits=True, show_labels=True, print_debug=False)
+    plt2 = plot_roofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True, print_debug=False)
     plt_nodes = []
     for nn in archDict['draft'].node_iter_gen():
         new_plt = plot_roofline.generate_roofline_for_node_plt(nn, archDict['draft'],
