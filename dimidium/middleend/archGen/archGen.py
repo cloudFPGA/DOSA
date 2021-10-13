@@ -14,7 +14,6 @@ import copy
 import json
 import tvm
 # import tvm.relay as relay
-
 from dimidium.frontend.TvmPrintMeta import PrintMeta
 from dimidium.middleend.astProc.oiVisitor import OiPipeline
 from dimidium.middleend.astProc.oiCalculation import OiCalculator
@@ -25,6 +24,7 @@ from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.astProc.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
+from dimidium.backend.devices.dosa_roofline import RooflineRegions
 
 
 def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices, batch_size=1, sample_size=1, target_sps=-1, target_latency=-1,
@@ -266,7 +266,22 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
                   .format(repr(draft), draft.target_hw_set, draft.fallback_hw_set, draft.possible_hw_types))
             return False
     print("[DOSA:archVerify:INFO] Draft {} fulfills resource type requirements.".format(repr(draft)))
-    # TODO: if roofline present, check if all bricks in all nodes are "IN_HOUSE"
+    # if roofline present, check if all bricks in all nodes are "IN_HOUSE"
+    not_in_house = []
+    for nn in draft.node_iter_gen():
+        if nn.roofline is None:
+            continue
+        for lb in nn.local_brick_iter_gen():
+            oi_selected = lb.get_oi_selected_impl()
+            rr = nn.roofline.get_region(oi_selected, lb.req_flops)
+            if rr != RooflineRegions.IN_HOUSE:
+                msg_str = "({}, {})".format(nn.node_id, lb.brick_uuid)
+                not_in_house.append(msg_str)
+    if len(not_in_house) > 0:
+        print("[DOSA:archVerify:ERROR] Draft {} does not fulfill roofline requirement. The following bircks \
+        (node_id, brick_uuid) are above roofs: {}".format(repr(draft), not_in_house))
+        return False
+    print("[DOSA:archVerify:INFO] Draft {} fulfills roofline requirement.".format(repr(draft)))
     return True
 
 
@@ -282,8 +297,6 @@ def find_best_draft(input_draft: ArchDraft) -> ArchDraft:
         tmp_draft = copy.deepcopy(draft)
         # populate first target hw
         for nn in tmp_draft.node_iter_gen():
-            # TODO: check if target hw is possible for this node?
-            #  or consider this later?
             nn.set_targeted_hw(thw)  # this includes the generation of the roofline
         # legalize this version
         rv = tmp_draft.legalize()
@@ -300,11 +313,12 @@ def find_best_draft(input_draft: ArchDraft) -> ArchDraft:
     best_draft = draft_list[best_version_i]
     # TODO: add additional cost factor to devices? E.g. if 3 small nodes are cheaper then 1 big one?
     draft = best_draft
-    # TODO: B) then, for not full nodes, see if other hw could be used
+    # TODO B) then, for not full nodes, see if other hw could be used
     # C) then, check if all operations can be implemented?
     #  split accordingly and merge again?
     #  --> done in legalizing
-    # TODO D) annotate network latencies
+    # D) annotate network latencies?
+    #   --> not necessary, done implicitly via targeted_hw
     draft.version = 'selected_best'
     return draft
 

@@ -187,6 +187,7 @@ class ArchDraft(object):
         self.update_required_perf()  # to consider new latencies
         # 1. compute parallelization for engine and stream (i.e. regions 1 and 4)
         #  update: compute parallelization (i.e. blocking of compute ops) is difficult, hence also round robin here
+        # TODO: different strategy for resource optimization
         for nn in self.node_iter_gen():
             # only nodes with one brick should be affected
             need_to_split = False
@@ -232,6 +233,7 @@ class ArchDraft(object):
         for bb in self.brick_iter_gen():
             assert bb.selected_impl_type != BrickImplTypes.UNDECIDED
         # 3. data parallelization for all above IN_HOUSE, based on selected impl type
+        # TODO: different strategy for resource optimization
         for nn in self.node_iter_gen():
             # only nodes with one brick should be affected
             need_to_split = False
