@@ -42,7 +42,7 @@ if __name__ == '__main__':
         if k not in dosa_config:
             print("ERROR: Mandatory key {} is missing in the configuration file {}. Stop.".format(k, const_path))
             exit(1)
-    debug_mode = True
+    debug_mode = False
 
     print("DOSA: Building OSGs and device library...")
     available_devices = builtin_devices
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     print("DOSA: Generating high-level architecture...")
     archDict = arch_gen(mod, params, used_name, arch_gen_strategy, available_OSGs, available_devices,
                         used_batch, used_sample_size, target_sps, target_latency, target_resource_budget,
-                        arch_target_devices, arch_fallback_hw, debug=debug_mode)
+                        arch_target_devices, arch_fallback_hw, debug=debug_mode, profiling=True, verbose=True)
     print("\t...done.\n")
 
     print("DOSA: Generating and showing roofline...")

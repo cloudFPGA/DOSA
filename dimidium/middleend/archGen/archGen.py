@@ -11,6 +11,7 @@
 #  *
 
 import copy
+import time
 import json
 import tvm
 # import tvm.relay as relay
@@ -27,8 +28,10 @@ from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_roofline import RooflineRegions
 
 
-def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices, batch_size=1, sample_size=1, target_sps=-1, target_latency=-1,
-             target_resources=-1, arch_target_devices=None, arch_fallback_devices=None, debug=False):
+def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices,
+             batch_size=1, sample_size=1, target_sps=-1, target_latency=-1, target_resources=-1,
+             arch_target_devices=None, arch_fallback_devices=None, debug=False, profiling=False, verbose=False):
+    arch_gen_start = time.time()
     oi_calc = OiCalculator(default_oi=1.0)
     oi_pass = OiPipeline(fallback_size_t=32, oiCalc=oi_calc)
     assert oi_pass.info.name == "OiPipeline"
@@ -42,10 +45,15 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     if debug:
         pass_instruments.append(PrintMeta())
 
+    tvm_pass_start = time.time()
     seq2_ro = tvm.transform.Sequential(seq2ro_calls)
 
     with tvm.transform.PassContext(opt_level=3, instruments=pass_instruments):
         ignore = seq2_ro(mod)
+
+    if verbose:
+        print(mod.astext(show_meta_data=False))
+    tvm_pass_end = time.time()
 
     oi_pass.reorder_fn_calls()
     oi_results = oi_pass.get_oi_results()
@@ -68,6 +76,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
         print("\n[DEBUG] fn_call_stats")
         print(json.dumps(fn_call_stats, indent=2, sort_keys=False))
 
+    creating_draft_start = time.time()
     inital_draft = create_arch_draft(name, strategy, available_osgs, batch_size, sample_size, target_sps, target_latency, target_resources,
                                      data_per_layer, tvm_nodes, mod)
 
@@ -78,24 +87,35 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
         for d in arch_fallback_devices:
             do = available_devices.types_dict[d]
             inital_draft.add_possible_fallback_hw(do)
+    creating_draft_end = time.time()
 
+    annotating_draft_start = time.time()
     annotated_draft = annotate_required_performance(inital_draft)
+    annotating_draft_end = time.time()
 
     # if debug:
     #     print("\n[DEBUG] initial annotated draft:")
     #     # print(inital_draft)
     #     print(annotated_draft)
 
+    check_annot_start_1 = time.time()
     still_valid = check_annotations(annotated_draft)
-    best_draft = find_best_draft(annotated_draft)
-    still_valid = check_annotations(best_draft)
+    check_annot_end_1 = time.time()
 
-    if debug:
+    find_best_start = time.time()
+    best_draft = find_best_draft(annotated_draft)
+    find_best_end = time.time()
+
+    check_annot_start_2 = time.time()
+    still_valid = check_annotations(best_draft)
+    check_annot_end_2 = time.time()
+
+    if debug or verbose:
         print("\n[DEBUG] best draft found:")
         print(best_draft)
 
+    other_opts = []
     if debug:
-        other_opts = []
         other_opts.append(annotated_draft)
         for opt_s in OptimizationStrategies:
             if opt_s == strategy:
@@ -111,6 +131,21 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
 
     ret = {'mod': mod, 'base_dpl': data_per_layer, 'fused_view': oi_main_view, 'draft': best_draft,
            'debug_obj': None}
+
+    arch_gen_end = time.time()
+    if profiling:
+        prof_dict = {'archGen_time_total_s': arch_gen_end - arch_gen_start,
+                     'tvm_pass_time_s': tvm_pass_end - tvm_pass_start,
+                     'creating_draft_time_s': creating_draft_end - creating_draft_start,
+                     'creating_annotations_time_s': annotating_draft_end - annotating_draft_start,
+                     'check_annotations_time_1_s': check_annot_end_1 - check_annot_start_1,
+                     'find_best_draft_time_s': find_best_end - find_best_start,
+                     'check_annotations_time_2_s': check_annot_end_2 - check_annot_start_2}
+        ret['profiling'] = prof_dict
+        if debug or verbose:
+            print("\n[DEBUG] profiling information: ")
+            print(json.dumps(prof_dict, indent=2))
+
     if debug:
         ret['debug_obj'] = {}
         ret['debug_obj']['other_opts'] = other_opts
@@ -232,9 +267,9 @@ def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.E
             if nn.targeted_hw is not None:
                 cl1 = nn.targeted_hw.get_comm_latency_s()
                 total_time += 2 * cl1
-        if total_time > draft.target_latency:
+        if total_time > float(draft.target_latency):
             print("[DOSA:archVerify:ERROR] Draft {} does not fulfill latency requirement (req: {} current: {} s)."
-                  .format(repr(draft), draft.target_latency, total_time))
+                  .format(repr(draft), float(draft.target_latency), total_time))
             return False
         print("[DOSA:archVerify:INFO] Draft {} fulfills latency requirement.".format(repr(draft)))
         return True
