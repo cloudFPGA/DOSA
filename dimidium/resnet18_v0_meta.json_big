@@ -1,0 +1,19 @@
+{
+  "name": "resnet18",
+  "shape_dict": {
+    "input.1": [
+      1,
+      3,
+      244,
+      244
+    ]
+  },
+  "used_input_size_t": 32,
+  "used_batch_n": 1,
+  "target_sps": 500,
+  "target_latency": 0.01,
+  "target_resource_budget": 4,
+  "targeted_hw": ["cF_FMKU60_Themisto_1"],
+  "fallback_hw": ["vCPU_x86"],
+  "arch_gen_strategy": "throughput"
+}
