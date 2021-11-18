@@ -1,5 +1,23 @@
 {
   "input_latency": 0,
   "output_latency": 0,
-  "reserve_rank_0_for_io": true
+  "reserve_rank_0_for_io": true,
+  "dtypes" : {
+    "default_flops_conv_factor": 1.0,
+    "flops_base_type": "float32",
+    "flops_base_str": "FLOPS/s for float32",
+    "flops_per_dsp_xilinx_fpgas": 0.5
+  },
+  "dosa_learning": {
+    "kappa": 1.0,
+    "lambda" : {
+      "fallback": 1.0,
+      "float32": 1.0,
+      "float16": 1.0,
+      "int32": 1.0,
+      "int16": 1.0,
+      "uint8": 1.0,
+      "double": 1.0
+    }
+  }
 }

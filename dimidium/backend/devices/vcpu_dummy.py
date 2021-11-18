@@ -10,9 +10,9 @@
 #  *        MUST IMPLEMENT: get_performance_dict(), get_roofline_dict(), get_resource_dict()
 #  *
 
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.lib.units import *
 from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
-from dimidium.lib.dosa_dtype import config_dosa_kappa
 
 
 network_bandwidth_gBs = 10.0/8.0
@@ -26,7 +26,8 @@ class VcpuDummy(DosaBaseHw):
         super().__init__(DosaHwClasses.CPU_x86, 'vCPU_x86', name)
 
     def get_performance_dict(self):
-        ret = {'type': str(self.hw_class), 'cpu_gflops': cpu_gflops * config_dosa_kappa, 'bw_netw_gBs': network_bandwidth_gBs,
+        ret = {'type': str(self.hw_class), 'cpu_gflops': cpu_gflops * dosa_singleton.config.dtype.dosa_kappa,
+               'bw_netw_gBs': network_bandwidth_gBs,
                'bw_dram_gBs': dram_bandwith_gBs}
         return ret
 
@@ -38,7 +39,7 @@ class VcpuDummy(DosaBaseHw):
         return
 
     def get_max_flops(self):
-        return cpu_gflops * gigaU * config_dosa_kappa
+        return cpu_gflops * gigaU * dosa_singleton.config.dtype.dosa_kappa
 
     def get_comm_latency_s(self):
         return 500 * mikroU  # TODO update

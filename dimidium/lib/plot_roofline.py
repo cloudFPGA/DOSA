@@ -18,12 +18,12 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import multiprocessing
 
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies, BrickImplTypes
 from dimidium.middleend.archGen.ArchDraft import ArchDraft
 from dimidium.middleend.archGen.ArchNode import ArchNode
 
 from dimidium.lib.units import *
-from dimidium.lib.dosa_dtype import config_dosa_flops_explanation_str
 from dimidium.backend.devices.dosa_roofline import config_global_rf_ylim_min as __ylim_min__
 from dimidium.backend.devices.dosa_roofline import config_global_rf_ylim_max as __ylim_max__
 
@@ -290,7 +290,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     plt.hlines(y=upper_limit, xmin=sweet_spot, xmax=ai_list[-1], colors=color, linestyles=line_style, linewidth=MY_WIDTH*1.2, zorder=3)
     # text = "{0:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE, {})".format(upper_limit)
     text = "{:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE, {})"\
-        .format(upper_limit, config_dosa_flops_explanation_str)
+        .format(upper_limit, dosa_singleton.config.dtype.dosa_flops_explanation_str)
     # text_space = 100
     text_space = 10
     plt.text(x=sweet_spot, y=upper_limit+text_space, s=text, color=color, fontsize=MY_SIZE_SMALL)

@@ -13,9 +13,10 @@
 import json
 from tvm.relay import Expr
 
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG
-from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype, get_flops_conv_factor, \
-    config_default_dosa_flops_conv_factor
+from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype
+from dimidium.lib.dtype_converters import get_flops_conv_factor
 
 
 class ArchOp(object):
@@ -40,7 +41,7 @@ class ArchOp(object):
         self.parent_fn = None
         self.op_call = None
         self.used_dtype = DosaDtype.UNKNOWN
-        self.flops_conv_factor = config_default_dosa_flops_conv_factor
+        self.flops_conv_factor = dosa_singleton.config.dtype.default_dosa_flops_conv_factor
         self.tvm_dtype = None
         self.tvm_node = tvm_node
         self.selected_osg = placeholderOSG
