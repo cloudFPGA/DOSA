@@ -403,7 +403,10 @@ class ArchDraft(object):
                             # order represents priority, so take first possible one
                             lb.selected_osg = posg
                             continue
-        # 9. update kernel uuids & req. perf
+        # 9. create blocks
+        for nn in self.node_iter_gen():
+            nn.update_block_list()
+        # 10. update kernel uuids & req. perf
         self.update_uuids()
         self.update_required_perf()
         return DosaRv.OK

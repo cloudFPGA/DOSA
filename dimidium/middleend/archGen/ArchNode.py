@@ -16,6 +16,7 @@ from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
 from dimidium.backend.devices.dosa_roofline import DosaRoofline
 from dimidium.lib.util import BrickImplTypes
+from dimidium.middleend.archGen.ArchBlock import ArchBlock
 
 
 class ArchNode(object):
@@ -38,6 +39,7 @@ class ArchNode(object):
         self.used_perf_F = -1
         self.possible_hw_types = []
         self.selected_hw_type = placeholderHw
+        self.arch_block_list = []
 
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.targeted_hw)
@@ -47,6 +49,7 @@ class ArchNode(object):
                'data_paral_level': self.data_parallelism_level,  # 'twin_nodes': [],
                'pred_nodes': [], 'succ_nodes': [], 'possible_hw_types': [],
                'selected_hw_type': repr(self.selected_hw_type),
+               'blocks': [],
                'bricks': {}}
         # for tn in self.twins:
         #    res['twin_nodes'].append(tn.node_id)
@@ -60,6 +63,8 @@ class ArchNode(object):
         for bi in self.bricks:
             b = self.bricks[bi]
             res['bricks'][bi] = b.as_dict()
+        for ab in self.arch_block_list:
+            res['blocks'].append(repr(ab))
         return res
 
     def __str__(self):
@@ -201,4 +206,22 @@ class ArchNode(object):
             del cur_possible_hw_types[cur_possible_hw_types.index(npht)]
         self.possible_hw_types = cur_possible_hw_types
 
+    def update_block_list(self):
+        self.arch_block_list = []
+        cur_impl_type = None
+        cur_osg = None
+        cur_block = None
+        cur_block_id = 0
+        for bb in self.local_brick_iter_gen():
+            if bb.selected_osg != cur_osg or bb.selected_impl_type != cur_impl_type:
+                if cur_block is not None:
+                    self.arch_block_list.append(cur_block)
+                cur_impl_type = bb.selected_impl_type
+                cur_osg = bb.selected_osg
+                cur_block = ArchBlock(cur_block_id, cur_impl_type, cur_osg, [bb])
+                cur_block_id += 1
+            else:
+                cur_block.add_brick(bb)
+        if cur_block is not None:
+            self.arch_block_list.append(cur_block)
 
