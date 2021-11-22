@@ -17,6 +17,7 @@ from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
 from dimidium.backend.devices.dosa_roofline import DosaRoofline
 from dimidium.lib.util import BrickImplTypes
 from dimidium.middleend.archGen.ArchBlock import ArchBlock
+from dimidium.backend.codeGen.EngineContainer import EngineContainer
 
 
 class ArchNode(object):
@@ -40,6 +41,7 @@ class ArchNode(object):
         self.possible_hw_types = []
         self.selected_hw_type = placeholderHw
         self.arch_block_list = []
+        self.engine_container_refs = []
 
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.targeted_hw)
@@ -49,7 +51,7 @@ class ArchNode(object):
                'data_paral_level': self.data_parallelism_level,  # 'twin_nodes': [],
                'pred_nodes': [], 'succ_nodes': [], 'possible_hw_types': [],
                'selected_hw_type': repr(self.selected_hw_type),
-               'blocks': [],
+               'blocks': [], 'engineContainers': [],
                'bricks': {}}
         # for tn in self.twins:
         #    res['twin_nodes'].append(tn.node_id)
@@ -65,6 +67,8 @@ class ArchNode(object):
             res['bricks'][bi] = b.as_dict()
         for ab in self.arch_block_list:
             res['blocks'].append(repr(ab))
+        for ec in self.engine_container_refs:
+            res['engineContainers'].append(repr(ec))
         return res
 
     def __str__(self):
@@ -224,4 +228,10 @@ class ArchNode(object):
                 cur_block.add_brick(bb)
         if cur_block is not None:
             self.arch_block_list.append(cur_block)
+
+        self.engine_container_refs = []
+        for ab in self.arch_block_list:
+            if ab.block_impl_type == BrickImplTypes.ENGINE:
+                new_container = EngineContainer(ab)
+                self.engine_container_refs.append(new_container)
 

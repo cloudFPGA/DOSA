@@ -42,6 +42,9 @@ def init_singleton(config_dict):
         else:
             config.dtype.dosa_lambda[convert_tvmDtype_to_DosaDtype(k)] = float(config_dict['dosa_learning']['lambda'][k])
 
+    config.middleend = SimpleNamespace()
+    config.middleend.engine_saving_threshold = float(config_dict['engine_saving_threshold'])
+
     is_initiated = True
     return 0
 

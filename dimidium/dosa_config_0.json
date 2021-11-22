@@ -2,6 +2,7 @@
   "input_latency": 0,
   "output_latency": 0,
   "reserve_rank_0_for_io": true,
+  "engine_saving_threshold": 1.5,
   "dtypes" : {
     "default_flops_conv_factor": 1.0,
     "flops_base_type": "float32",

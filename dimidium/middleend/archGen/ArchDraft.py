@@ -13,6 +13,7 @@
 import math
 import json
 
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.lib.util import OptimizationStrategies, BrickImplTypes, DosaRv
 from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
@@ -406,7 +407,16 @@ class ArchDraft(object):
         # 9. create blocks
         for nn in self.node_iter_gen():
             nn.update_block_list()
-        # 10. update kernel uuids & req. perf
+        # 10. check for engine threshold
+        for nn in self.node_iter_gen():
+            for ce in nn.engine_container_refs:
+                if ce.resource_savings < dosa_singleton.config.middleend.engine_saving_threshold:
+                    for bb in ce.block_ref.brick_list:
+                        bb.set_impl_type(BrickImplTypes.STREAM)
+        # update blocks again
+        for nn in self.node_iter_gen():
+            nn.update_block_list()
+        # 11. update kernel uuids & req. perf
         self.update_uuids()
         self.update_required_perf()
         return DosaRv.OK

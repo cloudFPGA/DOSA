@@ -24,7 +24,7 @@ from dimidium.backend.operatorSets.osgs import builtin_OSGs
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 
 
-__mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_learning']
+__mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_learning', 'engine_saving_threshold']
 
 
 if __name__ == '__main__':
