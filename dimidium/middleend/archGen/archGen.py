@@ -90,7 +90,9 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     creating_draft_end = time.time()
 
     annotating_draft_start = time.time()
-    annotated_draft = annotate_required_performance(inital_draft)
+    # annotated_draft = annotate_required_performance(inital_draft)
+    annotated_draft = inital_draft
+    annotate_required_performance(annotated_draft)
     annotating_draft_end = time.time()
 
     # if debug:
@@ -121,7 +123,9 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
             if opt_s == strategy:
                 continue
             inital_draft.strategy = opt_s
-            new_draft = annotate_required_performance(inital_draft)
+            new_draft = copy.deepcopy(inital_draft)
+            # new_draft = annotate_required_performance(inital_draft)
+            annotate_required_performance(new_draft)
             # opt_s_n = str(opt_s).split('.')[-1]
             # other_opts[opt_s_n] = new_draft
             if opt_s == OptimizationStrategies.LATENCY:
@@ -199,13 +203,13 @@ def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [
     return draft
 
 
-def annotate_required_performance(input_draft: ArchDraft):
-    arch_draft = copy.deepcopy(input_draft)
+def annotate_required_performance(arch_draft: ArchDraft):
+    # arch_draft = copy.deepcopy(input_draft)
     rc = arch_draft.update_required_perf()
     if rc != DosaRv.OK:
         exit(1)
     arch_draft.version += '_annotated'
-    return arch_draft
+    # return arch_draft
 
 
 def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE):
@@ -321,8 +325,8 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
 
 
 # update draft so that roofline and types are possible
-def find_best_draft(input_draft: ArchDraft) -> ArchDraft:
-    draft = copy.deepcopy(input_draft)
+def find_best_draft(draft: ArchDraft) -> ArchDraft:
+    # draft = copy.deepcopy(input_draft)
     assert len(draft.target_hw_set) >= 1
     assert len(draft.fallback_hw_set) >= 1
     draft_list = []
