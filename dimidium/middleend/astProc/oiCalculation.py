@@ -219,3 +219,29 @@ class OiCalculator(object):
         # calculate oi only "user" input
         oi_uinp = float(flop_total) / float(input_B)
         return oi_cmpl, oi_uinp, flop_total
+
+    def calc_global_avg_pool2d(self, op_name, data_dim, param_dim, out_dim, attrs, size_b):
+        layout_in = data_dim[0]
+        layout_out = out_dim[0]
+        batch_n = layout_in[0]
+        in_channel = layout_in[1]
+        out_channel = layout_out[1]
+        sum_dim_x = layout_in[2] / layout_out[2]
+        sum_dim_y = layout_in[3] / layout_out[3]
+        flop_per_cc = sum_dim_x * sum_dim_y - 1 + 3  # kernel_size*2-1 additions, +3 for averaging
+        cc_per_in_channel = layout_out[2] * layout_out[3]  # each elem in the output plane is result of a conv
+        flop_per_out_c = flop_per_cc * cc_per_in_channel * in_channel  #in channel = out channel
+        flop_total = flop_per_out_c * out_channel * batch_n
+        # calculate bw requirements
+        param_B = 0
+        input_B = size_b
+        for e in layout_in:
+            input_B *= e
+        # calculate oi complete (input + params)
+        data_cmpl = param_B + input_B
+        oi_cmpl = float(flop_total) / float(data_cmpl)
+        # calculate oi only "user" input
+        oi_uinp = float(flop_total) / float(input_B)
+        return oi_cmpl, oi_uinp, flop_total
+
+
