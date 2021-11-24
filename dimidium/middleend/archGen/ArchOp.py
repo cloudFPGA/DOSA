@@ -11,6 +11,7 @@
 #  *
 
 import json
+from types import SimpleNamespace
 from tvm.relay import Expr
 
 import dimidium.lib.singleton as dosa_singleton
@@ -38,6 +39,10 @@ class ArchOp(object):
         self.input_bytes = 0
         self.output_bytes = 0
         self.layer_name = 0
+        self.dims = SimpleNamespace()
+        self.dims.inp = 0
+        self.dims.out = 0
+        self.dims.param = 0
         self.parent_fn = None
         self.op_call = None
         self.used_dtype = DosaDtype.UNKNOWN
@@ -82,6 +87,16 @@ class ArchOp(object):
         self.tvm_dtype = dpl_dict['dtype']
         self.used_dtype = convert_tvmDtype_to_DosaDtype(self.tvm_dtype)
         self.flops_conv_factor = get_flops_conv_factor(self.used_dtype)
+        self.dims.inp = dpl_dict['dims']['inp']
+        if len(self.dims.inp) > 0 and type(self.dims.inp[0]) is list:
+            self.dims.inp = self.dims.inp[0]
+            # the other entry is likely in params
+        self.dims.param = dpl_dict['dims']['param']
+        if len(self.dims.param) > 0 and type(self.dims.param[0]) is list:
+            self.dims.param = self.dims.params[0]
+        self.dims.out = dpl_dict['dims']['out']
+        if len(self.dims.out) > 0 and type(self.dims.out[0]) is list:
+            self.dims.out = self.dims.out[0]
 
     def set_local_op_id(self, op_id):
         self.local_op_id = op_id

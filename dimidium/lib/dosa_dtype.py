@@ -38,3 +38,20 @@ def convert_tvmDtype_to_DosaDtype(dtype):
     return DosaDtype.UNKNOWN
     # return DosaDtype.float32  # default?
 
+
+def get_bitwidth_of_DosaDtype(dtype: DosaDtype) -> int:
+    if dtype == DosaDtype.float32:
+        return 32
+    if dtype == DosaDtype.float16:
+        return 16
+    if dtype == DosaDtype.int32:
+        return 32
+    if dtype == DosaDtype.int16:
+        return 16
+    if dtype == DosaDtype.uint8:
+        return 8
+    if dtype == DosaDtype.double:
+        return 64
+    # unkown, take default
+    return 32
+

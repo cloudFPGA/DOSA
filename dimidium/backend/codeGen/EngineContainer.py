@@ -25,7 +25,7 @@ class EngineContainer(object):
 
     def __repr__(self):
         ops_list = [k for k in self.ops.keys()]
-        ret = "EngineContainer(block_ref: {}, savings: {}, ops: {})".format(self.block_ref.block_id,
+        ret = "EngineContainer(block_ref: {}, savings: {}, ops: {})".format(self.block_ref.block_uuid,
                                                                             self.resource_savings, ops_list)
         return ret
 

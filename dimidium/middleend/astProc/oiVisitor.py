@@ -242,6 +242,10 @@ class OiPipeline:
                 if hasattr(call, 'attrs'):
                     attrs = call.attrs
 
+                # correct param dims
+                if len(data_dim) == 2 and len(param_dim) == 0:
+                    param_dim = data_dim[1]
+
                 if not function_call:
                     oi_cmpl, oi_uinp, flop_total = obj.oiCalc.calc(call.op.name, data_dim, param_dim, out_dim, attrs,
                                                                    dtype_to_size_b(used_dtype))
@@ -264,7 +268,10 @@ class OiPipeline:
                 istr = "{:06}".format(my_layer_num)
                 dpl = {'name': my_name, 'cmpl': oi_cmpl, 'uinp': oi_uinp, 'flop': flop_total, 'parB': bw_param_B,
                        'inpB': bw_data_B, 'outB': out_bw, 'layer': istr, 'fn': obj.cur_fstr, 'op': op_name,
-                       'dtype': used_dtype, 'tid': my_node_id}
+                       'dtype': used_dtype, 'tid': my_node_id, 'dims': {}}
+                dpl['dims']['inp'] = data_dim
+                dpl['dims']['param'] = param_dim
+                dpl['dims']['out'] = out_dim
                 obj.data_per_layer[istr] = dpl
                 obj.tvm_nodes[my_node_id] = call
                 obj.oi_fused_wise[obj.cur_fstr].append(dpl)

@@ -26,15 +26,15 @@ class cFBuild1(BaseHwBuild):
         self.global_hls_dir = None
 
     def _create_basic_structure(self):
-        os.system("mkdir -p {0}/hdl {0}/hls {0}/tcl".format(self.build_dir))
+        os.system("mkdir -p {0}/ROLE/hdl {0}/ROLE/hls {0}/ROLE/tcl".format(self.build_dir))
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
         my_templates = os.path.abspath(me_abs_dir + '/templates/cFBuild1/')
-        os.system("cp {0}/Makefile {1}/Makefile".format(my_templates, self.build_dir))
-        os.system("cp {0}/Role.vhdl {1}/hdl/Role.vhdl".format(my_templates, self.build_dir))
-        os.system("cp {0}/tcl/* {1}/tcl/".format(my_templates, self.build_dir))
-        self.global_vhdl = "{}/hdl/Role.vhdl".format(self.build_dir)
-        self.global_vhdl_dir = "{}/hdl/".format(self.build_dir)
-        self.global_hls_dir = "{}/hls/".format(self.build_dir)
+        os.system("cp {0}/Makefile {1}/ROLE/Makefile".format(my_templates, self.build_dir))
+        os.system("cp {0}/Role.vhdl {1}/ROLE/hdl/Role.vhdl".format(my_templates, self.build_dir))
+        os.system("cp {0}/tcl/* {1}/ROLE/tcl/".format(my_templates, self.build_dir))
+        self.global_vhdl = "{}/ROLE/hdl/Role.vhdl".format(self.build_dir)
+        self.global_vhdl_dir = "{}/ROLE/hdl/".format(self.build_dir)
+        self.global_hls_dir = "{}/ROLE/hls/".format(self.build_dir)
         self.basic_structure_created = True
 
     def add_ip_dir(self, arch_block, path=None, is_vhdl=False):
@@ -45,6 +45,7 @@ class cFBuild1(BaseHwBuild):
             new_path = "{}/{}".format(self.global_vhdl_dir, arch_block.block_uuid)
         else:
             new_path = "{}/{}".format(self.global_hls_dir, arch_block.block_uuid)
+        os.system("mkdir -p {}".format(new_path))
         self.ip_dirs[new_id] = new_path
         arch_block.ip_dir = new_path
         return new_path

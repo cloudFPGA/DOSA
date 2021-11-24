@@ -65,8 +65,12 @@ class OiCalculator(object):
         # calculate bw requirements
         if len(param_dim) > 0:
             param_B = size_b
-            for pd in param_dim[0]:
-                param_B *= pd
+            if type(param_dim[0]) is list:
+                for pd in param_dim[0]:
+                    param_B *= pd
+            else:
+                for pd in param_dim:
+                    param_B *= pd
         else:
             param_B = 0
         input_B = size_b
@@ -94,8 +98,12 @@ class OiCalculator(object):
         # calculate bw requirements
         if len(param_dim) > 0:
             param_B = size_b
-            for pd in param_dim[0]:
-                param_B *= pd
+            if type(param_dim[0]) is list:
+                for pd in param_dim[0]:
+                    param_B *= pd
+            else:
+                for pd in param_dim:
+                    param_B *= pd
         else:
             param_B = 0
         input_B = size_b
@@ -179,8 +187,12 @@ class OiCalculator(object):
         flop_total = out_channel * flop_per_out_channel
         if len(param_dim) > 0:
             param_B = size_b
-            for pd in param_dim[0]:
-                param_B *= pd
+            if type(param_dim[0]) is list:
+                for pd in param_dim[0]:
+                    param_B *= pd
+            else:
+                for pd in param_dim:
+                    param_B *= pd
         else:
             param_B = 0
         input_B = size_b
@@ -206,8 +218,12 @@ class OiCalculator(object):
         # calculate bw requirements
         if len(param_dim) > 0:
             param_B = size_b
-            for pd in param_dim[0]:
-                param_B *= pd
+            if type(param_dim[0]) is list:
+                for pd in param_dim[0]:
+                    param_B *= pd
+            else:
+                for pd in param_dim:
+                    param_B *= pd
         else:
             param_B = 0
         input_B = size_b
