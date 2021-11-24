@@ -166,6 +166,7 @@ class ArchBrick(object):
         self.available_osgs = list(set(self.available_osgs))
 
     def update_possible_osgs(self):
+        # find all possible osgs, based on ops
         cur_possible_osgs = self.available_osgs
         not_possible_osgs = []
         for op in self.local_op_iter_gen():
@@ -176,7 +177,16 @@ class ArchBrick(object):
         not_possible_osgs = list(set(not_possible_osgs))
         for npo in not_possible_osgs:
             del cur_possible_osgs[cur_possible_osgs.index(npo)]
-        self.possible_osgs = sort_osg_list(cur_possible_osgs)
+        # remove osgs based on impl type
+        tmp_osg_list = sort_osg_list(cur_possible_osgs)
+        not_possible_osgs = []
+        if self.selected_impl_type != BrickImplTypes.UNDECIDED:
+            for posg in tmp_osg_list:
+                if self.selected_impl_type not in posg.possible_impl_types:
+                    not_possible_osgs.append(posg)
+        for npo in not_possible_osgs:
+            del tmp_osg_list[tmp_osg_list.index(npo)]
+        self.possible_osgs = sort_osg_list(tmp_osg_list)
 
     def update_possible_hw_types(self):
         new_possible_hw_types = []

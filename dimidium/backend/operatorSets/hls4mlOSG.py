@@ -13,7 +13,7 @@
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
-from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
+from dimidium.lib.util import BrickImplTypes
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 
 
@@ -21,7 +21,7 @@ class Hls4mlOSG(BaseOSG):
 
     def __init__(self):
         super().__init__('hls4ml OSG', [DosaHwClasses.FPGA_xilinx], '/t/b/a',
-                         BaseHwBuild('fpga_dummy'))
+                         [BrickImplTypes.STREAM, BrickImplTypes.ENGINE])
         # no DosaHwClasses.FPGA_generic, since it is bound to xilinx?
         self.priority = 92
 
@@ -74,6 +74,12 @@ class Hls4mlOSG(BaseOSG):
                 self.relay2osg[e] = self._generate_hls_reshape
         # not covered hls4ml classes:
         #  GarNet, Resize, SeparableConv2D, DepthwiseConv2D
+
+    def build_block(self, arch_block):
+        pass
+
+    def build_container(self, container):
+        pass
 
     def generate_brick(self, brick_node: ArchBrick):
         pass

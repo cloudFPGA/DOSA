@@ -13,7 +13,7 @@
 import abc
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.backend.buildTools.BaseBuild import BaseBuild
-from dimidium.lib.util import deep_update
+from dimidium.lib.util import deep_update, BrickImplTypes
 
 # to init relay_ops
 import dimidium.backend.operatorSets.relay_ops as relay_ops
@@ -21,15 +21,15 @@ import dimidium.backend.operatorSets.relay_ops as relay_ops
 
 class BaseOSG(metaclass=abc.ABCMeta):
 
-    def __init__(self, name, device_classes: [DosaHwClasses], framework_path, build_tool: BaseBuild):
+    def __init__(self, name, device_classes: [DosaHwClasses], framework_path, impl_types: [BrickImplTypes]):
         self.name = name
         self.device_classes = device_classes
         self.framework_path = framework_path
-        self.build_tool = build_tool
+        self.possible_impl_types = impl_types
         self.relay2osg = relay_ops.op
         # self.relay2osg = {}
         # init with all False
-        #self.relay2osg = {x: False for x in relay_ops.op}
+        # self.relay2osg = {x: False for x in relay_ops.op}
         self.relay2osg = deep_update(relay_ops.get_op_dict_copy(), False)
         self.dosaHwTypes = []
         self.priority = -1
@@ -90,6 +90,14 @@ class BaseOSG(metaclass=abc.ABCMeta):
             return False
 
     @abc.abstractmethod
+    def build_block(self, arch_block):
+        print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
+
+    @abc.abstractmethod
+    def build_container(self, container):
+        print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
+
+    @abc.abstractmethod
     def generate_brick(self, brick_node):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
@@ -107,10 +115,15 @@ class BaseOSG(metaclass=abc.ABCMeta):
 
 
 class UndecidedOSG(BaseOSG):
-
     def init(self, dosa_hw_classes_dict, priority_internal):
         # self.select_dosa_hw_types(dosa_hw_classes_dict)
         # should not be initialized
+        pass
+
+    def build_block(self, arch_block):
+        pass
+
+    def build_container(self, container):
         pass
 
     def generate_brick(self, brick_node):

@@ -12,8 +12,8 @@
 
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
+from dimidium.lib.util import BrickImplTypes
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
-from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 
 
@@ -21,7 +21,7 @@ class Haddoc2OSG(BaseOSG):
 
     def __init__(self):
         super().__init__('haddoc2 OSG', [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx], '/t/b/a',
-                         BaseHwBuild('fpga_dummy'))
+                         [BrickImplTypes.STREAM])
         self.priority = 99
 
     def init(self, dosa_hw_classes_dict, priority_internal):
@@ -36,6 +36,12 @@ class Haddoc2OSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._generate_hdl_pool_instance
             elif 'tanh' in e:
                 self.relay2osg['nn'][e] = self._generate_hdl_tanh_instance
+
+    def build_block(self, arch_block):
+        pass
+
+    def build_container(self, container):
+        pass
 
     def generate_brick(self, brick_node: ArchBrick):
         pass
