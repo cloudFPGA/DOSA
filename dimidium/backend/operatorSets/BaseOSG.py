@@ -139,7 +139,7 @@ class UndecidedOSG(BaseOSG):
         pass
 
 
-placeholderOSG = UndecidedOSG('OSG_placholder', [DosaHwClasses.UNDECIDED], "/none/", BaseBuild('dummy'))
+placeholderOSG = UndecidedOSG('OSG_placholder', [DosaHwClasses.UNDECIDED], "/none/", [])
 
 
 def sort_osg_list(osg_list, use_internal_prio=True):

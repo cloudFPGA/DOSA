@@ -1,0 +1,26 @@
+#  *
+#  *                       cloudFPGA
+#  *     Copyright IBM Research, All Rights Reserved
+#  *    =============================================
+#  *     Created: Nov 2021
+#  *     Authors: NGL
+#  *
+#  *     Description:
+#  *        Build class for CPU nodes (default, ZRLMPI)
+#  *
+#  *
+
+from dimidium.backend.buildTools.BaseBuild import BaseSwBuild
+
+
+class DefaultCpuBuild(BaseSwBuild):
+
+    def __init__(self, name, build_dir, out_dir):
+        super().__init__(name, build_dir, out_dir)
+        self.global_cpp = None
+        self.global_hpp = None
+
+    def add_lib_dir(self, arch_block, path=None):
+        pass
+
+

@@ -13,6 +13,7 @@
 import dimidium.lib.singleton as dosa_singleton
 from dimidium.lib.units import *
 from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
+from dimidium.backend.buildTools.DefaultCpuBuild import DefaultCpuBuild
 
 
 network_bandwidth_gBs = 10.0/8.0
@@ -23,7 +24,9 @@ dram_bandwith_gBs = 80.0
 class VcpuDummy(DosaBaseHw):
 
     def __init__(self, name):
-        super().__init__(DosaHwClasses.CPU_x86, 'vCPU_x86', name)
+        super().__init__(DosaHwClasses.CPU_x86, 'vCPU_x86', name, [DefaultCpuBuild])
+        self.global_main_body_tmpl_path = None
+        self.global_main_head_tmpl_path = None
 
     def get_performance_dict(self):
         ret = {'type': str(self.hw_class), 'cpu_gflops': cpu_gflops * dosa_singleton.config.dtype.dosa_kappa,

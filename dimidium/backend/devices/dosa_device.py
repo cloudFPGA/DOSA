@@ -14,6 +14,7 @@ import abc
 from enum import Enum
 
 import dimidium.lib.units as units
+from dimidium.backend.buildTools.BaseBuild import BaseBuild
 
 
 class DosaHwClasses(Enum):
@@ -26,11 +27,17 @@ class DosaHwClasses(Enum):
 
 class DosaBaseHw(metaclass=abc.ABCMeta):
 
-    def __init__(self, hw_class: DosaHwClasses, type_str, name):
+    def __init__(self, hw_class: DosaHwClasses, type_str, name, possible_builders: [BaseBuild]):
         self.hw_class = hw_class
         self.name = name
         self.type_str = type_str
         self.roof_F = 0
+        self.global_main_body_tmpl_path = None
+        self.global_main_head_tmpl_path = None
+        self.possible_builders = possible_builders
+        self.build_tool = None
+        if len(self.possible_builders) > 0:
+            self.build_tool = self.possible_builders[0]
 
     def __repr__(self):
         return "DosaHwType({}, for {})".format(self.name, self.hw_class)
@@ -76,7 +83,7 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
 class UndecidedDosaHw(DosaBaseHw):
 
     def __init__(self, name):
-        super().__init__(DosaHwClasses.UNDECIDED, 'dosa_undecided_hw', name)
+        super().__init__(DosaHwClasses.UNDECIDED, 'dosa_undecided_hw', name, [BaseBuild])
 
     def get_performance_dict(self):
         ret = {'type': str(self.hw_class), 'cpu_gflops': 1, 'bw_netw_gBs': 1,

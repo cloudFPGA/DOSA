@@ -13,13 +13,16 @@
 import dimidium.lib.singleton as dosa_singleton
 from dimidium.lib.units import *
 from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
+from dimidium.backend.buildTools.cFBuild1 import cFBuild1
 
 
 class CfThemisto1(DosaBaseHw):
 
     def __init__(self, name):
-        super().__init__(DosaHwClasses.FPGA_xilinx, 'cF_FMKU60_Themisto_1', name)
+        super().__init__(DosaHwClasses.FPGA_xilinx, 'cF_FMKU60_Themisto_1', name, [cFBuild1])
         self.initialized = False
+        self.global_main_body_tmpl_path = None
+        self.global_main_head_tmpl_path = None
 
     def _gen_numbers(self):
         if self.initialized:
