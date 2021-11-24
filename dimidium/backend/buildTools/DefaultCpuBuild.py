@@ -15,7 +15,7 @@ from dimidium.backend.buildTools.BaseBuild import BaseSwBuild
 
 class DefaultCpuBuild(BaseSwBuild):
 
-    def __init__(self, name, build_dir, out_dir):
+    def __init__(self, name, build_dir=None, out_dir=None):
         super().__init__(name, build_dir, out_dir)
         self.global_cpp = None
         self.global_hpp = None

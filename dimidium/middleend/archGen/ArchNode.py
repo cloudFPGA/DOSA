@@ -42,6 +42,7 @@ class ArchNode(object):
         self.selected_hw_type = placeholderHw
         self.arch_block_list = []
         self.engine_container_refs = []
+        self.build_tool = None
 
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.targeted_hw)
@@ -185,6 +186,16 @@ class ArchNode(object):
             next_uuid += 1
         return next_uuid
 
+    def update_block_ids(self, bluuid_start):
+        next_uuid = bluuid_start
+        local_id = 0
+        for ab in self.arch_block_list:
+            ab.set_local_block_id(local_id)
+            ab.set_block_uuid(next_uuid)
+            local_id += 1
+            next_uuid += 1
+        return next_uuid
+
     def update_possible_osgs(self):
         for bb in self.local_brick_iter_gen():
             bb.update_possible_osgs()
@@ -235,3 +246,9 @@ class ArchNode(object):
                 new_container = EngineContainer(ab)
                 self.engine_container_refs.append(new_container)
 
+    def build(self):
+        if self.build_tool is None:
+            self.build_tool = self.selected_hw_type.create_build_tool(self.node_id)
+            self.build_tool.create_build_dir(self.node_id)
+        for ab in self.arch_block_list:
+            ab.build(self.build_tool)

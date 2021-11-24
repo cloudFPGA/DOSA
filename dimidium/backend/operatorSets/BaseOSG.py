@@ -90,24 +90,24 @@ class BaseOSG(metaclass=abc.ABCMeta):
             return False
 
     @abc.abstractmethod
-    def build_block(self, arch_block):
+    def build_block(self, arch_block, build_tool):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
     @abc.abstractmethod
-    def build_container(self, container):
+    def build_container(self, container, build_tool):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
-    @abc.abstractmethod
-    def generate_brick(self, brick_node):
-        print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
+    # @abc.abstractmethod
+    # def generate_brick(self, brick_node):
+    #     print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
-    @abc.abstractmethod
-    def generate_bricks(self, brick_nodes):
-        print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
+    # @abc.abstractmethod
+    # def generate_bricks(self, brick_nodes):
+    #     print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
-    @abc.abstractmethod
-    def comm_wrap_brick(self, todo):
-        print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
+    # @abc.abstractmethod
+    # def comm_wrap_brick(self, todo):
+    #     print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
     @abc.abstractmethod
     def estimate_flops_brick(self, brick_node):

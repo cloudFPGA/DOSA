@@ -9,6 +9,7 @@
 #  *        Singleton object for DOSA ("Quick'n'dirty" way)
 #  *
 
+import os
 from types import SimpleNamespace
 from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype
 
@@ -48,4 +49,10 @@ def init_singleton(config_dict):
     is_initiated = True
     return 0
 
+
+def add_global_build_dir(abs_path):
+    global config
+    os.system("mkdir -p {}".format(abs_path))
+    config.global_build_dir = abs_path
+    return 0
 

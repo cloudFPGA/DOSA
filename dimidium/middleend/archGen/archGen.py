@@ -15,6 +15,8 @@ import time
 import json
 import tvm
 # import tvm.relay as relay
+
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.frontend.TvmPrintMeta import PrintMeta
 from dimidium.middleend.astProc.oiVisitor import OiPipeline
 from dimidium.middleend.astProc.oiCalculation import OiCalculator
@@ -111,10 +113,17 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     check_annot_start_2 = time.time()
     still_valid = check_annotations(best_draft)
     check_annot_end_2 = time.time()
+    print("\t...done.")
 
     if debug or verbose:
         print("\n[DEBUG] best draft found:")
         print(best_draft)
+
+    print("\nDOSA: Found best and valid draft, generating architecture and software in {}...\n"
+          .format(dosa_singleton.config.global_build_dir))
+    build_start = time.time()
+    best_draft.build()
+    build_stop = time.time()
 
     other_opts = []
     if debug:
@@ -144,7 +153,8 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
                      'creating_annotations_time_s': annotating_draft_end - annotating_draft_start,
                      'check_annotations_time_1_s': check_annot_end_1 - check_annot_start_1,
                      'find_best_draft_time_s': find_best_end - find_best_start,
-                     'check_annotations_time_2_s': check_annot_end_2 - check_annot_start_2}
+                     'check_annotations_time_2_s': check_annot_end_2 - check_annot_start_2,
+                     'build_total_time_s': build_stop - build_start}
         ret['profiling'] = prof_dict
         if debug or verbose:
             print("\n[DEBUG] profiling information: ")

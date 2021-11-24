@@ -509,9 +509,11 @@ class ArchDraft(object):
     def update_uuids(self):
         next_kuuid = 0
         next_buuid = 0
+        next_bluuid = 0
         for nn in self.node_iter_gen():
             next_kuuid = nn.update_kernel_uuids(next_kuuid)
             next_buuid = nn.update_brick_uuids(next_buuid)
+            next_bluuid = nn.update_block_ids(next_bluuid)
 
     def update_possible_osgs(self):
         for nn in self.node_iter_gen():
@@ -537,3 +539,9 @@ class ArchDraft(object):
         for npht in not_possible_hw_types:
             del cur_possible_hw_types[cur_possible_hw_types.index(npht)]
         self.possible_hw_types = cur_possible_hw_types
+
+    def build(self):
+        for nn in self.node_iter_gen():
+            nn.build()
+
+

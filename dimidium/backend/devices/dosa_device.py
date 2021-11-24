@@ -35,9 +35,9 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
         self.global_main_body_tmpl_path = None
         self.global_main_head_tmpl_path = None
         self.possible_builders = possible_builders
-        self.build_tool = None
+        self.build_tool_class = None
         if len(self.possible_builders) > 0:
-            self.build_tool = self.possible_builders[0]
+            self.build_tool_class = self.possible_builders[0]
 
     def __repr__(self):
         return "DosaHwType({}, for {})".format(self.name, self.hw_class)
@@ -78,6 +78,11 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
         else:
             self.roof_F = perf_dict['cpu_gflops'] * units.gigaU
         return self.roof_F
+
+    def create_build_tool(self, node_id: int) -> BaseBuild:
+        assert self.build_tool_class is not None
+        new_bt = self.build_tool_class("{}_node_{}".format(self.name, node_id))
+        return new_bt
 
 
 class UndecidedDosaHw(DosaBaseHw):

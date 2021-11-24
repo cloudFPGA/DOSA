@@ -31,24 +31,24 @@ class TvmCpuOsg(BaseOSG):
         # self.relay2osg = {x: self._generate_tvm_module for x in relay_op_list}
         self.relay2osg = deep_update(self.relay2osg, True)
 
-    def build_block(self, arch_block):
+    def build_block(self, arch_block, build_tool):
         pass
 
-    def build_container(self, container):
+    def build_container(self, container, build_tool):
         pass
 
-    def generate_brick(self, brick_node: ArchBrick):
-        pass
+    # def generate_brick(self, brick_node: ArchBrick):
+    #     pass
 
-    def generate_bricks(self, brick_nodes: [ArchBrick]):
-        # to generate subsequent bricks at once
-        pass
+    # def generate_bricks(self, brick_nodes: [ArchBrick]):
+    #     # to generate subsequent bricks at once
+    #     pass
 
     # def _generate_tvm_module(self, tvm_handle):
     #     return
 
-    def comm_wrap_brick(self, todo):
-        pass
+    # def comm_wrap_brick(self, todo):
+    #     pass
 
     def estimate_flops_brick(self, brick_node: ArchBrick):
         pass

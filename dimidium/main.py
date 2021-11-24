@@ -10,6 +10,7 @@
 #  *
 #  *
 
+import os
 import sys
 import json
 import math
@@ -28,13 +29,15 @@ __mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 4:
-        print("USAGE: {} ./path/to/dosa_config.json ./path/to/nn.onnx ./path/to/constraint.json".format(sys.argv[0]))
+    if len(sys.argv) != 5:
+        print("USAGE: {} ./path/to/dosa_config.json ./path/to/nn.onnx ./path/to/constraint.json ./path/to/build_dir"
+              .format(sys.argv[0]))
         exit(1)
 
     dosa_config_path = sys.argv[1]
     onnx_path = sys.argv[2]
     const_path = sys.argv[3]
+    global_build_dir = os.path.abspath(sys.argv[4])
 
     with open(dosa_config_path, 'r') as inp:
         dosa_config = json.load(inp)
@@ -44,6 +47,7 @@ if __name__ == '__main__':
             print("ERROR: Mandatory key {} is missing in the configuration file {}. Stop.".format(k, const_path))
             exit(1)
     dosa_singelton.init_singleton(dosa_config)
+    dosa_singelton.add_global_build_dir(global_build_dir)
 
     debug_mode = False
 

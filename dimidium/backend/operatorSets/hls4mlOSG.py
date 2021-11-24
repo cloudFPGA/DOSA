@@ -9,7 +9,7 @@
 #  *        DOSA OSG to implement hls4ml on FPGAs
 #  *
 #  *
-
+from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
@@ -75,21 +75,22 @@ class Hls4mlOSG(BaseOSG):
         # not covered hls4ml classes:
         #  GarNet, Resize, SeparableConv2D, DepthwiseConv2D
 
-    def build_block(self, arch_block):
+    def build_block(self, arch_block, build_tool):
+        assert isinstance(build_tool, BaseHwBuild)
+        used_dir_path = build_tool.add_ip_dir(arch_block)
+
+    def build_container(self, container, build_tool):
         pass
 
-    def build_container(self, container):
-        pass
+    # def generate_brick(self, brick_node: ArchBrick):
+    #     pass
 
-    def generate_brick(self, brick_node: ArchBrick):
-        pass
+    # def generate_bricks(self, brick_nodes: [ArchBrick]):
+    #     # to generate subsequent bricks at once
+    #     pass
 
-    def generate_bricks(self, brick_nodes: [ArchBrick]):
-        # to generate subsequent bricks at once
-        pass
-
-    def comm_wrap_brick(self, todo):
-        pass
+    # def comm_wrap_brick(self, todo):
+    #     pass
 
     def estimate_flops_brick(self, brick_node: ArchBrick):
         pass

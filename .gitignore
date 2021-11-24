@@ -131,3 +131,11 @@ dmypy.json
 # pycharm
 .idea/
 
+
+##############################
+# DOSA specific
+##############################
+
+build_dirs/*
+
+
