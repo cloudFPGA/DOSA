@@ -140,6 +140,8 @@ class Haddoc2OSG(BaseOSG):
             # TODO: other ending?
             topologyParsing.InstanceDisplayLayer(topf, previous_layer_name)
             topologyParsing.WriteArchitectureEnd(topf)
+        # TODO: generate wrapper
+        # TODO: generate vhdl component and instance, for node integration
         return 0
 
     def build_container(self, container, build_tool):

@@ -65,6 +65,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     oi_main_view = oi_pass.get_oi_main_view()
     fn_call_stats = oi_pass.get_fn_call_cnts()
     tvm_nodes = oi_pass.get_tvm_nodes()
+    tvm_call_args = oi_pass.get_call_args()
 
     if debug:
         # print(oi_results)
@@ -80,7 +81,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
 
     creating_draft_start = time.time()
     inital_draft = create_arch_draft(name, strategy, available_osgs, batch_size, sample_size, target_sps, target_latency, target_resources,
-                                     data_per_layer, tvm_nodes, mod)
+                                     data_per_layer, tvm_nodes, tvm_call_args, mod, params)
 
     for do in arch_target_devices:
         inital_draft.add_possible_target_hw(do)
@@ -167,7 +168,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
 
 
 def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [BaseOSG], batch_size, sample_size, target_sps, target_latency,
-                      target_resources, data_per_layer, tvm_nodes, tvm_handle):
+                      target_resources, data_per_layer, tvm_nodes, tvm_call_args, tvm_mod, tvm_params):
     # construct main function calls
     main_fn_exec = []
     for lid in data_per_layer:
@@ -176,7 +177,7 @@ def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [
             main_fn_exec.append(layer)
 
     draft = ArchDraft(name, 'initial', strategy, batch_size, sample_size, target_sps, target_latency, target_resources,
-                      tvm_node=tvm_handle)
+                      tvm_mod=tvm_mod, tvm_params=tvm_params)
     node_0 = ArchNode(0)
 
     # for fid in fn_view:
@@ -184,21 +185,25 @@ def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [
     #     assert fn['fn'] == fn_main_str
     for fn in main_fn_exec:
         t_node = tvm_nodes[fn['tid']]
-        brick = ArchBrick(dpl_dict=fn, tvm_node=t_node)
+        t_args = None
+        if fn['tid'] in tvm_call_args.keys():  # for input layer
+            t_args = tvm_call_args[fn['tid']]
+        brick = ArchBrick(dpl_dict=fn, tvm_node=t_node, tvm_args=t_args)
         fn_str = fn['name']
         if fn_str == oiV_input_str:
-            # brick.set_tvm_handle(None)
+            # brick.set_tvm_mod(None)
             draft.set_input_layer(fn)
-            draft.set_tvm_handle(t_node)
+            draft.set_tvm_mod(t_node)
         elif fn_str == oiV_output_str:
-            # brick.set_tvm_handle(None)
+            # brick.set_tvm_mod(None)
             draft.set_output_layer(fn)
         else:
             for lid in data_per_layer:
                 layer = data_per_layer[lid]
                 if layer['fn'] == fn_str and layer['op'] != oiV_func_str:
                     op_t = tvm_nodes[layer['tid']]
-                    aop = ArchOp(dpl_dict=layer, tvm_node=op_t)
+                    op_a = tvm_call_args[layer['tid']]
+                    aop = ArchOp(dpl_dict=layer, tvm_node=op_t, tvm_args=op_a)
                     brick.add_arch_op(aop)
             node_0.add_brick(brick)
     draft.add_node(node_0)

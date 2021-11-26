@@ -78,6 +78,9 @@ class Hls4mlOSG(BaseOSG):
     def build_block(self, arch_block, build_tool):
         assert isinstance(build_tool, BaseHwBuild)
         used_dir_path = build_tool.add_ip_dir(arch_block)
+        for bb in arch_block.brick_list:
+            for op in bb.local_op_iter_gen():
+                print(op.op_call)
 
     def build_container(self, container, build_tool):
         pass

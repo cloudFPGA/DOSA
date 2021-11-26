@@ -27,7 +27,7 @@ class ArchOp(object):
            'dtype': used_dtype}
     """
 
-    def __init__(self, op_id=None, dpl_dict=None, tvm_node=None):
+    def __init__(self, op_id=None, dpl_dict=None, tvm_node=None, tvm_args=None):
         self.name = None
         self.local_op_id = op_id
         self.global_op_id = None
@@ -49,6 +49,7 @@ class ArchOp(object):
         self.flops_conv_factor = dosa_singleton.config.dtype.default_dosa_flops_conv_factor
         self.tvm_dtype = None
         self.tvm_node = tvm_node
+        self.tvm_args = tvm_args
         self.selected_osg = placeholderOSG
         self.possible_osgs = []
         if dpl_dict is not None:
@@ -93,7 +94,7 @@ class ArchOp(object):
             # the other entry is likely in params
         self.dims.param = dpl_dict['dims']['param']
         if len(self.dims.param) > 0 and type(self.dims.param[0]) is list:
-            self.dims.param = self.dims.params[0]
+            self.dims.param = self.dims.param[0]
         self.dims.out = dpl_dict['dims']['out']
         if len(self.dims.out) > 0 and type(self.dims.out[0]) is list:
             self.dims.out = self.dims.out[0]
@@ -106,6 +107,9 @@ class ArchOp(object):
 
     def set_tvm_node(self, tvm_node: Expr):
         self.tvm_node = tvm_node
+
+    def set_tvm_args(self, tvm_arg_dict):
+        self.tvm_args = tvm_arg_dict
 
     def get_kernel_uuid(self):
         return self.global_op_id

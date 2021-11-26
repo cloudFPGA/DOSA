@@ -29,7 +29,7 @@ class ArchBrick(object):
            'dtype': used_dtype}
     """
 
-    def __init__(self, brick_id=None, dpl_dict=None, tvm_node=None):
+    def __init__(self, brick_id=None, dpl_dict=None, tvm_node=None, tvm_args=None):
         self.name = None
         self.local_brick_id = brick_id
         self.brick_uuid = None
@@ -46,6 +46,7 @@ class ArchBrick(object):
         self.flops_conv_factor = dosa_singleton.config.dtype.default_dosa_flops_conv_factor
         self.tvm_dtype = None
         self.tvm_node = tvm_node
+        self.tvm_args = tvm_args
         self.ops = {}
         self.oid_cnt = 0
         if dpl_dict is not None:
@@ -114,6 +115,9 @@ class ArchBrick(object):
 
     def set_tvm_node(self, tvm_node: Expr):
         self.tvm_node = tvm_node
+
+    def set_tvm_args(self, tvm_arg_dict):
+        self.tvm_args = tvm_arg_dict
 
     def add_arch_op(self, op: ArchOp):
         o_id = self.oid_cnt

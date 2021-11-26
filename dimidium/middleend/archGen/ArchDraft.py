@@ -30,7 +30,7 @@ class ArchDraft(object):
 
     def __init__(self, name, version, strategy: OptimizationStrategies, batch_size, sample_size, target_sps=-1,
                  target_latency=-1,
-                 target_resources=-1, tvm_node=None):
+                 target_resources=-1, tvm_mod=None, tvm_params=None):
         self.name = name
         self.version = version
         self.strategy = strategy
@@ -38,7 +38,8 @@ class ArchDraft(object):
         self.target_sps = target_sps
         self.target_latency = target_latency
         self.target_resources = target_resources
-        self.main_tvm_handle = tvm_node
+        self.main_tvm_mod = tvm_mod
+        self.main_tvm_params = tvm_params
         self.sample_size_B = sample_size
         self.nodes = {}
         self.nid_cnt = 0
@@ -60,7 +61,7 @@ class ArchDraft(object):
                'batch_size': self.batch_size, 'target_sps': self.target_sps, 'target_latency': self.target_latency,
                'target_resources': self.target_resources,
                'input': str(self.input_layer), 'output': str(self.output_layer),
-               'main_tvm_handle': str(self.main_tvm_handle)[:100],
+               'main_tvm_mod': str(self.main_tvm_mod)[:100], 'main_tvm_params': str(self.main_tvm_params)[:100],
                'possible_hw_types': [], 'target_hw_set': [], 'fallback_hw_set': [],
                'nodes': {}}
         for thw in self.target_hw_set:
@@ -110,8 +111,11 @@ class ArchDraft(object):
         for i in range(id_to_delete, self.nid_cnt):
             self.nodes[i].set_node_id(i)
 
-    def set_tvm_handle(self, tvm_node):
-        self.main_tvm_handle = tvm_node
+    def set_tvm_mod(self, tvm_mod):
+        self.main_tvm_mod = tvm_mod
+
+    def set_tvm_params(self, tvm_params):
+        self.main_tvm_params = tvm_params
 
     def set_input_layer(self, in_dpl):
         self.input_layer = in_dpl

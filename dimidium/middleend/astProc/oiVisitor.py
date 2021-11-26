@@ -47,6 +47,7 @@ class OiPipeline:
         self.fn_call_cnts = {}
         self.node_cnt = 0
         self.tvm_nodes = {}
+        self.func_call_args = {}
 
     def get_oi_results(self):
         return self.oi_results
@@ -87,10 +88,13 @@ class OiPipeline:
         self.oi_fused_wise = new_oi_fused_wise
         self.oi_main_view = new_oi_main_view
         self.fn_call_cnts = new_fn_stats
-        # no need to reorder tvm nodes
+        # no need to reorder tvm nodes & func call args
 
     def get_tvm_nodes(self):
         return self.tvm_nodes
+
+    def get_call_args(self):
+        return self.func_call_args
 
     # This function can define a pass.
     def transform_function(self, func, mod, ctx):
@@ -206,6 +210,8 @@ class OiPipeline:
                 data_dim = []
                 param_dim = []
                 used_dtype = None
+                call_args_dict = {'calls': [], 'constants': [], 'vars': [], 'else': []}
+                arg_pos = 0
                 for a in call.args:
                     # bw_tmp = obj.size_b
                     bw_tmp = dtype_to_size_b(a.checked_type.dtype)
@@ -226,6 +232,17 @@ class OiPipeline:
                         # data
                         data_dim.append(cur_dims)
                         bw_data_B += bw_tmp
+
+                    arg_dict = {'pos': arg_pos, 'node': a}
+                    arg_pos += 1
+                    if isinstance(a, tvm.relay.expr.Constant):
+                        call_args_dict['constants'].append(arg_dict)
+                    elif isinstance(a, tvm.relay.expr.Call):
+                        call_args_dict['calls'].append(arg_dict)
+                    elif isinstance(a, tvm.relay.expr.Var) or isinstance(a, tvm.relay.expr.GlobalVar):
+                        call_args_dict['vars'].append(arg_dict)
+                    else:
+                        call_args_dict['else'].append(arg_dict)
                 bw_total_B = bw_param_B + bw_data_B
                 out_bw = 0
                 out_dim = []
@@ -274,6 +291,7 @@ class OiPipeline:
                 dpl['dims']['out'] = out_dim
                 obj.data_per_layer[istr] = dpl
                 obj.tvm_nodes[my_node_id] = call
+                obj.func_call_args[my_node_id] = call_args_dict
                 obj.oi_fused_wise[obj.cur_fstr].append(dpl)
                 if function_call:
                     dpl['layer'] = name_summary
