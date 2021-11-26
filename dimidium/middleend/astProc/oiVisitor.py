@@ -48,6 +48,7 @@ class OiPipeline:
         self.node_cnt = 0
         self.tvm_nodes = {}
         self.func_call_args = {}
+        self.cur_f_args = []
 
     def get_oi_results(self):
         return self.oi_results
@@ -181,7 +182,15 @@ class OiPipeline:
                     obj.data_per_layer[istr] = dpl2
 
             def visit_call(self, call):
-                self.visit(call.op)  # necessary?
+                function_call = False
+                if type(call.op) is relay.function.Function:
+                    function_call = True
+                    cur_arg_list = []
+                    for a in call.args:
+                        cur_arg_list.append(a)
+                    obj.cur_f_args = cur_arg_list
+
+                self.visit(call.op)
                 for a in call.args:
                     self.visit(a)
 
@@ -190,13 +199,11 @@ class OiPipeline:
                 obj.bw_layer_cnt += 1
                 if obj.bw_layer_cnt > 999999:
                     print("[DOSA:OICALC:ERROR] layer count overflow occurred!")
-                function_call = False
                 if type(call.op) is relay.function.Function:
                     f_hash = str(hash(call.op))
                     my_name = obj.fn_dict[f_hash]
                     # op_name = my_name
                     op_name = oiV_func_call_str
-                    function_call = True
                 else:
                     my_name = str(call.op.name)
                     op_name = my_name
@@ -210,7 +217,7 @@ class OiPipeline:
                 data_dim = []
                 param_dim = []
                 used_dtype = None
-                call_args_dict = {'calls': [], 'constants': [], 'vars': [], 'else': []}
+                call_args_dict = {'calls': [], 'constants': [], 'vars': [], 'else': [], 'by_position': []}
                 arg_pos = 0
                 for a in call.args:
                     # bw_tmp = obj.size_b
@@ -233,13 +240,22 @@ class OiPipeline:
                         data_dim.append(cur_dims)
                         bw_data_B += bw_tmp
 
-                    arg_dict = {'pos': arg_pos, 'node': a}
+                    arg_dict = {'pos': arg_pos, 'node': a, 'ref': None}
+                    call_args_dict['by_position'].append(arg_dict)
                     arg_pos += 1
                     if isinstance(a, tvm.relay.expr.Constant):
                         call_args_dict['constants'].append(arg_dict)
                     elif isinstance(a, tvm.relay.expr.Call):
                         call_args_dict['calls'].append(arg_dict)
                     elif isinstance(a, tvm.relay.expr.Var) or isinstance(a, tvm.relay.expr.GlobalVar):
+                        if not function_call and len(obj.cur_f_args) > 0:
+                            # # consume in reverse order
+                            # ref_arg = obj.cur_f_args[-1]
+                            # del obj.cur_f_args[-1]
+                            # consume in order
+                            ref_arg = obj.cur_f_args[0]
+                            del obj.cur_f_args[0]
+                            arg_dict['ref'] = ref_arg
                         call_args_dict['vars'].append(arg_dict)
                     else:
                         call_args_dict['else'].append(arg_dict)

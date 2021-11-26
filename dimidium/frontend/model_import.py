@@ -20,6 +20,7 @@ from dimidium.frontend.TvmPrintMeta import PrintMeta
 def onnx_import(onnx_path, shape_dict, debug=False):
     onnx_model = onnx.load(onnx_path)
     # freeze_params=True is important, otherwise copy and certain visitors can't work
+    # frozen parameters also lead to more optimizations and higher level operators
     mod, params = relay.frontend.from_onnx(onnx_model, shape_dict, freeze_params=True)
     if debug:
         print(mod.astext(show_meta_data=False))

@@ -18,9 +18,8 @@
 
 import os
 import numpy as np
-from tvm.relay.op.transform import take
-from tvm.relay.expr import Constant
-import tvm.runtime.ndarray as nd
+import tvm
+import tvm.relay as relay
 
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
 from dimidium.backend.buildTools.cFBuild1 import cFBuild1
@@ -188,21 +187,19 @@ class Haddoc2OSG(BaseOSG):
         return base_str
 
     def _param_parse_conv(self, op, target_fh, layer_name, bias_op=None):
-        layer_name = self._create_unique_layer_name(op.name)
         out_channel_num = op.dims.out[1]  # out_size
         in_channel_num = op.dims.inp[1]  # previous_layer_size
         kernel_size = op.dims.param[2]
         assert kernel_size == op.dims.param[3]
         input_data_width = op.dims.inp[2]  # image_width
         assert input_data_width == op.dims.inp[4]
+        assert isinstance(op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant)
+        kernel_data = op.tvm_args['by_position'][1]['ref'].data.numpy()
         bias_data = np.zeros(out_channel_num, dtype=float)
         if bias_op is not None:
-            ind_arr = nd.array(np.ndarray([0]))
-            indx = Constant(ind_arr)
-            bias_data = take(op.tvm_node.op.arguments[0], indx)
-        # TODO
-        nbits = None
-        kernel_data = None
+            if isinstance(bias_op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant):
+                bias_data = bias_op.tvm_args['by_position'][1]['ref'].data.numpy()
+        nbits = get_bitwidth_of_DosaDtype(op.used_dtype)
         target_fh.write("--" + layer_name + "\n")
         paramParsing.write_image_width(layer_name, input_data_width, target_fh)
         paramParsing.write_in_size(layer_name, in_channel_num, target_fh)
