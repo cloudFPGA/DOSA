@@ -31,12 +31,13 @@ class BaseBuild(metaclass=abc.ABCMeta):
 
 class BaseHwBuild(BaseBuild, metaclass=abc.ABCMeta):
 
-    def __init__(self, name, build_dir=None, out_dir=None):
+    def __init__(self, name, target_device, build_dir=None, out_dir=None):
         super().__init__(name, build_dir, out_dir)
         self.global_vhdl = None
         self.global_vhdl_dir = None
         self.global_tcl = None
         self.ip_dirs = {}
+        self.target_device = target_device
 
     @abc.abstractmethod
     def add_ip_dir(self, arch_block, path=None):
@@ -45,11 +46,12 @@ class BaseHwBuild(BaseBuild, metaclass=abc.ABCMeta):
 
 class BaseSwBuild(BaseBuild, metaclass=abc.ABCMeta):
 
-    def __init__(self, name, build_dir=None, out_dir=None):
+    def __init__(self, name, target_device=None, build_dir=None, out_dir=None):
         super().__init__(name, build_dir, out_dir)
         self.global_cpp = None
         self.global_hpp = None
         self.lib_dirs = {}
+        self.target_deive = target_device
 
     @abc.abstractmethod
     def add_lib_dir(self, arch_block, path=None):

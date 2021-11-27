@@ -13,12 +13,13 @@
 import os
 
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
+from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
 
 
 class cFBuild1(BaseHwBuild):
 
-    def __init__(self, name, build_dir=None, out_dir=None):
-        super().__init__(name, build_dir, out_dir)
+    def __init__(self, name, target_device: DosaBaseHw, build_dir=None, out_dir=None):
+        super().__init__(name, target_device, build_dir, out_dir)
         self.global_vhdl = None
         self.global_vhdl_dir = None
         self.global_tcl = None

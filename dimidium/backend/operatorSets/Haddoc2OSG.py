@@ -53,8 +53,8 @@ class Haddoc2OSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._generate_hdl_conv_instance
             elif 'pool1d' in e or 'pool2d' in e:
                 self.relay2osg['nn'][e] = self._generate_hdl_pool_instance
-            # elif 'tanh' in e: --> rather not...
-            #    self.relay2osg['nn'][e] = self._generate_hdl_tanh_instance
+            elif 'tanh' in e:
+               self.relay2osg['nn'][e] = self._generate_hdl_tanh_instance
 
     def _copy_hdl_lib(self, target_hdl_dir):
         os.system("cp -n {}/* {}/".format(self.my_hdl_template_folder, target_hdl_dir))
@@ -98,8 +98,11 @@ class Haddoc2OSG(BaseOSG):
                         print("[DOSA:OSG:ERROR] Haddoc supports only one bit width per block. Trying to ignore...")
                     if 'pool1d' in op.op_call or 'pool2d' in op.op_call:
                         self._param_parse_pool(op, vhdlf, layer_name)
-                    # TODO: add conv
-                    # next_op is needed for conv, if it is bias
+                    if 'conv1d' in op.op_call or 'conv2d' in op.op_call:
+                        if next_op is not None and 'bias' not in next_op.op_call:
+                            # useless -> None again
+                            next_op = None
+                        self._param_parse_conv(op, vhdlf, layer_name, next_op)
                     else:
                         print("[DOSA:OSG:ERROR] Not yet implemented!. STOP.")
                         exit(1)
@@ -134,7 +137,10 @@ class Haddoc2OSG(BaseOSG):
                     topologyParsing.InstanceConvLayer(topf, layer_name, previous_layer_name)
                 elif 'pool1d' in op.op_call or 'pool2d' in op.op_call:
                     topologyParsing.InstancePoolLayer(topf, layer_name, previous_layer_name)
-                #if 'tanh' in op.op_call: --> rather not
+                elif 'tanh' in op.op_call:
+                    # is done implicitly, in ConvLayer
+                    # TODO: way to deactivate if not tanh activation?
+                    pass
                 previous_layer_name = layer_name
             # TODO: other ending?
             topologyParsing.InstanceDisplayLayer(topf, previous_layer_name)

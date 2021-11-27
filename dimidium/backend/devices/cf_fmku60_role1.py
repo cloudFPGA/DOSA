@@ -23,6 +23,8 @@ class CfThemisto1(DosaBaseHw):
         self.initialized = False
         self.global_main_body_tmpl_path = None
         self.global_main_head_tmpl_path = None
+        self.part_string = 'xcku060-ffva1156-2-i'
+        self.clock_period = 6.4
 
     def _gen_numbers(self):
         if self.initialized:

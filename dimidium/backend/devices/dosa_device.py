@@ -36,6 +36,8 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
         self.global_main_head_tmpl_path = None
         self.possible_builders = possible_builders
         self.build_tool_class = None
+        self.part_string = 'unknown'
+        self.clock_period = 1.0
         if len(self.possible_builders) > 0:
             self.build_tool_class = self.possible_builders[0]
 
@@ -81,7 +83,7 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
 
     def create_build_tool(self, node_id: int) -> BaseBuild:
         assert self.build_tool_class is not None
-        new_bt = self.build_tool_class("{}_node_{}".format(self.name, node_id))
+        new_bt = self.build_tool_class("{}_node_{}".format(self.name, node_id), self)
         return new_bt
 
 

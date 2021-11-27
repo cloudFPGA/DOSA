@@ -15,6 +15,7 @@ from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.lib.util import BrickImplTypes
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
+from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype
 
 
 class Hls4mlOSG(BaseOSG):
@@ -78,6 +79,28 @@ class Hls4mlOSG(BaseOSG):
     def build_block(self, arch_block, build_tool):
         assert isinstance(build_tool, BaseHwBuild)
         used_dir_path = build_tool.add_ip_dir(arch_block)
+        project_name = 'ArchBlock_{}'.format(arch_block.block_uuid)
+        used_dtype = DosaDtype.int32
+        cur_w = 0
+        for bb in arch_block.brick_list:
+            cur_dt = bb.used_dtype
+            bitw = get_bitwidth_of_DosaDtype(cur_dt)
+            if bitw > cur_w:
+                used_dtype = cur_dt
+                cur_w = bitw
+        precision_string = ''
+        if used_dtype == DosaDtype.float16 or used_dtype.float32:
+            precision_string = 'ap_fixed<16,6>'  # TODO
+        else:
+            precision_string = 'ap_uint<{}>'.format(cur_w)
+        hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': '1'}}
+        hls_model_config = {'OutputDir': used_dir_path, 'ProjectName': project_name, 'Backend': 'Vivado',
+                            'XilinxPart': build_tool.target_device.part_string, 'Board': None,
+                            'ClockPeriod': build_tool.target_device.clock_period,
+                            'IOType': 'io_stream',  # or io_parallel
+                            'HLSConfig':  hls_config}  # ,
+                            # 'KerasJson': 'KERAS_3layer.json', 'KerasH5': 'KERAS_3layer_weights.h5'}  # TODO
+
         for bb in arch_block.brick_list:
             for op in bb.local_op_iter_gen():
                 print(op.op_call)
@@ -153,4 +176,27 @@ class Hls4mlOSG(BaseOSG):
     def _generate_hls_skipLayer(self, todo):
         # see e.g. https://github.com/fastmachinelearning/hls4ml/blob/e804cfc6bbadd9b64857e2dbd2459a5b7200ffb7/hls4ml/converters/onnx_to_hls.py#L286
         return
+
+
+class OsgDataReader(object):
+    def __init__(self, config, data):
+        self.config = config
+
+    def _find_data(self, layer_name, var_name):
+        # TODO
+        return
+
+    def get_weights_data(self, layer_name, var_name):
+        data = self._find_data(layer_name, var_name)
+        if data:
+            return data[()]
+        else:
+            return None
+
+    def get_weights_shape(self, layer_name, var_name):
+        data = self._find_data(layer_name, var_name)
+        if data is not None:
+            return data.shape
+        else:
+            return None
 
