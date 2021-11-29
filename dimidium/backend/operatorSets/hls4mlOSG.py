@@ -16,6 +16,8 @@ from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.lib.util import BrickImplTypes
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype
+from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
+from dimidium.backend.operatorSets.lib.hls4ml.DosaFileReader import OsgDataReader
 
 
 class Hls4mlOSG(BaseOSG):
@@ -25,6 +27,7 @@ class Hls4mlOSG(BaseOSG):
                          [BrickImplTypes.STREAM, BrickImplTypes.ENGINE])
         # no DosaHwClasses.FPGA_generic, since it is bound to xilinx?
         self.priority = 92
+        self.existing_layer_names = []
 
     def init(self, dosa_hw_classes_dict, priority_internal):
         self.priority_internal = priority_internal
@@ -76,6 +79,15 @@ class Hls4mlOSG(BaseOSG):
         # not covered hls4ml classes:
         #  GarNet, Resize, SeparableConv2D, DepthwiseConv2D
 
+    def _create_unique_layer_name(self, op_name):
+        base_str = op_name.replace('.', '_')
+        name_cnt = 1
+        while base_str in self.existing_layer_names:
+            base_str += "_{}".format(name_cnt)
+            name_cnt += 1
+        self.existing_layer_names.append(base_str)
+        return base_str
+
     def build_block(self, arch_block, build_tool):
         assert isinstance(build_tool, BaseHwBuild)
         used_dir_path = build_tool.add_ip_dir(arch_block)
@@ -100,6 +112,30 @@ class Hls4mlOSG(BaseOSG):
                             'IOType': 'io_stream',  # or io_parallel
                             'HLSConfig':  hls_config}  # ,
                             # 'KerasJson': 'KERAS_3layer.json', 'KerasH5': 'KERAS_3layer_weights.h5'}  # TODO
+
+        model_arch = {'backend': 'tensorflow',
+                      'class_name': 'Model',
+                      'config': {'input_layers': [['input_1', 0, 0]], 'layers': [{'class_name': 'InputLayer',
+                                                                                  'config': {'batch_input_shape': [None, 16],
+                                                                                             'dtype': 'float32', 'name': 'input_1',
+                                                                                             'sparse': False}, 'inbound_nodes': [],
+                                                                                  'name': 'input_1'},
+                                {'class_name': 'Dense', 'config': {'activation': 'relu', 'activity_regularizer': None, 'bias_constraint': None, 'bias_initializer':
+                                    {'class_name': 'VarianceScaling', 'config': {'distribution': 'uniform', 'mode': 'fan_in', 'scale': 1.0, 'seed': None}}, 'bias_regularizer': None, 'kernel_constraint': None, 'kernel_initializer': {'class_name': 'VarianceScaling', 'config': {'distribution': 'uniform', 'mode': 'fan_in', 'scale': 1.0, 'seed': None}}, 'kernel_regularizer': {'class_name': 'L1L2', 'config': {'l1': 0.0, 'l2': 0.0}}, 'name': 'fc1_relu', 'trainable': True, 'units': 64, 'use_bias': True}, 'inbound_nodes': [[['input_1', 0, 0, {}]]], 'name': 'fc1_relu'}, {'class_name': 'Dense', 'config': {'activation': 'relu', 'activity_regularizer': None, 'bias_constraint': None, 'bias_initializer': {'class_name': 'VarianceScaling', 'config': {'distribution': 'uniform', 'mode': 'fan_in', 'scale': 1.0, 'seed': None}}, 'bias_regularizer': None, 'kernel_constraint': None, 'kernel_initializer': {'class_name': 'VarianceScaling', 'config': {'distribution': 'uniform', 'mode': 'fan_in', 'scale': 1.0, 'seed': None}}, 'kernel_regularizer': {'class_name': 'L1L2', 'config': {'l1': 0.0, 'l2': 0.0}}, 'name': 'fc2_relu', 'trainable': True, 'units': 32, 'use_bias': True}, 'inbound_nodes': [[['fc1_relu', 0, 0, {}]]], 'name': 'fc2_relu'}, {'class_name': 'Dense', 'config': {'activation': 'relu', 'activity_regularizer': None, 'bias_constraint': None, 'bias_initializer': {'class_name': 'VarianceScaling', 'config': {'distribution': 'uniform', 'mode': 'fan_in', 'scale': 1.0, 'seed': None}}, 'bias_regularizer': None, 'kernel_constraint': None, 'kernel_initializer': {'class_name': 'VarianceScaling', 'config': {'distribution': 'uniform', 'mode': 'fan_in', 'scale': 1.0, 'seed': None}}, 'kernel_regularizer': {'class_name': 'L1L2', 'config': {'l1': 0.0, 'l2': 0.0}}, 'name': 'fc3_relu', 'trainable': True, 'units': 32, 'use_bias': True}, 'inbound_nodes': [[['fc2_relu', 0, 0, {}]]], 'name': 'fc3_relu'}, {'class_name': 'Dense', 'config': {'activation': 'softmax', 'activity_regularizer': None, 'bias_constraint': None, 'bias_initializer': {'class_name': 'VarianceScaling', 'config': {'distribution': 'uniform', 'mode': 'fan_in', 'scale': 1.0, 'seed': None}}, 'bias_regularizer': None, 'kernel_constraint': None, 'kernel_initializer': {'class_name': 'VarianceScaling', 'config': {'distribution': 'uniform', 'mode': 'fan_in', 'scale': 1.0, 'seed': None}}, 'kernel_regularizer': {'class_name': 'L1L2', 'config': {'l1': 0.0, 'l2': 0.0}}, 'name': 'output_softmax', 'trainable': True, 'units': 5, 'use_bias': True}, 'inbound_nodes': [[['fc3_relu', 0, 0, {}]]], 'name': 'output_softmax'}], 'name': 'model_1', 'output_layers': [['output_softmax', 0, 0]]}, 'keras_version': '2.0.0'}
+
+        reader = OsgDataReader(hls_model_config)
+        model_arch = {'backend': 'dosa', 'class_name': 'Model',
+                      'config': {'input_layers': [], 'layers': [], 'name': project_name, 'output_layers': []}}
+
+        first_used_dtype = arch_block.brick_list[0].used_dtype
+        input_batch_shape = []  # TODO
+        input_layer = {'class_name': 'InputLayer',
+                       'config': {'batch_input_shape': input_batch_shape, 'dtype': first_used_dtype.name,
+                                  'name': 'input_1', 'sparse': False},
+                       'inbound_nodes': [], 'name': 'input_1'}
+
+        model_arch['config']['input_layers'].append(['input_1', 0, 0])  # TODO, dynamic?
+        model_arch['config']['layers'].append(input_layer)
 
         for bb in arch_block.brick_list:
             for op in bb.local_op_iter_gen():
@@ -176,27 +212,4 @@ class Hls4mlOSG(BaseOSG):
     def _generate_hls_skipLayer(self, todo):
         # see e.g. https://github.com/fastmachinelearning/hls4ml/blob/e804cfc6bbadd9b64857e2dbd2459a5b7200ffb7/hls4ml/converters/onnx_to_hls.py#L286
         return
-
-
-class OsgDataReader(object):
-    def __init__(self, config, data):
-        self.config = config
-
-    def _find_data(self, layer_name, var_name):
-        # TODO
-        return
-
-    def get_weights_data(self, layer_name, var_name):
-        data = self._find_data(layer_name, var_name)
-        if data:
-            return data[()]
-        else:
-            return None
-
-    def get_weights_shape(self, layer_name, var_name):
-        data = self._find_data(layer_name, var_name)
-        if data is not None:
-            return data.shape
-        else:
-            return None
 

@@ -11,6 +11,16 @@
 #  *
 #  *
 
+import os
+import sys
+
+me_abs_dir = os.path.dirname(os.path.realpath(__file__))
+# me_abs_file = os.path.abspath(os.path.realpath(__file__))
+hls4ml_lib_path = os.path.abspath(me_abs_dir + '/../../../third_party_libs/hls4ml/')
+sys.path.insert(0, hls4ml_lib_path)
+# print(sys.path)
+
+import dimidium.backend.third_party_libs.hls4ml.hls4ml
 from dimidium.backend.third_party_libs.hls4ml.hls4ml.model.hls_model import HLSModel, HLSConfig
 from dimidium.backend.third_party_libs.hls4ml.hls4ml.converters.keras_to_hls import get_supported_keras_layers, \
     layer_handlers
