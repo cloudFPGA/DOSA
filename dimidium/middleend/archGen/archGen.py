@@ -126,6 +126,10 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     best_draft.build()
     build_stop = time.time()
 
+    # synth_start = time.time()
+    # best_draft.synth()
+    # synth_stop = time.time()
+
     other_opts = []
     if debug:
         other_opts.append(annotated_draft)

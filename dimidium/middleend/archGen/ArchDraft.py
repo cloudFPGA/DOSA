@@ -548,4 +548,7 @@ class ArchDraft(object):
         for nn in self.node_iter_gen():
             nn.build()
 
+    def synth(self):
+        for nn in self.node_iter_gen():
+            nn.synth()
 

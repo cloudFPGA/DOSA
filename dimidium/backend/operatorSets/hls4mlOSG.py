@@ -189,6 +189,8 @@ class Hls4mlOSG(BaseOSG):
         hls_model.write()  # i.e. write HLS sources
         synth_entry = {'ip_dir': used_dir_path, 'func': hls_model.build}
         arch_block.add_synth_entry(synth_entry)
+        # TODO: generate wrapper
+        # TODO: generate vhdl component and instance, for node integration
         return 0
 
     def build_container(self, container, build_tool):
