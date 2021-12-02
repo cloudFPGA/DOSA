@@ -40,7 +40,7 @@ class Haddoc2OSG(BaseOSG):
                          [BrickImplTypes.STREAM])
         self.priority = 99
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
-        self.my_hdl_template_folder = os.path.abspath(me_abs_dir + '/../3rd_party_libs/haddoc2/lib/hdl/')
+        self.my_hdl_template_folder = os.path.abspath(me_abs_dir + '/../third_party_libs/haddoc2/lib/hdl/')
         self.existing_layer_names = []
 
     def init(self, dosa_hw_classes_dict, priority_internal):
@@ -92,13 +92,14 @@ class Haddoc2OSG(BaseOSG):
                     layer_name = self._create_unique_layer_name(op.name)
                     layer_names_by_op_id[op.global_op_id] = layer_name
                     layer_names_ordered.append(layer_name)
-                    if used_dtype is None:
+                    if used_dtype == DosaDtype.UNKNOWN:
                         used_dtype = op.used_dtype
                     elif used_dtype != op.used_dtype:
                         print("[DOSA:OSG:ERROR] Haddoc supports only one bit width per block. Trying to ignore...")
+
                     if 'pool1d' in op.op_call or 'pool2d' in op.op_call:
                         self._param_parse_pool(op, vhdlf, layer_name)
-                    if 'conv1d' in op.op_call or 'conv2d' in op.op_call:
+                    elif 'conv1d' in op.op_call or 'conv2d' in op.op_call:
                         if next_op is not None and 'bias' not in next_op.op_call:
                             # useless -> None again
                             next_op = None
@@ -106,6 +107,7 @@ class Haddoc2OSG(BaseOSG):
                     else:
                         print("[DOSA:OSG:ERROR] Not yet implemented!. STOP.")
                         exit(1)
+
             paramParsing.write_fileEnd(vhdlf)
         # then, we do the bitwidth
         self._generate_bitwidth(bitwidthFile, used_dtype)

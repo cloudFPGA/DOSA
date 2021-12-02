@@ -33,6 +33,10 @@ class OsgDataReader(object):
         self.data[layer_name][var_name] = ndarray
         return True
 
+    def add_data_dict(self, data_dict):
+        for vn in data_dict['variables']:
+            self.add_data_entry(data_dict['layer_name'], vn, data_dict['variables'][vn])
+
     def _find_data(self, layer_name, var_name):
         data = None
         if layer_name in self.data and var_name in self.data[layer_name]:
@@ -43,7 +47,8 @@ class OsgDataReader(object):
         """returns a ndarray (shape preserved)"""
         data = self._find_data(layer_name, var_name)
         if data is not None:
-            return data[()]
+            # return data[()]
+            return data
         else:
             return None
 

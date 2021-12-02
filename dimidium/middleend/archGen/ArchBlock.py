@@ -28,6 +28,7 @@ class ArchBlock(object):
         self.selected_osg = selected_osg
         self.build_tool = None
         self.ip_dir = None
+        self.synth_func_list = []
 
     def __repr__(self):
         brick_id_list = []
@@ -62,4 +63,15 @@ class ArchBlock(object):
         assert self.selected_osg != placeholderOSG
         self.selected_osg.build_block(self, build_tool)
 
+    def add_synth_entry(self, entry_dict):
+        assert 'ip_dir' in entry_dict
+        assert 'func' in entry_dict
+        self.synth_func_list.append(entry_dict)
+
+    def synth(self):
+        assert self.build_tool is not None
+        assert self.selected_osg != placeholderOSG
+        for e in self.synth_func_list:
+            print("{}: synthesizing IP in {}...".format(repr(self), e['ip_dir']))
+            e['func']()
 

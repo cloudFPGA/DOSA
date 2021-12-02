@@ -43,9 +43,9 @@ class cFBuild1(BaseHwBuild):
             self._create_basic_structure()
         new_id = arch_block.block_uuid
         if is_vhdl:
-            new_path = "{}/{}".format(self.global_vhdl_dir, arch_block.block_uuid)
+            new_path = "{}/block_{}".format(self.global_vhdl_dir, arch_block.block_uuid)
         else:
-            new_path = "{}/{}".format(self.global_hls_dir, arch_block.block_uuid)
+            new_path = "{}/block_{}".format(self.global_hls_dir, arch_block.block_uuid)
         os.system("mkdir -p {}".format(new_path))
         self.ip_dirs[new_id] = new_path
         arch_block.ip_dir = new_path
