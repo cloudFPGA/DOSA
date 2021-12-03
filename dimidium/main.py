@@ -23,6 +23,7 @@ import dimidium.lib.plot_roofline as plot_roofline
 import dimidium.backend.devices.builtin as builtin_devices
 from dimidium.backend.operatorSets.osgs import builtin_OSGs
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
+from dimidium.lib.plot_bandwidth import generate_bandwidth_plt
 
 
 __mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_learning', 'engine_saving_threshold']
@@ -118,6 +119,8 @@ if __name__ == '__main__':
         plt4 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][1])
         plt5 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][2])
         last_plt = plt5
+    plt7 = generate_bandwidth_plt(archDict['draft'])
+    last_plt = plt7
 
     plot_roofline.show_roofline_plt(last_plt, waiting=True)
     print("\t...done.\n")
