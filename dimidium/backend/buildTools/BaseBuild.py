@@ -22,11 +22,20 @@ class BaseBuild(metaclass=abc.ABCMeta):
         self.build_dir = build_dir
         self.out_dir = out_dir
         self.global_Makefile = None
+        self.makefile_targets = {}
 
     def create_build_dir(self, node_id: int):
         new_dir_path = os.path.abspath("{}/node_{}/".format(dosa_singleton.config.global_build_dir, node_id))
         os.system("mkdir -p {}".format(new_dir_path))
         self.build_dir = new_dir_path
+
+    @abc.abstractmethod
+    def create_global_Makefile(self):
+        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
+
+    @abc.abstractmethod
+    def add_makefile_entry(self, path, target):
+        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
 
 
 class BaseHwBuild(BaseBuild, metaclass=abc.ABCMeta):

@@ -253,10 +253,10 @@ class ArchNode(object):
         for ab in self.arch_block_list:
             ab.build(self.build_tool)
 
-    def synth(self):
-        if self.build_tool is None:
-            print("[DOSA:ArchNode:INFO] Must build before synthesis, starting build now...")
-            self.build()
-        for ab in self.arch_block_list:
-            ab.synth()
+    # def synth(self):
+    #     if self.build_tool is None:
+    #         print("[DOSA:ArchNode:INFO] Must build before synthesis, starting build now...")
+    #         self.build()
+    #     for ab in self.arch_block_list:
+    #         ab.synth()
 

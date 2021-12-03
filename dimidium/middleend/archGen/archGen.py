@@ -160,6 +160,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
                      'find_best_draft_time_s': find_best_end - find_best_start,
                      'check_annotations_time_2_s': check_annot_end_2 - check_annot_start_2,
                      'build_total_time_s': build_stop - build_start}
+                     #, 'synth_total_time_s': synth_stop - synth_start}
         ret['profiling'] = prof_dict
         if debug or verbose:
             print("\n[DEBUG] profiling information: ")

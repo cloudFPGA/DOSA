@@ -51,3 +51,10 @@ class cFBuild1(BaseHwBuild):
         arch_block.ip_dir = new_path
         return new_path
 
+    def create_global_Makefile(self):
+        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
+
+    def add_makefile_entry(self, path, target):
+        if path not in self.makefile_targets.keys():
+            self.makefile_targets[path] = target
+

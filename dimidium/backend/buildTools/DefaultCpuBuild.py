@@ -23,4 +23,9 @@ class DefaultCpuBuild(BaseSwBuild):
     def add_lib_dir(self, arch_block, path=None):
         pass
 
+    def create_global_Makefile(self):
+        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
+
+    def add_makefile_entry(self, path, target):
+        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
 
