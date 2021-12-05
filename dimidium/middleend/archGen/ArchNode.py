@@ -87,11 +87,11 @@ class ArchNode(object):
 
     def del_brick(self, b_id):
         if b_id == 0:
-            print("[DOSA:ArchNode:ERROR] trying to delete last Brick of Node, skipping.")
-            return
+            print("[DOSA:ArchNode:WARNING] trying to delete last Brick of Node, skipping.")
+            return -2
         if b_id >= self.bid_cnt or b_id < 0:
             print("[DOSA:ArchNode:ERROR] trying to delete invalid brick_id, skipping.")
-            return
+            return -1
         for i in range(0, self.bid_cnt-1):
             if i <= (b_id - 1):
                 continue
@@ -99,6 +99,7 @@ class ArchNode(object):
             self.bricks[i].set_brick_id(i)
         del self.bricks[self.bid_cnt-1]
         self.bid_cnt -= 1
+        return 0
 
     def split_horizontal(self, b_id_to_new_node):
         if b_id_to_new_node == 0 or b_id_to_new_node >= self.bid_cnt or b_id_to_new_node < 0:

@@ -125,6 +125,12 @@ class ArchBrick(object):
         op.set_local_op_id(o_id)
         self.ops[o_id] = op
 
+    def del_arch_op(self, op_i):
+        del self.ops[op_i]
+        for i in range(op_i+1, self.oid_cnt):
+            self.ops[i].local_op_id -= 1
+        self.oid_cnt -= 1
+
     def set_impl_type(self, it: BrickImplTypes):
         self.selected_impl_type = it
         if it == BrickImplTypes.STREAM:

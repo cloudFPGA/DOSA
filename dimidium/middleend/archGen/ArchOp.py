@@ -52,6 +52,7 @@ class ArchOp(object):
         self.tvm_args = tvm_args
         self.selected_osg = placeholderOSG
         self.possible_osgs = []
+        self.original_brick_tvm_handle = None  # for merged bricks: save also the *brick* handle
         if dpl_dict is not None:
             self.from_dpl_dict(dpl_dict)
 
