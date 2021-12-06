@@ -162,7 +162,7 @@ class ArchDraft(object):
             total_nodes += nn.data_parallelism_level
         return total_nodes
 
-    def legalize(self):
+    def legalize(self, verbose=False):
         # 0. split based on "used_perf"
         # build list of original nodes
         orig_nodes_handles = []
@@ -182,6 +182,9 @@ class ArchDraft(object):
                         new_node = cur_node.split_horizontal(i)  # including update_used_perf
                         all_new_nodes.append(new_node)
                         cur_node = new_node
+                        if verbose:
+                            print("[DOSA:archGen:INFO] Splitting node {} horizontally, due to exceeded resource budget."
+                                  .format(cur_node.node_id))
                         break
             if len(all_new_nodes) > 0:
                 new_nid = nn.get_node_id() + 1
@@ -216,24 +219,39 @@ class ArchDraft(object):
                 if split_factor_up < 1:
                     split_factor_up = 1
                 nn.split_vertical(factor=split_factor_up)  # including update of used perf
+                if verbose:
+                    print("[DOSA:archGen:INFO] Splitting node {} vertically, due to exceeded bandwidth budget."
+                          .format(nn.node_id))
         # 2. select engine or stream: check if both in same region, select the region that is "to the right"
         for nn in self.node_iter_gen():
             if nn.bid_cnt == 1:
                 # only one brick -> stream
                 nn.bricks[0].set_impl_type(BrickImplTypes.STREAM)
+                if verbose:
+                    print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(nn.bricks[0].name) +
+                          " since it is the only one in this node.")
                 continue
             for lb in nn.local_brick_iter_gen():
                 if lb.flops == 0:
                     # means re-mapping of input -> always stream in FPGAs
                     lb.set_impl_type(BrickImplTypes.STREAM)
+                    if verbose:
+                        print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(lb.name) +
+                          " since it is only re-mapping of arrays.")
                     continue
                 r1 = nn.roofline.get_region(lb.oi_engine, lb.req_flops)
                 r2 = nn.roofline.get_region(lb.oi_stream, lb.req_flops)
                 br = get_rightmost_roofline_region(r1, r2)
                 if br == 1:
                     lb.set_impl_type(BrickImplTypes.ENGINE)
+                    if verbose:
+                        print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to ENGINE,".format(lb.name) +
+                              " since there are no bandwidth limitations.")
                 else:
                     lb.set_impl_type(BrickImplTypes.STREAM)
+                    if verbose:
+                        print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(lb.name) +
+                              " since there are bandwidth limitations.")
         # ensure all are decided
         for bb in self.brick_iter_gen():
             assert bb.selected_impl_type != BrickImplTypes.UNDECIDED
@@ -252,7 +270,7 @@ class ArchDraft(object):
                 ap_engine = nn.roofline.get_max_perf_at_oi(lb.oi_engine, ignore_net=True)
                 ap_stream = nn.roofline.get_max_perf_at_oi(lb.oi_stream)
                 if lb.selected_impl_type == BrickImplTypes.ENGINE:
-                    # oi_stream must be below network even if Enigne is selected
+                    # oi_stream must be below network even if Engine is selected
                     # ap_stream is containing only user data to transmit
                     if lb.req_flops > ap_stream:
                         need_to_split = True
@@ -275,6 +293,9 @@ class ArchDraft(object):
                 if split_factor_up < 1:
                     split_factor_up = 1
                 nn.split_vertical(factor=split_factor_up)  # including update of used perf
+                if verbose:
+                    print("[DOSA:archGen:INFO] Paralleising node {} further,".format(nn.node_id) +
+                          " since there are bandwidth (network) limitations.")
         # 4. for each node: turn lone engine impls into streams
         #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
         #  in other words: ensure that all engine sets are bigger or equal 2
@@ -296,6 +317,9 @@ class ArchDraft(object):
             for bi in turn_engine_to_stream_list:
                 bb = nn.bricks[bi]
                 bb.set_impl_type(BrickImplTypes.STREAM)
+                if verbose:
+                    print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.name) +
+                          " since it is an engine with only one operation.")
         # 5. merge sequential nodes (no data par, no twins, same targeted_hw) if possible, based on used_perf,
         #  (i.e move bricks after each other)
         node_ids_to_delete = []
@@ -314,7 +338,8 @@ class ArchDraft(object):
                     #  does it make sense? just reduces the resource usage somewhere else?
                     if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
                         # merge nodes totally
-                        print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
+                        if verbose:
+                            print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
                               .format(n1.node_id, n2.node_id))
                         node_ids_to_delete.append(n1 + 1)
                         for bb in n2.local_brick_iter_gen():
@@ -417,6 +442,9 @@ class ArchDraft(object):
                 if ce.resource_savings < dosa_singleton.config.middleend.engine_saving_threshold:
                     for bb in ce.block_ref.brick_list:
                         bb.set_impl_type(BrickImplTypes.STREAM)
+                        if verbose:
+                            print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.name) +
+                                  " since its resouce savings ({}) are below threshold.".format(ce.resource_savings))
         # update blocks again
         for nn in self.node_iter_gen():
             nn.update_block_list()

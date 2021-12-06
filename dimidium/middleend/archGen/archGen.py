@@ -116,7 +116,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     check_annot_end_1 = time.time()
 
     find_best_start = time.time()
-    best_draft = find_best_draft(annotated_draft)
+    best_draft = find_best_draft(annotated_draft, verbose=verbose)
     find_best_end = time.time()
 
     check_annot_start_2 = time.time()
@@ -354,7 +354,7 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
 
 
 # update draft so that roofline and types are possible
-def find_best_draft(draft: ArchDraft) -> ArchDraft:
+def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
     # draft = copy.deepcopy(input_draft)
     assert len(draft.target_hw_set) >= 1
     assert len(draft.fallback_hw_set) >= 1
@@ -367,7 +367,7 @@ def find_best_draft(draft: ArchDraft) -> ArchDraft:
         for nn in tmp_draft.node_iter_gen():
             nn.set_targeted_hw(thw)  # this includes the generation of the roofline
         # legalize this version
-        rv = tmp_draft.legalize()
+        rv = tmp_draft.legalize(verbose=verbose)
         if rv != DosaRv.OK:
             continue
         # save state
