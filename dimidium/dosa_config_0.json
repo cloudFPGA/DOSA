@@ -19,6 +19,12 @@
       "int16": 1.0,
       "uint8": 1.0,
       "double": 1.0
-    }
+    },
+    "mu": 1.1
+  },
+  "generate_testbenchs": 1,
+  "utilization": {
+    "xilinx_luts_to_dsp_factor": 578,
+    "xilinx_lutram_to_bram_factor": 593750
   }
 }

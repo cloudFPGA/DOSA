@@ -86,6 +86,10 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
         new_bt = self.build_tool_class("{}_node_{}".format(self.name, node_id), self)
         return new_bt
 
+    @abc.abstractmethod
+    def get_hw_utilization_tuple(self, flops, bake_in_params_bytes):
+        print("[DOSA:DEVICES:ERROR] NOT YET IMPLEMENTED.")
+
 
 class UndecidedDosaHw(DosaBaseHw):
 
@@ -107,6 +111,9 @@ class UndecidedDosaHw(DosaBaseHw):
         pass
 
     def get_comm_latency_s(self):
+        pass
+
+    def get_hw_utilization_tuple(self, flops, bake_in_params_bytes):
         pass
 
 

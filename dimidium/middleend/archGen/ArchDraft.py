@@ -19,7 +19,7 @@ from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
-from dimidium.backend.devices.dosa_roofline import RooflineRegions, get_rightmost_roofline_region
+from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane, get_rightmost_roofline_region
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 
 
@@ -162,29 +162,320 @@ class ArchDraft(object):
             total_nodes += nn.data_parallelism_level
         return total_nodes
 
+    # def legalize(self, verbose=False):
+    #     # 0. split based on "used_perf"
+    #     # build list of original nodes
+    #     orig_nodes_handles = []
+    #     for nn in self.node_iter_gen():
+    #         orig_nodes_handles.append(nn)
+    #     for nn in orig_nodes_handles:
+    #         nn.update_used_perf_util()
+    #         all_new_nodes = []
+    #         cur_node = nn
+    #         while cur_node.used_perf_F > nn.max_perf_F:
+    #             cur_used_perf_F = 0
+    #             for i in range(0, cur_node.bid_cnt):
+    #                 cur_used_perf_F += cur_node.bricks[i].req_flops
+    #                 if cur_used_perf_F > nn.max_perf_F:
+    #                     if i == 0:
+    #                         i = 1
+    #                     new_node = cur_node.split_horizontal(i)  # including update_used_perf_util
+    #                     all_new_nodes.append(new_node)
+    #                     cur_node = new_node
+    #                     if verbose:
+    #                         print("[DOSA:archGen:INFO] Splitting node {} horizontally, due to exceeded resource budget."
+    #                               .format(cur_node.node_id))
+    #                     break
+    #         if len(all_new_nodes) > 0:
+    #             new_nid = nn.get_node_id() + 1
+    #             for new_node in all_new_nodes:
+    #                 self.insert_node(new_node, new_nid)
+    #                 new_nid += 1
+    #     assert len(self.nodes) == self.nid_cnt
+    #     self.update_required_perf()  # to consider new latencies
+    #     # 1. compute parallelization for engine and stream (i.e. regions 1 and 4)
+    #     #  update: compute parallelization (i.e. blocking of compute ops) is difficult, hence also round robin here
+    #     # TODO: different strategy for resource optimization
+    #     for nn in self.node_iter_gen():
+    #         # only nodes with one brick should be affected
+    #         need_to_split = False
+    #         split_factor = 0
+    #         for lb in nn.local_brick_iter_gen():
+    #             # engine and stream
+    #             rr = nn.roofline.get_region_OIPlane(lb.oi_stream, lb.req_flops)
+    #             if rr == RooflineRegionsOiPlane.ABOVE_TOP or rr == RooflineRegionsOiPlane.ABOVE_BRAM:
+    #                 need_to_split = True
+    #                 nsf = lb.req_flops / nn.max_perf_F
+    #                 if nsf > split_factor:
+    #                     split_factor = nsf
+    #             rr = nn.roofline.get_region_OIPlane(lb.oi_engine, lb.req_flops)
+    #             if rr == RooflineRegionsOiPlane.ABOVE_TOP or rr == RooflineRegionsOiPlane.ABOVE_BRAM:
+    #                 need_to_split = True
+    #                 nsf = lb.req_flops / nn.max_perf_F
+    #                 if nsf > split_factor:
+    #                     split_factor = nsf
+    #         if need_to_split:
+    #             split_factor_up = math.ceil(split_factor)
+    #             if split_factor_up < 1:
+    #                 split_factor_up = 1
+    #             nn.split_vertical(factor=split_factor_up)  # including update of used perf
+    #             if verbose:
+    #                 print("[DOSA:archGen:INFO] Splitting node {} vertically, due to exceeded bandwidth budget."
+    #                       .format(nn.node_id))
+    #     # 2. select engine or stream: check if both in same region, select the region that is "to the right"
+    #     for nn in self.node_iter_gen():
+    #         if nn.bid_cnt == 1:
+    #             # only one brick -> stream
+    #             nn.bricks[0].set_impl_type(BrickImplTypes.STREAM)
+    #             if verbose:
+    #                 print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(nn.bricks[0].name) +
+    #                       " since it is the only one in this node.")
+    #             continue
+    #         for lb in nn.local_brick_iter_gen():
+    #             if lb.flops == 0:
+    #                 # means re-mapping of input -> always stream in FPGAs
+    #                 lb.set_impl_type(BrickImplTypes.STREAM)
+    #                 if verbose:
+    #                     print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(lb.name) +
+    #                       " since it is only re-mapping of arrays.")
+    #                 continue
+    #             r1 = nn.roofline.get_region_OIPlane(lb.oi_engine, lb.req_flops)
+    #             r2 = nn.roofline.get_region_OIPlane(lb.oi_stream, lb.req_flops)
+    #             br = get_rightmost_roofline_region(r1, r2)
+    #             if br == 1:
+    #                 lb.set_impl_type(BrickImplTypes.ENGINE)
+    #                 if verbose:
+    #                     print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to ENGINE,".format(lb.name) +
+    #                           " since there are no bandwidth limitations.")
+    #             else:
+    #                 lb.set_impl_type(BrickImplTypes.STREAM)
+    #                 if verbose:
+    #                     print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(lb.name) +
+    #                           " since there are bandwidth limitations.")
+    #     # ensure all are decided
+    #     for bb in self.brick_iter_gen():
+    #         assert bb.selected_impl_type != BrickImplTypes.UNDECIDED
+    #     # 3. data parallelization for all above IN_HOUSE, based on selected impl type
+    #     # TODO: different strategy for resource optimization
+    #     for nn in self.node_iter_gen():
+    #         # only nodes with one brick should be affected
+    #         need_to_split = False
+    #         split_factor = 0
+    #         for lb in nn.local_brick_iter_gen():
+    #             oi_selected = lb.get_oi_selected_impl()
+    #             rr = nn.roofline.get_region_OIPlane(oi_selected, lb.req_flops)
+    #             if rr == RooflineRegionsOiPlane.IN_HOUSE:
+    #                 # nothing to do in all cases
+    #                 continue
+    #             ap_engine = nn.roofline.get_max_perf_at_oi(lb.oi_engine, ignore_net=True)
+    #             ap_stream = nn.roofline.get_max_perf_at_oi(lb.oi_stream)
+    #             if lb.selected_impl_type == BrickImplTypes.ENGINE:
+    #                 # oi_stream must be below network even if Engine is selected
+    #                 # ap_stream is containing only user data to transmit
+    #                 if lb.req_flops > ap_stream:
+    #                     need_to_split = True
+    #                     nsf = lb.req_flops / ap_stream
+    #                     if nsf > split_factor:
+    #                         split_factor = nsf
+    #                 elif lb.req_flops > ap_engine:
+    #                     need_to_split = True
+    #                     nsf = lb.req_flops / ap_engine
+    #                     if nsf > split_factor:
+    #                         split_factor = nsf
+    #             else:
+    #                 if lb.req_flops > ap_stream:
+    #                     need_to_split = True
+    #                     nsf = lb.req_flops / ap_stream
+    #                     if nsf > split_factor:
+    #                         split_factor = nsf
+    #         if need_to_split:
+    #             split_factor_up = math.ceil(split_factor)
+    #             if split_factor_up < 1:
+    #                 split_factor_up = 1
+    #             nn.split_vertical(factor=split_factor_up)  # including update of used perf
+    #             if verbose:
+    #                 print("[DOSA:archGen:INFO] Paralleising node {} further,".format(nn.node_id) +
+    #                       " since there are bandwidth (network) limitations.")
+    #     # 4. for each node: turn lone engine impls into streams
+    #     #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
+    #     #  in other words: ensure that all engine sets are bigger or equal 2
+    #     #  no need to update req. perf or split nodes, is already considered in step 3
+    #     for nn in self.node_iter_gen():
+    #         cur_engine_set = []
+    #         turn_engine_to_stream_list = []
+    #         for bi in range(0, nn.bid_cnt):
+    #             bb = nn.bricks[bi]
+    #             if bb.selected_impl_type == BrickImplTypes.STREAM:
+    #                 if len(cur_engine_set) < 2:
+    #                     turn_engine_to_stream_list.extend(cur_engine_set)
+    #                 cur_engine_set = []
+    #                 continue
+    #             cur_engine_set.append(bi)
+    #         # last time
+    #         if len(cur_engine_set) < 2:
+    #             turn_engine_to_stream_list.extend(cur_engine_set)
+    #         for bi in turn_engine_to_stream_list:
+    #             bb = nn.bricks[bi]
+    #             bb.set_impl_type(BrickImplTypes.STREAM)
+    #             if verbose:
+    #                 print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.name) +
+    #                       " since it is an engine with only one operation.")
+    #     # 5. merge sequential nodes (no data par, no twins, same targeted_hw) if possible, based on used_perf,
+    #     #  (i.e move bricks after each other)
+    #     node_ids_to_delete = []
+    #     for ni in range(0, len(self.nodes)):
+    #         if ni in node_ids_to_delete:
+    #             continue
+    #         n1 = self.nodes[ni]
+    #         if n1.data_parallelism_level > 1:
+    #             continue
+    #         if ni < (len(self.nodes) - 1):
+    #             n2 = self.nodes[ni + 1]
+    #             if n2.data_parallelism_level > 1:
+    #                 continue
+    #             if n1.targeted_hw == n2.targeted_hw:
+    #                 # TODO: move bricks after each other?
+    #                 #  does it make sense? just reduces the resource usage somewhere else?
+    #                 if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
+    #                     # merge nodes totally
+    #                     if verbose:
+    #                         print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
+    #                           .format(n1.node_id, n2.node_id))
+    #                     node_ids_to_delete.append(n1 + 1)
+    #                     for bb in n2.local_brick_iter_gen():
+    #                         n1.add_brick(bb)
+    #     for nd in node_ids_to_delete:
+    #         self.delete_node(nd)
+    #     # 6. update OSGs and possible hw targets
+    #     self.update_possible_osgs()
+    #     self.update_possible_hw_types()
+    #     # 7. decide for hw, if targeted hw is possible, use this one
+    #     #  if not, use other possible hw with largest roof_F
+    #     #  if only smaller roof_F are available, use fallback hw
+    #     #  (optimizing hw --> not part of legalizing)
+    #     for nn in self.node_iter_gen():
+    #         if nn.targeted_hw in nn.possible_hw_types:
+    #             nn.selected_hw_type = nn.targeted_hw
+    #         else:
+    #             targeted_roof_F = nn.targeted_hw.get_roof_F()
+    #             max_roof_F = 0
+    #             selected_hw = None
+    #             for phw in nn.possible_hw_types:
+    #                 # if only smaller roof_F are available, use fallback hw
+    #                 phw_roof_F = phw.get_roof_F()
+    #                 if phw_roof_F >= targeted_roof_F:
+    #                     if phw_roof_F > max_roof_F:
+    #                         max_roof_F = phw_roof_F
+    #                         selected_hw = phw
+    #             if selected_hw is not None:
+    #                 nn.selected_hw_type = selected_hw
+    #                 print("[DOSA:archGen:INFO] Targeted hw {} not possible for node {}, selected {} instead."
+    #                       .format(nn.targeted_hw, nn.node_id, nn.selected_hw_type))
+    #             else:
+    #                 if len(self.fallback_hw_set) > 0:
+    #                     fallback_hw_found = False
+    #                     for fhw in self.fallback_hw_set:
+    #                         if fhw in nn.possible_hw_types:
+    #                             # take first one, order represents priority
+    #                             nn.selected_hw_type = fhw
+    #                             fallback_hw_found = True
+    #                             print("[DOSA:archGen:WARNING] Targeted hw {} not possible for node {}, forced to use \
+    #                                   fallback hw {} instead.".format(nn.targeted_hw, nn.node_id,
+    #                                                                     nn.selected_hw_type))
+    #                             break
+    #                     if not fallback_hw_found:
+    #                         print("[DOSA:archGen:ERROR] Targeted hw {} not possible for node {}, failed to find \
+    #                               replacement or fallback. Impossible to legalize draft"
+    #                               .format(nn.targeted_hw, nn.node_id))
+    #                         return DosaRv.ERROR
+    #     # ensure, all HW is decided
+    #     for nn in self.node_iter_gen():
+    #         assert nn.selected_hw_type != placeholderHw
+    #     # 8. decide for OSG
+    #     for nn in self.node_iter_gen():
+    #         decided_hw_class = nn.selected_hw_type.hw_class
+    #         # for now, decide for one OSG, if possible (i.e. avoid switching at all costs)
+    #         # TODO: later, consider individual switching costs
+    #         all_possible_osgs = []
+    #         for lb in nn.local_brick_iter_gen():
+    #             for posg in lb.possible_osgs:
+    #                 if decided_hw_class in posg.device_classes:
+    #                     if posg not in all_possible_osgs:
+    #                         all_possible_osgs.append(posg)
+    #         all_possible_sorted = sort_osg_list(all_possible_osgs)
+    #         found_consens = False
+    #         consens_osg = None
+    #         if len(all_possible_sorted) >= 1:
+    #             not_possible_osgs = []
+    #             for cur_posg in all_possible_sorted:
+    #                 suitable = True
+    #                 if cur_posg in not_possible_osgs:
+    #                     continue
+    #                 for lb in nn.local_brick_iter_gen():
+    #                     if cur_posg not in lb.possible_osgs:
+    #                         not_possible_osgs.append(cur_posg)
+    #                         suitable = False
+    #                 if suitable:
+    #                     # oder still represents priority, so take this one
+    #                     found_consens = True
+    #                     consens_osg = cur_posg
+    #                     break
+    #         if found_consens:
+    #             for lb in nn.local_brick_iter_gen():
+    #                 lb.selected_osg = consens_osg
+    #         else:
+    #             # no common osg found, use whatever is best
+    #             print("[DOSA:archGen:INFO] couldn't find common OSG for node {}, use individual ones \
+    #             (higher switching costs).".format(nn.node_id))
+    #             for lb in nn.local_brick_iter_gen():
+    #                 for posg in lb.possible_osgs:
+    #                     if decided_hw_class in posg.device_classes:
+    #                         # order represents priority, so take first possible one
+    #                         lb.selected_osg = posg
+    #                         continue
+    #     # 9. create blocks
+    #     for nn in self.node_iter_gen():
+    #         nn.update_block_list()
+    #     # 10. check for engine threshold
+    #     for nn in self.node_iter_gen():
+    #         for ce in nn.engine_container_refs:
+    #             if ce.resource_savings < dosa_singleton.config.middleend.engine_saving_threshold:
+    #                 for bb in ce.block_ref.brick_list:
+    #                     bb.set_impl_type(BrickImplTypes.STREAM)
+    #                     if verbose:
+    #                         print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.name) +
+    #                               " since its resouce savings ({}) are below threshold.".format(ce.resource_savings))
+    #     # update blocks again
+    #     for nn in self.node_iter_gen():
+    #         nn.update_block_list()
+    #     # 11. update kernel uuids & req. perf
+    #     self.update_uuids()
+    #     self.update_required_perf()
+    #     return DosaRv.OK
+
     def legalize(self, verbose=False):
-        # 0. split based on "used_perf"
+        # 0. split based on used compute utility shares (mem not decided yet)
         # build list of original nodes
         orig_nodes_handles = []
         for nn in self.node_iter_gen():
             orig_nodes_handles.append(nn)
         for nn in orig_nodes_handles:
-            nn.update_used_perf()
+            nn.update_used_perf_util()
             all_new_nodes = []
             cur_node = nn
-            while cur_node.used_perf_F > nn.max_perf_F:
-                cur_used_perf_F = 0
+            while cur_node.used_comp_util_share > 1:
+                cur_comp_share = 0
                 for i in range(0, cur_node.bid_cnt):
-                    cur_used_perf_F += cur_node.bricks[i].req_flops
-                    if cur_used_perf_F > nn.max_perf_F:
+                    cur_comp_share += cur_node.bricks[i].req_util_comp
+                    if cur_comp_share > 1:
                         if i == 0:
                             i = 1
-                        new_node = cur_node.split_horizontal(i)  # including update_used_perf
+                        new_node = cur_node.split_horizontal(i)  # including update_used_perf_util
                         all_new_nodes.append(new_node)
-                        cur_node = new_node
                         if verbose:
-                            print("[DOSA:archGen:INFO] Splitting node {} horizontally, due to exceeded resource budget."
-                                  .format(cur_node.node_id))
+                            print("[DOSA:archGen:INFO] Splitting node {} horizontally, ".format(cur_node.node_id) +
+                                  "due to exceeded compute resource budget.")
+                        cur_node = new_node
                         break
             if len(all_new_nodes) > 0:
                 new_nid = nn.get_node_id() + 1
@@ -202,14 +493,14 @@ class ArchDraft(object):
             split_factor = 0
             for lb in nn.local_brick_iter_gen():
                 # engine and stream
-                rr = nn.roofline.get_region(lb.oi_stream, lb.req_flops)
-                if rr == RooflineRegions.ABOVE_TOP or rr == RooflineRegions.ABOVE_BRAM:
+                rr = nn.roofline.get_region_OIPlane(lb.oi_stream, lb.req_flops)
+                if rr == RooflineRegionsOiPlane.ABOVE_TOP or rr == RooflineRegionsOiPlane.ABOVE_BRAM:
                     need_to_split = True
                     nsf = lb.req_flops / nn.max_perf_F
                     if nsf > split_factor:
                         split_factor = nsf
-                rr = nn.roofline.get_region(lb.oi_engine, lb.req_flops)
-                if rr == RooflineRegions.ABOVE_TOP or rr == RooflineRegions.ABOVE_BRAM:
+                rr = nn.roofline.get_region_OIPlane(lb.oi_engine, lb.req_flops)
+                if rr == RooflineRegionsOiPlane.ABOVE_TOP or rr == RooflineRegionsOiPlane.ABOVE_BRAM:
                     need_to_split = True
                     nsf = lb.req_flops / nn.max_perf_F
                     if nsf > split_factor:
@@ -237,10 +528,10 @@ class ArchDraft(object):
                     lb.set_impl_type(BrickImplTypes.STREAM)
                     if verbose:
                         print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(lb.name) +
-                          " since it is only re-mapping of arrays.")
+                              " since it is only re-mapping of arrays.")
                     continue
-                r1 = nn.roofline.get_region(lb.oi_engine, lb.req_flops)
-                r2 = nn.roofline.get_region(lb.oi_stream, lb.req_flops)
+                r1 = nn.roofline.get_region_OIPlane(lb.oi_engine, lb.req_flops)
+                r2 = nn.roofline.get_region_OIPlane(lb.oi_stream, lb.req_flops)
                 br = get_rightmost_roofline_region(r1, r2)
                 if br == 1:
                     lb.set_impl_type(BrickImplTypes.ENGINE)
@@ -255,7 +546,38 @@ class ArchDraft(object):
         # ensure all are decided
         for bb in self.brick_iter_gen():
             assert bb.selected_impl_type != BrickImplTypes.UNDECIDED
-        # 3. data parallelization for all above IN_HOUSE, based on selected impl type
+        # 3. split based on used memory utility shares
+        # TODO: reflect resource budget?
+        # build list of original nodes
+        orig_nodes_handles = []
+        for nn in self.node_iter_gen():
+            orig_nodes_handles.append(nn)
+        for nn in orig_nodes_handles:
+            nn.update_used_perf_util()
+            all_new_nodes = []
+            cur_node = nn
+            while cur_node.used_mem_util_share > 1:
+                cur_mem_share = 0
+                for i in range(0, cur_node.bid_cnt):
+                    cur_mem_share += cur_node.bricks[i].req_util_mem
+                    if cur_mem_share > 1:
+                        if i == 0:
+                            i = 1
+                        new_node = cur_node.split_horizontal(i)  # including update_used_perf_util
+                        all_new_nodes.append(new_node)
+                        cur_node = new_node
+                        if verbose:
+                            print("[DOSA:archGen:INFO] Splitting node {} horizontally, ".format(cur_node.node_id) +
+                                  "due to exceeded memory resource budget.")
+                        break
+            if len(all_new_nodes) > 0:
+                new_nid = nn.get_node_id() + 1
+                for new_node in all_new_nodes:
+                    self.insert_node(new_node, new_nid)
+                    new_nid += 1
+        assert len(self.nodes) == self.nid_cnt
+        self.update_required_perf()  # to consider new latencies
+        # 4. data parallelization for all above IN_HOUSE, based on selected impl type
         # TODO: different strategy for resource optimization
         for nn in self.node_iter_gen():
             # only nodes with one brick should be affected
@@ -263,8 +585,8 @@ class ArchDraft(object):
             split_factor = 0
             for lb in nn.local_brick_iter_gen():
                 oi_selected = lb.get_oi_selected_impl()
-                rr = nn.roofline.get_region(oi_selected, lb.req_flops)
-                if rr == RooflineRegions.IN_HOUSE:
+                rr = nn.roofline.get_region_OIPlane(oi_selected, lb.req_flops)
+                if rr == RooflineRegionsOiPlane.IN_HOUSE:
                     # nothing to do in all cases
                     continue
                 ap_engine = nn.roofline.get_max_perf_at_oi(lb.oi_engine, ignore_net=True)
@@ -294,9 +616,9 @@ class ArchDraft(object):
                     split_factor_up = 1
                 nn.split_vertical(factor=split_factor_up)  # including update of used perf
                 if verbose:
-                    print("[DOSA:archGen:INFO] Paralleising node {} further,".format(nn.node_id) +
+                    print("[DOSA:archGen:INFO] Parallelize node {} further,".format(nn.node_id) +
                           " since there are bandwidth (network) limitations.")
-        # 4. for each node: turn lone engine impls into streams
+        # 5. for each node: turn lone engine impls into streams
         #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
         #  in other words: ensure that all engine sets are bigger or equal 2
         #  no need to update req. perf or split nodes, is already considered in step 3
@@ -320,7 +642,7 @@ class ArchDraft(object):
                 if verbose:
                     print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.name) +
                           " since it is an engine with only one operation.")
-        # 5. merge sequential nodes (no data par, no twins, same targeted_hw) if possible, based on used_perf,
+        # 6. merge sequential nodes (no data par, no twins, same targeted_hw) if possible, based on used_perf,
         #  (i.e move bricks after each other)
         node_ids_to_delete = []
         for ni in range(0, len(self.nodes)):
@@ -340,16 +662,16 @@ class ArchDraft(object):
                         # merge nodes totally
                         if verbose:
                             print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
-                              .format(n1.node_id, n2.node_id))
+                                  .format(n1.node_id, n2.node_id))
                         node_ids_to_delete.append(n1 + 1)
                         for bb in n2.local_brick_iter_gen():
                             n1.add_brick(bb)
         for nd in node_ids_to_delete:
             self.delete_node(nd)
-        # 6. update OSGs and possible hw targets
+        # 7. update OSGs and possible hw targets
         self.update_possible_osgs()
         self.update_possible_hw_types()
-        # 7. decide for hw, if targeted hw is possible, use this one
+        # 8. decide for hw, if targeted hw is possible, use this one
         #  if not, use other possible hw with largest roof_F
         #  if only smaller roof_F are available, use fallback hw
         #  (optimizing hw --> not part of legalizing)
@@ -381,7 +703,7 @@ class ArchDraft(object):
                                 fallback_hw_found = True
                                 print("[DOSA:archGen:WARNING] Targeted hw {} not possible for node {}, forced to use \
                                       fallback hw {} instead.".format(nn.targeted_hw, nn.node_id,
-                                                                        nn.selected_hw_type))
+                                                                      nn.selected_hw_type))
                                 break
                         if not fallback_hw_found:
                             print("[DOSA:archGen:ERROR] Targeted hw {} not possible for node {}, failed to find \
@@ -391,7 +713,7 @@ class ArchDraft(object):
         # ensure, all HW is decided
         for nn in self.node_iter_gen():
             assert nn.selected_hw_type != placeholderHw
-        # 8. decide for OSG
+        # 9. decide for OSG
         for nn in self.node_iter_gen():
             decided_hw_class = nn.selected_hw_type.hw_class
             # for now, decide for one OSG, if possible (i.e. avoid switching at all costs)
@@ -433,10 +755,10 @@ class ArchDraft(object):
                             # order represents priority, so take first possible one
                             lb.selected_osg = posg
                             continue
-        # 9. create blocks
+        # 10. create blocks
         for nn in self.node_iter_gen():
             nn.update_block_list()
-        # 10. check for engine threshold
+        # 11. check for engine threshold
         for nn in self.node_iter_gen():
             for ce in nn.engine_container_refs:
                 if ce.resource_savings < dosa_singleton.config.middleend.engine_saving_threshold:
@@ -444,11 +766,11 @@ class ArchDraft(object):
                         bb.set_impl_type(BrickImplTypes.STREAM)
                         if verbose:
                             print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.name) +
-                                  " since its resouce savings ({}) are below threshold.".format(ce.resource_savings))
+                                  " since its resource savings ({}) are below threshold.".format(ce.resource_savings))
         # update blocks again
         for nn in self.node_iter_gen():
             nn.update_block_list()
-        # 11. update kernel uuids & req. perf
+        # 12. update kernel uuids & req. perf
         self.update_uuids()
         self.update_required_perf()
         return DosaRv.OK

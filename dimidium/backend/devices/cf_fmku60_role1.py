@@ -50,7 +50,9 @@ class CfThemisto1(DosaBaseHw):
         # cF_1_dsp48_gflops = 4.0 * freq_fpga_ghz
         cF_1_dsp48_gflops = config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
         # cF_bigRole_dsp48_gflops = 1028.0 * 4.0 * freq_fpga_ghz
-        self.cF_bigRole_dsp48_gflops = 1028.0 * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
+        big_role_dsps = 1028.0
+        role6_dsps = 1106
+        self.cF_bigRole_dsp48_gflops = role6_dsps * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
 
         # cF_mantle_dsp48_gflops = 938.0 * 4.0 * freq_fpga_ghz
         cF_mantle_dsp48_gflops = 938.0 * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
@@ -62,8 +64,9 @@ class CfThemisto1(DosaBaseHw):
 
         # BRAM bandwidth
         fpga_brams = 1080
-        big_role_brams = 351
-        b_s_fpga_bram_Bs = (big_role_brams * 72 / 8) / (
+        # big_role_brams = 351
+        role6_brams = 348
+        b_s_fpga_bram_Bs = (role6_brams * 72 / 8) / (
                 1 / self.freq_fpga)  # 1080 BRAMs with 72 bit write per cycle each, Bytes/s
         self.b_s_fpga_bram_gBs = b_s_fpga_bram_Bs / gigaU
 
@@ -72,26 +75,43 @@ class CfThemisto1(DosaBaseHw):
 
         # LUTRAM bandwidth (distributed RAM)
         fpga_lutram_available_B = (9180 * 2 * 8) * 8  # 146880 available LUTRAMs, 64bit/8Byte each, Bytes
-        big_role_lutram_available_B = 52640.0
-        small_role_lutram_available_B = 47040.0
-        b_s_fpga_lutram_Bs = big_role_lutram_available_B / (1 / self.freq_fpga)  # Bytes/s
+        # big_role_lutram_available_B = 52640.0
+        # small_role_lutram_available_B = 47040.0
+        role6_lutram_available = 53400
+        role6_lutram_available_inBytes = role6_lutram_available * 8
+        b_s_fpga_lutram_Bs = role6_lutram_available_inBytes / (1 / self.freq_fpga)  # Bytes/s
         self.b_s_fpga_lutram_gBs = b_s_fpga_lutram_Bs / gigaU
+
+        # TODO: flip flops?
+        #  --> but are rather used internally?
+        role6_ff_available = 203200
 
         # b_s_mantle_lutram_gBs = (small_role_lutram_available_B / (1/freq_fpga)) / gigaU
 
         # network bandwidth
         self.b_s_fpga_eth_gBs = 10.0 / 8.0  # 10Gbe
-
         # b_s_mantle_eth_gBs = 9.87 / 8.0
+
+        # utilization
+        total_flops_dsps = self.cF_bigRole_dsp48_gflops * gigaU * self.config_dosa_kappa
+        role6_luts_available = 101600
+        total_flops_luts = (role6_luts_available / dosa_singleton.config.utilization.xilinx_luts_to_dsp_factor) \
+                           * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
+        self.total_flops_hw = total_flops_luts + total_flops_dsps
+        total_bytes_bram = (role6_brams * 36 * kiloU) / 8  # 36Kb RAMs
+        total_bytes_lutram = role6_lutram_available_inBytes / \
+                             dosa_singleton.config.utilization.xilinx_lutram_to_bram_factor
+        self.total_bytes_hw = total_bytes_bram + total_bytes_lutram
+
         self.initialized = True
         return
 
     def get_performance_dict(self):
         self._gen_numbers()
         ret = {'fpga_freq_Hz': self.freq_fpga, 'dsp48_gflops': (self.cF_bigRole_dsp48_gflops * self.config_dosa_kappa),
-           'bw_dram_gBs': self.b_s_fpga_ddr_gBs, 'bw_bram_gBs': self.b_s_fpga_bram_gBs,
-           'bw_netw_gBs': self.b_s_fpga_eth_gBs, 'bw_lutram_gBs': self.b_s_fpga_lutram_gBs,
-           'type': str(self.hw_class)}
+               'bw_dram_gBs': self.b_s_fpga_ddr_gBs, 'bw_bram_gBs': self.b_s_fpga_bram_gBs,
+               'bw_netw_gBs': self.b_s_fpga_eth_gBs, 'bw_lutram_gBs': self.b_s_fpga_lutram_gBs,
+               'type': str(self.hw_class)}
         return ret
 
     def get_roofline_dict(self):
@@ -102,7 +122,9 @@ class CfThemisto1(DosaBaseHw):
         return ret
 
     def get_resource_dict(self):
-        return
+        self._gen_numbers()
+        ret = {'total_flops': self.total_flops_hw, 'total_on_chip_memory_bytes': self.total_bytes_hw}
+        return ret
 
     def get_max_flops(self):
         self._gen_numbers()
@@ -110,4 +132,10 @@ class CfThemisto1(DosaBaseHw):
 
     def get_comm_latency_s(self):
         return 0.1 * mikroU
+
+    def get_hw_utilization_tuple(self, flops, bake_in_params_bytes):
+        self._gen_numbers()
+        share_flops = float(flops/self.total_flops_hw) * dosa_singleton.config.utilization.dosa_mu
+        share_memory = float(bake_in_params_bytes/self.total_bytes_hw) * dosa_singleton.config.utilization.dosa_mu
+        return share_flops, share_memory
 

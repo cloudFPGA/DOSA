@@ -27,7 +27,7 @@ from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.astProc.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
-from dimidium.backend.devices.dosa_roofline import RooflineRegions
+from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane
 from dimidium.middleend.archGen.ArchFilter import OiThresholdFilter
 from dimidium.middleend.archGen.archOpt import merge_bricks_pass
 
@@ -341,8 +341,8 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
             continue
         for lb in nn.local_brick_iter_gen():
             oi_selected = lb.get_oi_selected_impl()
-            rr = nn.roofline.get_region(oi_selected, lb.req_flops)
-            if rr != RooflineRegions.IN_HOUSE:
+            rr = nn.roofline.get_region_OIPlane(oi_selected, lb.req_flops)
+            if rr != RooflineRegionsOiPlane.IN_HOUSE:
                 msg_str = "({}, {})".format(nn.node_id, lb.brick_uuid)
                 not_in_house.append(msg_str)
     if len(not_in_house) > 0:

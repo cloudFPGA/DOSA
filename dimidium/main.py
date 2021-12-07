@@ -19,14 +19,15 @@ import dimidium.lib.singleton as dosa_singelton
 from dimidium.frontend.user_constraints import parse_uc_dict
 from dimidium.frontend.model_import import onnx_import, tvm_optimization_pass
 from dimidium.middleend.archGen.archGen import arch_gen
-import dimidium.lib.plot_roofline as plot_roofline
+import dimidium.lib.plot_2Droofline as plot_roofline
 import dimidium.backend.devices.builtin as builtin_devices
 from dimidium.backend.operatorSets.osgs import builtin_OSGs
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 from dimidium.lib.plot_bandwidth import generate_bandwidth_plt
 
 
-__mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_learning', 'engine_saving_threshold']
+__mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_learning', 'engine_saving_threshold',
+                             'generate_testbenchs', 'utilization']
 
 
 if __name__ == '__main__':

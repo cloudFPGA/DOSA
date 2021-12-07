@@ -25,6 +25,7 @@ def init_singleton(config_dict):
     config.backend.input_latency = config_dict['input_latency']
     config.backend.output_latency = config_dict['output_latency']
     config.backend.reserve_rank_0_for_io = config_dict['reserve_rank_0_for_io']
+    config.backend.generate_testbenchs = config_dict['generate_testbenchs']
 
     config.dtype = SimpleNamespace()
     config.dtype.default_dosa_flops_conv_factor = float(config_dict['dtypes']['default_flops_conv_factor'])
@@ -45,6 +46,11 @@ def init_singleton(config_dict):
 
     config.middleend = SimpleNamespace()
     config.middleend.engine_saving_threshold = float(config_dict['engine_saving_threshold'])
+
+    config.utilization = SimpleNamespace()
+    config.utilization.dosa_mu = float(config_dict['dosa_learning']['mu'])
+    config.utilization.xilinx_luts_to_dsp_factor = float(config_dict['utilization']['xilinx_luts_to_dsp_factor'])
+    config.utilization.xilinx_lutram_to_bram_factor = float(config_dict['utilization']['xilinx_lutram_to_bram_factor'])
 
     is_initiated = True
     return 0

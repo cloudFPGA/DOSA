@@ -14,6 +14,7 @@ import json
 from tvm.relay import Expr
 
 import dimidium.lib.singleton as dosa_singleton
+from dimidium.backend.devices.dosa_device import DosaBaseHw
 from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.lib.util import BrickImplTypes
 from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype
@@ -64,6 +65,12 @@ class ArchBrick(object):
         self.possible_osgs = []
         self.available_osgs = []
         self.possible_hw_types = []
+        self.req_util_comp = -1
+        self.req_util_comp_engine = -1
+        self.req_util_comp_stream = -1
+        self.req_util_mem = -1
+        self.req_util_mem_engine = -1
+        self.req_util_mem_stream = -1
 
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.local_brick_id, self.name)
@@ -74,6 +81,7 @@ class ArchBrick(object):
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': repr(self.used_dtype),
                'tvm_node': str(self.tvm_node)[:100], 'req_perf': self.req_flops,
+               'req_util_comp': self.req_util_comp, 'req_util_mem': self.req_util_mem,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
                'possible OSGs': [], 'selected OSG': repr(self.selected_osg),
                'selected impl. type:': repr(self.selected_impl_type),
@@ -131,14 +139,29 @@ class ArchBrick(object):
             self.ops[i].local_op_id -= 1
         self.oid_cnt -= 1
 
+    def annotate_parallelization(self, factor):
+        self.req_flops /= factor
+        self.req_util_comp /= factor
+        # memory not affected
+        if self.selected_impl_type == BrickImplTypes.STREAM:
+            self.req_flops_stream /= factor
+            self.req_util_comp_stream /= factor
+        elif self.selected_impl_type == BrickImplTypes.ENGINE:
+            self.req_flops_engine /= factor
+            self.req_util_comp_engine /= factor
+
     def set_impl_type(self, it: BrickImplTypes):
         self.selected_impl_type = it
         if it == BrickImplTypes.STREAM:
             self.req_flops_stream = self.req_flops
             self.req_flops_engine = -1
+            self.req_util_mem = self.req_util_mem_stream
+            self.req_util_comp = self.req_util_comp_stream
         elif it == BrickImplTypes.ENGINE:
             self.req_flops_engine = self.req_flops
             self.req_flops_stream = -1
+            self.req_util_mem = self.req_util_mem_engine
+            self.req_util_comp = self.req_util_comp_engine
 
     def get_oi_selected_impl(self, fallback_impl_type=BrickImplTypes.ENGINE):
         if self.selected_impl_type == BrickImplTypes.STREAM:
@@ -203,5 +226,16 @@ class ArchBrick(object):
         for osg in self.possible_osgs:
             new_possible_hw_types.extend(osg.dosaHwTypes)
         self.possible_hw_types = list(set(new_possible_hw_types))
+
+    def update_util_estimation(self, target_hw: DosaBaseHw):
+        share_comp, share_mem = target_hw.get_hw_utilization_tuple(self.req_flops, self.parameter_bytes)
+        self.req_util_comp = share_comp
+        self.req_util_mem = share_mem
+        if self.selected_impl_type == BrickImplTypes.STREAM:
+            self.req_util_mem_stream = share_mem
+            self.req_util_comp_stream = share_comp
+        elif self.selected_impl_type == BrickImplTypes.ENGINE:
+            self.req_util_mem_engine = 0  # for engine, always 0!
+            self.req_util_comp_engine = share_comp
 
 
