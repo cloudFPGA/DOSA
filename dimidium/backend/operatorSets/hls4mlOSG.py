@@ -9,7 +9,9 @@
 #  *        DOSA OSG to implement hls4ml on FPGAs
 #  *
 #  *
+
 import os
+import math
 
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
@@ -127,7 +129,9 @@ class Hls4mlOSG(BaseOSG):
             precision_string = 'ap_fixed<16,6>'  # TODO
         else:
             precision_string = 'ap_uint<{}>'.format(cur_w)
-        hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': '1'}}
+        reuse_factor_stream = 1
+        reuse_factor_engine = 2
+        hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_stream, 'Strategy': 'Resource'}}
         hls_model_config = {'OutputDir': used_dir_path, 'ProjectName': project_name, 'Backend': 'Vivado',
                             'XilinxPart': build_tool.target_device.part_string, 'Board': None,
                             'ClockPeriod': build_tool.target_device.clock_period,
@@ -188,6 +192,10 @@ class Hls4mlOSG(BaseOSG):
                 osg_func = self._get_osg_func(op.op_call)
                 # print(op.op_call)
                 conf, data, consumed_opt_ops = osg_func(op, layer_name, next_op, next_next_op)
+                # here only stream
+                # conf['ReuseFactor'] = reuse_factor_stream
+                # conf['mult_limit'] = math.ceil(bb.req_flops / reuse_factor_stream)
+                conf['mult_limit'] = bb.req_flops
                 if consumed_opt_ops >= 1:
                     skip_i.append(next_i)
                 if consumed_opt_ops >= 2:

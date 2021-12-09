@@ -160,7 +160,11 @@ def dosa_to_hls(config, reader, model_arch):
         layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader, config)
 
         print('Layer name: {}, layer type: {}, input shapes: {}, output shape: {}'.format(layer['name'], layer['class_name'], input_shapes, output_shape))
-        layer_list.append( layer )
+        if keras_layer['class_name'] != 'InputLayer':
+            layer['strategy'] = config['HLSConfig']['Model']['Strategy']
+            # layer['ReuseFactor'] = keras_layer['ReuseFactor']
+            layer['mult_limit'] = keras_layer['mult_limit']
+        layer_list.append(layer)
         if 'activation' in layer and layer['class_name'] not in ['Activation', 'LeakyReLU', 'ThresholdedReLU', 'ELU', 'PReLU', 'Softmax', 'TernaryTanh']:# + qkeras_layers:
             act_layer = {}
             act_layer['name'] = layer['name'] + '_' + layer['activation']
