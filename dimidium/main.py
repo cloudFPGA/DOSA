@@ -19,7 +19,8 @@ import dimidium.lib.singleton as dosa_singelton
 from dimidium.frontend.user_constraints import parse_uc_dict
 from dimidium.frontend.model_import import onnx_import, tvm_optimization_pass
 from dimidium.middleend.archGen.archGen import arch_gen
-import dimidium.lib.plot_2Droofline as plot_roofline
+import dimidium.lib.plot_2Droofline as plot_2Droofline
+import dimidium.lib.plot_3Droofline as plot_3Droofline
 import dimidium.backend.devices.builtin as builtin_devices
 from dimidium.backend.operatorSets.osgs import builtin_OSGs
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
@@ -109,33 +110,37 @@ if __name__ == '__main__':
 
     if show_graphics:
         print("DOSA: Generating and showing roofline...")
-        plt = plot_roofline.generate_roofline_plt_old(archDict['base_dpl'], target_sps, used_batch,
-                                                      used_name + " (basis)",
-                                                      arch_target_devices[0].get_performance_dict(),
-                                                      arch_target_devices[0].get_roofline_dict(),
-                                                      show_splits=False, show_labels=True, print_debug=False)
-        # plt2 = plot_roofline.generate_roofline_plt_old(archDict['fused_view'], target_sps, used_batch,
+        plt = plot_2Droofline.generate_roofline_plt_old(archDict['base_dpl'], target_sps, used_batch,
+                                                        used_name + " (basis)",
+                                                        arch_target_devices[0].get_performance_dict(),
+                                                        arch_target_devices[0].get_roofline_dict(),
+                                                        show_splits=False, show_labels=True, print_debug=False)
+        # plt2 = plot_2Droofline.generate_roofline_plt_old(archDict['fused_view'], target_sps, used_batch,
         #                                                used_name + " (optimized)",
         #                                                arch_target_devices[0].get_performance_dict(),
         #                                                arch_target_devices[0].get_roofline_dict(),
         #                                                show_splits=True, show_labels=True)
-        plt2 = plot_roofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True, print_debug=False)
+        plt2 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True, print_debug=False)
+        plt8 = plot_3Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True, print_debug=False)
         plt_nodes = []
         for nn in archDict['draft'].node_iter_gen():
-            new_plt = plot_roofline.generate_roofline_for_node_plt(nn, archDict['draft'],
-                                                                   show_splits=True, show_labels=True, selected_only=True,
-                                                                   print_debug=False)
+            new_plt = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
+                                                                     show_splits=True, show_labels=True, selected_only=True,
+                                                                     print_debug=False)
+            new_plt2 = plot_3Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
+                                                                     show_splits=False, show_labels=True, selected_only=True,
+                                                                     print_debug=False)
             plt_nodes.append(new_plt)
         last_plt = plt_nodes[-1]
         if debug_mode:
-            plt3 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][0])
-            plt4 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][1])
-            plt5 = plot_roofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][2])
+            plt3 = plot_2Droofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][0])
+            plt4 = plot_2Droofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][1])
+            plt5 = plot_2Droofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][2])
             last_plt = plt5
         plt7 = generate_bandwidth_plt(archDict['draft'])
         last_plt = plt7
 
-        plot_roofline.show_roofline_plt(last_plt, waiting=True)
+        plot_2Droofline.show_roofline_plt(last_plt, waiting=True)
         print("\t...done.\n")
 
     print("\nDOSA finished successfully.\n")

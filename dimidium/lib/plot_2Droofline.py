@@ -413,7 +413,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(marker1_legend)
     handles.append(marker2_legend)
-    title = "DOSA Roofline for '{}'".format(used_name)
+    title = "DOSA Roofline for {}".format(used_name)
     legend = plt.legend(handles=handles, ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)
     plt.grid(True, which="major", ls="-", color='0.89')
     plt.tick_params(axis='both', which='both', labelsize=MY_SIZE)

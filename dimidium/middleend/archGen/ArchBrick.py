@@ -65,12 +65,12 @@ class ArchBrick(object):
         self.possible_osgs = []
         self.available_osgs = []
         self.possible_hw_types = []
-        self.req_util_comp = -1
-        self.req_util_comp_engine = -1
-        self.req_util_comp_stream = -1
-        self.req_util_mem = -1
-        self.req_util_mem_engine = -1
-        self.req_util_mem_stream = -1
+        self.req_util_comp = 0
+        self.req_util_comp_engine = 0
+        self.req_util_comp_stream = 0
+        self.req_util_mem = 0
+        self.req_util_mem_engine = 0
+        self.req_util_mem_stream = 0
 
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.local_brick_id, self.name)
