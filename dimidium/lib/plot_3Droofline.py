@@ -46,6 +46,8 @@ def set_size(w, h, ax=None):
 
 
 def turn_to_log(n):
+    if n <= 0.001:
+        return 0
     return math.log10(n)
 
 
@@ -70,13 +72,13 @@ def draw_oi_list(ax, color, line_style, font_size, line_width, y_max, oi_list, x
                 e_oi = x_max
             else:
                 e_oi = x_min
-        ax.plot([e_oi, e_oi], [e['mem_share'], e['comp_share']], [y_min, y_max], color=color,
+        ax.plot([e_oi, e_oi], [turn_to_log(e['mem_share']), turn_to_log(e['comp_share'])], [y_min, y_max], color=color,
                 linestyle=line_style, linewidth=line_width, zorder=z_order)
         if show_labels:
             text_y_shift_factor = 1.0
             if len(e['name']) > 15:
                 text_y_shift_factor = 50.0
-            z_text = (e['mem_share'] + e['comp_share']) / 2
+            z_text = (turn_to_log(e['mem_share']) + turn_to_log(e['comp_share'])) / 2
             ax.text(x=turn_to_log(e['oi'] * 1.02), z=turn_to_log(4 + next(th) * text_y_shift_factor), y=z_text, s=e['name'], color=color,
                     fontsize=font_size, ha='left', va='top', rotation=90, zorder=z_order-1)
 
@@ -107,7 +109,7 @@ def draw_oi_marker(ax, color, marker, oi_list, x_min, x_max, z_order=8, print_de
                 y.append(__ylim_max__)
         else:
             y.append(e['perf'])
-        z_pos = (e['mem_share'] + e['comp_share']) / 2
+        z_pos = turn_to_log((e['mem_share'] + e['comp_share']) / 2)
         z.append(z_pos)
     # xs = [turn_to_log(e) for e in x]
     ys = [turn_to_log(e) for e in y]
@@ -253,7 +255,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # oi_list = np.asarray(ai_list_t)
     oi_list_full = np.concatenate((oi_list_very_small, oi_list_small, oi_list_middle, oi_list_big))
     oi_list = turn_to_log_np(oi_list_full)
-    utt_list = np.arange(0, 100, 1)
+    utt_list_full = np.arange(0, 100, 1)
+    utt_list = np.concatenate(([0], turn_to_log_np(np.arange(1, 100, 1))))
 
     # Attainable performance
     upper_limit_full = perf_dict['dsp48_gflops']
@@ -381,7 +384,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # color3 = 'orchid'
     color3 = 'aqua'
     oai_avg = turn_to_log(total['flops'] / (total['uinp_B'] + total['para_B']))
-    zs = [total['mem_share_engine'], total['comp_share_engine']]
+    zs = [turn_to_log(total['mem_share_engine']), turn_to_log(total['comp_share_engine'])]
     ax.plot([oai_avg, oai_avg], zs, [-0.1, upper_limit], color=color3, linestyle=line_style, linewidth=MY_WIDTH * 1.2,
             zorder=8)
     text = 'Engine avg.'
@@ -391,7 +394,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     if print_debug:
         print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg, used_name))
     oai_avg2 = turn_to_log(total['flops'] / total['uinp_B'])
-    zs2 = [total['mem_share_stream'], total['comp_share_stream']]
+    zs2 = [turn_to_log(total['mem_share_stream']), turn_to_log(total['comp_share_stream'])]
     ax.plot([oai_avg2, oai_avg2], zs2, [-0.1, upper_limit], color=color3, linestyle=line_style,
             linewidth=MY_WIDTH * 1.2,
             zorder=8)
@@ -431,9 +434,11 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
 
     # ax.xaxis.set_scale('log', base=10)
     # ax.yaxis.set_scale('log', base=10)
-    ax.set_xticks(oi_list[0::100])
-    x_ticks_text = ['{:.2f}'.format(e) for e in oi_list_full[0::100]]
+    ax.set_xticks(oi_list[::100])
+    x_ticks_text = ['{:.2f}'.format(e) for e in oi_list_full[::100]]
     ax.set_xticklabels(x_ticks_text)
+    ax.set_yticks(utt_list[::10])
+    ax.set_yticklabels(utt_list_full[::10])
     # zticks_full = np.concatenate((np.asarray([__ylim_min__, 0.05, 0.1, 0.5]), np.arange(1, 2*upper_limit_full, 10)))
     # zticks_full = np.arange(1, 2*upper_limit_full, 10)
     zticks_full = np.concatenate((np.asarray([1, 10, 30, 50, 70, 90]), np.arange(100, 2*upper_limit_full, 50)))
@@ -450,7 +455,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
 
     ax.set_xlabel('operational intensity (OI) [FLOPS/Byte]', fontsize=MY_SIZE)
     ax.set_zlabel('attainable performance [GFLOPS/s]', fontsize=MY_SIZE)
-    ax.set_ylabel('utilization [%] \n (mem -> comp)', fontsize=MY_SIZE)
+    ax.set_ylabel('utilization [%] \n (mem (bottom) -> comp (top))', fontsize=MY_SIZE)
 
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(marker1_legend)
