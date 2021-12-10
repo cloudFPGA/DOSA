@@ -13,8 +13,6 @@
 
 import numpy as np
 
-__layer_default_dict__ = {}
-
 
 class OsgDataReader(object):
     def __init__(self, config, data=None):
@@ -24,18 +22,23 @@ class OsgDataReader(object):
         else:
             self.data = data
 
-    def add_data_entry(self, layer_name, var_name, ndarray: np.ndarray, overwrite=False):
+    def add_data_entry(self, layer_name, var_name, ndarray: np.ndarray, data_format, overwrite=False):
         if layer_name in self.data and var_name in self.data[layer_name] and not overwrite:
             # don't overwrite data entries silently
             return False
         if layer_name not in self.data:
-            self.data[layer_name] = __layer_default_dict__
-        self.data[layer_name][var_name] = ndarray
+            self.data[layer_name] = {}
+        if data_format != 'channels_last' and len(ndarray.shape) > 1:
+            new_array = np.moveaxis(ndarray, 0, -1)
+        else:
+            new_array = ndarray
+        self.data[layer_name][var_name] = new_array
         return True
 
     def add_data_dict(self, data_dict):
         for vn in data_dict['variables']:
-            self.add_data_entry(data_dict['layer_name'], vn, data_dict['variables'][vn])
+            self.add_data_entry(data_dict['layer_name'], vn, data_dict['variables'][vn],
+                                data_dict['data_format'][vn])
 
     def _find_data(self, layer_name, var_name):
         data = None
