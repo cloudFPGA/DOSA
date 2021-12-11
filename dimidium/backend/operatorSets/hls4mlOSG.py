@@ -128,6 +128,30 @@ class Hls4mlOSG(BaseOSG):
                 max = nm
         return max
 
+    def _get_next_unrolling_factor(self, paral_grade):
+        u_paral_grade = max(1.0, paral_grade)
+        possible_unrolling_factors = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0]
+        possible_unrolling_factors.reverse()
+        for e in possible_unrolling_factors:
+            if u_paral_grade >= e:
+                return int(e)
+        return int(possible_unrolling_factors[0])
+
+    def get_loop_unrolling_factors(self, req_parallelization_grade):
+        if req_parallelization_grade < 1.0:
+            req_parallelization_grade = 1.0
+        if req_parallelization_grade > 64.0:
+            req_parallelization_grade = 64.0  # TODO
+        remaining_paral_grade = req_parallelization_grade
+        innermost = self._get_next_unrolling_factor(remaining_paral_grade)
+        remaining_paral_grade -= innermost
+        inner = self._get_next_unrolling_factor(remaining_paral_grade)
+        remaining_paral_grade -= inner
+        outer = self._get_next_unrolling_factor(remaining_paral_grade)
+        remaining_paral_grade -= outer
+        outermost = self._get_next_unrolling_factor(remaining_paral_grade)
+        return outermost, outer, inner, innermost
+
     def build_block(self, arch_block, build_tool):
         assert isinstance(build_tool, BaseHwBuild)
         used_dir_path = build_tool.add_ip_dir(arch_block)
@@ -150,7 +174,7 @@ class Hls4mlOSG(BaseOSG):
         hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_stream, 'Strategy': 'Resource'}}
         hls_model_config = {'OutputDir': used_dir_path, 'ProjectName': project_name, 'Backend': 'Vivado',
                             'XilinxPart': build_tool.target_device.part_string, 'Board': None,
-                            'ClockPeriod': build_tool.target_device.clock_period,
+                            'ClockPeriod': build_tool.target_device.clock_period_ns,
                             # 'IOType': 'io_stream',  # maybe better, but doesn't synthesize...
                             'IOType': 'io_parallel',
                             'HLSConfig':  hls_config}  # ,
@@ -198,6 +222,7 @@ class Hls4mlOSG(BaseOSG):
         last_layer_name = ''
         for bb in arch_block.brick_list:
             # for op in bb.local_op_iter_gen():
+            bb_speedup_req = bb.req_flops / bb.flops
             for op_i in bb.ops.keys():
                 if op_i in skip_i:
                     continue
@@ -225,6 +250,12 @@ class Hls4mlOSG(BaseOSG):
                     reader.add_data_dict(data)
                     mult_limit = self.get_max_num_of_mult(data)
                 conf['mult_limit'] = mult_limit
+                exec_simple_s = op.flops * build_tool.target_device.clock_period_s
+                op_req_flops = op.flops * bb_speedup_req
+                # op_req_latency_s = 1/bb_speedup_req
+                op_req_latency_s = op.flops / op_req_flops
+                req_paral_grade = exec_simple_s / op_req_latency_s
+                outermost, outer, inner, innermost = self.get_loop_unrolling_factors(req_paral_grade)
                 if consumed_opt_ops >= 1:
                     skip_i.append(next_i)
                 if consumed_opt_ops >= 2:

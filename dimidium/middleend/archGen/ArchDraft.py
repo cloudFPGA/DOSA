@@ -807,6 +807,8 @@ class ArchDraft(object):
                     brick.output_bw_Bs = brick.output_bytes * (self.target_sps / local_data_par_level)
                     orig_req_flops = brick.flops * (self.target_sps / local_data_par_level)
                     brick.req_flops = orig_req_flops * brick.flops_conv_factor
+                    # annotate also the latency
+                    brick.req_latency = brick.flops / brick.req_flops
         elif self.strategy == OptimizationStrategies.LATENCY:
             # optimizing towards latency
             if self.target_latency < 0:
@@ -865,6 +867,8 @@ class ArchDraft(object):
             for brick in self.brick_iter_gen():
                 orig_req_flops = resource_per_brick
                 brick.req_flops = orig_req_flops * brick.flops_conv_factor
+                # annotate also the latency
+                brick.req_latency = brick.flops / brick.req_flops
         return DosaRv.OK
 
     def update_uuids(self):

@@ -17,10 +17,11 @@ from dimidium.backend.operatorSets.BaseOSG import placeholderOSG
 
 class ArchBlock(object):
 
-    def __init__(self, block_id=None, block_impl_type=BrickImplTypes.UNDECIDED, selected_osg=placeholderOSG,
+    def __init__(self, parent_node, block_id=None, block_impl_type=BrickImplTypes.UNDECIDED, selected_osg=placeholderOSG,
                  brick_list=None):
         if brick_list is None:
             brick_list = []
+        self.parent_node = parent_node
         self.local_block_id = block_id
         self.block_uuid = block_id
         self.brick_list = brick_list

@@ -37,7 +37,8 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
         self.possible_builders = possible_builders
         self.build_tool_class = None
         self.part_string = 'unknown'
-        self.clock_period = 1.0
+        self.clock_period_ns = 1.0
+        self.clock_period_s = self.clock_period_ns * 1e-9
         if len(self.possible_builders) > 0:
             self.build_tool_class = self.possible_builders[0]
 

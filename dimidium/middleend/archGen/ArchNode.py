@@ -240,7 +240,7 @@ class ArchNode(object):
                     self.arch_block_list.append(cur_block)
                 cur_impl_type = bb.selected_impl_type
                 cur_osg = bb.selected_osg
-                cur_block = ArchBlock(cur_block_id, cur_impl_type, cur_osg, [bb])
+                cur_block = ArchBlock(self, cur_block_id, cur_impl_type, cur_osg, [bb])
                 cur_block_id += 1
             else:
                 cur_block.add_brick(bb)
