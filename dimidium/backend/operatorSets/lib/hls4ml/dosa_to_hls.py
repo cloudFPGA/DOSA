@@ -164,6 +164,10 @@ def dosa_to_hls(config, reader, model_arch):
             layer['strategy'] = config['HLSConfig']['Model']['Strategy']
             # layer['ReuseFactor'] = keras_layer['ReuseFactor']
             layer['mult_limit'] = keras_layer['mult_limit']
+            layer['loop_lim_outermost'] = keras_layer['loop_lim_outermost']
+            layer['loop_lim_outer'] = keras_layer['loop_lim_outer']
+            layer['loop_lim_inner'] = keras_layer['loop_lim_inner']
+            layer['loop_lim_innermost'] = keras_layer['loop_lim_innermost']
         layer_list.append(layer)
         if 'activation' in layer and layer['class_name'] not in ['Activation', 'LeakyReLU', 'ThresholdedReLU', 'ELU', 'PReLU', 'Softmax', 'TernaryTanh']:# + qkeras_layers:
             act_layer = {}
