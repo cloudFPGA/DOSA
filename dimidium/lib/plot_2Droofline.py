@@ -121,7 +121,8 @@ def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
     return cmpl_list, uinp_list, total, detail_list
 
 
-def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=True, print_debug=False):
+def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=True, show_ops=False,
+                          selected_only=True, print_debug=False):
     unit = gigaU
     target_string = ""
     if arch_draft.strategy == OptimizationStrategies.THROUGHPUT:
@@ -138,24 +139,33 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
     total_uinp_B = 0
     total_param_B = 0
     for bb in arch_draft.brick_iter_gen():
-        cn = {'name': "{}_engine".format(bb.brick_uuid), 'oi': bb.oi_engine}
-        un = {'name': "{}_stream".format(bb.brick_uuid), 'oi': bb.oi_stream}
+        fn_name = bb.brick_uuid
+        if show_ops:
+            fn_name = bb.fn_label
+        cn = {'name': "{}_engine".format(fn_name), 'oi': bb.oi_engine}
+        un = {'name': "{}_stream".format(fn_name), 'oi': bb.oi_stream}
         if bb.req_flops > 0:
             req_flop_u_e = bb.req_flops / unit
             req_flop_u_s = req_flop_u_e
         else:
             req_flop_u_e = bb.req_flops_engine / unit
             req_flop_u_s = bb.req_flops_stream / unit
-        cn2 = {'name': "{}_engine".format(bb.brick_uuid), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
-        un2 = {'name': "{}_stream".format(bb.brick_uuid), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
+        cn2 = {'name': "{}_engine".format(fn_name), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
+        un2 = {'name': "{}_stream".format(fn_name), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
         total_flops += bb.flops
         total_uinp_B += bb.input_bytes
         total_param_B += bb.parameter_bytes
-        if bb.selected_impl_type == BrickImplTypes.UNDECIDED or bb.selected_impl_type == BrickImplTypes.ENGINE:
+        if selected_only:
+            if bb.selected_impl_type == BrickImplTypes.UNDECIDED or bb.selected_impl_type == BrickImplTypes.ENGINE:
+                cmpl_list.append(cn)
+                cmpl_list2.append(cn2)
+            if bb.selected_impl_type == BrickImplTypes.UNDECIDED or bb.selected_impl_type == BrickImplTypes.STREAM:
+                uinp_list.append(un)
+                uinp_list2.append(un2)
+        else:
             cmpl_list.append(cn)
-            cmpl_list2.append(cn2)
-        if bb.selected_impl_type == BrickImplTypes.UNDECIDED or bb.selected_impl_type == BrickImplTypes.STREAM:
             uinp_list.append(un)
+            cmpl_list2.append(cn2)
             uinp_list2.append(un2)
     total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
     plt_name = "{} (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,

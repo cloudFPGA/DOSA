@@ -120,8 +120,10 @@ if __name__ == '__main__':
         #                                                arch_target_devices[0].get_performance_dict(),
         #                                                arch_target_devices[0].get_roofline_dict(),
         #                                                show_splits=True, show_labels=True)
-        plt2 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True, print_debug=False)
-        plt8 = plot_3Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True, print_debug=False)
+        plt2 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
+                                                     show_ops=True, selected_only=False, print_debug=False)
+        plt8 = plot_3Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
+                                                     print_debug=False)
         plt_nodes = []
         for nn in archDict['draft'].node_iter_gen():
             new_plt = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
