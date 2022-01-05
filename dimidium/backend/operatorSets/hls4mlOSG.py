@@ -175,7 +175,8 @@ class Hls4mlOSG(BaseOSG):
             precision_string = 'ap_uint<{}>'.format(cur_w)
         reuse_factor_stream = 1
         reuse_factor_engine = 2
-        hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_stream, 'Strategy': 'Resource'}}
+        hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_stream,
+                                'Strategy': 'Resource'}}
         hls_model_config = {'OutputDir': used_dir_path, 'ProjectName': project_name, 'Backend': 'Vivado',
                             'XilinxPart': build_tool.target_device.part_string, 'Board': None,
                             'ClockPeriod': build_tool.target_device.clock_period_ns,
