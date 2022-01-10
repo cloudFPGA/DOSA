@@ -63,7 +63,7 @@ class Hls4mlOSG(BaseOSG):
         # no DosaHwClasses.FPGA_generic, since it is bound to xilinx?
         self.priority = 92
         self.existing_layer_names = []
-        self.suggested_max_block_length = 2
+        self.suggested_max_block_length = 1
 
     def init(self, dosa_hw_classes_dict, priority_internal):
         self.priority_internal = priority_internal
