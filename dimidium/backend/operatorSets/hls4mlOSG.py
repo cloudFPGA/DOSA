@@ -352,12 +352,15 @@ class Hls4mlOSG(BaseOSG):
 
         first_used_dtype = arch_block.brick_list[0].used_dtype
         # input_batch_shape = arch_block.brick_list[0].ops[0].dims.inp
-        # swap to channels_last format
-        input_batch_shape = [0, 0, 0, 0]
-        input_batch_shape[0] = arch_block.brick_list[0].ops[0].dims.inp[0]
-        input_batch_shape[1] = arch_block.brick_list[0].ops[0].dims.inp[2]
-        input_batch_shape[2] = arch_block.brick_list[0].ops[0].dims.inp[3]
-        input_batch_shape[3] = arch_block.brick_list[0].ops[0].dims.inp[1]
+        if len(arch_block.brick_list[0].ops[0].dims.inp) == 4:
+            # swap to channels_last format
+            input_batch_shape = [0, 0, 0, 0]
+            input_batch_shape[0] = arch_block.brick_list[0].ops[0].dims.inp[0]
+            input_batch_shape[1] = arch_block.brick_list[0].ops[0].dims.inp[2]
+            input_batch_shape[2] = arch_block.brick_list[0].ops[0].dims.inp[3]
+            input_batch_shape[3] = arch_block.brick_list[0].ops[0].dims.inp[1]
+        else:
+            input_batch_shape = arch_block.brick_list[0].ops[0].dims.inp
         if input_batch_shape[0] != 1:
             print("[DOSA:OSG:ERROR] hls4ml only supports models with batch_size 1")
             exit(-1)

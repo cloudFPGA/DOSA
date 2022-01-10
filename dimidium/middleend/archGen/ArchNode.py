@@ -235,7 +235,8 @@ class ArchNode(object):
         cur_block = None
         cur_block_id = 0
         for bb in self.local_brick_iter_gen():
-            if bb.selected_osg != cur_osg or bb.selected_impl_type != cur_impl_type:
+            # if bb.selected_osg != cur_osg or bb.selected_impl_type != cur_impl_type:
+            if True:  # TODO..max length?
                 if cur_block is not None:
                     self.arch_block_list.append(cur_block)
                 cur_impl_type = bb.selected_impl_type
