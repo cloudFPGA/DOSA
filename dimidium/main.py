@@ -122,6 +122,8 @@ if __name__ == '__main__':
         #                                                show_splits=True, show_labels=True)
         plt2 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
                                                      show_ops=True, selected_only=False, print_debug=False)
+        plt22 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
+                                                     show_ops=True, selected_only=True, print_debug=False)
         plt8 = plot_3Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
                                                      print_debug=False)
         plt_nodes = []

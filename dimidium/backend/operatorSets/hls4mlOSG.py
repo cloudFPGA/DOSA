@@ -63,6 +63,7 @@ class Hls4mlOSG(BaseOSG):
         # no DosaHwClasses.FPGA_generic, since it is bound to xilinx?
         self.priority = 92
         self.existing_layer_names = []
+        self.suggested_max_block_length = 2
 
     def init(self, dosa_hw_classes_dict, priority_internal):
         self.priority_internal = priority_internal
@@ -198,8 +199,12 @@ class Hls4mlOSG(BaseOSG):
             precision_string = 'ap_uint<{}>'.format(cur_w)
         reuse_factor_stream = 1
         reuse_factor_engine = 2
-        hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_stream,
+        hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_engine,
                                 'Strategy': 'Resource'}}
+        if arch_block.block_impl_type == BrickImplTypes.STREAM:
+            hls_config['Model']['Strategy'] = 'Latency'
+            hls_config['Model']['ReuseFactor'] = reuse_factor_stream
+
         hls_model_config = {'OutputDir': used_dir_path, 'ProjectName': project_name, 'Backend': 'Vivado',
                             'XilinxPart': build_tool.target_device.part_string, 'Board': None,
                             'ClockPeriod': build_tool.target_device.clock_period_ns,
