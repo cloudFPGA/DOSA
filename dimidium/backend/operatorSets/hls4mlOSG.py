@@ -201,14 +201,15 @@ class Hls4mlOSG(BaseOSG):
         reuse_factor_engine = 2
         hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_engine,
                                 'Strategy': 'Resource'}}
-        if arch_block.block_impl_type == BrickImplTypes.STREAM:
-            hls_config['Model']['Strategy'] = 'Latency'
-            hls_config['Model']['ReuseFactor'] = reuse_factor_stream
+        # TODO: tune hls pragmas...
+        # if arch_block.block_impl_type == BrickImplTypes.STREAM:
+        #     hls_config['Model']['Strategy'] = 'Latency'
+        #     hls_config['Model']['ReuseFactor'] = reuse_factor_stream
 
         hls_model_config = {'OutputDir': used_dir_path, 'ProjectName': project_name, 'Backend': 'Vivado',
                             'XilinxPart': build_tool.target_device.part_string, 'Board': None,
                             'ClockPeriod': build_tool.target_device.clock_period_ns,
-                            # 'IOType': 'io_stream',  # maybe better, but doesn't synthesize...
+                            # 'IOType': 'io_stream',  # the interface is then even more weired...
                             'IOType': 'io_parallel',
                             'HLSConfig': hls_config}  # ,
         # 'KerasJson': 'KERAS_3layer.json', 'KerasH5': 'KERAS_3layer_weights.h5'}  # TODO
