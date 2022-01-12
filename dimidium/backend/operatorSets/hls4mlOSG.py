@@ -60,7 +60,7 @@ class Hls4mlOSG(BaseOSG):
 
     def __init__(self):
         super().__init__('hls4ml OSG', [DosaHwClasses.FPGA_xilinx], '/t/b/a',
-                         [BrickImplTypes.STREAM, BrickImplTypes.ENGINE])
+                         [BrickImplTypes.STREAM])
         # no DosaHwClasses.FPGA_generic, since it is bound to xilinx?
         self.priority = 92
         self.existing_layer_names = []

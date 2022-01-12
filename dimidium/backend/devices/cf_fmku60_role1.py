@@ -109,9 +109,11 @@ class CfThemisto1(DosaBaseHw):
 
     def get_performance_dict(self):
         self._gen_numbers()
-        ret = {'fpga_freq_Hz': self.freq_fpga, 'dsp48_gflops': (self.cF_bigRole_dsp48_gflops * self.config_dosa_kappa),
+        max_gflops = self.cF_bigRole_dsp48_gflops * self.config_dosa_kappa
+        ret = {'fpga_freq_Hz': self.freq_fpga, 'dsp48_gflops': max_gflops,
                'bw_dram_gBs': self.b_s_fpga_ddr_gBs, 'bw_bram_gBs': self.b_s_fpga_bram_gBs,
                'bw_netw_gBs': self.b_s_fpga_eth_gBs, 'bw_lutram_gBs': self.b_s_fpga_lutram_gBs,
+               # 'gflops_limit': max_gflops,
                'type': str(self.hw_class)}
         return ret
 

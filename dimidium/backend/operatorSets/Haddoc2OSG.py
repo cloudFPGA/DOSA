@@ -55,6 +55,10 @@ class Haddoc2OSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._generate_hdl_pool_instance
             elif 'tanh' in e:
                self.relay2osg['nn'][e] = self._generate_hdl_tanh_instance
+            elif 'flatten' in e:
+                self.relay2osg['nn'][e] = self._generate_hdl_flatten_instance
+            elif 'dropout' in e:
+                self.relay2osg['nn'][e] = self._generate_hdl_dropout_instance
 
     def _copy_hdl_lib(self, target_hdl_dir):
         os.system("cp -n {}/* {}/".format(self.my_hdl_template_folder, target_hdl_dir))
@@ -104,6 +108,12 @@ class Haddoc2OSG(BaseOSG):
                             # useless -> None again
                             next_op = None
                         self._param_parse_conv(op, vhdlf, layer_name, next_op)
+                    elif 'flatten' in op.op_call:
+                        todo = 1
+                        # TODO
+                    elif 'dropout' in op.op_call:
+                        todo = 2
+                        # TODO
                     else:
                         print("[DOSA:OSG:ERROR] Not yet implemented!. STOP.")
                         exit(1)
@@ -181,6 +191,16 @@ class Haddoc2OSG(BaseOSG):
     def _generate_hdl_tanh_instance(self, todo):
         # is merged with ConvLayer.vhd?
         # but separate TanH exist, so could be added
+        print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
+              "(i.e. use build_block). IGNORING.")
+        return
+
+    def _generate_hdl_flatten_instance(self, todo):
+        print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
+              "(i.e. use build_block). IGNORING.")
+        return
+
+    def _generate_hdl_dropout_instance(self, todo):
         print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
               "(i.e. use build_block). IGNORING.")
         return

@@ -114,6 +114,10 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     check_annot_start_1 = time.time()
     still_valid = check_annotations(annotated_draft)
     check_annot_end_1 = time.time()
+    if not still_valid:
+        print("[DOSA:archGen:ERROR] Draft {} is not valid.".format(annotated_draft.name))
+        exit(1)
+
 
     find_best_start = time.time()
     best_draft = find_best_draft(annotated_draft, verbose=verbose)
@@ -122,6 +126,10 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     check_annot_start_2 = time.time()
     still_valid = check_annotations(best_draft)
     check_annot_end_2 = time.time()
+    if not still_valid:
+        print("[DOSA:archGen:ERROR] Draft {} is not valid.".format(annotated_draft.name))
+        exit(1)
+
     print("\t...done.")
 
     if debug or verbose:
@@ -329,9 +337,9 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
             if phw in draft.fallback_hw_set:
                 one_possilbe_hw = True
         if not one_possilbe_hw:
-            print("[DOSA:archVerify:ERROR] Draft {} does not fulfill resource or fallback type requirement \
-                   (target: {}, fallback: {} possible: {})."
-                  .format(repr(draft), draft.target_hw_set, draft.fallback_hw_set, draft.possible_hw_types))
+            print(("[DOSA:archVerify:ERROR] Draft {} does not fulfill resource or fallback type requirement " +
+                   "(target: {}, fallback: {} possible: {}).").format(repr(draft), draft.target_hw_set,
+                                                                      draft.fallback_hw_set, draft.possible_hw_types))
             return False
     print("[DOSA:archVerify:INFO] Draft {} fulfills resource type requirements.".format(repr(draft)))
     # if roofline present, check if all bricks in all nodes are "IN_HOUSE"
@@ -346,8 +354,8 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
                 msg_str = "({}, {})".format(nn.node_id, lb.brick_uuid)
                 not_in_house.append(msg_str)
     if len(not_in_house) > 0:
-        print("[DOSA:archVerify:ERROR] Draft {} does not fulfill roofline requirement. The following bircks \
-        (node_id, brick_uuid) are above roofs: {}".format(repr(draft), not_in_house))
+        print(("[DOSA:archVerify:ERROR] Draft {} does not fulfill roofline requirement. The following bircks " +
+              "(node_id, brick_uuid) are above roofs: {}").format(repr(draft), not_in_house))
         return False
     print("[DOSA:archVerify:INFO] Draft {} fulfills roofline requirement.".format(repr(draft)))
     return True

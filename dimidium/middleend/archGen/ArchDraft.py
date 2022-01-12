@@ -629,6 +629,7 @@ class ArchDraft(object):
         #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
         #  in other words: ensure that all engine sets are bigger or equal 2
         #  no need to update req. perf or split nodes, is already considered in step 3
+        self.update_uuids()
         for nn in self.node_iter_gen():
             cur_engine_set = []
             turn_engine_to_stream_list = []
@@ -708,14 +709,14 @@ class ArchDraft(object):
                                 # take first one, order represents priority
                                 nn.selected_hw_type = fhw
                                 fallback_hw_found = True
-                                print("[DOSA:archGen:WARNING] Targeted hw {} not possible for node {}, forced to use \
-                                      fallback hw {} instead.".format(nn.targeted_hw, nn.node_id,
+                                print(("[DOSA:archGen:WARNING] Targeted hw {} not possible for node {}, forced to use "
+                                       + "fallback hw {} instead.").format(nn.targeted_hw, nn.node_id,
                                                                       nn.selected_hw_type))
                                 break
                         if not fallback_hw_found:
-                            print("[DOSA:archGen:ERROR] Targeted hw {} not possible for node {}, failed to find \
-                                  replacement or fallback. Impossible to legalize draft"
-                                  .format(nn.targeted_hw, nn.node_id))
+                            print(("[DOSA:archGen:ERROR] Targeted hw {} not possible for node {}, failed to find " +
+                                  "replacement or fallback. Impossible to legalize draft").format(nn.targeted_hw,
+                                                                                                  nn.node_id))
                             return DosaRv.ERROR
         # ensure, all HW is decided
         for nn in self.node_iter_gen():
@@ -761,23 +762,24 @@ class ArchDraft(object):
                 for posg in lb.possible_osgs:
                     if decided_hw_class in posg.device_classes:
                         # order represents priority, so take first possible one
-                        lb.selected_osg = posg
-                        continue
+                        lb.set_osg(posg)
+                        break
         # 10. create blocks
         for nn in self.node_iter_gen():
             nn.update_block_list()
         # 11. check for engine threshold
-        for nn in self.node_iter_gen():
-            for ce in nn.engine_container_refs:
-                if ce.resource_savings < dosa_singleton.config.middleend.engine_saving_threshold:
-                    for bb in ce.block_ref.brick_list:
-                        bb.set_impl_type(BrickImplTypes.STREAM)
-                        if verbose:
-                            print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.brick_uuid) +
-                                  " since its resource savings ({}) are below threshold.".format(ce.resource_savings))
+        # TODO
+        # for nn in self.node_iter_gen():
+        #     for ce in nn.engine_container_refs:
+        #         if ce.resource_savings < dosa_singleton.config.middleend.engine_saving_threshold:
+        #             for bb in ce.block_ref.brick_list:
+        #                 bb.set_impl_type(BrickImplTypes.STREAM)
+        #                 if verbose:
+        #                     print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.brick_uuid) +
+        #                           " since its resource savings ({}) are below threshold.".format(ce.resource_savings))
         # update blocks again
-        for nn in self.node_iter_gen():
-            nn.update_block_list()
+        # for nn in self.node_iter_gen():
+        #     nn.update_block_list()
         # 12. update kernel uuids & req. perf
         self.update_uuids()
         self.update_required_perf()
@@ -894,16 +896,17 @@ class ArchDraft(object):
             for nn_pht in nn_phw:
                 if nn_pht not in cur_possible_hw_types:
                     cur_possible_hw_types.append(nn_pht)
-        not_possible_hw_types = []
-        for nn in self.node_iter_gen():
-            nn_phw = nn.possible_hw_types
-            # now, remove all non-common options
-            for cpht in cur_possible_hw_types:
-                if cpht not in nn_phw:
-                    not_possible_hw_types.append(cpht)
-        not_possible_hw_types = list(set(not_possible_hw_types))
-        for npht in not_possible_hw_types:
-            del cur_possible_hw_types[cur_possible_hw_types.index(npht)]
+        # TODO: it is ok if different nodes have different hw
+        # not_possible_hw_types = []
+        # for nn in self.node_iter_gen():
+        #     nn_phw = nn.possible_hw_types
+        #     # now, remove all non-common options
+        #     for cpht in cur_possible_hw_types:
+        #         if cpht not in nn_phw:
+        #             not_possible_hw_types.append(cpht)
+        # not_possible_hw_types = list(set(not_possible_hw_types))
+        # for npht in not_possible_hw_types:
+        #     del cur_possible_hw_types[cur_possible_hw_types.index(npht)]
         self.possible_hw_types = cur_possible_hw_types
 
     def build(self):

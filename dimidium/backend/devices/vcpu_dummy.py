@@ -43,13 +43,14 @@ class VcpuDummy(DosaBaseHw):
     def get_performance_dict(self):
         self._gen_numbers()
         ret = {'type': str(self.hw_class), 'cpu_gflops': self.total_flops_hw,
+               # 'gflops_limit': self.total_flops_hw,
                'bw_netw_gBs': network_bandwidth_gBs,
                'bw_dram_gBs': dram_bandwith_gBs}
         return ret
 
     def get_roofline_dict(self):
         self._gen_numbers()
-        ret = {'sweet_spot': 0.081}  # TODO update
+        ret = {'sweet_spot': 2.51}
         return ret
 
     def get_resource_dict(self):
