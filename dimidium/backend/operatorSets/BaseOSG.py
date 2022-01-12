@@ -53,11 +53,14 @@ class BaseOSG(metaclass=abc.ABCMeta):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
     def annotate_brick(self, brick_node):
+        supported_once = False
         for op in brick_node.local_op_iter_gen():
             op_supported = self.check_op(op.op_call)
             if op_supported:
+                supported_once = True
                 op.add_possible_osg(self)
-        brick_node.add_available_osg(self)
+        if supported_once:
+            brick_node.add_available_osg(self)
 
     def check_op(self, op_str):
         """checks if the given relay op is supported by this OSG and returns a boolean"""

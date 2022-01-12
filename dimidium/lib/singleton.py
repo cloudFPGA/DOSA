@@ -61,5 +61,7 @@ def add_global_build_dir(abs_path):
     os.system("rm -rf {}".format(abs_path))
     os.system("mkdir -p {}".format(abs_path))
     config.global_build_dir = abs_path
+    config.global_report_dir = os.path.abspath('{}/rpt_dir'.format(abs_path))
+    os.system("mkdir -p {}".format(config.global_report_dir))
     return 0
 

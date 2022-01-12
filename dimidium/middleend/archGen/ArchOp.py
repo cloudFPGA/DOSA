@@ -60,7 +60,7 @@ class ArchOp(object):
         return "ArchOp({})".format(self.op_call)
 
     def as_dict(self):
-        res = {'name': self.name, 'local_id': self.local_op_id, 'global_id': self.global_op_id,
+        res = {'name': self.name, 'dims': '', 'local_id': self.local_op_id, 'global_id': self.global_op_id,
                'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'layer_name': self.layer_name, 'parent_fn': self.parent_fn,
@@ -69,6 +69,7 @@ class ArchOp(object):
         # for po in self.possible_osgs:
         #     pos = repr(po)
         #     res['possible OSGs'].append(pos)
+        res['dims'] = '(inp: {}, out: {}, params: {})'.format(self.dims.inp, self.dims.out, self.dims.param)
         return res
 
     def __str__(self):

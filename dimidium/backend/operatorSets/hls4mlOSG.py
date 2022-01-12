@@ -16,6 +16,7 @@ import numpy as np
 
 import tvm.relay
 
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
@@ -152,6 +153,8 @@ class Hls4mlOSG(BaseOSG):
                        + '\t@cat {project}_prj/solution1/syn/report/{project}_csynth.rpt\n\t@echo "-" > .tmp_stamp_2' +
                        '\n\t@date +%s > .tmp_stamp_1') \
                 .format(project=project_name)
+            new_str += '\n\t@cp {project}_prj/solution1/syn/report/{project}_csynth.rpt {rpt_dir}/{project}.rpt' \
+                .format(project=project_name, rpt_dir=dosa_singleton.config.global_report_dir)
             new_str += ('\n\t@{echo} -n "HLS4ML build time: "' +
                         "\n\t@/bin/bash -c \"cat <(cat .tmp_stamp_* | tr '\\n' ' ') <(echo '') | {bc} -l\"") \
                 .format(echo=echo_cmd, bc=bc_cmd)

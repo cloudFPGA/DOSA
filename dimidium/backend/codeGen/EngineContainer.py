@@ -12,6 +12,7 @@
 
 from dimidium.lib.util import BrickImplTypes
 from dimidium.middleend.archGen.ArchBlock import ArchBlock
+from dimidium.middleend.archGen.ArchOp import ArchOp
 
 
 class EngineContainer(object):
@@ -32,14 +33,36 @@ class EngineContainer(object):
     def build_container(self):
         self.ops = {}
         total_ops = 0
+        num_double_entries = 0
         for bb in self.block_ref.brick_list:
             for boi in bb.ops:
                 bo = bb.ops[boi]
                 on = bo.op_call
                 total_ops += 1
-                # TODO: check also for kernel size etc.
                 if on not in self.ops.keys():
                     self.ops[on] = bo
-        engine_ops = len(self.ops)
+                else:
+                    if isinstance(self.ops[on], ArchOp):
+                        is_compatible = True
+                        orig_dims = self.ops[on].dims
+                        if len(orig_dims.inp) != len(bo.dims.inp) or orig_dims.inp != bo.dims.inp:
+                            is_compatible = False
+                        if len(orig_dims.out) != len(bo.dims.out) or orig_dims.out != bo.dims.out:
+                            is_compatible = False
+                        if len(orig_dims.param) != len(bo.dims.param) or orig_dims.param != bo.dims.param:
+                            is_compatible = False
+
+                        if not is_compatible:
+                            orig_op = self.ops[on]
+                            new_e = [orig_op, bo]
+                            self.ops[on] = new_e
+                            num_double_entries += 1
+                        # TODO: check for padding options?
+                    else:
+                        # is already a double entry
+                        self.ops[on].append(bo)
+                        num_double_entries += 1
+
+        engine_ops = len(self.ops) + num_double_entries
         self.resource_savings = total_ops/engine_ops
 

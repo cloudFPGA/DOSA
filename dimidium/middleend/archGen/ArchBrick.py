@@ -237,7 +237,7 @@ class ArchBrick(object):
             self.req_util_mem_stream = share_mem
             self.req_util_comp_stream = share_comp
         elif self.selected_impl_type == BrickImplTypes.ENGINE:
-            self.req_util_mem_engine = 0  # for engine, always 0!
+            self.req_util_mem_engine = 0  # TODO: ? for engine, always 0!
             self.req_util_comp_engine = share_comp
 
 
