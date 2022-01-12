@@ -58,6 +58,7 @@ def init_singleton(config_dict):
 
 def add_global_build_dir(abs_path):
     global config
+    os.system("rm -rf {}".format(abs_path))
     os.system("mkdir -p {}".format(abs_path))
     config.global_build_dir = abs_path
     return 0
