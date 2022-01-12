@@ -430,11 +430,11 @@ class Hls4mlOSG(BaseOSG):
                 else:
                     op_req_latency_s = op.flops / op_req_flops
                 req_paral_grade = exec_simple_s / op_req_latency_s
-                outermost, outer, inner, innermost = get_loop_unrolling_factors(req_paral_grade)
-                conf['loop_lim_outermost'] = outermost
-                conf['loop_lim_outer'] = outer
-                conf['loop_lim_inner'] = inner
-                conf['loop_lim_innermost'] = innermost
+                # outermost, outer, inner, innermost = get_loop_unrolling_factors(req_paral_grade)
+                # conf['loop_lim_outermost'] = outermost
+                # conf['loop_lim_outer'] = outer
+                # conf['loop_lim_inner'] = inner
+                # conf['loop_lim_innermost'] = innermost
                 if consumed_opt_ops >= 1:
                     skip_i.append(next_i)
                 if consumed_opt_ops >= 2:
