@@ -28,8 +28,8 @@ from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.astProc.oiVisitor import oiV_fn_main_str, oiV_input_str, oiV_output_str, oiV_func_str
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane
-from dimidium.middleend.archGen.ArchFilter import OiThresholdFilter
-from dimidium.middleend.archGen.archOpt import merge_bricks_pass
+from dimidium.middleend.archGen.ArchFilter import OiThresholdFilter, OpCallSameDimFilter
+from dimidium.middleend.archGen.archOpt import merge_bricks_pass, delete_ops_pass
 
 
 def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices,
@@ -94,10 +94,12 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
             inital_draft.add_possible_fallback_hw(do)
     creating_draft_end = time.time()
 
-    # batch_flatten_ops = ['nn.batch_flatten']
+    batch_flatten_ops = ['nn.batch_flatten']
     zero_oi_filter = OiThresholdFilter(0.0)
+    useless_flatten_filter = OpCallSameDimFilter(batch_flatten_ops)
     opt_draft_start = time.time()
     merge_bricks_pass(inital_draft, zero_oi_filter, work_on_copy=False)
+    delete_ops_pass(inital_draft, useless_flatten_filter, work_on_copy=False)
     opt_draft_end = time.time()
 
     annotating_draft_start = time.time()

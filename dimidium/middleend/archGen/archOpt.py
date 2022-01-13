@@ -57,7 +57,7 @@ def append_bricks_pass(input_draft: ArchDraft, arch_filter: ArchFilter, work_on_
 
 
 def merge_bricks_pass(input_draft: ArchDraft, arch_filter: ArchFilter, work_on_copy=False):
-    """append operations to previous bricks"""
+    """merge brick to previous bricks"""
     if work_on_copy:
         # without is faster
         arch_draft = copy.deepcopy(input_draft)
@@ -81,6 +81,40 @@ def merge_bricks_pass(input_draft: ArchDraft, arch_filter: ArchFilter, work_on_c
             bis_to_del.append(bi)
         else:
             prev_bb = bb
+    bis_to_del.reverse()
+    for dbi in bis_to_del:
+        nn.del_brick(dbi)
+    return arch_draft
+
+
+def delete_ops_pass(input_draft: ArchDraft, arch_filter: ArchFilter, work_on_copy=False):
+    """delete ops of bricks if filter matches"""
+    if work_on_copy:
+        # without is faster
+        arch_draft = copy.deepcopy(input_draft)
+    else:
+        arch_draft = input_draft
+    # TODO make dynamic, handle cross node op merging
+    assert len(arch_draft.nodes) == 1
+    nn = arch_draft.nodes[0]
+    bis_to_del = []
+    original_bb_handles = {}
+    for bi in range(0, len(nn.bricks)):
+        original_bb_handles[bi] = nn.bricks[bi]
+    for bi in range(0, len(nn.bricks)):
+        bb = original_bb_handles[bi]
+        lops = bb.ops
+        ops_to_del = []
+        for lop_i in range(0, len(lops)):
+            op = lops[lop_i]
+            if arch_filter.match_op(op):
+                ops_to_del.append(lop_i)
+        if len(ops_to_del) >= len(lops):
+            bis_to_del.append(bi)
+        else:
+            ops_to_del.reverse()
+            for doi in ops_to_del:
+                bb.del_arch_op(doi)
     bis_to_del.reverse()
     for dbi in bis_to_del:
         nn.del_brick(dbi)

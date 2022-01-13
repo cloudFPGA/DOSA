@@ -14,8 +14,10 @@
 
 def WriteComponents(target):
     target.write("--Components\n")
-    WriteInputLayerComponent(target)
-    WriteDisplayLayerComponent(target)
+    # WriteInputLayerComponent(target)
+    WriteDynInputLayerComponent(target)
+    # WriteDisplayLayerComponent(target)
+    WriteDynOutputLayerComponent(target)
     WriteConvlayerComponent(target)
     WritePoolLayerComponent(target)
     target.write("\n")
@@ -40,6 +42,27 @@ def WriteInputLayerComponent(target):
     target.write("  out_fv   : out std_logic\n")
     target.write(");\n")
     target.write("end component InputLayer;\n\n")
+
+
+def WriteDynInputLayerComponent(target):
+    target.write("component DynInputLayer\n")
+    target.write("generic (\n")
+    target.write("  BITWIDTH      : integer;\n")
+    target.write("  INPUT_BIT_WIDTH : integer;\n")
+    target.write("  NB_OUT_FLOWS    : integer\n")
+    target.write(");\n")
+    target.write("port (\n")
+    target.write("  clk      : in  std_logic;\n")
+    target.write("  reset_n  : in  std_logic;\n")
+    target.write("  enable   : in  std_logic;\n")
+    target.write("  in_data  : in  std_logic_vector(INPUT_BIT_WIDTH-1 downto 0);\n")
+    target.write("  in_dv    : in  std_logic;\n")
+    target.write("  in_fv    : in  std_logic;\n")
+    target.write("  out_data : out pixel_array(0 to NB_OUT_FLOWS-1);\n")
+    target.write("  out_dv   : out std_logic;\n")
+    target.write("  out_fv   : out std_logic\n")
+    target.write(");\n")
+    target.write("end component DynInputLayer;\n\n")
 
 
 def WriteConvlayerComponent(target):
@@ -80,6 +103,23 @@ def WriteDisplayLayerComponent(target):
     target.write("  in_fv    : in  std_logic;\n")
     target.write("  sel      : in  std_logic_vector(31 downto 0);\n")
     target.write("  out_data : out std_logic_vector(BITWIDTH-1 downto 0);\n")
+    target.write("  out_dv   : out std_logic;\n")
+    target.write("  out_fv   : out std_logic\n")
+    target.write(");\n")
+    target.write("end component;\n\n")
+
+
+def WriteDynOutputLayerComponent(target):
+    target.write("component DynOutputLayer is\n")
+    target.write("generic(\n")
+    target.write("  BITWIDTH : integer;\n")
+    target.write("  NB_IN_FLOWS: integer\n")
+    target.write(");\n")
+    target.write("port(\n")
+    target.write("  in_data  : in  pixel_array(0 to NB_IN_FLOWS-1);\n")
+    target.write("  in_dv    : in  std_logic;\n")
+    target.write("  in_fv    : in  std_logic;\n")
+    target.write("  out_data : out std_logic_vector(NB_IN_FLOWS*BITWIDTH-1 downto 0);\n")
     target.write("  out_dv   : out std_logic;\n")
     target.write("  out_fv   : out std_logic\n")
     target.write(");\n")
@@ -189,6 +229,26 @@ def InstanceInputLayer(target, layer_name, next_layer_name, input_bitwidth):
     target.write("  );\n\n")
 
 
+def InstanceDynInputLayer(target, layer_name, next_layer_name, input_bitwidth):
+    target.write("DynInputLayer_i : DynInputLayer\n")
+    target.write("generic map (\n")
+    target.write("  BITWIDTH      => BITWIDTH,\n")
+    target.write("  INPUT_BIT_WIDTH => " + str(input_bitwidth) + ",\n")
+    target.write("  NB_OUT_FLOWS    => " + next_layer_name + "_IN_SIZE\n")
+    target.write(")\n")
+    target.write("port map (\n")
+    target.write("  clk      => clk,\n")
+    target.write("  reset_n  => reset_n,\n")
+    target.write("  enable   => enable,\n")
+    target.write("  in_data  => in_data,\n")
+    target.write("  in_dv    => in_dv,\n")
+    target.write("  in_fv    => in_fv,\n")
+    target.write("  out_data => " + layer_name + "_data,\n")
+    target.write("  out_dv   => " + layer_name + "_dv,\n")
+    target.write("  out_fv   => " + layer_name + "_fv\n")
+    target.write("  );\n\n")
+
+
 def InstanceDisplayLayer(target, previous_layer_name):
     target.write("DisplayLayer_i: DisplayLayer\n")
     target.write("  generic map(\n")
@@ -200,6 +260,22 @@ def InstanceDisplayLayer(target, previous_layer_name):
     target.write("  in_dv    => " + previous_layer_name + "_dv,\n")
     target.write("  in_fv    => " + previous_layer_name + "_fv,\n")
     target.write("  sel      => select_i,\n")
+    target.write("  out_data => out_data,\n")
+    target.write("  out_dv   => out_dv,\n")
+    target.write("  out_fv   => out_fv\n")
+    target.write(");\n")
+
+
+def InstanceDynOutputLayer(target, previous_layer_name):
+    target.write("DynOutputLayer_i: DynOutputLayer\n")
+    target.write("  generic map(\n")
+    target.write("  BITWIDTH => BITWIDTH,\n")
+    target.write("  NB_IN_FLOWS => " + previous_layer_name + "_OUT_SIZE\n")
+    target.write("  )\n")
+    target.write("  port map(\n")
+    target.write("  in_data  => " + previous_layer_name + "_data,\n")
+    target.write("  in_dv    => " + previous_layer_name + "_dv,\n")
+    target.write("  in_fv    => " + previous_layer_name + "_fv,\n")
     target.write("  out_data => out_data,\n")
     target.write("  out_dv   => out_dv,\n")
     target.write("  out_fv   => out_fv\n")
@@ -226,11 +302,11 @@ def WriteEntity(target):
     target.write("  clk      : in std_logic;\n")
     target.write("  reset_n  : in std_logic;\n")
     target.write("  enable   : in std_logic;\n")
-    target.write("  select_i : in std_logic_vector(31 downto 0);\n")
+    # target.write("  select_i : in std_logic_vector(31 downto 0);\n")
     target.write("  in_data  : in std_logic_vector(INPUT_BIT_WIDTH-1 downto 0);\n")
     target.write("  in_dv    : in std_logic;\n")
     target.write("  in_fv    : in std_logic;\n")
-    target.write("  out_data : out std_logic_vector(BITWIDTH-1 downto 0);\n")
+    target.write("  out_data : out std_logic_vector(OUTPUT_BITWIDTH-1 downto 0);\n")
     target.write("  out_dv   : out std_logic;\n")
     target.write("  out_fv   : out std_logic\n")
     target.write("  );\n")

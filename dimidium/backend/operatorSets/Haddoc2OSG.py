@@ -81,6 +81,10 @@ class Haddoc2OSG(BaseOSG):
         used_dtype = DosaDtype.UNKNOWN
         layer_names_by_op_id = {}
         layer_names_ordered = []
+        input_dims_by_op_id = {}
+        input_dims_ordered = []
+        ops_implemented_ordered = []
+        wrapper_flatten_op = None
         # as haddoc, we first take care of the params
         with open(paramFile, 'w') as vhdlf:
             paramParsing.write_fileHead(vhdlf)
@@ -94,34 +98,55 @@ class Haddoc2OSG(BaseOSG):
                     if next_i in bb.ops.keys():
                         next_op = bb.ops[next_i]
                     layer_name = self._create_unique_layer_name(op.name)
-                    layer_names_by_op_id[op.global_op_id] = layer_name
-                    layer_names_ordered.append(layer_name)
                     if used_dtype == DosaDtype.UNKNOWN:
                         used_dtype = op.used_dtype
                     elif used_dtype != op.used_dtype:
                         print("[DOSA:OSG:ERROR] Haddoc supports only one bit width per block. Trying to ignore...")
 
                     if 'pool1d' in op.op_call or 'pool2d' in op.op_call:
+                        layer_names_by_op_id[op.global_op_id] = layer_name
+                        layer_names_ordered.append(layer_name)
+                        input_dims_by_op_id[op.global_op_id] = op.dims.inp
+                        input_dims_ordered.append(op.dims.inp)
+                        ops_implemented_ordered.append(op)
                         self._param_parse_pool(op, vhdlf, layer_name)
                     elif 'conv1d' in op.op_call or 'conv2d' in op.op_call:
+                        # TODO map 1d correctly
+                        layer_names_by_op_id[op.global_op_id] = layer_name
+                        layer_names_ordered.append(layer_name)
+                        input_dims_by_op_id[op.global_op_id] = op.dims.inp
+                        input_dims_ordered.append(op.dims.inp)
+                        ops_implemented_ordered.append(op)
                         if next_op is not None and 'bias' not in next_op.op_call:
                             # useless -> None again
                             next_op = None
                         self._param_parse_conv(op, vhdlf, layer_name, next_op)
                     elif 'flatten' in op.op_call:
-                        todo = 1
-                        # TODO
+                        # layer name will be ignored
+                        wrapper_flatten_op = op
+                        if op_i + 1 != len(bb.ops):
+                            print("[DOSA:Haddoc2OSG:ERROR] flatten is only supported as last layer!. STOP.")
+                            exit(1)
                     elif 'dropout' in op.op_call:
-                        todo = 2
-                        # TODO
+                        print("[DOSA:OSG:ERROR] Not yet implemented!. STOP.")
+                        exit(1)
                     else:
                         print("[DOSA:OSG:ERROR] Not yet implemented!. STOP.")
                         exit(1)
 
             paramParsing.write_fileEnd(vhdlf)
         # then, we do the bitwidth
-        self._generate_bitwidth(bitwidthFile, used_dtype)
         used_bit_width = get_bitwidth_of_DosaDtype(used_dtype)
+        input_dim = input_dims_ordered[0]
+        input_bit_width = used_bit_width
+        # TODO: make dynamic
+        input_bit_width *= input_dim[1]  # num channels
+        output_dim = ops_implemented_ordered[-1].dims.out
+        output_bit_width = used_bit_width
+        # TODO: make dynamic
+        output_bit_width *= output_dim[1]
+        self._generate_bitwidth(bitwidthFile, used_bit_width, input_bit_width, output_bit_width)
+        wrapper_last_op = None
         # finally, create the topology
         with open(topFile, 'w') as topf:
             topologyParsing.WriteLibs(topf)
@@ -131,7 +156,8 @@ class Haddoc2OSG(BaseOSG):
             topf.write(" -- Signals\n")
             topologyParsing.WriteInputSignal(topf, input_layer_name, layer_names_ordered[0])
             # for all other layers
-            for op in bb.local_op_iter_gen():
+            # for op in bb.local_op_iter_gen():
+            for op in ops_implemented_ordered:
                 layer_name = layer_names_by_op_id[op.global_op_id]
                 topologyParsing.WriteLayerSignal(topf, layer_name)
             topf.write("\n")
@@ -140,10 +166,12 @@ class Haddoc2OSG(BaseOSG):
             topf.write(" -- Instances\n")
             topf.write("begin\n")
             # again, input first
-            topologyParsing.InstanceInputLayer(topf, input_layer_name, layer_names_ordered[0], used_bit_width)
+            topologyParsing.InstanceDynInputLayer(topf, input_layer_name, layer_names_ordered[0], input_bit_width)
             # for all other layers
             previous_layer_name = input_layer_name
-            for op in bb.local_op_iter_gen():
+            # for op in bb.local_op_iter_gen():
+            for op in ops_implemented_ordered:
+                wrapper_last_op = op
                 layer_name = layer_names_by_op_id[op.global_op_id]
                 if 'conv1d' in op.op_call or 'conv2d' in op.op_call:
                     topologyParsing.InstanceConvLayer(topf, layer_name, previous_layer_name)
@@ -155,9 +183,12 @@ class Haddoc2OSG(BaseOSG):
                     pass
                 previous_layer_name = layer_name
             # TODO: other ending?
-            topologyParsing.InstanceDisplayLayer(topf, previous_layer_name)
+            topologyParsing.InstanceDynOutputLayer(topf, previous_layer_name)
             topologyParsing.WriteArchitectureEnd(topf)
         # TODO: generate wrapper
+        # wrapper_flatten_op
+        # wrapper_last_op
+        # wrapper_first_op = ops_implemented_ordered[0]
         # TODO: generate vhdl component and instance, for node integration
         return 0
 
@@ -241,28 +272,32 @@ class Haddoc2OSG(BaseOSG):
 
     def _param_parse_pool(self, op, target_fh, layer_name):
         out_channel_num = op.dims.out[1]  # out_size
+        assert out_channel_num == op.dims.inp[1]
         input_data_width = op.dims.inp[2]  # image_width
-        kernel_size = 2  # For now only a subsampling factor of 4 is supported
+        assert input_data_width == op.dims.inp[3]
+        kernel_size = op.tvm_node.attrs.pool_size[0]
+        assert kernel_size == op.tvm_node.attrs.pool_size[1]  # only symmetric kernels are supported
+        assert kernel_size == 2  # Haddoc2 supports only a subsampling factor of 4
         target_fh.write("--" + layer_name + "\n")
         paramParsing.write_image_width(layer_name, input_data_width, target_fh)
+        paramParsing.write_in_size(layer_name, out_channel_num, target_fh)
         paramParsing.write_out_size(layer_name, out_channel_num, target_fh)
         paramParsing.write_kernel_size(layer_name, kernel_size, target_fh)
         target_fh.write("----------------------------------------------------------")
         target_fh.write("--------------------------------------------------------\n")
         return
 
-    def _generate_bitwidth(self, bitwidth_file, used_dtype):
-        bitwidth = get_bitwidth_of_DosaDtype(used_dtype)
-        input_bitwidth = bitwidth  # TODO?
+    def _generate_bitwidth(self, bitwidth_file, general_bitwidth, input_bitwidth, output_bitwidth):
         with open(bitwidth_file, 'w') as f:
             f.write('library ieee;\n')
             f.write('  use ieee.std_logic_1164.all;\n')
             f.write('  use ieee.numeric_std.all;\n')
             f.write('  use ieee.math_real.all;\n')
             f.write('package bitwidths is\n')
-            f.write('  constant GENERAL_BITWIDTH      : integer := ' + str(bitwidth) + ';\n')
+            f.write('  constant GENERAL_BITWIDTH      : integer := ' + str(general_bitwidth) + ';\n')
             f.write('  constant SUM_WIDTH        : integer := 3*GENERAL_BITWIDTH;\n')
             f.write('  constant INPUT_BIT_WIDTH  : integer := ' + str(input_bitwidth) + ';\n')
+            f.write('  constant OUTPUT_BITWIDTH  : integer := ' + str(output_bitwidth) + ';\n')
             f.write('end bitwidths;\n')
         return
 

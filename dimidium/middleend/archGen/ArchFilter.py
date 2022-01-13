@@ -53,3 +53,20 @@ class OiThresholdFilter(ArchFilter):
     def match_op(self, op: ArchOp):
         return op.oi_engine <= self.upper_oi_thres and op.oi_stream <= self.upper_oi_thres
 
+
+class OpCallSameDimFilter(ArchFilter):
+    """Matches operations of a list where input and output dimensions are same"""
+
+    def __init__(self, op_call_list):
+        self.op_call_list = op_call_list
+
+    def match_brick(self, brick: ArchBrick):
+        print("[DOSA:Filter:ERROR] Can't filter Bricks with op calls")
+        return False
+
+    def match_op(self, op: ArchOp):
+        if op.op_call in self.op_call_list:
+            if op.dims.inp == op.dims.out:
+                return True
+        return False
+
