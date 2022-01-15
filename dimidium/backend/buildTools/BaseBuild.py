@@ -47,9 +47,17 @@ class BaseHwBuild(BaseBuild, metaclass=abc.ABCMeta):
         self.global_tcl = None
         self.ip_dirs = {}
         self.target_device = target_device
+        self.tcl_lines = []
 
     @abc.abstractmethod
     def add_ip_dir(self, arch_block, path=None):
+        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
+
+    def add_tcl_entry(self, tcl_line):
+        self.tcl_lines.append(tcl_line)
+
+    @abc.abstractmethod
+    def write_buildscripts(self):
         print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
 
 

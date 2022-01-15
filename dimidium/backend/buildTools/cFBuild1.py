@@ -52,9 +52,16 @@ class cFBuild1(BaseHwBuild):
         return new_path
 
     def create_global_Makefile(self):
+        # TODO: better part of buildscripts?
         print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
 
     def add_makefile_entry(self, path, target):
         if path not in self.makefile_targets.keys():
             self.makefile_targets[path] = target
+
+    def write_buildscripts(self):
+        # TODO: write tcl lines to copied template file
+        #  write global Makefile
+        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
+
 
