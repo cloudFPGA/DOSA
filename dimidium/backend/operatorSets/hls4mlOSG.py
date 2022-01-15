@@ -127,13 +127,6 @@ class Hls4mlOSG(BaseOSG):
         self.existing_layer_names.append(base_str)
         return base_str
 
-    def _get_osg_func(self, op_call):
-        if 'nn.' in op_call[0:3]:
-            func = self.relay2osg['nn'][op_call[3:]]
-        else:
-            func = self.relay2osg[op_call]
-        return func
-
     def write_makefile(self, ip_dir, project_name, reset=False, csim=True, synth=True,
                        cosim=False, validation=False, export=False, vsynth=False):
         echo_cmd = os.popen('which echo').read().rstrip()
@@ -385,12 +378,12 @@ class Hls4mlOSG(BaseOSG):
 
         layer_names_by_op_id = {}
         layer_names_ordered = []
-        skip_i = []
         layer_confs = []
         last_layer_name = ''
         for bb in arch_block.brick_list:
             # for op in bb.local_op_iter_gen():
             bb_speedup_req = bb.req_flops / bb.flops
+            skip_i = []
             for op_i in bb.ops.keys():
                 if op_i in skip_i:
                     continue

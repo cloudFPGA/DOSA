@@ -31,6 +31,8 @@ from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 import dimidium.backend.operatorSets.lib.haddoc2.paramsParsing as paramParsing
 import dimidium.backend.operatorSets.lib.haddoc2.topologyParsing as topologyParsing
+from dimidium.backend.codeGen.WrapperInterfaces import get_wrapper_interface_bitwidth, get_tcl_lines_interface_fifo, \
+    wrapper_interface_default_depth, get_fifo_name
 
 
 class Haddoc2OSG(BaseOSG):
@@ -49,12 +51,16 @@ class Haddoc2OSG(BaseOSG):
         # relay2osg annotation,
         #  based on https://github.com/DreamIP/haddoc2/blob/master/lib/python/parseNetTopology.py
         for e in self.relay2osg['nn']:
-            if 'conv1d' in e or 'conv2d' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_conv_instance
-            elif 'pool1d' in e or 'pool2d' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_pool_instance
+            if 'conv2d' in e:
+                self.relay2osg['nn'][e] = self._param_parse_conv
+            elif 'bias_add' in e:
+                self.relay2osg['nn'][e] = self._generate_hdl_biasAdd
+            elif 'pool2d' in e:
+                self.relay2osg['nn'][e] = self._param_parse_pool
             elif 'tanh' in e:
                self.relay2osg['nn'][e] = self._generate_hdl_tanh_instance
+            elif 'relu' in e:
+                self.relay2osg['nn'][e] = self._generate_hdl_relu
             elif 'flatten' in e:
                 self.relay2osg['nn'][e] = self._generate_hdl_flatten_instance
             elif 'dropout' in e:
@@ -85,54 +91,91 @@ class Haddoc2OSG(BaseOSG):
         input_dims_ordered = []
         ops_implemented_ordered = []
         wrapper_flatten_op = None
+        wrapper_first_brick = None
         # as haddoc, we first take care of the params
         with open(paramFile, 'w') as vhdlf:
             paramParsing.write_fileHead(vhdlf)
             # now, iterate over bricks
             for bb in arch_block.brick_list:
+                if wrapper_first_brick is None:
+                    wrapper_first_brick = bb
+                skip_i = []
                 #for op in bb.local_op_iter_gen():
                 for op_i in bb.ops.keys():
                     op = bb.ops[op_i]
+                    layer_name = self._create_unique_layer_name(op.name)
+                    if op_i in skip_i:
+                        continue
+
                     next_i = op_i + 1
                     next_op = None
                     if next_i in bb.ops.keys():
                         next_op = bb.ops[next_i]
-                    layer_name = self._create_unique_layer_name(op.name)
+                    next_next_i = op_i + 2
+                    next_next_op = None
+                    if next_next_i in bb.ops.keys():
+                        next_next_op = bb.ops[next_next_i]
+
                     if used_dtype == DosaDtype.UNKNOWN:
                         used_dtype = op.used_dtype
                     elif used_dtype != op.used_dtype:
                         print("[DOSA:OSG:ERROR] Haddoc supports only one bit width per block. Trying to ignore...")
 
-                    if 'pool1d' in op.op_call or 'pool2d' in op.op_call:
-                        layer_names_by_op_id[op.global_op_id] = layer_name
-                        layer_names_ordered.append(layer_name)
-                        input_dims_by_op_id[op.global_op_id] = op.dims.inp
-                        input_dims_ordered.append(op.dims.inp)
-                        ops_implemented_ordered.append(op)
-                        self._param_parse_pool(op, vhdlf, layer_name)
-                    elif 'conv1d' in op.op_call or 'conv2d' in op.op_call:
-                        # TODO map 1d correctly
-                        layer_names_by_op_id[op.global_op_id] = layer_name
-                        layer_names_ordered.append(layer_name)
-                        input_dims_by_op_id[op.global_op_id] = op.dims.inp
-                        input_dims_ordered.append(op.dims.inp)
-                        ops_implemented_ordered.append(op)
-                        if next_op is not None and 'bias' not in next_op.op_call:
-                            # useless -> None again
-                            next_op = None
-                        self._param_parse_conv(op, vhdlf, layer_name, next_op)
-                    elif 'flatten' in op.op_call:
+                    if 'flatten' in op.op_call:
+                        # TODO: if flatten is in the middle of a longer block?
                         # layer name will be ignored
                         wrapper_flatten_op = op
                         if op_i + 1 != len(bb.ops):
                             print("[DOSA:Haddoc2OSG:ERROR] flatten is only supported as last layer!. STOP.")
                             exit(1)
-                    elif 'dropout' in op.op_call:
-                        print("[DOSA:OSG:ERROR] Not yet implemented!. STOP.")
-                        exit(1)
                     else:
-                        print("[DOSA:OSG:ERROR] Not yet implemented!. STOP.")
-                        exit(1)
+                        osg_func = self._get_osg_func(op.op_call)
+                        mod_op, consumed_opt_ops = osg_func(op, vhdlf, layer_name, next_op, next_next_op)
+
+                        layer_names_by_op_id[op.global_op_id] = layer_name
+                        layer_names_ordered.append(layer_name)
+                        input_dims_by_op_id[op.global_op_id] = op.dims.inp
+                        input_dims_ordered.append(op.dims.inp)
+                        if mod_op is None:
+                            ops_implemented_ordered.append(op)
+                        else:
+                            ops_implemented_ordered.append(mod_op)
+                        if consumed_opt_ops >= 1:
+                            skip_i.append(next_i)
+                        if consumed_opt_ops >= 2:
+                            skip_i.append(next_next_i)
+
+                    # if 'pool2d' in op.op_call:
+                    #     layer_names_by_op_id[op.global_op_id] = layer_name
+                    #     layer_names_ordered.append(layer_name)
+                    #     input_dims_by_op_id[op.global_op_id] = op.dims.inp
+                    #     input_dims_ordered.append(op.dims.inp)
+                    #     ops_implemented_ordered.append(op)
+                    #     self._param_parse_pool(op, vhdlf, layer_name)
+                    # elif 'conv2d' in op.op_call:
+                    #     # TODO map 1d correctly
+                    #     layer_names_by_op_id[op.global_op_id] = layer_name
+                    #     layer_names_ordered.append(layer_name)
+                    #     input_dims_by_op_id[op.global_op_id] = op.dims.inp
+                    #     input_dims_ordered.append(op.dims.inp)
+                    #     ops_implemented_ordered.append(op)
+                    #     if next_op is not None and 'bias' not in next_op.op_call:
+                    #         # useless -> None again
+                    #         next_op = None
+                    #     self._param_parse_conv(op, vhdlf, layer_name, next_op)
+                    # elif 'flatten' in op.op_call:
+                    #     # TODO: if flatten is in the middle of a longer block?
+                    #     # layer name will be ignored
+                    #     wrapper_flatten_op = op
+                    #     if op_i + 1 != len(bb.ops):
+                    #         print("[DOSA:Haddoc2OSG:ERROR] flatten is only supported as last layer!. STOP.")
+                    #         exit(1)
+                    # elif 'dropout' in op.op_call:
+                    #     print("[DOSA:OSG:ERROR] Not yet implemented!. STOP.")
+                    #     exit(1)
+                    # else:
+                    #     print("[DOSA:OSG:ERROR] Not yet implemented!. STOP.")
+                    #     exit(1)
 
             paramParsing.write_fileEnd(vhdlf)
         # then, we do the bitwidth
@@ -141,6 +184,9 @@ class Haddoc2OSG(BaseOSG):
         input_bit_width = used_bit_width
         # TODO: make dynamic
         input_bit_width *= input_dim[1]  # num channels
+        if input_dim[0] != 1:
+            print("[DOSA:OSG:ERROR] Haddoc2 only supports models with batch_size 1 (currently).")
+            exit(-1)
         output_dim = ops_implemented_ordered[-1].dims.out
         output_bit_width = used_bit_width
         # TODO: make dynamic
@@ -173,22 +219,29 @@ class Haddoc2OSG(BaseOSG):
             for op in ops_implemented_ordered:
                 wrapper_last_op = op
                 layer_name = layer_names_by_op_id[op.global_op_id]
-                if 'conv1d' in op.op_call or 'conv2d' in op.op_call:
-                    topologyParsing.InstanceConvLayer(topf, layer_name, previous_layer_name)
-                elif 'pool1d' in op.op_call or 'pool2d' in op.op_call:
+                if 'conv2d' in op.op_call:
+                    use_relu_activation = True
+                    if op.haddoc_activation == 'tanh':
+                        use_relu_activation = False
+                    # else: default...
+                    topologyParsing.InstanceConvLayer(topf, layer_name, previous_layer_name,
+                                                      use_relu_activation=use_relu_activation)
+                elif 'pool2d' in op.op_call:
                     topologyParsing.InstancePoolLayer(topf, layer_name, previous_layer_name)
-                elif 'tanh' in op.op_call:
-                    # is done implicitly, in ConvLayer
-                    # TODO: way to deactivate if not tanh activation?
-                    pass
+                else:
+                    continue
                 previous_layer_name = layer_name
-            # TODO: other ending?
             topologyParsing.InstanceDynOutputLayer(topf, previous_layer_name)
             topologyParsing.WriteArchitectureEnd(topf)
         # TODO: generate wrapper
         # wrapper_flatten_op
         # wrapper_last_op
         # wrapper_first_op = ops_implemented_ordered[0]
+        if_bitw = get_wrapper_interface_bitwidth(wrapper_first_brick.input_bw_Bs, build_tool.target_device)
+        if_fifo_name = get_fifo_name('input_{}'.format(arch_block.block_uuid))
+        if_fifo_tcl = get_tcl_lines_interface_fifo(if_fifo_name, if_bitw,
+                                                   wrapper_interface_default_depth)
+        build_tool.add_tcl_entry(if_fifo_tcl)
         # TODO: generate vhdl component and instance, for node integration
         return 0
 
@@ -209,15 +262,15 @@ class Haddoc2OSG(BaseOSG):
     def estimate_flops_brick(self, brick_node: ArchBrick):
         pass
 
-    def _generate_hdl_conv_instance(self, todo):
-        print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
-              "(i.e. use build_block). IGNORING.")
-        return
+    # def _generate_hdl_conv_instance(self, todo):
+    #     print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
+    #           "(i.e. use build_block). IGNORING.")
+    #     return
 
-    def _generate_hdl_pool_instance(self, todo):
-        print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
-              "(i.e. use build_block). IGNORING.")
-        return
+    # def _generate_hdl_pool_instance(self, todo):
+    #     print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
+    #           "(i.e. use build_block). IGNORING.")
+    #     return
 
     def _generate_hdl_tanh_instance(self, todo):
         # is merged with ConvLayer.vhd?
@@ -236,6 +289,16 @@ class Haddoc2OSG(BaseOSG):
               "(i.e. use build_block). IGNORING.")
         return
 
+    def _generate_hdl_biasAdd(self, todo):
+        print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
+              "(i.e. use build_block). IGNORING.")
+        return
+
+    def _generate_hdl_relu(self, todo):
+        print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
+              "(i.e. use build_block). IGNORING.")
+        return
+
     def _create_unique_layer_name(self, op_name):
         base_str = op_name.replace('.', '_')
         name_cnt = 1
@@ -245,19 +308,34 @@ class Haddoc2OSG(BaseOSG):
         self.existing_layer_names.append(base_str)
         return base_str
 
-    def _param_parse_conv(self, op, target_fh, layer_name, bias_op=None):
+    def _param_parse_conv(self, op, target_fh, layer_name, next_op=None, next_next_op=None):
+        consumed_opt_ops = 0
         out_channel_num = op.dims.out[1]  # out_size
         in_channel_num = op.dims.inp[1]  # previous_layer_size
         kernel_size = op.dims.param[2]
         assert kernel_size == op.dims.param[3]
         input_data_width = op.dims.inp[2]  # image_width
-        assert input_data_width == op.dims.inp[4]
+        assert input_data_width == op.dims.inp[3]
         assert isinstance(op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant)
         kernel_data = op.tvm_args['by_position'][1]['ref'].data.numpy()
         bias_data = np.zeros(out_channel_num, dtype=float)
-        if bias_op is not None:
-            if isinstance(bias_op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant):
-                bias_data = bias_op.tvm_args['by_position'][1]['ref'].data.numpy()
+
+        if next_op is not None and next_op.op_call == 'nn.bias_add':
+            if isinstance(next_op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant):
+                bias_data = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
+            else:
+                print("[DOSA:OSG:WARNING] Strange non-constant bias value for op {}".format(repr(next_op)))
+            consumed_opt_ops += 1
+
+        if next_next_op is not None and next_next_op.op_call == 'nn.relu':
+            op.haddoc_activation = 'relu'
+            consumed_opt_ops += 1
+        elif next_next_op is not None and next_next_op.op_call == 'nn.tanh':
+            op.haddoc_activation = 'tanh'
+            consumed_opt_ops += 1
+        else:
+            op.haddoc_activation = 'default'
+
         nbits = get_bitwidth_of_DosaDtype(op.used_dtype)
         target_fh.write("--" + layer_name + "\n")
         paramParsing.write_image_width(layer_name, input_data_width, target_fh)
@@ -268,9 +346,9 @@ class Haddoc2OSG(BaseOSG):
         paramParsing.write_kernel_value(kernel_data, layer_name, nbits, target_fh)
         target_fh.write("----------------------------------------------------------")
         target_fh.write("--------------------------------------------------------\n")
-        return
+        return op, consumed_opt_ops
 
-    def _param_parse_pool(self, op, target_fh, layer_name):
+    def _param_parse_pool(self, op, target_fh, layer_name, next_op=None, next_next_op=None):
         out_channel_num = op.dims.out[1]  # out_size
         assert out_channel_num == op.dims.inp[1]
         input_data_width = op.dims.inp[2]  # image_width
@@ -285,7 +363,7 @@ class Haddoc2OSG(BaseOSG):
         paramParsing.write_kernel_size(layer_name, kernel_size, target_fh)
         target_fh.write("----------------------------------------------------------")
         target_fh.write("--------------------------------------------------------\n")
-        return
+        return None, 0
 
     def _generate_bitwidth(self, bitwidth_file, general_bitwidth, input_bitwidth, output_bitwidth):
         with open(bitwidth_file, 'w') as f:

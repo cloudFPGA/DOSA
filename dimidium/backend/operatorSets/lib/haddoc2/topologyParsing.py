@@ -74,6 +74,7 @@ def WriteConvlayerComponent(target):
     target.write("  KERNEL_SIZE  : integer;\n")
     target.write("  NB_IN_FLOWS  : integer;\n")
     target.write("  NB_OUT_FLOWS : integer;\n")
+    target.write("  USE_RELU_ACTIVATION : boolean;\n")
     target.write("  KERNEL_VALUE : pixel_matrix;\n")
     target.write("  BIAS_VALUE   : pixel_array\n")
     target.write(");\n")
@@ -163,7 +164,7 @@ def WriteInputSignal(target, layer_name, next_layer_name):
     target.write("signal " + layer_name + "_fv\t: std_logic;\n")
 
 
-def InstanceConvLayer(target, layer_name, previous_layer_name):
+def InstanceConvLayer(target, layer_name, previous_layer_name, use_relu_activation=True):
     target.write(layer_name + ": ConvLayer\n")
     target.write("generic map (\n")
     target.write("  BITWIDTH   => BITWIDTH,\n")
@@ -172,6 +173,10 @@ def InstanceConvLayer(target, layer_name, previous_layer_name):
     target.write("  KERNEL_SIZE  => " + layer_name + "_KERNEL_SIZE,\n")
     target.write("  NB_IN_FLOWS  => " + layer_name + "_IN_SIZE,\n")
     target.write("  NB_OUT_FLOWS => " + layer_name + "_OUT_SIZE,\n")
+    if use_relu_activation:
+        target.write("  USE_RELU_ACTIVATION => true,\n")
+    else:
+        target.write("  USE_RELU_ACTIVATION => false,\n")
     target.write("  KERNEL_VALUE => " + layer_name + "_KERNEL_VALUE,\n")
     target.write("  BIAS_VALUE   => " + layer_name + "_BIAS_VALUE\n")
     target.write(")\n")

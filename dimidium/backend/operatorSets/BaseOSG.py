@@ -93,6 +93,13 @@ class BaseOSG(metaclass=abc.ABCMeta):
             print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
             return False
 
+    def _get_osg_func(self, op_call):
+        if 'nn.' in op_call[0:3]:
+            func = self.relay2osg['nn'][op_call[3:]]
+        else:
+            func = self.relay2osg[op_call]
+        return func
+
     @abc.abstractmethod
     def build_block(self, arch_block, build_tool):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")

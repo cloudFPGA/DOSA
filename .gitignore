@@ -131,6 +131,10 @@ dmypy.json
 # pycharm
 .idea/
 
+# vim
+*.swp
+*.swo
+
 
 ##############################
 # DOSA specific
