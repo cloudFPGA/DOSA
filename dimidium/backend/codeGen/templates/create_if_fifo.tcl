@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------------  
 # VIVADO-IP : FIFO Generator
 #------------------------------------------------------------------------------
+# TODO: maybe use different clock domains? So that the Role could be faster?
+
 set ipModName "{DOSA_FMSTR_NAME}"
 set ipName    "fifo_generator"
 set ipVendor  "xilinx.com"
