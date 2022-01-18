@@ -37,7 +37,6 @@ using namespace hls;
 #define DOSA_HADDOC_OUTPUT_BATCH_FLATTEN true
 #define DOSA_HADDOC_LAYER_CNT 3
 enum ToHaddocEnqStates {RESET = 0, WAIT_DRAIN, FILL_BUF_0, FILL_BUF_1, FILL_BUF_2};
-enum FromHaddocDeqStates {RESET = 0, WAIT_FRAME, READ_BUF_0, READ_BUF_1, READ_BUF_2};
 #else
 //DOSA_ADD_INTERFACE_DEFINES
 #endif
@@ -58,6 +57,7 @@ const int output_fifo_depth = (DOSA_HADDOC_OUTPUT_FRAME_WIDTH*DOSA_HADDOC_OUTPUT
 enum ToHaddocDeqStates {RESET = 0, FORWARD};
 enum FromHaddocEnqStates {RESET = 0, FORWARD};
 enum FromHaddocFlattenStates {RESET = 0, FORWARD};
+enum FromHaddocDeqStates {RESET = 0, WAIT_FRAME, READ_FRAME};
 
 
 
