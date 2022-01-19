@@ -57,17 +57,17 @@ set_top       haddoc_wrapper
 
 
 if { $useWrapperTest } {
-  add_files   ${srcDir}/haddoc_wrapper.cpp -cflags "-DWRAPPER_TEST"
-  add_files   ${srcDir}/haddoc_wrapper.hpp -cflags "-DWRAPPER_TEST"
-  add_files -tb tb/tb_haddoc2_wrapper.cpp -cflags "-DWRAPPER_TEST"
+  add_files   ${srcDir}/haddoc_wrapper.cpp -cflags "-DWRAPPER_TEST -Wno-attributes"
+  add_files   ${srcDir}/haddoc_wrapper.hpp -cflags "-DWRAPPER_TEST -Wno-attributes"
+  add_files -tb tb/tb_haddoc2_wrapper.cpp -cflags "-DWRAPPER_TEST -Wno-attributes"
 } else {
-  add_files   ${srcDir}/haddoc_wrapper.cpp
-  add_files   ${srcDir}/haddoc_wrapper.hpp
-  add_files -tb tb/tb_haddoc2_wrapper.cpp
+  add_files   ${srcDir}/haddoc_wrapper.cpp -cflags "-Wno-attributes"
+  add_files   ${srcDir}/haddoc_wrapper.hpp -cflags "-Wno-attributes"
+  add_files -tb tb/tb_haddoc2_wrapper.cpp -cflags "-Wno-attributes"
 }
 
 # library files
-add_files ../lib/axi_utils.hpp
+add_files ../lib/axi_utils.hpp -cflags "-Wno-attributes"
 #add_files ../lib/interface_utils.hpp
 
 open_solution ${solutionName}
@@ -95,3 +95,5 @@ if { $hlsSim} {
 }
 
 exit
+
+
