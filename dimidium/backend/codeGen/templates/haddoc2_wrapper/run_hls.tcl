@@ -56,6 +56,10 @@ open_project  ${projectName}_prj
 set_top       haddoc_wrapper
 
 
+# library files
+add_files ${srcDir}/../../lib/axi_utils.hpp -cflags "-Wno-attributes"
+#add_files ${srcDir}/../../lib/interface_utils.hpp
+
 if { $useWrapperTest } {
   add_files   ${srcDir}/haddoc_wrapper.cpp -cflags "-DWRAPPER_TEST -Wno-attributes"
   add_files   ${srcDir}/haddoc_wrapper.hpp -cflags "-DWRAPPER_TEST -Wno-attributes"
@@ -66,9 +70,6 @@ if { $useWrapperTest } {
   add_files -tb tb/tb_haddoc2_wrapper.cpp -cflags "-Wno-attributes"
 }
 
-# library files
-add_files ../lib/axi_utils.hpp -cflags "-Wno-attributes"
-#add_files ../lib/interface_utils.hpp
 
 open_solution ${solutionName}
 

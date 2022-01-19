@@ -304,7 +304,8 @@ void pToHaddocDeq(
     ap_uint<1>                                *po_haddoc_data_valid,
     ap_uint<1>                                *po_haddoc_frame_valid,
     ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
-    stream<bool>                              &sHaddocUnitProcessing
+    stream<bool>                              &sHaddocUnitProcessing,
+    ap_uint<32> *debug_out
     )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -431,6 +432,9 @@ void pToHaddocDeq(
     }
     *po_haddoc_frame_valid = 0x1;
   }
+
+  //debugging?
+  *debug_out = 0x0;
 
 }
 
@@ -786,7 +790,7 @@ void haddoc_wrapper(
 #else
       //DOSA_ADD_toHaddoc_buffer_list
 #endif
-      po_haddoc_data_valid, po_haddoc_frame_valid, po_haddoc_data_vector, sHaddocUnitProcessing);
+      po_haddoc_data_valid, po_haddoc_frame_valid, po_haddoc_data_vector, sHaddocUnitProcessing, debug_out);
 
   pFromHaddocEnq(pi_haddoc_data_valid, pi_haddoc_frame_valid, pi_haddoc_data_vector, sHaddocUnitProcessing, sFromHaddocBuffer);
 
@@ -794,8 +798,6 @@ void haddoc_wrapper(
 
   pFromHaddocDeq(arrFromHaddocBuffer_global, soData, sFromHaddocFrameComplete);
 
-  //debugging?
-  *debug_out = 0x0;
 
 }
 

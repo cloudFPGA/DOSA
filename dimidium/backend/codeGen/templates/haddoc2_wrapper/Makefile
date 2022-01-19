@@ -1,6 +1,8 @@
 # Name of the HLS core to build (inserted by DOSA)
 ipName =haddoc_wrapper_test
 
+# don't modify below 
+appName =haddoc_wrapper
 
 DEPS := $(shell find ./src/ -type f)
 IP_GUARD=$(usedRoleDir).ip_guard
