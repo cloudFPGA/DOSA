@@ -18,6 +18,7 @@ def generate_haddoc2_wrapper(block_name, in_dims, out_dims, general_bitw, if_in_
     filedir = os.path.dirname(os.path.abspath(__file__))
     templ_dir_path = os.path.join(filedir, 'templates/haddoc2_wrapper/')
     # 0. copy 'static' files, dir structure
+    # TODO: copy lib
     os.system('cp {}/run_hls.tcl {}'.format(templ_dir_path, out_dir_path))
     os.system('mkdir -p {}/tb/'.format(out_dir_path))
     os.system('mkdir -p {}/src/'.format(out_dir_path))
