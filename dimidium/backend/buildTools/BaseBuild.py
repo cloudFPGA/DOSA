@@ -45,7 +45,7 @@ class BaseHwBuild(BaseBuild, metaclass=abc.ABCMeta):
         self.global_vhdl = None
         self.global_vhdl_dir = None
         self.global_tcl = None
-        self.ip_dirs = {}
+        self.ip_dirs_list = {}
         self.target_device = target_device
         self.tcl_lines = []
 

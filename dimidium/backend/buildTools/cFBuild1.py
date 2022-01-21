@@ -38,18 +38,32 @@ class cFBuild1(BaseHwBuild):
         self.global_hls_dir = "{}/ROLE/hls/".format(self.build_dir)
         self.basic_structure_created = True
 
-    def add_ip_dir(self, arch_block, path=None, is_vhdl=False):
+    def add_ip_dir(self, arch_block, path=None, vhdl_only=False, hybrid=False):
         if not self.basic_structure_created:
             self._create_basic_structure()
         new_id = arch_block.block_uuid
-        if is_vhdl:
+        ip_dir_list = []
+        hls_ip_dir = True
+        vhdl_ip_dir = False
+        if vhdl_only:
+            hls_ip_dir = False
+            vhdl_ip_dir = True
+        if hybrid:
+            hls_ip_dir = True
+            vhdl_ip_dir = True
+        if vhdl_ip_dir:
             new_path = "{}/block_{}".format(self.global_vhdl_dir, arch_block.block_uuid)
-        else:
+            os.system("mkdir -p {}".format(new_path))
+            ip_dir_list.append(new_path)
+        if hls_ip_dir:
             new_path = "{}/block_{}".format(self.global_hls_dir, arch_block.block_uuid)
-        os.system("mkdir -p {}".format(new_path))
-        self.ip_dirs[new_id] = new_path
-        arch_block.ip_dir = new_path
-        return new_path
+            os.system("mkdir -p {}".format(new_path))
+            ip_dir_list.append(new_path)
+        arch_block.ip_dir = ip_dir_list
+        self.ip_dirs_list[new_id] = ip_dir_list
+        if len(ip_dir_list) == 1:
+            return ip_dir_list[0]
+        return ip_dir_list
 
     def create_global_Makefile(self):
         # TODO: better part of buildscripts?

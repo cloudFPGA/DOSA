@@ -255,8 +255,8 @@ void pToHaddocEnq(
       }
       break;
 
-    case FILL_BUF_0:
 #ifdef WRAPPER_TEST
+    case FILL_BUF_0:
     //we distribute on the channels only, cutting in right bitsize in dequeue process
       if( !siData.empty() && !sToHaddocBuffer_chan1.full() )
       {
@@ -281,13 +281,13 @@ void pToHaddocEnq(
         if(genericEnqState(siData, sToHaddocBuffer_chan3, current_frame_bit_cnt, hangover_store, hangover_store_valid_bits))
         {
           //last channel -> go to start
-          enqueueFSM = FILL_BUF_1;
+          enqueueFSM = FILL_BUF_0;
         }
       }
+      break;
 #else
       //DOSA_ADD_enq_fsm
 #endif
-      break;
   }
 
 }

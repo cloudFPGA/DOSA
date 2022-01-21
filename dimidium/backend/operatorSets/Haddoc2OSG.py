@@ -23,6 +23,7 @@ import tvm.relay as relay
 
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
 from dimidium.backend.buildTools.cFBuild1 import cFBuild1
+from dimidium.backend.codeGen.Haddoc2Wrapper import generate_haddoc2_wrapper
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype
@@ -32,7 +33,7 @@ from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 import dimidium.backend.operatorSets.lib.haddoc2.paramsParsing as paramParsing
 import dimidium.backend.operatorSets.lib.haddoc2.topologyParsing as topologyParsing
 from dimidium.backend.codeGen.WrapperInterfaces import get_wrapper_interface_bitwidth, get_tcl_lines_interface_fifo, \
-    wrapper_interface_default_depth, get_fifo_name
+    wrapper_interface_default_depth, get_fifo_name, get_tcl_lines_if_axis_fifo
 
 
 class Haddoc2OSG(BaseOSG):
@@ -58,7 +59,7 @@ class Haddoc2OSG(BaseOSG):
             elif 'pool2d' in e:
                 self.relay2osg['nn'][e] = self._param_parse_pool
             elif 'tanh' in e:
-               self.relay2osg['nn'][e] = self._generate_hdl_tanh_instance
+                self.relay2osg['nn'][e] = self._generate_hdl_tanh_instance
             elif 'relu' in e:
                 self.relay2osg['nn'][e] = self._generate_hdl_relu
             elif 'flatten' in e:
@@ -73,16 +74,19 @@ class Haddoc2OSG(BaseOSG):
         assert isinstance(build_tool, BaseHwBuild)
         if isinstance(build_tool, cFBuild1):
             # for cF, everything under hdl/ will be included
-            used_dir_path = build_tool.add_ip_dir(arch_block, is_vhdl=True)
+            hybrid_dir = build_tool.add_ip_dir(arch_block, hybrid=True)
+            used_vhdl_dir_path = hybrid_dir[0]
+            used_hls_dir_path = hybrid_dir[1]
         else:
-            used_dir_path = build_tool.add_ip_dir(arch_block)
+            used_vhdl_dir_path = build_tool.add_ip_dir(arch_block)
+            used_hls_dir_path = used_vhdl_dir_path
         # first, copy all lib files
         # self._copy_hdl_lib(used_dir_path)
         # use global_vhdl_dir to have it only once per node
         self._copy_hdl_lib(build_tool.global_vhdl_dir)
-        paramFile = os.path.abspath(used_dir_path + '/params.vhd')      # Configuration VHDL output
-        topFile = os.path.abspath(used_dir_path + '/cnn_process.vhd')  # Top level VHDL output
-        bitwidthFile = os.path.abspath(used_dir_path + '/bitwidths.vhd')   # Bitwidth  VHDL output
+        paramFile = os.path.abspath(used_vhdl_dir_path + '/params.vhd')  # Configuration VHDL output
+        topFile = os.path.abspath(used_vhdl_dir_path + '/cnn_process.vhd')  # Top level VHDL output
+        bitwidthFile = os.path.abspath(used_vhdl_dir_path + '/bitwidths.vhd')  # Bitwidth  VHDL output
 
         used_dtype = DosaDtype.UNKNOWN
         layer_names_by_op_id = {}
@@ -100,7 +104,7 @@ class Haddoc2OSG(BaseOSG):
                 if wrapper_first_brick is None:
                     wrapper_first_brick = bb
                 skip_i = []
-                #for op in bb.local_op_iter_gen():
+                # for op in bb.local_op_iter_gen():
                 for op_i in bb.ops.keys():
                     op = bb.ops[op_i]
                     layer_name = self._create_unique_layer_name(op.name)
@@ -234,14 +238,17 @@ class Haddoc2OSG(BaseOSG):
             topologyParsing.InstanceDynOutputLayer(topf, previous_layer_name)
             topologyParsing.WriteArchitectureEnd(topf)
         # TODO: generate wrapper
-        # wrapper_flatten_op
         # wrapper_last_op
-        # wrapper_first_op = ops_implemented_ordered[0]
-        if_bitw = get_wrapper_interface_bitwidth(wrapper_first_brick.input_bw_Bs, build_tool.target_device)
+        if_in_bitw = get_wrapper_interface_bitwidth(wrapper_first_brick.input_bw_Bs, build_tool.target_device)
+        if_out_bitw = get_wrapper_interface_bitwidth(wrapper_first_brick.output_bw_Bs, build_tool.target_device)
         if_fifo_name = get_fifo_name('input_{}'.format(arch_block.block_uuid))
-        if_fifo_tcl = get_tcl_lines_interface_fifo(if_fifo_name, if_bitw,
-                                                   wrapper_interface_default_depth)
-        build_tool.add_tcl_entry(if_fifo_tcl)
+        if_axis_tcl = get_tcl_lines_if_axis_fifo(if_fifo_name, if_in_bitw,
+                                                 wrapper_interface_default_depth)
+        build_tool.add_tcl_entry(if_axis_tcl)
+        wrapper_first_op = ops_implemented_ordered[0]
+        generate_haddoc2_wrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_first_op.dims.out,
+                                 used_bit_width, if_in_bitw, if_out_bitw, used_hls_dir_path, wrapper_flatten_op,
+                                 len(ops_implemented_ordered))
         # TODO: generate vhdl component and instance, for node integration
         return 0
 
@@ -378,6 +385,3 @@ class Haddoc2OSG(BaseOSG):
             f.write('  constant OUTPUT_BITWIDTH  : integer := ' + str(output_bitwidth) + ';\n')
             f.write('end bitwidths;\n')
         return
-
-
-

@@ -1,7 +1,7 @@
 # Name of the HLS core to build (inserted by DOSA)
 ipName =haddoc_wrapper_test
 
-# don't modify below 
+# line 4: don't modify below, above lines are ignored by DOSA generation
 appName =haddoc_wrapper
 
 DEPS := $(shell find ./src/ -type f)

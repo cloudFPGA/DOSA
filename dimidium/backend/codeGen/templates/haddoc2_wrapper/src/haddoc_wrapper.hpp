@@ -55,9 +55,6 @@ const uint32_t output_fifo_depth = (DOSA_HADDOC_OUTPUT_FRAME_WIDTH*DOSA_HADDOC_O
 
 //independent defines
 enum twoStatesFSM {RESET = 0, FORWARD};
-//enum ToHaddocDeqStates {RESET = 0, FORWARD};
-//enum FromHaddocEnqStates {RESET = 0, FORWARD};
-//enum FromHaddocFlattenStates {RESET = 0, FORWARD};
 enum FromHaddocDeqStates {RESET1 = 0, WAIT_FRAME, READ_FRAME};
 
 

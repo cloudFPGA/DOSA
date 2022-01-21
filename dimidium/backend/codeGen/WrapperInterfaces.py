@@ -48,3 +48,16 @@ def get_tcl_lines_interface_fifo(name, bitwidth, depth):
 def get_fifo_name(name):
     return 'Fifo_{}'.format(name)
 
+
+def get_tcl_lines_if_axis_fifo(name, bitwidth, depth):
+    tdata_bitw = bitwidth
+    tkeep_bitw = (bitwidth+7)/8
+    tlast_bitw = 1
+    filedir = os.path.dirname(os.path.abspath(__file__))
+    template_lines = Path(os.path.join(filedir, 'templates/create_axis_fifo.tcl')).read_text()
+    new_tcl_lines = template_lines.format(DOSA_FMSTR_NAME=name, DOSA_FMSTR_BITWIDTH_TDATA='{'+str(tdata_bitw)+'}',
+                                          DOSA_FMSTR_BITWIDTH_TKEEP='{'+str(tkeep_bitw)+'}',
+                                          DOSA_FMSTR_BITWIDTH_TLAST='{'+str(tlast_bitw)+'}',
+                                          DOSA_FMSTR_DEPTH='{'+str(depth)+'}')
+    return new_tcl_lines
+
