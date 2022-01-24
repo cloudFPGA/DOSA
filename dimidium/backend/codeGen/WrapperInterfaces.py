@@ -11,53 +11,168 @@
 #  *
 
 import os
+import abc
 from pathlib import Path
 
 from dimidium.backend.devices.dosa_device import DosaBaseHw
 
-__bit_ber_byte_ = 8
+__bit_ber_byte__ = 8
 __small_interface_bitwidth__ = 64
 __medium_interface_bitwidth__ = 512
 __large_interface_bitwidth__ = 2048
 __available_interface_bitwidth__ = [__small_interface_bitwidth__, __medium_interface_bitwidth__,
                                     __large_interface_bitwidth__]
 
-
-def get_wrapper_interface_bitwidth(input_bw_s, target_hw: DosaBaseHw):
-    for bit_w in __available_interface_bitwidth__:
-        bw_Bs = (bit_w/__bit_ber_byte_)/target_hw.clock_period_s
-        if input_bw_s <= bw_Bs:
-            return bit_w
-    default = __available_interface_bitwidth__[-1]
-    print(("[DOSA:InterfaceGeneration:WARNING] can't statisfy required input bandwidth of {} B/s with available " +
-          "interface options. Defaulting to {}.").format(input_bw_s, default))
-    return default
-
-
 wrapper_interface_default_depth = 32
+wrapper_default_interface_bitwidth = __small_interface_bitwidth__
 
-
-def get_tcl_lines_interface_fifo(name, bitwidth, depth):
-    filedir = os.path.dirname(os.path.abspath(__file__))
-    template_lines = Path(os.path.join(filedir, 'templates/create_if_fifo.tcl')).read_text()
-    new_tcl_lines = template_lines.format(DOSA_FMSTR_NAME=name, DOSA_FMSTR_BITWIDTH='{'+str(bitwidth)+'}',
-                                          DOSA_FMSTR_DEPTH='{'+str(depth)+'}')
-    return new_tcl_lines
+__filedir__ = os.path.dirname(os.path.abspath(__file__))
 
 
 def get_fifo_name(name):
     return 'Fifo_{}'.format(name)
 
 
-def get_tcl_lines_if_axis_fifo(name, bitwidth, depth):
-    tdata_bitw = bitwidth
-    tkeep_bitw = (bitwidth+7)/8
-    tlast_bitw = 1
-    filedir = os.path.dirname(os.path.abspath(__file__))
-    template_lines = Path(os.path.join(filedir, 'templates/create_axis_fifo.tcl')).read_text()
-    new_tcl_lines = template_lines.format(DOSA_FMSTR_NAME=name, DOSA_FMSTR_BITWIDTH_TDATA='{'+str(tdata_bitw)+'}',
-                                          DOSA_FMSTR_BITWIDTH_TKEEP='{'+str(tkeep_bitw)+'}',
-                                          DOSA_FMSTR_BITWIDTH_TLAST='{'+str(tlast_bitw)+'}',
-                                          DOSA_FMSTR_DEPTH='{'+str(depth)+'}')
-    return new_tcl_lines
+class WrapperInterface(metaclass=abc.ABCMeta):
+
+    def __init__(self, mod_name, bw_s, target_hw: DosaBaseHw, depth=wrapper_interface_default_depth):
+        self.name = get_fifo_name(mod_name)
+        self.bw_s = bw_s
+        self.depth = depth
+        self.target_hw = target_hw
+        self.bitwidth = self._get_wrapper_interface_bitwidth()
+
+    def _get_wrapper_interface_bitwidth(self):
+        for bit_w in __available_interface_bitwidth__:
+            bw_Bs = (bit_w/__bit_ber_byte__)/self.target_hw.clock_period_s
+            if self.bw_s <= bw_Bs:
+                return bit_w
+        default = __available_interface_bitwidth__[-1]
+        print(("[DOSA:InterfaceGeneration:WARNING] can't satisfy required input bandwidth of {} B/s with available " +
+              "interface options. Defaulting to {}.").format(self.bw_s, default))
+        return default
+
+    def get_if_name(self):
+        return self.name
+
+    def get_if_bitwidth(self):
+        return self.bitwidth
+
+    @abc.abstractmethod
+    def get_tcl_lines(self):
+        print("[DOSA:WrapperGeneration:ERROR] NOT YET IMPLEMENTED.")
+
+    @abc.abstractmethod
+    def get_vhdl_entity_declaration(self):
+        print("[DOSA:WrapperGeneration:ERROR] NOT YET IMPLEMENTED.")
+
+    @abc.abstractmethod
+    def get_vhdl_signal_declaration(self):
+        print("[DOSA:WrapperGeneration:ERROR] NOT YET IMPLEMENTED.")
+
+    @abc.abstractmethod
+    def get_vhdl_entity_inst_tmpl(self):
+        """empty string if no instantiation necessary (e.g. for pure AXIS)"""
+        print("[DOSA:WrapperGeneration:ERROR] NOT YET IMPLEMENTED.")
+
+    @abc.abstractmethod
+    def get_vhdl_signal_dict(self):
+        """:return dict with {to_signals: {}, from_signals: {} }.
+                    if no instantiation necessary, only from_signals are set
+        """
+        print("[DOSA:WrapperGeneration:ERROR] NOT YET IMPLEMENTED.")
+
+
+class InterfaceVectorFifo(WrapperInterface):
+
+    def get_tcl_lines(self):
+        template_lines = Path(os.path.join(__filedir__, 'templates/create_if_fifo.tcl')).read_text()
+        new_tcl_lines = template_lines.format(DOSA_FMSTR_NAME=self.name, DOSA_FMSTR_BITWIDTH='{'+str(self.bitwidth)+'}',
+                                              DOSA_FMSTR_DEPTH='{'+str(self.depth)+'}')
+        return new_tcl_lines
+
+    def get_vhdl_entity_declaration(self):
+        decl = ('component {name} is\n    port (\n       clk    : in std_logic;\n        srst   : in std_logic;\n' +
+                '       din    : in std_logic_vector({width} downto 0);\n       full   : out std_logic;\n' +
+                '       wr_en  : in std_logic;\n        dout   : out std_logic_vector({width} downto 0);\n' +
+                '       empty  : out std_logic;\n       rd_en  : in std_logic );\nend component;')\
+            .format(name=self.name, width=self.bitwidth)
+        return decl
+
+    def get_vhdl_signal_declaration(self):
+        signal_dict = self.get_vhdl_signal_dict()
+        map_dict = {'in_sig_0':   signal_dict['to_signals']['0'],
+                    'in_sig_1_n': signal_dict['to_signals']['1_n'],
+                    'in_sig_1':   signal_dict['to_signals']['1'],
+                    'in_sig_2':   signal_dict['to_signals']['2'],
+                    'out_sig_0':   signal_dict['from_signals']['0'],
+                    'out_sig_1_n': signal_dict['from_signals']['1_n'],
+                    'out_sig_1':   signal_dict['from_signals']['1'],
+                    'out_sig_2':   signal_dict['from_signals']['2'],
+                    'width': self.bitwidth
+                    }
+        decl = ('signal {in_sig_0}    : std_ulogic_vector({width} downto 0);\n' +
+                'signal {in_sig_1_n}  : std_ulogic;\n' +
+                'signal {in_sig_1}    : std_ulogic;\n' +
+                'signal {in_sig_2}    : std_ulogic;\n' +
+                'signal {out_sig_0}    : std_ulogic_vector({width} downto 0);\n' +
+                'signal {out_sig_1_n}  : std_ulogic;\n' +
+                'signal {out_sig_1}    : std_ulogic;\n' +
+                'signal {out_sig_2}    : std_ulogic;\n')\
+            .format_map(map_dict)
+        return decl
+
+    def get_vhdl_entity_inst_tmpl(self):
+        inst_tmpl = ('{in_sig_1_n} <= not {in_sig_1}\n' +
+                     '{out_sig_1_n} <= not {out_sig_1}\n\n' +
+                     '{inst_name}: ' + str(self.name) + '\n' +
+                     'port map (\n' +
+                     '           clk     => {clk},\n' +
+                     '           srst    => {rst},\n' +
+                     '           din     => {in_sig_0},\n' +
+                     '           full    => {in_sig_1},\n' +
+                     '           wr_en   => {in_sig_2},\n' +
+                     '           dout    => {out_sig_0},\n' +
+                     '           empty   => {out_sig_1},\n' +
+                     '           rd_en   => {out_sig_2}\n' +
+                     '         );\n')
+        return inst_tmpl
+
+    def get_vhdl_signal_dict(self):
+        signal_dict = {'to_signals': {}, 'from_signals': {}}
+        signal_dict['to_signals']['0']   = 'sTo{}_din'.format(self.name)
+        signal_dict['to_signals']['1_n'] = 'sTo{}_full_n'.format(self.name)
+        signal_dict['to_signals']['1']   = 'sTo{}_full'.format(self.name)
+        signal_dict['to_signals']['2']   = 'sTo{}_write'.format(self.name)
+        signal_dict['from_signals']['0']   = 'sTo{}_dout'.format(self.name)
+        signal_dict['from_signals']['1_n'] = 'sTo{}_empty_n'.format(self.name)
+        signal_dict['from_signals']['1']   = 'sTo{}_empty'.format(self.name)
+        signal_dict['from_signals']['2']   = 'sTo{}_read'.format(self.name)
+        return signal_dict
+
+
+class InterfaceAxisFifo(WrapperInterface):
+
+    def get_tcl_lines(self):
+        tdata_bitw = self.bitwidth
+        tkeep_bitw = (self.bitwidth+7)/8
+        tlast_bitw = 1
+        template_lines = Path(os.path.join(__filedir__, 'templates/create_axis_fifo.tcl')).read_text()
+        new_tcl_lines = template_lines.format(DOSA_FMSTR_NAME=self.name, DOSA_FMSTR_BITWIDTH_TDATA='{'+str(tdata_bitw)+'}',
+                                              DOSA_FMSTR_BITWIDTH_TKEEP='{'+str(tkeep_bitw)+'}',
+                                              DOSA_FMSTR_BITWIDTH_TLAST='{'+str(tlast_bitw)+'}',
+                                              DOSA_FMSTR_DEPTH='{'+str(self.depth)+'}')
+        return new_tcl_lines
+
+    def get_vhdl_entity_declaration(self):
+        pass
+
+    def get_vhdl_signal_declaration(self):
+        pass
+
+    def get_vhdl_entity_inst_tmpl(self):
+        pass
+
+    def get_vhdl_signal_dict(self):
+        pass
 

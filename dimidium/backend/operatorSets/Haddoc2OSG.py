@@ -23,7 +23,7 @@ import tvm.relay as relay
 
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
 from dimidium.backend.buildTools.cFBuild1 import cFBuild1
-from dimidium.backend.codeGen.Haddoc2Wrapper import generate_haddoc2_wrapper
+from dimidium.backend.codeGen.Haddoc2Wrapper import Haddoc2Wrapper
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype
@@ -32,8 +32,7 @@ from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 import dimidium.backend.operatorSets.lib.haddoc2.paramsParsing as paramParsing
 import dimidium.backend.operatorSets.lib.haddoc2.topologyParsing as topologyParsing
-from dimidium.backend.codeGen.WrapperInterfaces import get_wrapper_interface_bitwidth, get_tcl_lines_interface_fifo, \
-    wrapper_interface_default_depth, get_fifo_name, get_tcl_lines_if_axis_fifo
+from dimidium.backend.codeGen.WrapperInterfaces import InterfaceAxisFifo, wrapper_default_interface_bitwidth
 
 
 class Haddoc2OSG(BaseOSG):
@@ -239,17 +238,33 @@ class Haddoc2OSG(BaseOSG):
             topologyParsing.WriteArchitectureEnd(topf)
         # TODO: generate wrapper
         # wrapper_last_op
-        if_in_bitw = get_wrapper_interface_bitwidth(wrapper_first_brick.input_bw_Bs, build_tool.target_device)
-        if_out_bitw = get_wrapper_interface_bitwidth(wrapper_first_brick.output_bw_Bs, build_tool.target_device)
-        if_fifo_name = get_fifo_name('input_{}'.format(arch_block.block_uuid))
-        if_axis_tcl = get_tcl_lines_if_axis_fifo(if_fifo_name, if_in_bitw,
-                                                 wrapper_interface_default_depth)
+        wrapper_input_fifo = InterfaceAxisFifo('input_{}'.format(arch_block.block_uuid),
+                                               wrapper_first_brick.input_bw_Bs, build_tool.target_device)
+        if build_tool.topVhdl.next_proc_comp_cnt == 0:
+            # i.e. we are connected to the input
+            wrapper_input_fifo.bitwidth = wrapper_default_interface_bitwidth
+        if_in_bitw = wrapper_input_fifo.get_if_bitwidth()
+        wrapper_output_fifo = InterfaceAxisFifo('output_{}'.format(arch_block.block_uuid),
+                                                wrapper_first_brick.input_bw_Bs, build_tool.target_device)
+        if_out_bitw = wrapper_output_fifo.get_if_bitwidth()
+        if_fifo_name = wrapper_input_fifo.get_if_name()
+        if_axis_tcl = wrapper_input_fifo.get_tcl_lines()
         build_tool.add_tcl_entry(if_axis_tcl)
+        # TODO: add if to global vhdl?
+
         wrapper_first_op = ops_implemented_ordered[0]
-        generate_haddoc2_wrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_first_op.dims.out,
-                                 used_bit_width, if_in_bitw, if_out_bitw, used_hls_dir_path, wrapper_flatten_op,
-                                 len(ops_implemented_ordered))
+        block_wrapper = Haddoc2Wrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_first_op.dims.out,
+                                       used_bit_width, if_in_bitw, if_out_bitw, used_hls_dir_path, wrapper_flatten_op,
+                                       len(ops_implemented_ordered))
+        block_wrapper.generate_haddoc2_wrapper()
+        wrapper_inst_tcl = block_wrapper.get_tcl_lines_wrapper_inst('IP Core to connect DOSA infrastructure with '
+                                                                    'Haddoc2 Layers')
+        build_tool.add_tcl_entry(wrapper_inst_tcl)
         # TODO: generate vhdl component and instance, for node integration
+        #  signal declarations (like haddoc?)
+        #  component code
+        #  instance code
+        #  signal index, so that previous and next block can connect?
         return 0
 
     def build_container(self, container, build_tool):

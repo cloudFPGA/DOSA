@@ -12,17 +12,14 @@
 
 import os
 
-from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
+from dimidium.backend.buildTools.BaseBuild import BaseHwBuild, HwBuildTopVhdl
 from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
 
 
-class cFBuild1(BaseHwBuild):
+class cFBuild1(HwBuildTopVhdl):
 
     def __init__(self, name, target_device: DosaBaseHw, build_dir=None, out_dir=None):
         super().__init__(name, target_device, build_dir, out_dir)
-        self.global_vhdl = None
-        self.global_vhdl_dir = None
-        self.global_tcl = None
         self.basic_structure_created = False
         self.global_hls_dir = None
 
@@ -31,11 +28,12 @@ class cFBuild1(BaseHwBuild):
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
         my_templates = os.path.abspath(me_abs_dir + '/templates/cFBuild1/')
         os.system("cp {0}/Makefile {1}/ROLE/Makefile".format(my_templates, self.build_dir))
-        os.system("cp {0}/Role.vhdl {1}/ROLE/hdl/Role.vhdl".format(my_templates, self.build_dir))
         os.system("cp {0}/tcl/* {1}/ROLE/tcl/".format(my_templates, self.build_dir))
-        self.global_vhdl = "{}/ROLE/hdl/Role.vhdl".format(self.build_dir)
+        self.global_vhdl_entity_path = "{}/ROLE/hdl/Role.vhdl".format(self.build_dir)
         self.global_vhdl_dir = "{}/ROLE/hdl/".format(self.build_dir)
         self.global_hls_dir = "{}/ROLE/hls/".format(self.build_dir)
+        # os.system("cp {0}/Role.vhdl {1}/ROLE/hdl/Role.vhdl".format(my_templates, self.build_dir))
+        self.topVhdl.set_template('{}/Role.vhdl'.format(my_templates))
         self.basic_structure_created = True
 
     def add_ip_dir(self, arch_block, path=None, vhdl_only=False, hybrid=False):

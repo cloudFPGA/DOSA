@@ -13,6 +13,7 @@
 import os
 import abc
 import dimidium.lib.singleton as dosa_singleton
+from dimidium.backend.codeGen.VhdlEntity import VhdlEntity
 
 
 class BaseBuild(metaclass=abc.ABCMeta):
@@ -42,7 +43,7 @@ class BaseHwBuild(BaseBuild, metaclass=abc.ABCMeta):
 
     def __init__(self, name, target_device, build_dir=None, out_dir=None):
         super().__init__(name, build_dir, out_dir)
-        self.global_vhdl = None
+        self.global_vhdl_entity_path = None
         self.global_vhdl_dir = None
         self.global_tcl = None
         self.ip_dirs_list = {}
@@ -73,4 +74,12 @@ class BaseSwBuild(BaseBuild, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def add_lib_dir(self, arch_block, path=None):
         print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
+
+
+class HwBuildTopVhdl(BaseHwBuild, metaclass=abc.ABCMeta):
+
+    def __init__(self, name, target_device, build_dir=None, out_dir=None):
+        super().__init__(name, target_device, build_dir, out_dir)
+        self.topVhdl = VhdlEntity()
+
 
