@@ -63,7 +63,7 @@ class VhdlEntity:
                                         [InterfaceAxisFifo])
         # check compatibility of input layer
         is_compatible = False
-        for at in self.network_input_adapter_inst.if_types:
+        for at in self.network_input_adapter_inst['if_types']:
             if isinstance(self.processing_comp_insts[0]['input_if'], at):
                 is_compatible = True
         if not is_compatible:

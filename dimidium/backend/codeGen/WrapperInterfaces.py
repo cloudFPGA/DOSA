@@ -14,7 +14,6 @@ import os
 import abc
 from pathlib import Path
 
-from dimidium.backend.devices.dosa_device import DosaBaseHw
 
 __bit_ber_byte__ = 8
 __small_interface_bitwidth__ = 64
@@ -35,7 +34,7 @@ def get_fifo_name(name):
 
 class WrapperInterface(metaclass=abc.ABCMeta):
 
-    def __init__(self, mod_name, bw_s, target_hw: DosaBaseHw, depth=wrapper_interface_default_depth):
+    def __init__(self, mod_name, bw_s, target_hw, depth=wrapper_interface_default_depth):
         self.name = get_fifo_name(mod_name)
         self.bw_s = bw_s
         self.depth = depth
@@ -124,8 +123,8 @@ class InterfaceVectorFifo(WrapperInterface):
         return decl
 
     def get_vhdl_entity_inst_tmpl(self):
-        inst_tmpl = ('{in_sig_1_n} <= not {in_sig_1}\n' +
-                     '{out_sig_1_n} <= not {out_sig_1}\n\n' +
+        inst_tmpl = ('{in_sig_1_n} <= not {in_sig_1};\n' +
+                     '{out_sig_1_n} <= not {out_sig_1};\n' +
                      '{inst_name}: ' + str(self.name) + '\n' +
                      'port map (\n' +
                      '           clk     => {clk},\n' +
@@ -154,7 +153,7 @@ class InterfaceVectorFifo(WrapperInterface):
 
 class InterfaceAxisFifo(WrapperInterface):
 
-    def __init__(self, mod_name, bw_s, target_hw: DosaBaseHw):
+    def __init__(self, mod_name, bw_s, target_hw):
         super().__init__(mod_name, bw_s, target_hw)
         self._calc_bitw_ = -1
         self._calculate_bitws()
@@ -263,8 +262,8 @@ class InterfaceAxisFifo(WrapperInterface):
     def get_vhdl_entity_inst_tmpl(self):
         if self._calc_bitw_ != self.bitwidth:
             self._calculate_bitws()
-        inst_tmpl = ('{in_sig_1_n} <= not {in_sig_1}\n' +
-                     '{out_sig_1_n} <= not {out_sig_1}\n\n' +
+        inst_tmpl = ('{in_sig_1_n} <= not {in_sig_1};\n' +
+                     '{out_sig_1_n} <= not {out_sig_1};\n' +
                      '{inst_name}: ' + str(self.name) + '_tdata' + '\n' +
                      'port map (\n' +
                      '           clk     => {clk},\n' +
@@ -276,8 +275,8 @@ class InterfaceAxisFifo(WrapperInterface):
                      '           empty   => {out_sig_1},\n' +
                      '           rd_en   => {out_sig_2}\n' +
                      '         );\n')
-        inst_tmpl += ('\n{in_sig_4_n} <= not {in_sig_4}\n' +
-                      '{out_sig_4_n} <= not {out_sig_4}\n\n' +
+        inst_tmpl += ('\n{in_sig_4_n} <= not {in_sig_4};\n' +
+                      '{out_sig_4_n} <= not {out_sig_4};\n' +
                       '{inst_name}: ' + str(self.name) + '_tkeep' + '\n' +
                       'port map (\n' +
                       '           clk     => {clk},\n' +
@@ -289,8 +288,8 @@ class InterfaceAxisFifo(WrapperInterface):
                       '           empty   => {out_sig_4},\n' +
                       '           rd_en   => {out_sig_5}\n' +
                       '         );\n')
-        inst_tmpl += ('\n{in_sig_7_n} <= not {in_sig_7}\n' +
-                      '{out_sig_7_n} <= not {out_sig_7}\n\n' +
+        inst_tmpl += ('\n{in_sig_7_n} <= not {in_sig_7};\n' +
+                      '{out_sig_7_n} <= not {out_sig_7};\n' +
                       '{inst_name}: ' + str(self.name) + '_tlast' + '\n' +
                       'port map (\n' +
                       '           clk     => {clk},\n' +

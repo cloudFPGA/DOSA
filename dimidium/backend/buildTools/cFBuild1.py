@@ -76,7 +76,11 @@ class cFBuild1(HwBuildTopVhdl):
                 if 'DOSA_ADD_tcl_decls' in line:
                     outline = ''
                     for e in self.tcl_lines:
-                        outline += e
+                        if isinstance(e, str):
+                            outline += e
+                        elif isinstance(e, list):
+                            for ee in e:
+                                outline += ee
                         outline += '\n'
                 else:
                     outline = line

@@ -391,7 +391,7 @@ class Haddoc2OSG(BaseOSG):
         target_fh.write("--------------------------------------------------------\n")
         return None, 0
 
-    def _generate_bitwidth(self, block_id, bitwidth_file, general_bitwidth, input_bitwidth, output_bitwidth):
+    def _generate_bitwidth(self, bitwidth_file, block_id, general_bitwidth, input_bitwidth, output_bitwidth):
         with open(bitwidth_file, 'w') as f:
             f.write('library ieee;\n')
             f.write('  use ieee.std_logic_1164.all;\n')

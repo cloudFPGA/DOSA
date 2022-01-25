@@ -22,7 +22,7 @@ class Haddoc2Wrapper:
                  wrapper_flatten_op, haddoc_op_cnt):
         self.templ_dir_path = os.path.join(__filedir__, 'templates/haddoc2_wrapper/')
         self.ip_name = 'haddoc_wrapper_b{}'.format(block_id)
-        self.ip_mod_name = 'Haddoc2Wrapper_b{}'.format(block_id),
+        self.ip_mod_name = 'Haddoc2Wrapper_b{}'.format(block_id)
         self.block_id = block_id
         self.in_dims = in_dims
         self.out_dims = out_dims
@@ -215,7 +215,7 @@ class Haddoc2Wrapper:
                           if_in_width_tdata=(self.if_in_bitw - 1),
                           if_in_width_tkeep=(((self.if_in_bitw + 7) / 8) - 1), if_in_width_tlast=0,
                           if_out_width_tdata=(self.if_out_bitw - 1),
-                          if_ut_width_tkeep=(((self.if_out_bitw + 7) / 8) - 1),
+                          if_out_width_tkeep=(((self.if_out_bitw + 7) / 8) - 1),
                           if_out_width_tlast=0, haddoc_in_width=((self.general_bitw * self.in_dims[1]) - 1),
                           haddoc_out_width=((self.general_bitw * self.out_dims[1]) - 1))
         return ret
@@ -265,8 +265,8 @@ class Haddoc2Wrapper:
         decl += '\n'
         decl += ('[inst_name]: cnn_process_b{block_id}\n' +
                  'generic map (\n' +
-                 '  BITWIDTH  => {haddoc_general_bitw}\n' +
-                 '  IMAGE_WIDTH => {haddoc_image_width}\n' +
+                 '  BITWIDTH  => {haddoc_general_bitw},\n' +
+                 '  IMAGE_WIDTH => {haddoc_image_width}\n' +  # no comma
                  ')\n' +  # no semicolon
                  'port map (\n' +
                  '  clk      =>  [clk],\n' +

@@ -49,6 +49,7 @@ Role_$(cFpSRAtype)_OOC.dcp: ./hdl ./tcl/run_pr.tcl ./tcl/xpr_settings_role.tcl |
 dosa_cores:  ## builds all DOSA cores (automatically generated, do not modify)
 	@# first, triangle app
 	$(MAKE) -C ./hls/triangle_app/
+	@# then, add all dosa targets
 	@#DOSA_add_make_targets
 
 # hls_cores:
