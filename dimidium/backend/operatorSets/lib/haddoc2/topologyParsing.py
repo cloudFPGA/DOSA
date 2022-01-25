@@ -287,18 +287,18 @@ def InstanceDynOutputLayer(target, previous_layer_name):
     target.write(");\n")
 
 
-def WriteLibs(target):
+def WriteLibs(target, block_id):
     target.write("library ieee;\n")
     target.write("  use ieee.std_logic_1164.all;\n")
     target.write("  use ieee.numeric_std.all;\n")
     target.write("library work;\n")
-    target.write("  use work.bitwidths.all;\n")
-    target.write("  use work.cnn_types.all;\n")
-    target.write("  use work.params.all;\n")
+    target.write("  use work.bitwidths_b{}.all;\n".format(block_id))
+    target.write("  use work.cnn_types.all;\n")  # independent across Haddoc2
+    target.write("  use work.params_b{}.all;\n".format(block_id))
 
 
-def WriteEntity(target):
-    target.write("entity cnn_process is\n")
+def WriteEntity(target, block_id):
+    target.write("entity cnn_process_b{} is\n".format(block_id))
     target.write("generic(\n")
     target.write("  BITWIDTH  : integer := GENERAL_BITWIDTH;\n")
     target.write("  IMAGE_WIDTH : integer := CONV1_IMAGE_WIDTH\n")
@@ -318,8 +318,8 @@ def WriteEntity(target):
     target.write("end entity;\n\n")
 
 
-def WriteArchitecutreHead(target):
-    target.write("architecture STRUCTURAL of cnn_process is\n")
+def WriteArchitecutreHead(target, block_id):
+    target.write("architecture STRUCTURAL of cnn_process_b{} is\n".format(block_id))
 
 
 def WriteArchitectureEnd(target):

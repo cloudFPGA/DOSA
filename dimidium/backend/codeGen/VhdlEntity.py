@@ -23,6 +23,8 @@ class VhdlEntity:
         self.network_output_adapter_inst = None
         self.processing_comp_insts = {}
         self.next_proc_comp_cnt = 0
+        self.add_tcl_valid = False
+        self.add_tcl_lines = []
 
     def set_template(self, template_file):
         self.template_file = template_file
@@ -48,10 +50,19 @@ class VhdlEntity:
         self.comp_decls[self.next_proc_comp_cnt] = decl_lines
         inst_name = 'proc_comp_{}'.format(self.next_proc_comp_cnt)
         self.processing_comp_insts[self.next_proc_comp_cnt] = {'inst_tmpl': inst_template, 'input_if': input_if,
-                                                               'output_if': output_if}
+                                                               'output_if': output_if, 'name': inst_name}
         self.next_proc_comp_cnt += 1
 
-    def get_vhdl_lines(self):
+    def write_file(self, target_path):
         # TODO
-        return ""
+        #  first: generate what still needs to be generated (connection to network out adapter)
+        #  then write vhdl, from top to bottom
+        self.add_tcl_valid = True
+        return 0
+
+    def get_add_tcl_lines(self):
+        if not self.add_tcl_valid:
+            print("[DOSA:VhdlGen:ERROR] The data from this call is not yet valid (add_tcl_lines of VhdlEntity). STOP.")
+            exit(1)
+        return self.add_tcl_lines
 

@@ -21,7 +21,7 @@ import numpy as np
 import tvm
 import tvm.relay as relay
 
-from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
+from dimidium.backend.buildTools.BaseBuild import HwBuildTopVhdl
 from dimidium.backend.buildTools.cFBuild1 import cFBuild1
 from dimidium.backend.codeGen.Haddoc2Wrapper import Haddoc2Wrapper
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
@@ -70,7 +70,7 @@ class Haddoc2OSG(BaseOSG):
         os.system("cp -n {}/* {}/".format(self.my_hdl_template_folder, target_hdl_dir))
 
     def build_block(self, arch_block, build_tool):
-        assert isinstance(build_tool, BaseHwBuild)
+        assert isinstance(build_tool, HwBuildTopVhdl)
         if isinstance(build_tool, cFBuild1):
             # for cF, everything under hdl/ will be included
             hybrid_dir = build_tool.add_ip_dir(arch_block, hybrid=True)
@@ -83,6 +83,7 @@ class Haddoc2OSG(BaseOSG):
         # self._copy_hdl_lib(used_dir_path)
         # use global_vhdl_dir to have it only once per node
         self._copy_hdl_lib(build_tool.global_vhdl_dir)
+        # file names are in specific folder, don't need to match entity name
         paramFile = os.path.abspath(used_vhdl_dir_path + '/params.vhd')  # Configuration VHDL output
         topFile = os.path.abspath(used_vhdl_dir_path + '/cnn_process.vhd')  # Top level VHDL output
         bitwidthFile = os.path.abspath(used_vhdl_dir_path + '/bitwidths.vhd')  # Bitwidth  VHDL output
@@ -97,7 +98,7 @@ class Haddoc2OSG(BaseOSG):
         wrapper_first_brick = None
         # as haddoc, we first take care of the params
         with open(paramFile, 'w') as vhdlf:
-            paramParsing.write_fileHead(vhdlf)
+            paramParsing.write_fileHead(vhdlf, arch_block.block_uuid)
             # now, iterate over bricks
             for bb in arch_block.brick_list:
                 if wrapper_first_brick is None:
@@ -194,12 +195,13 @@ class Haddoc2OSG(BaseOSG):
         output_bit_width = used_bit_width
         # TODO: make dynamic
         output_bit_width *= output_dim[1]
-        self._generate_bitwidth(bitwidthFile, used_bit_width, input_bit_width, output_bit_width)
+        self._generate_bitwidth(bitwidthFile, arch_block.block_uuid, used_bit_width, input_bit_width, output_bit_width)
         wrapper_last_op = None
         # finally, create the topology
         with open(topFile, 'w') as topf:
-            topologyParsing.WriteLibs(topf)
-            topologyParsing.WriteEntity(topf)
+            topologyParsing.WriteLibs(topf, arch_block.block_uuid)
+            topologyParsing.WriteEntity(topf, arch_block.block_uuid)
+            topologyParsing.WriteArchitecutreHead(topf, arch_block.block_uuid)
             # we always need an input
             input_layer_name = "haddoc2_osg_input"
             topf.write(" -- Signals\n")
@@ -247,10 +249,9 @@ class Haddoc2OSG(BaseOSG):
         wrapper_output_fifo = InterfaceAxisFifo('output_{}'.format(arch_block.block_uuid),
                                                 wrapper_first_brick.input_bw_Bs, build_tool.target_device)
         if_out_bitw = wrapper_output_fifo.get_if_bitwidth()
-        if_fifo_name = wrapper_input_fifo.get_if_name()
+        # if_fifo_name = wrapper_input_fifo.get_if_name()
         if_axis_tcl = wrapper_input_fifo.get_tcl_lines()
         build_tool.add_tcl_entry(if_axis_tcl)
-        # TODO: add if to global vhdl?
 
         wrapper_first_op = ops_implemented_ordered[0]
         block_wrapper = Haddoc2Wrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_first_op.dims.out,
@@ -260,11 +261,10 @@ class Haddoc2OSG(BaseOSG):
         wrapper_inst_tcl = block_wrapper.get_tcl_lines_wrapper_inst('IP Core to connect DOSA infrastructure with '
                                                                     'Haddoc2 Layers')
         build_tool.add_tcl_entry(wrapper_inst_tcl)
-        # TODO: generate vhdl component and instance, for node integration
-        #  signal declarations (like haddoc?)
-        #  component code
-        #  instance code
-        #  signal index, so that previous and next block can connect?
+        wrapper_decl = block_wrapper.get_wrapper_vhdl_decl_lines()
+        wrapper_inst_tmpl = block_wrapper.get_vhdl_inst_tmpl()
+
+        build_tool.topVhdl.add_proc_comp_inst(wrapper_decl, wrapper_inst_tmpl, wrapper_input_fifo, wrapper_output_fifo)
         return 0
 
     def build_container(self, container, build_tool):
@@ -387,16 +387,17 @@ class Haddoc2OSG(BaseOSG):
         target_fh.write("--------------------------------------------------------\n")
         return None, 0
 
-    def _generate_bitwidth(self, bitwidth_file, general_bitwidth, input_bitwidth, output_bitwidth):
+    def _generate_bitwidth(self, block_id, bitwidth_file, general_bitwidth, input_bitwidth, output_bitwidth):
         with open(bitwidth_file, 'w') as f:
             f.write('library ieee;\n')
             f.write('  use ieee.std_logic_1164.all;\n')
             f.write('  use ieee.numeric_std.all;\n')
             f.write('  use ieee.math_real.all;\n')
-            f.write('package bitwidths is\n')
+            f.write('package bitwidths_b{} is\n'.format(block_id))
             f.write('  constant GENERAL_BITWIDTH      : integer := ' + str(general_bitwidth) + ';\n')
             f.write('  constant SUM_WIDTH        : integer := 3*GENERAL_BITWIDTH;\n')
             f.write('  constant INPUT_BIT_WIDTH  : integer := ' + str(input_bitwidth) + ';\n')
             f.write('  constant OUTPUT_BITWIDTH  : integer := ' + str(output_bitwidth) + ';\n')
-            f.write('end bitwidths;\n')
+            f.write('end bitwidths_b{};\n'.format(block_id))
         return
+

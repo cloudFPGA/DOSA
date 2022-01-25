@@ -167,9 +167,9 @@ def parse_poolLayer(target, cnn, layer_name, previous_layer_name):
     target.write("--------------------------------------------------------\n")
 
 
-def write_fileHead(target):
+def write_fileHead(target, block_id):
     target.write("--------------------------------------------------------\n")
-    target.write("-- This file is generated with Haddoc2 utility \n")
+    target.write("-- This file is generated with Haddoc2 utility and DOSA\n")
     target.write("-- Generated on : " + time.ctime() + "\n")
     target.write(
         "--------------------------------------------------------\n\n")
@@ -177,7 +177,7 @@ def write_fileHead(target):
     target.write("    use    ieee.std_logic_1164.all;\n")
     target.write("library work;\n")
     target.write("    use    work.cnn_types.all;\n")
-    target.write("package params is\n")
+    target.write("package params_b{} is\n".format(block_id))
 
 
 def write_pixelWidth(target, pixelWidth):

@@ -18,12 +18,12 @@ __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
 class Haddoc2Wrapper:
 
-    def __init__(self, block_name, in_dims, out_dims, general_bitw, if_in_bitw, if_out_bitw, out_dir_path,
+    def __init__(self, block_id, in_dims, out_dims, general_bitw, if_in_bitw, if_out_bitw, out_dir_path,
                  wrapper_flatten_op, haddoc_op_cnt):
         self.templ_dir_path = os.path.join(__filedir__, 'templates/haddoc2_wrapper/')
-        self.ip_name = 'haddoc_wrapper_{}'.format(block_name)
-        self.ip_mod_name = 'Haddoc2Wrapper_{}'.format(block_name),
-        self.block_name = block_name
+        self.ip_name = 'haddoc_wrapper_b{}'.format(block_id)
+        self.ip_mod_name = 'Haddoc2Wrapper_b{}'.format(block_id),
+        self.block_id = block_id
         self.in_dims = in_dims
         self.out_dims = out_dims
         self.general_bitw = general_bitw
@@ -141,4 +141,147 @@ class Haddoc2Wrapper:
         new_tcl_lines = template_lines.format(DOSA_FMSTR_DESCR=ip_description, DOSA_FMSTR_MOD_NAME=self.ip_mod_name,
                                               DOSA_FMSTR_IP_NAME=self.ip_name)
         return new_tcl_lines
+
+    def get_wrapper_vhdl_decl_lines(self):
+        # we need to do the connections between wrapper and haddoc ourselves
+        decl = ('signal s{ip_mod_name}_to_Haddoc_b{block_id}_data  : std_ulogic_vector({haddoc_in_width} downto 0);\n' +
+                'signal s{ip_mod_name}_to_Haddoc_b{block_id}_dv    : std_ulogic;\n' +
+                'signal s{ip_mod_name}_to_Haddoc_b{block_id}_fv    : std_ulogic;\n'
+                'signal sHaddoc_b{block_id}_to_{ip_mod_name}_data  : std_ulogic_vector({haddoc_out_width} downto 0);\n' +
+                'signal sHaddoc_b{block_id}_to_{ip_mod_name}_dv    : std_ulogic;\n' +
+                'signal sHaddoc_b{block_id}_to_{ip_mod_name}_fv    : std_ulogic;\n')
+        decl += '\n'
+        decl += ('component cnn_process_b{block_id} is\n' +
+                 'generic(\n' +
+                 '  BITWIDTH  : integer := GENERAL_BITWIDTH;\n' +
+                 '  IMAGE_WIDTH : integer := CONV1_IMAGE_WIDTH\n' +
+                 ');\n' +
+                 'port(\n' +
+                 '  clk      : in std_logic;\n' +
+                 '  reset_n  : in std_logic;\n' +
+                 '  enable   : in std_logic;\n' +
+                 '  in_data  : in std_logic_vector(INPUT_BIT_WIDTH-1 downto 0);\n' +
+                 '  in_dv    : in std_logic;\n' +
+                 '  in_fv    : in std_logic;\n' +
+                 '  out_data : out std_logic_vector(OUTPUT_BITWIDTH-1 downto 0);\n' +
+                 '  out_dv   : out std_logic;\n' +
+                 '  out_fv   : out std_logic\n' +
+                 '  );\n' +
+                 'end component cnn_process_b{block_id};\n')
+        decl += '\n'
+        decl += ('-- thanks to the fantastic and incredible Vivado HLS...we need vectors with (0 downto 0)\n' +
+                 'signal s{ip_mod_name}_to_Haddoc_b{block_id}_dv_as_vector    : std_ulogic_vector(0 downto 0);\n' +
+                 'signal s{ip_mod_name}_to_Haddoc_b{block_id}_fv_as_vector    : std_ulogic_vector(0 downto 0);\n'
+                 'signal sHaddoc_b{block_id}_to_{ip_mod_name}_dv_as_vector    : std_ulogic_vector(0 downto 0);\n' +
+                 'signal sHaddoc_b{block_id}_to_{ip_mod_name}_fv_as_vector    : std_ulogic_vector(0 downto 0);\n')
+        decl += '\n'
+        decl += ('component {ip_mod_name} is\n' +
+                 'port (\n' +
+                 '    siData_V_tdata_V_dout : IN STD_LOGIC_VECTOR ({if_in_width_tdata} downto 0);\n' +
+                 '    siData_V_tdata_V_empty_n : IN STD_LOGIC;\n' +
+                 '    siData_V_tdata_V_read : OUT STD_LOGIC;\n' +
+                 '    siData_V_tkeep_V_dout : IN STD_LOGIC_VECTOR ({if_in_width_tkeep} downto 0);\n' +
+                 '    siData_V_tkeep_V_empty_n : IN STD_LOGIC;\n' +
+                 '    siData_V_tkeep_V_read : OUT STD_LOGIC;\n' +
+                 '    siData_V_tlast_V_dout : IN STD_LOGIC_VECTOR ({if_in_width_tlast} downto 0);\n' +
+                 '    siData_V_tlast_V_empty_n : IN STD_LOGIC;\n' +
+                 '    siData_V_tlast_V_read : OUT STD_LOGIC;\n' +
+                 '    soData_V_tdata_V_din : OUT STD_LOGIC_VECTOR ({if_out_width_tdata} downto 0);\n' +
+                 '    soData_V_tdata_V_full_n : IN STD_LOGIC;\n' +
+                 '    soData_V_tdata_V_write : OUT STD_LOGIC;\n' +
+                 '    soData_V_tkeep_V_din : OUT STD_LOGIC_VECTOR ({if_out_width_tkeep} downto 0);\n' +
+                 '    soData_V_tkeep_V_full_n : IN STD_LOGIC;\n' +
+                 '    soData_V_tkeep_V_write : OUT STD_LOGIC;\n' +
+                 '    soData_V_tlast_V_din : OUT STD_LOGIC_VECTOR ({if_out_width_tlast} downto 0);\n' +
+                 '    soData_V_tlast_V_full_n : IN STD_LOGIC;\n' +
+                 '    soData_V_tlast_V_write : OUT STD_LOGIC;\n' +
+                 '    po_haddoc_data_valid_V : OUT STD_LOGIC_VECTOR (0 downto 0);\n' +
+                 '    po_haddoc_frame_valid_V : OUT STD_LOGIC_VECTOR (0 downto 0);\n' +
+                 '    po_haddoc_data_vector_V : OUT STD_LOGIC_VECTOR ({haddoc_in_width} downto 0);\n' +
+                 '    pi_haddoc_data_valid_V : IN STD_LOGIC_VECTOR (0 downto 0);\n' +
+                 '    pi_haddoc_frame_valid_V : IN STD_LOGIC_VECTOR (0 downto 0);\n' +
+                 '    pi_haddoc_data_vector_V : IN STD_LOGIC_VECTOR ({haddoc_out_width} downto 0);\n' +
+                 '    debug_out_V : OUT STD_LOGIC_VECTOR (31 downto 0);\n' +
+                 '    ap_clk : IN STD_LOGIC;\n' +
+                 '    ap_rst : IN STD_LOGIC;\n' +
+                 '    pi_haddoc_data_valid_V_ap_vld : IN STD_LOGIC;\n' +
+                 '    pi_haddoc_data_vector_V_ap_vld : IN STD_LOGIC;\n' +
+                 '    po_haddoc_data_valid_V_ap_vld : OUT STD_LOGIC;\n' +
+                 '    po_haddoc_frame_valid_V_ap_vld : OUT STD_LOGIC;\n' +
+                 '    po_haddoc_data_vector_V_ap_vld : OUT STD_LOGIC;\n' +
+                 '    debug_out_V_ap_vld : OUT STD_LOGIC );\n' +
+                 'end component {ip_mod_name};\n')
+        ret = decl.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name,
+                          if_in_width_tdata=(self.if_in_bitw - 1),
+                          if_in_width_tkeep=(((self.if_in_bitw + 7) / 8) - 1), if_in_width_tlast=0,
+                          if_out_width_tdata=(self.if_out_bitw - 1),
+                          if_ut_width_tkeep=(((self.if_out_bitw + 7) / 8) - 1),
+                          if_out_width_tlast=0, haddoc_in_width=((self.general_bitw * self.in_dims[1]) - 1),
+                          haddoc_out_width=((self.general_bitw * self.out_dims[1]) - 1))
+        return ret
+
+    def get_vhdl_inst_tmpl(self):
+        decl = ('s{ip_mod_name}_to_Haddoc_b{block_id}_dv <= s{ip_mod_name}_to_Haddoc_b{block_id}_dv_as_vector(0);\n' +
+                's{ip_mod_name}_to_Haddoc_b{block_id}_fv <= s{ip_mod_name}_to_Haddoc_b{block_id}_fv_as_vector(0);\n' +
+                'sHaddoc_b{block_id}_to_{ip_mod_name}_dv_as_vector(0) <=  sHaddoc_b{block_id}_to_{ip_mod_name}_dv;\n' +
+                'sHaddoc_b{block_id}_to_{ip_mod_name}_fv_as_vector(0) <=  sHaddoc_b{block_id}_to_{ip_mod_name}_fv;\n')
+        decl += '\n'
+        decl += ('[inst_name]_wrapper: {ip_mod_name}\n' +
+                 'port map (\n' +
+                 '    siData_V_tdata_V_dout =>     [in_sig_0]  ,\n' +
+                 '    siData_V_tdata_V_empty_n =>  [in_sig_1_n],\n' +
+                 '    siData_V_tdata_V_read =>     [in_sig_2]  ,\n' +
+                 '    siData_V_tkeep_V_dout =>     [in_sig_3]  ,\n' +
+                 '    siData_V_tkeep_V_empty_n =>  [in_sig_4_n],\n' +
+                 '    siData_V_tkeep_V_read =>     [in_sig_5]  ,\n' +
+                 '    siData_V_tlast_V_dout =>     [in_sig_6]  ,\n' +
+                 '    siData_V_tlast_V_empty_n =>  [in_sig_7_n],\n' +
+                 '    siData_V_tlast_V_read =>     [in_sig_8]  ,\n' +
+                 '    soData_V_tdata_V_din =>      [out_sig_0]  ,\n' +
+                 '    soData_V_tdata_V_full_n =>   [out_sig_1_n],\n' +
+                 '    soData_V_tdata_V_write =>    [out_sig_2]  ,\n' +
+                 '    soData_V_tkeep_V_din =>      [out_sig_3]  ,\n' +
+                 '    soData_V_tkeep_V_full_n =>   [out_sig_4_n],\n' +
+                 '    soData_V_tkeep_V_write =>    [out_sig_5]  ,\n' +
+                 '    soData_V_tlast_V_din =>      [out_sig_6]  ,\n' +
+                 '    soData_V_tlast_V_full_n =>   [out_sig_7_n],\n' +
+                 '    soData_V_tlast_V_write =>    [out_sig_8]  ,\n' +
+                 '    po_haddoc_data_valid_V =>  s{ip_mod_name}_to_Haddoc_b{block_id}_dv_as_vector,\n' +
+                 '    po_haddoc_frame_valid_V =>  s{ip_mod_name}_to_Haddoc_b{block_id}_fv_as_vector,\n' +
+                 '    po_haddoc_data_vector_V =>  s{ip_mod_name}_to_Haddoc_b{block_id}_data,\n' +
+                 '    pi_haddoc_data_valid_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_dv_as_vector,\n' +
+                 '    pi_haddoc_frame_valid_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_fv_as_vector,\n' +
+                 '    pi_haddoc_data_vector_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_data,\n' +
+                 # '    debug_out_V =>  open,\n' +
+                 '    ap_clk =>  [clk],\n' +
+                 '    ap_rst =>  [rst],\n' +
+                 '    pi_haddoc_data_valid_V_ap_vld =>  \'1\' ,\n' +
+                 '    pi_haddoc_data_vector_V_ap_vld => \'1\' \n' +  # no comma
+                 # '    po_haddoc_data_valid_V_ap_vld =>  open ,\n' +
+                 # '    po_haddoc_frame_valid_V_ap_vld =>  open ,\n' +
+                 # '    po_haddoc_data_vector_V_ap_vld =>  open,\n' +
+                 # '    debug_out_V_ap_vld =>  \n' +  # no comma
+                 ');\n')
+        decl += '\n'
+        decl += ('[inst_name]: cnn_process_b{block_id}\n' +
+                 'generic map (\n' +
+                 '  BITWIDTH  => {haddoc_general_bitw}\n' +
+                 '  IMAGE_WIDTH => {haddoc_image_width}\n' +
+                 ')\n' +  # no semicolon
+                 'port map (\n' +
+                 '  clk      =>  [clk],\n' +
+                 '  reset_n  =>  [rst_n],\n' +
+                 '  enable   =>  [enable],\n' +
+                 '  in_data  =>  s{ip_mod_name}_to_Haddoc_b{block_id}_data,\n' +
+                 '  in_dv    =>  s{ip_mod_name}_to_Haddoc_b{block_id}_dv,\n' +
+                 '  in_fv    =>  s{ip_mod_name}_to_Haddoc_b{block_id}_fv,\n' +
+                 '  out_data =>  sHaddoc_b{block_id}_to_{ip_mod_name}_data,\n' +
+                 '  out_dv   =>  sHaddoc_b{block_id}_to_{ip_mod_name}_dv,\n' +
+                 '  out_fv   =>  sHaddoc_b{block_id}_to_{ip_mod_name}_fv\n' +  # no comma
+                 '  );\n')
+        inst = decl.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name, haddoc_general_bitw=self.general_bitw,
+                           haddoc_image_width=self.in_dims[2])
+        # replace [] with {}
+        inst_tmpl = inst.replace('[', '{').replace(']', '}')
+        return inst_tmpl
 
