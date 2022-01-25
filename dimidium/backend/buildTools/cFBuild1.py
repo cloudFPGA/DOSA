@@ -29,6 +29,7 @@ class cFBuild1(HwBuildTopVhdl):
         my_templates = os.path.abspath(me_abs_dir + '/templates/cFBuild1/')
         os.system("cp {0}/Makefile {1}/ROLE/Makefile".format(my_templates, self.build_dir))
         os.system("cp {0}/tcl/* {1}/ROLE/tcl/".format(my_templates, self.build_dir))
+        os.system("cp -R {0}/hls/triangle_app {1}/ROLE/hls/".format(my_templates, self.build_dir))
         self.global_vhdl_entity_path = "{}/ROLE/hdl/Role.vhdl".format(self.build_dir)
         self.global_vhdl_dir = "{}/ROLE/hdl/".format(self.build_dir)
         self.global_hls_dir = "{}/ROLE/hls/".format(self.build_dir)
@@ -63,17 +64,15 @@ class cFBuild1(HwBuildTopVhdl):
             return ip_dir_list[0]
         return ip_dir_list
 
-    def create_global_Makefile(self):
-        # TODO: better part of buildscripts?
-        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
-
     def add_makefile_entry(self, path, target):
         if path not in self.makefile_targets.keys():
             self.makefile_targets[path] = target
 
     def write_buildscripts(self):
-        # TODO: write tcl lines to copied template file
+        # 1. write vhdl
+        self.topVhdl.write_file(self.global_vhdl_entity_path, self.target_device)
+        self.add_tcl_entry(self.topVhdl.get_add_tcl_lines())
+        # 2. write tcl lines to copied template file
         #  write global Makefile
-        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
 
 

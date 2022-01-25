@@ -96,6 +96,7 @@ class Haddoc2OSG(BaseOSG):
         ops_implemented_ordered = []
         wrapper_flatten_op = None
         wrapper_first_brick = None
+        wrapper_last_brick = None
         # as haddoc, we first take care of the params
         with open(paramFile, 'w') as vhdlf:
             paramParsing.write_fileHead(vhdlf, arch_block.block_uuid)
@@ -103,6 +104,7 @@ class Haddoc2OSG(BaseOSG):
             for bb in arch_block.brick_list:
                 if wrapper_first_brick is None:
                     wrapper_first_brick = bb
+                wrapper_last_brick = bb
                 skip_i = []
                 # for op in bb.local_op_iter_gen():
                 for op_i in bb.ops.keys():
@@ -247,7 +249,7 @@ class Haddoc2OSG(BaseOSG):
             wrapper_input_fifo.bitwidth = wrapper_default_interface_bitwidth
         if_in_bitw = wrapper_input_fifo.get_if_bitwidth()
         wrapper_output_fifo = InterfaceAxisFifo('output_{}'.format(arch_block.block_uuid),
-                                                wrapper_first_brick.input_bw_Bs, build_tool.target_device)
+                                                wrapper_last_brick.output_bw_Bs, build_tool.target_device)
         if_out_bitw = wrapper_output_fifo.get_if_bitwidth()
         # if_fifo_name = wrapper_input_fifo.get_if_name()
         if_axis_tcl = wrapper_input_fifo.get_tcl_lines()
@@ -264,7 +266,8 @@ class Haddoc2OSG(BaseOSG):
         wrapper_decl = block_wrapper.get_wrapper_vhdl_decl_lines()
         wrapper_inst_tmpl = block_wrapper.get_vhdl_inst_tmpl()
 
-        build_tool.topVhdl.add_proc_comp_inst(wrapper_decl, wrapper_inst_tmpl, wrapper_input_fifo, wrapper_output_fifo)
+        build_tool.topVhdl.add_proc_comp_inst(arch_block, wrapper_decl, wrapper_inst_tmpl, wrapper_input_fifo,
+                                              wrapper_output_fifo)
         return 0
 
     def build_container(self, container, build_tool):

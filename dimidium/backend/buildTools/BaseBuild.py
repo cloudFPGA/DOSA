@@ -31,7 +31,7 @@ class BaseBuild(metaclass=abc.ABCMeta):
         self.build_dir = new_dir_path
 
     @abc.abstractmethod
-    def create_global_Makefile(self):
+    def write_build_scripts(self):
         print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
 
     @abc.abstractmethod
@@ -56,10 +56,6 @@ class BaseHwBuild(BaseBuild, metaclass=abc.ABCMeta):
 
     def add_tcl_entry(self, tcl_line):
         self.tcl_lines.append(tcl_line)
-
-    @abc.abstractmethod
-    def write_buildscripts(self):
-        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
 
 
 class BaseSwBuild(BaseBuild, metaclass=abc.ABCMeta):

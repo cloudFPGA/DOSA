@@ -215,7 +215,7 @@ architecture DosaNode of Role_Themisto is
 
   signal sResetApps_n : std_logic;
 
-  -- I hate Vivado HLS 
+  -- The fantastic Vivado HLS again...
   signal sMetaOutTlastAsVector_Tcp : std_logic_vector(0 downto 0);
   signal sMetaInTlastAsVector_Tcp  : std_logic_vector(0 downto 0);
 
@@ -227,7 +227,7 @@ architecture DosaNode of Role_Themisto is
   -- DOSA_ADD_decl_lines
 
   --===========================================================================
-  --== COMPONENT DECLARATIONS
+  --== Dummy APP DECLARATIONS
   --===========================================================================
   component TriangleApplication is
     port (
