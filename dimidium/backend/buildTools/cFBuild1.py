@@ -27,7 +27,8 @@ class cFBuild1(HwBuildTopVhdl):
         os.system("mkdir -p {0}/ROLE/hdl {0}/ROLE/hls {0}/ROLE/tcl".format(self.build_dir))
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
         my_templates = os.path.abspath(me_abs_dir + '/templates/cFBuild1/')
-        os.system("cp {0}/Makefile {1}/ROLE/Makefile".format(my_templates, self.build_dir))
+        self.my_templates = my_templates
+        # os.system("cp {0}/Makefile {1}/ROLE/Makefile".format(my_templates, self.build_dir))
         os.system("cp {0}/tcl/* {1}/ROLE/tcl/".format(my_templates, self.build_dir))
         os.system("cp -R {0}/hls/triangle_app {1}/ROLE/hls/".format(my_templates, self.build_dir))
         self.global_vhdl_entity_path = "{}/ROLE/hdl/Role.vhdl".format(self.build_dir)
@@ -68,11 +69,39 @@ class cFBuild1(HwBuildTopVhdl):
         if path not in self.makefile_targets.keys():
             self.makefile_targets[path] = target
 
-    def write_buildscripts(self):
+    def _write_tcl_file(self):
+        with open('{}/tcl/create_ip_cores.tcl'.format(self.my_templates), 'r') as in_file, \
+                open('{}/ROLE/tcl/create_ip_cores.tcl'.format(self.build_dir), 'w') as out_file:
+            for line in in_file.readlines():
+                if 'DOSA_ADD_tcl_decls' in line:
+                    outline = ''
+                    for e in self.tcl_lines:
+                        outline += e
+                        outline += '\n'
+                else:
+                    outline = line
+                out_file.write(outline)
+
+    def _write_makefile(self):
+        with open('{}/Makefile'.format(self.my_templates), 'r') as in_file, \
+                open('{}/ROLE/Makefile'.format(self.build_dir), 'w') as out_file:
+            for line in in_file.readlines():
+                if 'DOSA_add_make_targets' in line:
+                    outline = ''
+                    for tp in self.makefile_targets.keys():
+                        mt = self.makefile_targets[tp]
+                        outline += '\t$(MAKE) -C {tp} {mt}\n'.format(tp=tp, mt=mt)
+                else:
+                    outline = line
+                out_file.write(outline)
+
+    def write_build_scripts(self):
         # 1. write vhdl
         self.topVhdl.write_file(self.global_vhdl_entity_path, self.target_device)
         self.add_tcl_entry(self.topVhdl.get_add_tcl_lines())
-        # 2. write tcl lines to copied template file
+        # 2. write tcl lines
+        self._write_tcl_file()
         #  write global Makefile
+        self._write_makefile()
 
 

@@ -262,6 +262,7 @@ class ArchNode(object):
             self.build_tool.create_build_dir(self.node_id)
         for ab in self.arch_block_list:
             ab.build(self.build_tool)
+        self.build_tool.write_build_scripts()
 
     # def synth(self):
     #     if self.build_tool is None:

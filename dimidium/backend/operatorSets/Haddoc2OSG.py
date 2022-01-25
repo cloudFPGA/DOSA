@@ -260,6 +260,7 @@ class Haddoc2OSG(BaseOSG):
                                        used_bit_width, if_in_bitw, if_out_bitw, used_hls_dir_path, wrapper_flatten_op,
                                        len(ops_implemented_ordered))
         block_wrapper.generate_haddoc2_wrapper()
+        build_tool.add_makefile_entry(used_hls_dir_path, 'all')
         wrapper_inst_tcl = block_wrapper.get_tcl_lines_wrapper_inst('IP Core to connect DOSA infrastructure with '
                                                                     'Haddoc2 Layers')
         build_tool.add_tcl_entry(wrapper_inst_tcl)

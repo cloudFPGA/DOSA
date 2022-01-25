@@ -21,7 +21,7 @@ class BaseBuild(metaclass=abc.ABCMeta):
     def __init__(self, name, build_dir=None, out_dir=None):
         self.name = name
         self.build_dir = build_dir
-        self.out_dir = out_dir
+        # self.out_dir = out_dir # TODO
         self.global_Makefile = None
         self.makefile_targets = {}
 

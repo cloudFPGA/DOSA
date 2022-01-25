@@ -32,7 +32,7 @@
 CLEAN_TYPES = *.log *.jou *.str *.time
 
 
-.PHONY: all clean hls_cores assert_env help
+.PHONY: all clean hls_cores assert_env help dosa_cores
 
 
 all: assert_env Role_$(cFpSRAtype)_OOC.dcp ## builds the Out-Of-Contect (OOC) Design-Checkpoint (dcp) for this Role
@@ -46,10 +46,15 @@ Role_$(cFpSRAtype)_OOC.dcp: ./hdl ./tcl/run_pr.tcl ./tcl/xpr_settings_role.tcl |
 	cd ./tcl/; vivado -mode batch -source run_pr.tcl -notrace -log run_pr.log -tclargs -force
 	@touch $@  # to update all timestamps...
 
-hls_cores:
-	@$(MAKE) -C ./hls/
+dosa_cores:  ## builds all DOSA cores (automatically generated, do not modify)
+	@# first, triangle app
+	$(MAKE) -C ./hls/triangle_app/
+	@#DOSA_add_make_targets
 
-hls: assert_env hls_cores  ## starts building all HLS cores
+# hls_cores:
+# 	@$(MAKE) -C ./hls/
+
+hls: assert_env dosa_cores  ## starts building all HLS cores
 
 # We need ./.ip_guard to be touched by the hls ip core makefiles, because HLS_DEPS doesn't work. i
 # HLS_DEPS get's evaluated BEFORE the hls target get's executed, so if a hls core doesn't exist completly (e.g. after a clean)
