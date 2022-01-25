@@ -213,9 +213,9 @@ class Haddoc2Wrapper:
                  'end component {ip_mod_name};\n')
         ret = decl.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name,
                           if_in_width_tdata=(self.if_in_bitw - 1),
-                          if_in_width_tkeep=(((self.if_in_bitw + 7) / 8) - 1), if_in_width_tlast=0,
+                          if_in_width_tkeep=(int((self.if_in_bitw + 7) / 8) - 1), if_in_width_tlast=0,
                           if_out_width_tdata=(self.if_out_bitw - 1),
-                          if_out_width_tkeep=(((self.if_out_bitw + 7) / 8) - 1),
+                          if_out_width_tkeep=(int((self.if_out_bitw + 7) / 8) - 1),
                           if_out_width_tlast=0, haddoc_in_width=((self.general_bitw * self.in_dims[1]) - 1),
                           haddoc_out_width=((self.general_bitw * self.out_dims[1]) - 1))
         return ret

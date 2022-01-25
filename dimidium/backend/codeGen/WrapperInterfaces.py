@@ -160,7 +160,7 @@ class InterfaceAxisFifo(WrapperInterface):
 
     def _calculate_bitws(self):
         self.tdata_bitw = self.bitwidth
-        self.tkeep_bitw = (self.bitwidth + 7) / 8
+        self.tkeep_bitw = int((self.bitwidth + 7) / 8)
         self.tlast_bitw = 1
         # the first fifo in a node might be re-scaled, so we might have to recalculate tkeep etc.
         self._calc_bitw_ = self.bitwidth
