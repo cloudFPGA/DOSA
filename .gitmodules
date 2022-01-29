@@ -4,3 +4,6 @@
 [submodule "dimidium/backend/third_party_libs/hls4ml"]
 	path = dimidium/backend/third_party_libs/hls4ml
 	url = git@github.ibm.com:cloudFPGA/hls4ml-for-dosa.git
+[submodule "dimidium/backend/codeGen/templates/ZRLMPI"]
+	path = dimidium/backend/codeGen/templates/ZRLMPI
+	url = git@github.ibm.com:cloudFPGA/ZRLMPI.git

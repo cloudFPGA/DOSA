@@ -13,14 +13,13 @@
 #ifndef _DOSA_INTERFACE_UTILS_
 #define _DOSA_INTERFACE_UTILS_
 
-//TODO obsolete?
 uint8_t extractByteCnt(Axis<64> currWord)
 {
 #pragma HLS INLINE
 
   uint8_t ret = 0;
 
-  switch (currWord.tkeep) {
+  switch (currWord.getTKeep()) {
     case 0b11111111:
       ret = 8;
       break;
