@@ -77,6 +77,8 @@ int main() {
   //-- TESTBENCH LOCAL VARIABLES
   //------------------------------------------------------
   int         nrErr = 0;
+  int feb_2_cnt = -1;
+  int fw_cnt = 0;
 
   printf("#####################################################\n");
   printf("## TESTBENCH STARTS HERE                           ##\n");
@@ -87,12 +89,14 @@ int main() {
   assert(DOSA_WRAPPER_INPUT_IF_BITWIDTH == DOSA_WRAPPER_OUTPUT_IF_BITWIDTH);
 
   //------------------------------------------------------
+  //-- STEP-0 : PROCESS RESET STATES
+  //------------------------------------------------------
+  stepDut();
+  printf("[TB] (Reset processed.)\n");
+
+  //------------------------------------------------------
   //-- STEP-1 : INITIALIZE STREAMS
   //------------------------------------------------------
-
-  //both commands are successfull
-  siMPIFeB.write(ZRLMPI_FEEDBACK_OK);
-  siMPIFeB.write(ZRLMPI_FEEDBACK_OK);
 
   //simple data test
   siMPI_data.write(Axis<64>((uint64_t) 0x0101010101010101,0xFF,0b0));
@@ -110,14 +114,27 @@ int main() {
     //------------------------------------------------------
     while (!nrErr) {
 
-      if (simCnt < 42)
+      if (simCnt < 22)
       {
         stepDut();
 
         // Loopback test
         if( !soData.empty() )
         {
-          siData.write(soData.read());
+          Axis<64> tmp_fw = soData.read();
+          printf("[TB] Forwarding (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_fw.getTData(), (uint32_t) tmp_fw.getTKeep(), (uint8_t) tmp_fw.getTLast());
+          siData.write(tmp_fw);
+          fw_cnt++;
+          feb_2_cnt = simCnt + 6;
+        }
+
+        if( fw_cnt == 1 )
+        {
+          siMPIFeB.write(ZRLMPI_FEEDBACK_OK);
+        }
+        if( feb_2_cnt == simCnt )
+        {
+          siMPIFeB.write(ZRLMPI_FEEDBACK_OK);
         }
 
       } else {
@@ -144,8 +161,15 @@ int main() {
     }
     if( !soMPIif.empty() )
     {
-      nrErr++;
-      printf("ERROR: MPI_Interface fifo contains to many commands.\n");
+      info_out = soMPIif.read();
+      //in case the wrapper issued the next recv already, this would be ok
+      if( !(info_out.rank == 0 && info_out.count == 22 && info_out.mpi_call == MPI_RECV_INT)
+          || !soMPIif.empty()
+        )
+      {
+        nrErr++;
+        printf("ERROR: MPI_Interface fifo contains to many (or wrong) commands.\n");
+      }
     }
     if( !siMPIFeB.empty() )
     {
@@ -160,7 +184,7 @@ int main() {
       if( out_data.getTData() != golden_data.getTData() )
       {
         nrErr++;
-        printf("ERROR: out tdata: Expected %16.16X but got %16.16X\n", (unsigned long long) golden_data.getTData(), (unsigned long long) out_data.getTData());
+        printf("ERROR: out tdata: Expected 0x%16.16llX but got 0x%16.16llX\n", (unsigned long long) golden_data.getTData(), (unsigned long long) out_data.getTData());
       }
       if( out_data.getTKeep() != golden_data.getTKeep() )
       {

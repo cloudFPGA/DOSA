@@ -150,6 +150,7 @@ void pStateControl(
           info.rank = (uint32_t) curRank;
           info.count = (uint32_t) curCount;
           soMPIif.write(info);
+          printf("[pStateControl] Issuing %d command, rank %d, count %d.\n", (uint8_t) info.mpi_call, (uint8_t) info.rank, (uint32_t) info.count);
         }
         //else, stay here, read next
       }
@@ -163,9 +164,11 @@ void pStateControl(
         {
           controlFSM = WAIT_SEND;
           sSendReset.write(false);
+          printf("[pStateControl] Issue send ok.\n");
         } else {
           //Timeout occured
           sSendReset.write(true);
+          printf("[pStateControl] Issue send reset.\n");
           //stay here
         }
       }
@@ -175,6 +178,7 @@ void pStateControl(
       if( !sSendDone.empty() )
       {
         ignore_me = sSendDone.read();
+        printf("[pStateControl] Send done.\n");
         controlFSM = ISSUE_COMMAND;
       }
       break;
@@ -190,6 +194,7 @@ void pStateControl(
         } else {
           //Timeout occured
           sReceiveReset.write(true);
+          printf("[pStateControl] Issue receive reset.\n");
           //stay here
         }
       }
@@ -199,6 +204,7 @@ void pStateControl(
       if( !sReceiveDone.empty() )
       {
         ignore_me = sReceiveDone.read();
+        printf("[pStateControl] Receive done.\n");
         controlFSM = ISSUE_COMMAND;
       }
       break;
@@ -851,6 +857,7 @@ void pSendDeq(
       if( !sSendReset.empty() && !sSendDone.full() )
       {
         tmp_reset = sSendReset.read();
+        printf("[pSendDeq] received reset: %d\n", (uint8_t) tmp_reset);
         if( tmp_reset == true )
         {
           //will go to right buffer one cycle later, if necessary
