@@ -73,11 +73,11 @@ class Haddoc2OSG(BaseOSG):
         assert isinstance(build_tool, HwBuildTopVhdl)
         if isinstance(build_tool, cFBuild1):
             # for cF, everything under hdl/ will be included
-            hybrid_dir = build_tool.add_ip_dir(arch_block, hybrid=True)
+            hybrid_dir = build_tool.add_ip_dir(arch_block.block_uuid, hybrid=True)
             used_vhdl_dir_path = hybrid_dir[0]
             used_hls_dir_path = hybrid_dir[1]
         else:
-            used_vhdl_dir_path = build_tool.add_ip_dir(arch_block)
+            used_vhdl_dir_path = build_tool.add_ip_dir(arch_block.block_uuid)
             used_hls_dir_path = used_vhdl_dir_path
         # first, copy all lib files
         # self._copy_hdl_lib(used_dir_path)

@@ -178,7 +178,7 @@ class Hls4mlOSG(BaseOSG):
 
     def build_block(self, arch_block, build_tool):
         assert isinstance(build_tool, BaseHwBuild)
-        used_dir_path = build_tool.add_ip_dir(arch_block)
+        used_dir_path = build_tool.add_ip_dir(arch_block.block_uuid)
         project_name = 'ArchBlock_{}'.format(arch_block.block_uuid)
         used_dtype = DosaDtype.int32
         cur_w = 0

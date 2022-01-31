@@ -24,7 +24,8 @@ def init_singleton(config_dict):
     config.backend = SimpleNamespace()
     config.backend.input_latency = config_dict['input_latency']
     config.backend.output_latency = config_dict['output_latency']
-    config.backend.reserve_rank_0_for_io = config_dict['reserve_rank_0_for_io']
+    config.backend.create_rank_0_for_io = bool(config_dict['create_rank_0_for_io'])
+    config.backend.comm_message_interleaving = int(config_dict['comm_message_interleaving'])
     config.backend.generate_testbenchs = config_dict['generate_testbenchs']
 
     config.dtype = SimpleNamespace()

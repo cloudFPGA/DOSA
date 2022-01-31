@@ -14,6 +14,7 @@ import math
 import json
 
 import dimidium.lib.singleton as dosa_singleton
+from dimidium.backend.commLibs.BaseCommLib import BaseCommLib
 from dimidium.lib.util import OptimizationStrategies, BrickImplTypes, DosaRv
 from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
@@ -21,6 +22,7 @@ from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
 from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane, get_rightmost_roofline_region
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
+from dimidium.backend.commLibs.BaseCommLib import placeholderCommLib
 
 
 class ArchDraft(object):
@@ -52,6 +54,9 @@ class ArchDraft(object):
         self.fallback_hw_set = []
         self.tmp_notes = {}
         self.possible_hw_types = []
+        self.all_selected_hw_types = []
+        self.possible_comm_libs = []
+        self.selected_comm_lib = placeholderCommLib
 
     def __repr__(self):
         return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
@@ -63,7 +68,7 @@ class ArchDraft(object):
                'input': str(self.input_layer), 'output': str(self.output_layer),
                'main_tvm_mod': str(self.main_tvm_mod)[:100], 'main_tvm_params': str(self.main_tvm_params)[:100],
                'possible_hw_types': [], 'target_hw_set': [], 'fallback_hw_set': [],
-               'nodes': {}}
+               'possible_comm_libs': [], 'selected_comm_lib': repr(self.selected_comm_lib), 'nodes': {}}
         for thw in self.target_hw_set:
             tn = type(thw).__name__
             res['target_hw_set'].append(tn)
@@ -76,6 +81,8 @@ class ArchDraft(object):
         for ni in self.nodes:
             n = self.nodes[ni]
             res['nodes'][ni] = n.as_dict()
+        for pcl in self.possible_comm_libs:
+            res['possible_comm_libs'].append(repr(pcl))
         return res
 
     def __str__(self):
@@ -122,6 +129,9 @@ class ArchDraft(object):
 
     def set_output_layer(self, out_dpl):
         self.output_layer = out_dpl
+
+    def set_possible_comm_libs(self, poss_comm_libs: [BaseCommLib]):
+        self.possible_comm_libs = poss_comm_libs
 
     def brick_iter_gen(self):
         for ni in self.nodes:
@@ -718,9 +728,13 @@ class ArchDraft(object):
                                   "replacement or fallback. Impossible to legalize draft").format(nn.targeted_hw,
                                                                                                   nn.node_id))
                             return DosaRv.ERROR
-        # ensure, all HW is decided
+        # ensure, all HW is decided and select them
+        selected_hw_types = []
         for nn in self.node_iter_gen():
             assert nn.selected_hw_type != placeholderHw
+            if nn.selected_hw_type not in selected_hw_types:
+                selected_hw_types.append(nn.selected_hw_type)
+        self.all_selected_hw_types = selected_hw_types
         # 9. decide for OSG
         for nn in self.node_iter_gen():
             decided_hw_class = nn.selected_hw_type.hw_class
@@ -910,10 +924,31 @@ class ArchDraft(object):
         self.possible_hw_types = cur_possible_hw_types
 
     def build(self):
+        self.generate_communication()
         for nn in self.node_iter_gen():
             nn.build()
 
     # def synth(self):
     #     for nn in self.node_iter_gen():
     #         nn.synth()
+
+    def generate_communication(self):
+        # first, decide for communication lib
+        # communication lib is "global" for the draft
+        # for now, choose first possible
+        for pcl in self.possible_comm_libs:
+            possible = True
+            for seldev in self.all_selected_hw_types:
+                if seldev not in pcl.dosaHwTypes:
+                    possible = False
+                    break
+            if possible:
+                self.selected_comm_lib = pcl
+                break
+        if self.selected_comm_lib is placeholderCommLib:
+            print('[DOSA:archGen:ERROR] Unable to find one common communication library. STOP.')
+            exit(-1)
+        # then, populate
+        for nn in self.node_iter_gen():
+            nn.generate_communication(self.selected_comm_lib)
 

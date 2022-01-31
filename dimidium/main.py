@@ -25,10 +25,12 @@ import dimidium.backend.devices.builtin as builtin_devices
 from dimidium.backend.operatorSets.osgs import builtin_OSGs
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 from dimidium.lib.plot_bandwidth import generate_bandwidth_plt
+from dimidium.backend.commLibs.commlibs import builtin_comm_libs
+from dimidium.backend.commLibs.BaseCommLib import sort_commLib_list
 
 
 __mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_learning', 'engine_saving_threshold',
-                             'generate_testbenchs', 'utilization']
+                             'generate_testbenchs', 'utilization', 'comm_message_interleaving', 'create_rank_0_for_io']
 
 
 def print_usage(sys_argv):
@@ -65,7 +67,7 @@ if __name__ == '__main__':
 
     debug_mode = False
 
-    print("DOSA: Building OSGs and device library...")
+    print("DOSA: Building OSGs, communication and device libraries...")
     available_devices = builtin_devices
     # TODO: extend this object with custom devices
     all_OSGs = builtin_OSGs
@@ -75,6 +77,14 @@ if __name__ == '__main__':
     prio_int = 0  # get unique internal priorities
     for osg in available_OSGs:
         osg.init(available_devices.classes_dict, prio_int)
+        prio_int += 1
+    all_commLibs = builtin_comm_libs
+    available_comm_libs = sort_commLib_list(all_commLibs, use_internal_prio=False)
+    # TODO: extend this list with custom comm libs here
+    # init comm libs
+    prio_int = 0  # get unique internal priorities
+    for comm_lib in available_comm_libs:
+        comm_lib.init(available_devices.classes_dict, prio_int)
         prio_int += 1
     print("\t...done.\n")
 
@@ -104,8 +114,9 @@ if __name__ == '__main__':
     assert len(arch_target_devices) == 1
     print("DOSA: Generating high-level architecture...")
     archDict = arch_gen(mod, params, used_name, arch_gen_strategy, available_OSGs, available_devices,
-                        used_batch, used_sample_size, target_sps, target_latency, target_resource_budget,
-                        arch_target_devices, arch_fallback_hw, debug=debug_mode, profiling=True, verbose=True)
+                        available_comm_libs, used_batch, used_sample_size, target_sps, target_latency,
+                        target_resource_budget, arch_target_devices, arch_fallback_hw, debug=debug_mode, profiling=True,
+                        verbose=True)
     print("\t...done.\n")
 
     if show_graphics:

@@ -18,6 +18,7 @@ from dimidium.backend.devices.dosa_roofline import DosaRoofline
 from dimidium.lib.util import BrickImplTypes
 from dimidium.middleend.archGen.ArchBlock import ArchBlock
 from dimidium.backend.codeGen.EngineContainer import EngineContainer
+from dimidium.middleend.archGen.CommPlan import CommPlan
 
 
 class ArchNode(object):
@@ -45,6 +46,8 @@ class ArchNode(object):
         self.arch_block_list = []
         self.engine_container_refs = []
         self.build_tool = None
+        self.comm_plan = None
+        self.used_comm_lib = None
 
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.targeted_hw)
@@ -260,6 +263,8 @@ class ArchNode(object):
         if self.build_tool is None:
             self.build_tool = self.selected_hw_type.create_build_tool(self.node_id)
             self.build_tool.create_build_dir(self.node_id)
+        assert self.comm_plan is not None and self.used_comm_lib is not None
+        self.used_comm_lib.build(self.comm_plan, self.build_tool)
         for ab in self.arch_block_list:
             ab.build(self.build_tool)
         self.build_tool.write_build_scripts()
@@ -271,3 +276,6 @@ class ArchNode(object):
     #     for ab in self.arch_block_list:
     #         ab.synth()
 
+    def generate_communication(self, comm_lib):
+        self.used_comm_lib = comm_lib
+        self.comm_plan = CommPlan(self)

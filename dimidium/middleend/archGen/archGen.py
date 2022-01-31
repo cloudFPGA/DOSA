@@ -17,6 +17,7 @@ import tvm
 # import tvm.relay as relay
 
 import dimidium.lib.singleton as dosa_singleton
+from dimidium.backend.commLibs.BaseCommLib import BaseCommLib
 from dimidium.frontend.TvmPrintMeta import PrintMeta
 from dimidium.middleend.astProc.oiVisitor import OiPipeline
 from dimidium.middleend.astProc.oiCalculation import OiCalculator
@@ -33,8 +34,9 @@ from dimidium.middleend.archGen.archOpt import merge_bricks_pass, delete_ops_pas
 
 
 def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices,
-             batch_size=1, sample_size=1, target_sps=-1, target_latency=-1, target_resources=-1,
-             arch_target_devices=None, arch_fallback_devices=None, debug=False, profiling=False, verbose=False):
+             available_comm_libs: [BaseCommLib], batch_size=1, sample_size=1, target_sps=-1, target_latency=-1,
+             target_resources=-1, arch_target_devices=None, arch_fallback_devices=None, debug=False, profiling=False,
+             verbose=False):
     arch_gen_start = time.time()
     oi_calc = OiCalculator(default_oi=1.0)
     oi_pass = OiPipeline(fallback_size_t=32, oiCalc=oi_calc)
@@ -82,7 +84,8 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
         print(json.dumps(fn_call_stats, indent=2, sort_keys=False))
 
     creating_draft_start = time.time()
-    inital_draft = create_arch_draft(name, strategy, available_osgs, batch_size, sample_size, target_sps, target_latency, target_resources,
+    inital_draft = create_arch_draft(name, strategy, available_osgs, available_comm_libs, batch_size, sample_size,
+                                     target_sps, target_latency, target_resources,
                                      data_per_layer, tvm_nodes, tvm_call_args, mod, params)
 
     for do in arch_target_devices:
@@ -191,7 +194,8 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     return ret
 
 
-def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [BaseOSG], batch_size, sample_size, target_sps, target_latency,
+def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [BaseOSG],
+                      available_comm_libs: [BaseCommLib], batch_size, sample_size, target_sps, target_latency,
                       target_resources, data_per_layer, tvm_nodes, tvm_call_args, tvm_mod, tvm_params):
     # construct main function calls
     main_fn_exec = []
@@ -239,6 +243,9 @@ def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [
     draft.update_possible_osgs()
     draft.update_possible_hw_types()
 
+    # add comm libs
+    draft.set_possible_comm_libs(available_comm_libs)
+
     return draft
 
 
@@ -276,7 +283,7 @@ def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.E
                 cur_local_tp = total_cur_perf / cur_oi
                 req_local_tp = cur_inp * draft.target_sps
                 # local_time = cur_inp / local_tp
-                if cur_local_tp < req_local_tp:
+                if float(cur_local_tp) < float(req_local_tp):
                     print("[DOSA:archVerify:ERROR] Brick {} does not fulfill local throughput requirement (req: {} current: {} B/s)."
                           .format(repr(bb), req_local_tp, cur_local_tp))
                     return False

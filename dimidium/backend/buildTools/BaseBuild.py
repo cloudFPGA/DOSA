@@ -51,7 +51,7 @@ class BaseHwBuild(BaseBuild, metaclass=abc.ABCMeta):
         self.tcl_lines = []
 
     @abc.abstractmethod
-    def add_ip_dir(self, arch_block, path=None):
+    def add_ip_dir(self, block_id, path=None):
         print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
 
     def add_tcl_entry(self, tcl_line):

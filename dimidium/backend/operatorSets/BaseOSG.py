@@ -11,6 +11,7 @@
 #  *
 
 import abc
+
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.backend.buildTools.BaseBuild import BaseBuild
 from dimidium.lib.util import deep_update, BrickImplTypes

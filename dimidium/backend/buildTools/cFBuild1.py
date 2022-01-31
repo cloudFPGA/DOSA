@@ -38,10 +38,10 @@ class cFBuild1(HwBuildTopVhdl):
         self.topVhdl.set_template('{}/Role.vhdl'.format(my_templates))
         self.basic_structure_created = True
 
-    def add_ip_dir(self, arch_block, path=None, vhdl_only=False, hybrid=False):
+    def add_ip_dir(self, block_id, path=None, vhdl_only=False, hybrid=False):
         if not self.basic_structure_created:
             self._create_basic_structure()
-        new_id = arch_block.block_uuid
+        new_id = block_id
         ip_dir_list = []
         hls_ip_dir = True
         vhdl_ip_dir = False
@@ -52,14 +52,14 @@ class cFBuild1(HwBuildTopVhdl):
             hls_ip_dir = True
             vhdl_ip_dir = True
         if vhdl_ip_dir:
-            new_path = "{}/block_{}".format(self.global_vhdl_dir, arch_block.block_uuid)
+            new_path = "{}/block_{}".format(self.global_vhdl_dir, new_id)
             os.system("mkdir -p {}".format(new_path))
             ip_dir_list.append(new_path)
         if hls_ip_dir:
-            new_path = "{}/block_{}".format(self.global_hls_dir, arch_block.block_uuid)
+            new_path = "{}/block_{}".format(self.global_hls_dir, new_id)
             os.system("mkdir -p {}".format(new_path))
             ip_dir_list.append(new_path)
-        arch_block.ip_dir = ip_dir_list
+        # arch_block.ip_dir = ip_dir_list
         self.ip_dirs_list[new_id] = ip_dir_list
         if len(ip_dir_list) == 1:
             return ip_dir_list[0]

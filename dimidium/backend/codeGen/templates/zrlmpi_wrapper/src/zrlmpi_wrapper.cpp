@@ -57,7 +57,7 @@ void pStateControl(
   static uint8_t mpiCommands[DOSA_WRAPPER_PROG_LENGTH];
   static uint8_t mpiRanks[DOSA_WRAPPER_PROG_LENGTH];
   static uint8_t mpiCounts[DOSA_WRAPPER_PROG_LENGTH];
-  static uint8_t commandRepititions[DOSA_WRAPPER_PROG_LENGTH];
+  static uint8_t commandRepetitions[DOSA_WRAPPER_PROG_LENGTH];
 
   //-- LOCAL VARIABLES ------------------------------------------------------
   bool not_empty = false;
@@ -76,7 +76,7 @@ void pStateControl(
         mpiCommands[i] = MPI_INSTR_NOP;
         mpiRanks[i] = MPI_NO_RANK;
         mpiCounts[i] = 0;
-        commandRepititions[i] = 0;
+        commandRepetitions[i] = 0;
       }
       if( !siMPIFeB.empty() )
       {
@@ -97,11 +97,11 @@ void pStateControl(
       mpiCommands[0]          = MPI_INSTR_RECV;
       mpiRanks[0]             = 0;
       mpiCounts[0]            = 22;
-      commandRepititions[0]   = 1;
+      commandRepetitions[0]   = 1;
       mpiCommands[1]          = MPI_INSTR_SEND;
       mpiRanks[1]             = 0;
       mpiCounts[1]            = 22;
-      commandRepititions[1]   = 1;
+      commandRepetitions[1]   = 1;
 #else
   //DOSA_ADD_mpi_commands
 #endif
@@ -123,7 +123,7 @@ void pStateControl(
           curCmnd = mpiCommands[nextCommandPtr];
           curRank = mpiRanks[nextCommandPtr];
           curCount = mpiCounts[nextCommandPtr];
-          curRep = commandRepititions[nextCommandPtr];
+          curRep = commandRepetitions[nextCommandPtr];
           nextCommandPtr++;
           if(nextCommandPtr >= DOSA_WRAPPER_PROG_LENGTH)
           {

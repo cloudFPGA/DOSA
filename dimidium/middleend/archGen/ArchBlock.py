@@ -28,7 +28,7 @@ class ArchBlock(object):
         self.block_impl_type = block_impl_type
         self.selected_osg = selected_osg
         self.build_tool = None
-        self.ip_dir = None
+        # self.ip_dir = None
         self.synth_func_list = []
 
     def __repr__(self):
