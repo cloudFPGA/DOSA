@@ -96,11 +96,11 @@ void pStateControl(
 #ifdef WRAPPER_TEST
       mpiCommands[0]          = MPI_INSTR_RECV;
       mpiRanks[0]             = 0;
-      mpiCounts[0]            = 15;
+      mpiCounts[0]            = 22;
       commandRepititions[0]   = 1;
       mpiCommands[1]          = MPI_INSTR_SEND;
       mpiRanks[1]             = 0;
-      mpiCounts[1]            = 15;
+      mpiCounts[1]            = 22;
       commandRepititions[1]   = 1;
 #else
   //DOSA_ADD_mpi_commands
@@ -260,7 +260,7 @@ void pRecvEnq(
       }
       if( !not_empty )
       {
-        sendEnqFsm = RECV_WAIT;
+        recvEnqFsm = RECV_WAIT;
       }
       break;
 
@@ -557,7 +557,7 @@ void pSendEnq(
         }
         if(tmp_read.getTLast() == 1)
         {
-          recvEnqStates = SEND_WAIT;
+          sendEnqFsm = SEND_WAIT;
           nextBuffer = 0;
         }
         sSendBuff_1.write(tmp_read);
@@ -624,7 +624,7 @@ void pSendDeq(
       }
       if( !sSendBufferCmds.empty() )
       {
-        sRecvBufferCmds.read();
+        sSendBufferCmds.read();
         not_empty = true;
       }
       if( !sSendReset.empty() )
@@ -773,6 +773,7 @@ void pSendDeq(
         if( tmp_read.getTLast() == 1 )
         {
           nextCC = 0;
+          back_to_other_cc = false;
           sendDeqFsm = WAIT_OK;
         }
       }
@@ -820,6 +821,7 @@ void pSendDeq(
         if( tmp_read.getTLast() == 1 )
         {
           nextCC = 1;
+          back_to_other_cc = false;
           sendDeqFsm = WAIT_OK;
         }
       }
@@ -851,6 +853,7 @@ void pSendDeq(
         tmp_reset = sSendReset.read();
         if( tmp_reset == true )
         {
+          //will go to right buffer one cycle later, if necessary
           if( nextCC == 0 )
           {
             sendDeqFsm = SEND_CC_0;
@@ -980,13 +983,23 @@ void zrlmpi_wrapper(
   #pragma HLS STREAM variable=sSendBuff_1 depth=buffer_fifo_depth
 
   static stream<sendBufferCmd> sSendBufferCmds ("sSendBufferCmds");
-#pragma HLS STREAM variable=sSendBufferCmds depth=2
+  #pragma HLS STREAM variable=sSendBufferCmds depth=2
   static stream<deqBufferCmd> sRecvBufferCmds ("sRecvBufferCmds");
-#pragma HLS STREAM variable=sRecvBufferCmds depth=2
+  #pragma HLS STREAM variable=sRecvBufferCmds depth=2
 
 
   //-- PROCESS INSTANTIATION ------------------------------------------------------
 
+  pStateControl(role_rank_arg, cluster_size_arg, soMPIif, siMPIFeB, sReceiveLength, sSendLength, sReceiveReset, sSendReset,
+                sReceiveDone, sSendDone);
+
+  pRecvEnq(siMPI_data, sReceiveLength, sReceiveReset, sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, sReceiveDone);
+
+  pRecvDeq(sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, soData);
+
+  pSendEnq(siData, sSendLength, sSendBuff_0, sSendBuff_1, sSendBufferCmds);
+
+  pSendDeq(sSendBuff_0, sSendBuff_1, sSendBufferCmds, sSendReset, sSendDone, soMPI_data);
 
 
 }

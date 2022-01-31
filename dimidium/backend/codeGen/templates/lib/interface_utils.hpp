@@ -13,7 +13,10 @@
 #ifndef _DOSA_INTERFACE_UTILS_
 #define _DOSA_INTERFACE_UTILS_
 
-uint8_t extractByteCnt(Axis<64> currWord)
+#include "axi_utils.hpp"
+
+
+inline uint8_t extractByteCnt(Axis<64> &currWord)
 {
 #pragma HLS INLINE
 
@@ -53,5 +56,4 @@ uint8_t extractByteCnt(Axis<64> currWord)
 
 
 #endif
-
 

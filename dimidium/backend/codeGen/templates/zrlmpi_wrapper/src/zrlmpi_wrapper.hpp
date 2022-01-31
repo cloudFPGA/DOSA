@@ -18,8 +18,8 @@
 #include "ap_utils.h"
 #include <hls_stream.h>
 
-#include "../../lib/axi_utils.hpp"
 #include "../../lib/interface_utils.hpp"
+#include "../../lib/axi_utils.hpp"
 #include "zrlmpi_common.hpp"
 
 using namespace hls;
@@ -52,16 +52,16 @@ enum SendDeqStates {RESET3 = 0, WAIT_START, SEND_DEQ_0, SEND_CC_0, SEND_CC_1, SE
 
 void zrlmpi_wrapper(
     // ----- FROM FMC -----
-    ap_uint<32> role_rank_arg,
-    ap_uint<32> cluster_size_arg,
+    ap_uint<32>   *role_rank_arg,
+    ap_uint<32>   *cluster_size_arg,
     // ----- Wrapper Interface -----
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
     // ----- MPI_Interface -----
-    stream<MPI_Interface> *soMPIif,
-    stream<MPI_Feedback> *siMPIFeB,
-    stream<Axis<64> > *soMPI_data,
-    stream<Axis<64> > *siMPI_data,
+    stream<MPI_Interface>     &soMPIif,
+    stream<MPI_Feedback>      &siMPIFeB,
+    stream<Axis<64> >         &soMPI_data,
+    stream<Axis<64> >         &siMPI_data,
     // ----- DEBUG IO ------
     ap_uint<32> *debug_out
 );

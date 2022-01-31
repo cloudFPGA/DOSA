@@ -28,7 +28,7 @@ ${ipName}_prj/solution1/impl/ip: $(DEPS)
 	rm -f $(IP_GUARD_FORCE)
 
 csim:
-	@/bin/echo -e "---------------\n\tThis simulation works only with *one* iteration with [1,3,10,10] as input and [1,3,5,5] as output!\n\tSo the flag WRAPPER_TEST is set.\n\t(to use the actual parameters, use 'make csim_orig')\n---------------\n"
+	@/bin/echo -e "---------------\n\tThis simulation only tests *one* ping-pong program!\n\tSo the flag WRAPPER_TEST is set.\n\t(to use the actual parameters, use 'make csim_orig')\n---------------\n"
 	export dosaIpName=${ipName}; export hlsSim=1; export hlsCoSim=0; export useWrapperTest=1; vivado_hls -f run_hls.tcl
 
 syn_test:
