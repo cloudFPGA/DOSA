@@ -870,7 +870,7 @@ void pSendDeq(
         } else {
           //success
           sSendDone.write(true);
-          sendDeqFsm = WAIT_START;
+          sendDeqFsm = WAIT_DRAIN;
           if( nextCC == 0 )
           {
             drain_cc_0 = true;
@@ -882,33 +882,39 @@ void pSendDeq(
         }
       }
       break;
-  }
 
-  if(drain_cc_0)
-  {
-    if( !sCopyContainer_0.empty() )
-    {
-      tmp_read = sCopyContainer_0.read();
-      if( tmp_read.getTLast() == 1)
+    case WAIT_DRAIN:
+      if(drain_cc_0)
       {
-        drain_cc_0 = false;
+        if( !sCopyContainer_0.empty() )
+        {
+          tmp_read = sCopyContainer_0.read();
+          if( tmp_read.getTLast() == 1)
+          {
+            drain_cc_0 = false;
+          }
+        } else {
+          drain_cc_0 = false;
+        }
       }
-    } else {
-      drain_cc_0 = false;
-    }
-  }
-  if(drain_cc_1)
-  {
-    if( !sCopyContainer_1.empty() )
-    {
-      tmp_read = sCopyContainer_1.read();
-      if( tmp_read.getTLast() == 1)
+      if(drain_cc_1)
       {
-        drain_cc_1 = false;
+        if( !sCopyContainer_1.empty() )
+        {
+          tmp_read = sCopyContainer_1.read();
+          if( tmp_read.getTLast() == 1)
+          {
+            drain_cc_1 = false;
+          }
+        } else {
+          drain_cc_1 = false;
+        }
       }
-    } else {
-      drain_cc_1 = false;
-    }
+      if( !drain_cc_0 && !drain_cc_1)
+      {
+        sendDeqFsm = WAIT_START;
+      }
+      break;
   }
 
 }
@@ -997,9 +1003,6 @@ void zrlmpi_wrapper(
 
   //-- PROCESS INSTANTIATION ------------------------------------------------------
 
-  pStateControl(role_rank_arg, cluster_size_arg, soMPIif, siMPIFeB, sReceiveLength, sSendLength, sReceiveReset, sSendReset,
-                sReceiveDone, sSendDone);
-
   pRecvEnq(siMPI_data, sReceiveLength, sReceiveReset, sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, sReceiveDone);
 
   pRecvDeq(sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, soData);
@@ -1008,6 +1011,9 @@ void zrlmpi_wrapper(
 
   pSendDeq(sSendBuff_0, sSendBuff_1, sSendBufferCmds, sSendReset, sSendDone, soMPI_data);
 
+  //process with highest II last
+  pStateControl(role_rank_arg, cluster_size_arg, soMPIif, siMPIFeB, sReceiveLength, sSendLength, sReceiveReset, sSendReset,
+                sReceiveDone, sSendDone);
 
 }
 
