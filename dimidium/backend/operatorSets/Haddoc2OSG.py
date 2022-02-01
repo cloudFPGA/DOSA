@@ -240,8 +240,7 @@ class Haddoc2OSG(BaseOSG):
                 previous_layer_name = layer_name
             topologyParsing.InstanceDynOutputLayer(topf, previous_layer_name)
             topologyParsing.WriteArchitectureEnd(topf)
-        # TODO: generate wrapper
-        # wrapper_last_op
+
         wrapper_input_fifo = InterfaceAxisFifo('input_{}'.format(arch_block.block_uuid),
                                                wrapper_first_brick.input_bw_Bs, build_tool.target_device)
         if build_tool.topVhdl.next_proc_comp_cnt == 0:
@@ -256,6 +255,7 @@ class Haddoc2OSG(BaseOSG):
         build_tool.add_tcl_entry(if_axis_tcl)
 
         wrapper_first_op = ops_implemented_ordered[0]
+        # wrapper_last_op
         block_wrapper = Haddoc2Wrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_first_op.dims.out,
                                        used_bit_width, if_in_bitw, if_out_bitw, used_hls_dir_path, wrapper_flatten_op,
                                        len(ops_implemented_ordered))

@@ -20,8 +20,8 @@ class VhdlEntity:
         self.template_file = template_file
         self.signal_decls = []
         self.comp_decls = {}
-        self.network_input_adapter_inst = None
-        self.network_output_adapter_inst = None
+        self.network_adapter_inst = None
+        # self.network_output_adapter_inst = None
         self.processing_comp_insts = {}
         self.next_proc_comp_cnt = 0
         self.add_tcl_valid = False
@@ -30,13 +30,13 @@ class VhdlEntity:
     def set_template(self, template_file):
         self.template_file = template_file
 
-    def set_network_input_adapter(self, decl_lines, inst_template, if_types):
-        self.comp_decls['network_input_adapter'] = decl_lines
-        self.network_input_adapter_inst = {'inst_tmpl': inst_template, 'if_types': if_types}
+    def set_network_adapter(self, decl_lines, inst_template, if_types):
+        self.comp_decls['network_adapter'] = decl_lines
+        self.network_adapter_inst = {'inst_tmpl': inst_template, 'if_types': if_types}
 
-    def set_network_output_adapter(self, decl_lines, inst_template, if_types):
-        self.comp_decls['network_output_adapter'] = decl_lines
-        self.network_output_adapter_inst = {'inst_tmpl': inst_template, 'if_types': if_types}
+    # def set_network_output_adapter(self, decl_lines, inst_template, if_types):
+    #     self.comp_decls['network_output_adapter'] = decl_lines
+    #     self.network_output_adapter_inst = {'inst_tmpl': inst_template, 'if_types': if_types}
 
     def add_comp_decls(self, name, decl_lines):
         self.comp_decls[name] = decl_lines
@@ -56,14 +56,9 @@ class VhdlEntity:
         self.next_proc_comp_cnt += 1
 
     def write_file(self, target_path, target_device):
-        # TODO: for debugging
-        self.set_network_input_adapter('  -- ZRLMPI to be generated\n', '  -- ZRLMPI to be instantiated\n',
-                                       [InterfaceAxisFifo])
-        self.set_network_output_adapter('  -- ZRLMPI to be generated\n', '  -- ZRLMPI to be instantiated\n',
-                                        [InterfaceAxisFifo])
         # check compatibility of input layer
         is_compatible = False
-        for at in self.network_input_adapter_inst['if_types']:
+        for at in self.network_adapter_inst['if_types']:
             if isinstance(self.processing_comp_insts[0]['input_if'], at):
                 is_compatible = True
         if not is_compatible:
@@ -74,7 +69,7 @@ class VhdlEntity:
         output_if = None
         if self.processing_comp_insts[self.next_proc_comp_cnt - 1]['output_if'] is None:
             last_brick = self.processing_comp_insts[self.next_proc_comp_cnt - 1]['arch_block'].brick_list[-1]
-            out_type = self.network_output_adapter_inst['if_types'][0]  # just take the first one?
+            out_type = self.network_adapter_inst['if_types'][0]  # just take the first one?
             output_if = out_type('output_node_end', last_brick.output_bw_Bs, target_device)
         else:
             output_if = self.processing_comp_insts[self.next_proc_comp_cnt - 1]['output_if']
@@ -107,12 +102,26 @@ class VhdlEntity:
                     outline += '\n'
                 elif 'DOSA_ADD_inst_lines' in line:
                     outline = '  -- DOSA generated instantiations\n'
-                    outline += '\n  -- Instantiate network input adapter\n'
-                    inst_tmpl = self.network_input_adapter_inst['inst_tmpl']
+                    outline += '\n  -- Instantiate network adapter\n'
+                    inst_tmpl = self.network_adapter_inst['inst_tmpl']
                     next_signals = self.processing_comp_insts[0]['input_if'].get_vhdl_signal_dict()
                     assert isinstance(self.processing_comp_insts[0]['input_if'],
                                       InterfaceAxisFifo)  # TODO: make dynamic
-                    in_map_dict = {'out_sig_0': next_signals['to_signals']['0'],
+                    last_signals = output_if.get_vhdl_signal_dict()
+                    assert isinstance(output_if, InterfaceAxisFifo)  # TODO: make also dynamic
+                    in_map_dict = {'in_sig_0': last_signals['from_signals']['0'],
+                                   'in_sig_1_n': last_signals['from_signals']['1_n'],
+                                   'in_sig_1': last_signals['from_signals']['1'],
+                                   'in_sig_2': last_signals['from_signals']['2'],
+                                   'in_sig_3': last_signals['from_signals']['3'],
+                                   'in_sig_4_n': last_signals['from_signals']['4_n'],
+                                   'in_sig_4': last_signals['from_signals']['4'],
+                                   'in_sig_5': last_signals['from_signals']['5'],
+                                   'in_sig_6': last_signals['from_signals']['6'],
+                                   'in_sig_7_n': last_signals['from_signals']['7_n'],
+                                   'in_sig_7': last_signals['from_signals']['7'],
+                                   'in_sig_8': last_signals['from_signals']['8'],
+                                   'out_sig_0': next_signals['to_signals']['0'],
                                    'out_sig_1_n': next_signals['to_signals']['1_n'],
                                    'out_sig_1': next_signals['to_signals']['1'],
                                    'out_sig_2': next_signals['to_signals']['2'],
@@ -124,13 +133,13 @@ class VhdlEntity:
                                    'out_sig_7_n': next_signals['to_signals']['7_n'],
                                    'out_sig_7': next_signals['to_signals']['7'],
                                    'out_sig_8': next_signals['to_signals']['8'],
-                                   'inst_name': 'NetworkInputAdapter',
+                                   'inst_name': 'DosaNetworkAdapter',
                                    'clk': 'piSHL_156_25Clk',
                                    'rst': 'piMMIO_Ly7_Rst',
                                    'rst_n': 'sResetApps_n',
                                    'enable': 'piMMIO_Ly7_En'
                                    }
-                    # in signals are static for network input adapter
+                    # other signals are static for network adapter
                     new_inst = inst_tmpl.format_map(in_map_dict)
                     outline += '\n' + new_inst
                     for pci in self.processing_comp_insts.keys():
@@ -211,31 +220,42 @@ class VhdlEntity:
                         inst_tmpl = pc['inst_tmpl']
                         new_inst = inst_tmpl.format_map(map_dict)
                         outline += '\n' + new_inst
-                    outline += '\n  -- Instantiate network output adapter\n'
-                    inst_tmpl = self.network_output_adapter_inst['inst_tmpl']
+                    # instantiate output interface (if necessary)
                     our_signals = output_if.get_vhdl_signal_dict()
-                    assert isinstance(output_if, InterfaceAxisFifo)  # TODO: make also dynamic
-                    out_map_dict = {'in_sig_0': our_signals['from_signals']['0'],
-                                    'in_sig_1_n': our_signals['from_signals']['1_n'],
-                                    'in_sig_1': our_signals['from_signals']['1'],
-                                    'in_sig_2': our_signals['from_signals']['2'],
-                                    'in_sig_3': our_signals['from_signals']['3'],
-                                    'in_sig_4_n': our_signals['from_signals']['4_n'],
-                                    'in_sig_4': our_signals['from_signals']['4'],
-                                    'in_sig_5': our_signals['from_signals']['5'],
-                                    'in_sig_6': our_signals['from_signals']['6'],
-                                    'in_sig_7_n': our_signals['from_signals']['7_n'],
-                                    'in_sig_7': our_signals['from_signals']['7'],
-                                    'in_sig_8': our_signals['from_signals']['8'],
-                                    'inst_name': 'NetworkOutputAdapter',
-                                    'clk': 'piSHL_156_25Clk',
-                                    'rst': 'piMMIO_Ly7_Rst',
-                                    'rst_n': 'sResetApps_n',
-                                    'enable': 'piMMIO_Ly7_En'
-                                    }
-                    # in signals are static for network input adapter
-                    new_inst = inst_tmpl.format_map(in_map_dict)
+                    inst_tmpl = output_if.get_vhdl_entity_inst_tmpl()
+                    map_dict = {'in_sig_0': our_signals['to_signals']['0'],
+                                'in_sig_1_n': our_signals['to_signals']['1_n'],
+                                'in_sig_1': our_signals['to_signals']['1'],
+                                'in_sig_2': our_signals['to_signals']['2'],
+                                'out_sig_0': our_signals['from_signals']['0'],
+                                'out_sig_1_n': our_signals['from_signals']['1_n'],
+                                'out_sig_1': our_signals['from_signals']['1'],
+                                'out_sig_2': our_signals['from_signals']['2'],
+                                'in_sig_3': our_signals['to_signals']['3'],
+                                'in_sig_4_n': our_signals['to_signals']['4_n'],
+                                'in_sig_4': our_signals['to_signals']['4'],
+                                'in_sig_5': our_signals['to_signals']['5'],
+                                'out_sig_3': our_signals['from_signals']['3'],
+                                'out_sig_4_n': our_signals['from_signals']['4_n'],
+                                'out_sig_4': our_signals['from_signals']['4'],
+                                'out_sig_5': our_signals['from_signals']['5'],
+                                'in_sig_6': our_signals['to_signals']['6'],
+                                'in_sig_7_n': our_signals['to_signals']['7_n'],
+                                'in_sig_7': our_signals['to_signals']['7'],
+                                'in_sig_8': our_signals['to_signals']['8'],
+                                'out_sig_6': our_signals['from_signals']['6'],
+                                'out_sig_7_n': our_signals['from_signals']['7_n'],
+                                'out_sig_7': our_signals['from_signals']['7'],
+                                'out_sig_8': our_signals['from_signals']['8'],
+                                'inst_name': pc['name'] + '_input_if',
+                                'clk': 'piSHL_156_25Clk',
+                                'rst': 'piMMIO_Ly7_Rst',
+                                'rst_n': 'sResetApps_n',
+                                'enable': 'piMMIO_Ly7_En'
+                                }
+                    new_inst = inst_tmpl.format_map(map_dict)
                     outline += '\n' + new_inst
+                    outline += '\n'
                 else:
                     outline = line
                 out_file.write(outline)

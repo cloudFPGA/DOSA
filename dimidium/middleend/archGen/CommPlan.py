@@ -52,3 +52,12 @@ class CommPlan:
     def get_comm_instr(self):
         return self.comm_instr
 
+    def get_longest_msg_bytes(self):
+        longest_msg = 0
+        for ie in self.comm_instr:
+            if ie['count'] > longest_msg:
+                longest_msg = ie['count']
+        return longest_msg
+
+    def get_comm_instr_num(self):
+        return len(self.comm_instr)

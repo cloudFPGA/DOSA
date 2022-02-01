@@ -35,11 +35,13 @@ class Haddoc2Wrapper:
 
     def generate_haddoc2_wrapper(self):
         # 0. copy 'static' files, dir structure
-        # TODO: copy lib
         os.system('cp {}/run_hls.tcl {}'.format(self.templ_dir_path, self.out_dir_path))
         os.system('mkdir -p {}/tb/'.format(self.out_dir_path))
         os.system('mkdir -p {}/src/'.format(self.out_dir_path))
         os.system('cp {}/tb/tb_haddoc2_wrapper.cpp {}/tb/'.format(self.templ_dir_path, self.out_dir_path))
+        # 0b) copy hls lib, overwrite if necessary
+        os.system('mkdir -p {}/../lib/'.format(self.out_dir_path))
+        os.system('cp {}/../lib/* {}/../lib/'.format(self.templ_dir_path, self.out_dir_path))
         # 1. Makefile
         static_skip_lines = [0, 3, 4]
         with open(os.path.join(self.templ_dir_path, 'Makefile'), 'r') as in_file, \
@@ -82,7 +84,7 @@ class Haddoc2Wrapper:
                 else:
                     outline = line
                 out_file.write(outline)
-        # 2. wrapper.cpp
+        # 3. wrapper.cpp
         with open(os.path.join(self.templ_dir_path, 'src/haddoc_wrapper.cpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'src/haddoc_wrapper.cpp'), 'w') as out_file:
             for line in in_file.readlines():
@@ -256,7 +258,7 @@ class Haddoc2Wrapper:
                  '    ap_clk =>  [clk],\n' +
                  '    ap_rst =>  [rst],\n' +
                  '    pi_haddoc_data_valid_V_ap_vld =>  \'1\' ,\n' +
-                 '    pi_haddoc_data_vector_V_ap_vld => \'1\' \n' +  # no comma
+                 '    pi_haddoc_data_vector_V_ap_vld => \'1\'\n' +  # no comma
                  # '    po_haddoc_data_valid_V_ap_vld =>  open ,\n' +
                  # '    po_haddoc_frame_valid_V_ap_vld =>  open ,\n' +
                  # '    po_haddoc_data_vector_V_ap_vld =>  open,\n' +
