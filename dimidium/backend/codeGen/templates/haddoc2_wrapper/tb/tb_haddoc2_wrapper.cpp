@@ -65,7 +65,7 @@ int frame_pixel_cnt = 0;
  * @return Nothing.
  ******************************************************************************/
 void stepDut() {
-  haddoc_wrapper(
+  haddoc_wrapper_test(
       siData, soData,
       &po_haddoc_data_valid, &po_haddoc_frame_valid, &po_haddoc_data_vector,
       &pi_haddoc_data_valid, &pi_haddoc_frame_valid, &pi_haddoc_data_vector,

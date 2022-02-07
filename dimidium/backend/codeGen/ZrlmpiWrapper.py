@@ -88,6 +88,23 @@ class ZrlmpiWrapper(CommunicationWrapper):
         os.system('rm -f {}/../mpe2/src/zrlmpi_common.*'.format(self.out_dir_path))
         os.system('cp {}/../ZRLMPI/LIB/COMMON/zrlmpi_common.* {}/../mpe2/src/'.format(self.templ_dir_path,
                                                                                       self.out_dir_path))
+        # 5. overwrite mpe header
+        # necessary due to other paths for includes
+        with open(os.path.join(self.templ_dir_path, '../ZRLMPI/LIB/HW/hls/mpe2/src/mpe.hpp'), 'r') as in_file, \
+                open(os.path.join(self.out_dir_path, '../mpe2/src/mpe.hpp'), 'w') as out_file:
+            line_num = 1
+            for line in in_file.readlines():
+                if line_num == 9:
+                    outline = ('#include "../../lib/axi_utils.hpp"\n#include "../../../../cFDK/SRA/LIB/hls/network.hpp"'+
+                               '\n#include "../../../../cFDK/SRA/LIB/hls/cfdk.hpp"\n')
+                elif line_num in [10, 11]:
+                    line_num += 1
+                    continue
+                else:
+                    outline = line
+                out_file.write(outline)
+                line_num += 1
+        return 0
 
     def get_tcl_lines_wrapper_inst(self, ip_description='ZRLMPI wrapper instantiation for this node'):
         template_lines = Path(os.path.join(__filedir__, 'templates/create_hls_ip_core.tcl')).read_text()

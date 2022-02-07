@@ -22,7 +22,9 @@ __large_interface_bitwidth__ = 2048
 __available_interface_bitwidth__ = [__small_interface_bitwidth__, __medium_interface_bitwidth__,
                                     __large_interface_bitwidth__]
 
-wrapper_interface_default_depth = 32
+__wrapper_min_depth__ = 512
+# wrapper_interface_default_depth = 32
+wrapper_interface_default_depth = __wrapper_min_depth__
 wrapper_default_interface_bitwidth = __small_interface_bitwidth__
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +40,8 @@ class WrapperInterface(metaclass=abc.ABCMeta):
         self.name = get_fifo_name(mod_name)
         self.bw_s = bw_s
         self.depth = depth
+        if self.depth < __wrapper_min_depth__:
+            self.depth = __wrapper_min_depth__
         self.target_hw = target_hw
         self.bitwidth = self._get_wrapper_interface_bitwidth()
 

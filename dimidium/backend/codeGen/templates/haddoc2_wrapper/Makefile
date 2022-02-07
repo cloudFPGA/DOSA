@@ -2,7 +2,7 @@
 ipName =haddoc_wrapper_test
 
 # line 4: don't modify below, above lines are ignored by DOSA generation
-appName =haddoc_wrapper
+appName =${ipName}
 
 DEPS := $(shell find ./src/ -type f)
 IP_GUARD=$(usedRoleDir).ip_guard

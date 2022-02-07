@@ -34,7 +34,7 @@ class ZrlmpiCommLib(BaseCommLib):
 
         build_tool.add_makefile_entry(used_hls_dir_path, 'all')
         # add also mpe2 to makefile target
-        mpe2_dir = os.path.join(used_hls_dir_path, '../mpe2/')
+        mpe2_dir = os.path.abspath(os.path.join(used_hls_dir_path, '../mpe2/'))
         build_tool.add_makefile_entry(mpe2_dir, 'all')
 
         zrlmpi_tcl = comm_wrapper.get_tcl_lines_wrapper_inst()

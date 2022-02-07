@@ -52,8 +52,8 @@ set useWrapperTest $env(useWrapperTest)
 # Open and Setup Project
 #-------------------------------------------------
 open_project  ${projectName}_prj
-#set_top       ${appName}_main
-set_top       haddoc_wrapper
+#set_top       haddoc_wrapper
+set_top       ${projectName}
 
 
 # library files

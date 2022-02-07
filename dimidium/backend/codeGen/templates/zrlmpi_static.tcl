@@ -45,15 +45,15 @@ set ipName    "fifo_generator"
 set ipVendor  "xilinx.com"
 set ipLibrary "ip"
 set ipVersion "13.2"
-#set ipCfgList [ list CONFIG.Performance_Options {First_Word_Fall_Through} CONFIG.Input_Data_Width {72} CONFIG.Output_Data_Width {72} \
-#                CONFIG.Input_Depth {512} CONFIG.Output_Depth {512} \
-#              ]
+set ipCfgList [ list CONFIG.Performance_Options {First_Word_Fall_Through} CONFIG.Input_Data_Width {72} CONFIG.Output_Data_Width {72} \
+                CONFIG.Input_Depth {512} CONFIG.Output_Depth {512} \
+              ]
 #set ipCfgList [ list CONFIG.Performance_Options {First_Word_Fall_Through} CONFIG.Input_Data_Width {72} CONFIG.Output_Data_Width {72} \
 #                CONFIG.Input_Depth {1024} CONFIG.Output_Depth {1024} \
 #              ]
-set ipCfgList [ list CONFIG.Performance_Options {First_Word_Fall_Through} CONFIG.Input_Data_Width {72} CONFIG.Output_Data_Width {72} \
-                CONFIG.Input_Depth {16} CONFIG.Output_Depth {16} \
-              ]
+#set ipCfgList [ list CONFIG.Performance_Options {First_Word_Fall_Through} CONFIG.Input_Data_Width {72} CONFIG.Output_Data_Width {72} \
+#                CONFIG.Input_Depth {16} CONFIG.Output_Depth {16} \
+#              ]
 
 set rc [ my_customize_ip ${ipModName} ${ipDir} ${ipVendor} ${ipLibrary} ${ipName} ${ipVersion} ${ipCfgList} ]
 
@@ -68,15 +68,15 @@ set ipName    "fifo_generator"
 set ipVendor  "xilinx.com"
 set ipLibrary "ip"
 set ipVersion "13.2"
-#set ipCfgList [ list CONFIG.Performance_Options {First_Word_Fall_Through} CONFIG.Input_Data_Width {8} CONFIG.Output_Data_Width {8} \
-#                CONFIG.Input_Depth {512} CONFIG.Output_Depth {512} \
-#              ]
+set ipCfgList [ list CONFIG.Performance_Options {First_Word_Fall_Through} CONFIG.Input_Data_Width {8} CONFIG.Output_Data_Width {8} \
+                CONFIG.Input_Depth {512} CONFIG.Output_Depth {512} \
+              ]
 #set ipCfgList [ list CONFIG.Performance_Options {First_Word_Fall_Through} CONFIG.Input_Data_Width {8} CONFIG.Output_Data_Width {8} \
 #                CONFIG.Input_Depth {1024} CONFIG.Output_Depth {1024} \
 #              ]
-set ipCfgList [ list CONFIG.Performance_Options {First_Word_Fall_Through} CONFIG.Input_Data_Width {8} CONFIG.Output_Data_Width {8} \
-                CONFIG.Input_Depth {16} CONFIG.Output_Depth {16} \
-              ]
+#set ipCfgList [ list CONFIG.Performance_Options {First_Word_Fall_Through} CONFIG.Input_Data_Width {8} CONFIG.Output_Data_Width {8} \
+#                CONFIG.Input_Depth {16} CONFIG.Output_Depth {16} \
+#              ]
 
 set rc [ my_customize_ip ${ipModName} ${ipDir} ${ipVendor} ${ipLibrary} ${ipName} ${ipVersion} ${ipCfgList} ]
 
