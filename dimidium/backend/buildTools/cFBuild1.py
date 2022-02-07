@@ -141,7 +141,7 @@ class cFBuild1(HwBuildTopVhdl):
         return ip_dir_list
 
     def add_makefile_entry(self, path, target):
-        relpath = './' + os.path.relpath(path, self.my_makefile)
+        relpath = os.path.relpath(path, os.path.dirname(self.my_makefile))
         if relpath not in self.makefile_targets.keys():
             self.makefile_targets[relpath] = target
 
