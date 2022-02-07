@@ -2,10 +2,10 @@
 #  *                       cloudFPGA
 #  *     Copyright IBM Research, All Rights Reserved
 #  *    =============================================
-#  *     Created: Oct 2021
+#  *     Created: Feb 2022
 #  *     Authors: NGL
 #  *
 #  *     Description:
-#  *        Build tools for DOSA arch gen
+#  *        Build tool library for DOSA arch gen
 #  *
 #  *

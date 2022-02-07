@@ -26,6 +26,8 @@ class CfThemisto1(DosaBaseHw):
         self.part_string = 'xcku060-ffva1156-2-i'
         self.clock_period_ns = 6.4
         self.clock_period_s = self.clock_period_ns * 1e-9
+        self.cf_mod_type = 'FMKU60'
+        self.cf_sra = 'Themisto'
 
     def _gen_numbers(self):
         if self.initialized:

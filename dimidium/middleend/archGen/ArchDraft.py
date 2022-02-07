@@ -948,6 +948,12 @@ class ArchDraft(object):
         if self.selected_comm_lib is placeholderCommLib:
             print('[DOSA:archGen:ERROR] Unable to find one common communication library. STOP.')
             exit(-1)
+        # update node_id if necessary
+        if dosa_singleton.config.backend.create_rank_0_for_io:
+            # i.e. we need to shift all node_ids by one
+            for ni in self.nodes:
+                nn = self.nodes[ni]
+                nn.node_id += 1
         # then, populate
         for nn in self.node_iter_gen():
             nn.generate_communication(self.selected_comm_lib)

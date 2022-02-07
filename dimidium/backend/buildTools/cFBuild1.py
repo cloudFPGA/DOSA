@@ -11,12 +11,24 @@
 #  *
 
 import os
+import json
 
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild, HwBuildTopVhdl
 from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
+from dimidium.backend.buildTools.lib.cFBuild1.cFCreate.templates.gen_env import __cfenv_small_name__, \
+    __cfenv_req_packages__, get_sys_python_env
+from dimidium.backend.buildTools.lib.cFBuild1.cFCreate.lib.cf_create import create_cfp_dir_structure, \
+    __to_be_defined_key__, copy_templates_and_set_env
+from dimidium.backend.buildTools.lib.cFBuild1.cFCreate.templates.cf_sratool import __cfp_json_name__, \
+    __sra_dict_template__, __sra_key__
+
+__dosa_config_env_dcps__ = 'DOSA_cFBuild1_used_dcps_path'
 
 
 class cFBuild1(HwBuildTopVhdl):
+
+    build_wide_structure_created = False
 
     def __init__(self, name, target_device: DosaBaseHw, build_dir=None, out_dir=None):
         super().__init__(name, target_device, build_dir, out_dir)
@@ -36,7 +48,69 @@ class cFBuild1(HwBuildTopVhdl):
         self.global_hls_dir = "{}/ROLE/hls/".format(self.build_dir)
         # os.system("cp {0}/Role.vhdl {1}/ROLE/hdl/Role.vhdl".format(my_templates, self.build_dir))
         self.topVhdl.set_template('{}/Role.vhdl'.format(my_templates))
+        # cFDK setup etc.
+        self.my_global_build_lib_dir = os.path.abspath('{}/cFBuild1/'.format(dosa_singleton.config.global_build_dir))
+        my_libs = os.path.abspath(me_abs_dir + '/lib/cFBuild1/')
+        self.my_libs = my_libs
+        global_venv_dir = '{}/{}'.format(self.my_global_build_lib_dir, __cfenv_small_name__)
+        self.my_global_venv = global_venv_dir
+        self.my_global_dcps = '{}/global_dcps/'.format(self.my_global_build_lib_dir)
+        if not self.build_wide_structure_created:
+            self._create_build_wide_structure()
+        create_cfp_dir_structure(self.build_dir)
+        # link cFDK
+        os.system('cd {}; ln -s {}/cFDK cFDK'.format(self.build_dir, self.my_global_build_lib_dir))
+        # copy templates that should be copied only during create
+        os.system("cp {0}/cFCreate/templates/gitignore.template {1}/.gitignore".format(my_libs, self.build_dir))
+        os.system("cp {0}/cFCreate/templates/cfdk_Makefile {1}/Makefile".format(my_libs, self.build_dir))
+        cf_envs = {'cf_sra': self.target_device.cf_sra, 'cf_mod': self.target_device.cf_mod_type,
+                   'roleName1': self.name, 'usedRoleDir': '', 'roleName2': __to_be_defined_key__,
+                   'usedRoleDir2': __to_be_defined_key__}
+        copy_templates_and_set_env(self.build_dir, cf_envs, False)
+        # link dcps
+        os.system('cd {}; mkdir -p dcps'.format(self.build_dir))
+        os.system('cd {build}; ln -s {gdcps}/3_top{mod}_STATIC.dcp dcps/3_top{mod}_STATIC.dcp'.
+                  format(build=self.build_dir, mod=self.target_device.cf_mod_type, gdcps=self.my_global_dcps))
+        os.system('cd {build}; ln -s {gdcps}/3_top{mod}_STATIC.json dcps/3_top{mod}_STATIC.json'.
+                  format(build=self.build_dir, mod=self.target_device.cf_mod_type, gdcps=self.my_global_dcps))
+        # add role and set active
+        cfp_json_file = os.path.abspath(self.build_dir + '/' + __cfp_json_name__)
+        with open(cfp_json_file, 'r') as json_file:
+            cFp_data = json.load(json_file)
+        cFp_data[__sra_key__] = __sra_dict_template__
+        cFp_data[__sra_key__]['roles'] = [{'name': self.name, 'path': ''}]
+        cFp_data[__sra_key__]['active_role'] = self.name
+        with open(cfp_json_file, 'w') as json_file:
+            json.dump(cFp_data, json_file, indent=4)
+        # link venv
+        os.system('cd {}; ln -s {} env/{}'.format(self.build_dir, self.my_global_venv, __cfenv_small_name__))
         self.basic_structure_created = True
+
+    def _create_build_wide_structure(self):
+        me_abs_dir = os.path.dirname(os.path.realpath(__file__))
+        self.my_global_build_lib_dir = os.path.abspath('{}/cFBuild1/'.format(dosa_singleton.config.global_build_dir))
+        my_libs = os.path.abspath(me_abs_dir + '/lib/cFBuild1/')
+        self.my_libs = my_libs
+        os.system('mkdir -p {}/cFDK'.format(self.my_global_build_lib_dir))
+        os.system('cp -R {}/cFDK/* {}/cFDK/'.format(my_libs, self.my_global_build_lib_dir))
+        self.my_global_dcps = '{}/global_dcps/'.format(self.my_global_build_lib_dir)
+        os.system('mkdir -p {}'.format(self.my_global_dcps))
+        if __dosa_config_env_dcps__ not in os.environ:
+            print("[DOSA:cFBuild1:ERROR] Can't locate 3_static dcp to be used...build will most likely fail. Trying "
+                  "to continue.\n")
+        else:
+            used_dcps_dir = os.path.abspath(os.environ[__dosa_config_env_dcps__])
+            os.system('cp {}/3_* {}/'.format(used_dcps_dir, self.my_global_dcps))
+        global_venv_dir = '{}/{}'.format(self.my_global_build_lib_dir, __cfenv_small_name__)
+        self.my_global_venv = global_venv_dir
+        os.system('mkdir -p {}'.format(global_venv_dir))
+        cfenv_dir = os.path.abspath(global_venv_dir)
+        sys_py_bin = get_sys_python_env()
+        # print("[INFO] the python virutalenv for this project on this machine is missing, installing it...")
+        os.system('cd {}; virtualenv -p {} {}'
+                  .format(os.path.abspath(cfenv_dir + '/../'), sys_py_bin, __cfenv_small_name__))
+        os.system('/bin/bash -c "source {}/bin/activate; pip install {}"'.format(cfenv_dir, __cfenv_req_packages__))
+        cFBuild1.build_wide_structure_created = True
 
     def add_ip_dir(self, block_id, path=None, vhdl_only=False, hybrid=False):
         if not self.basic_structure_created:

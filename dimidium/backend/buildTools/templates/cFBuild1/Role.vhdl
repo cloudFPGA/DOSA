@@ -20,11 +20,11 @@
 -- *
 -- * File    : Role.vhdl
 -- *
--- * Tools   : Vivado v2016.4, v2017.4, v2019.2 (64-bit) 
+-- * Tools   : Vivado v2016.4, v2017.4, v2019.2 (64-bit)
 -- *
--- * Description : In cloudFPGA, the user application is referred to as a 'role'    
+-- * Description : In cloudFPGA, the user application is referred to as a 'role'
 -- *   and is integrated along with a 'shell' that abstracts the HW components
--- *   of the FPGA module. 
+-- *   of the FPGA module.
 -- *   The current role implements 2 typical UDP and TCP applications and pairs
 -- *   paires them with the shell 'Themisto'.
 -- *
@@ -85,7 +85,7 @@ entity Role_Themisto is
     siNRC_Role_Udp_Meta_TREADY  : out   std_ulogic;
     siNRC_Role_Udp_Meta_TKEEP   : in    std_ulogic_vector(  7 downto 0);
     siNRC_Role_Udp_Meta_TLAST   : in    std_ulogic;
-      
+
     ------------------------------------------------------
     -- SHELL / Role / Nts0 / Tcp Interface
     ------------------------------------------------------
@@ -114,11 +114,11 @@ entity Role_Themisto is
     siNRC_Role_Tcp_Meta_TREADY  : out   std_ulogic;
     siNRC_Role_Tcp_Meta_TKEEP   : in    std_ulogic_vector(  7 downto 0);
     siNRC_Role_Tcp_Meta_TLAST   : in    std_ulogic;
-        
+
     --------------------------------------------------------
     -- SHELL / Mem / Mp0 Interface
     --------------------------------------------------------
-    ---- Memory Port #0 / S2MM-AXIS ----------------   
+    ---- Memory Port #0 / S2MM-AXIS ----------------
     ------ Stream Read Command ---------
     soMEM_Mp0_RdCmd_tdata       : out   std_ulogic_vector( 79 downto 0);
     soMEM_Mp0_RdCmd_tvalid      : out   std_ulogic;
@@ -146,8 +146,8 @@ entity Role_Themisto is
     soMEM_Mp0_Write_tkeep       : out   std_ulogic_vector( 63 downto 0);
     soMEM_Mp0_Write_tlast       : out   std_ulogic;
     soMEM_Mp0_Write_tvalid      : out   std_ulogic;
-    soMEM_Mp0_Write_tready      : in    std_ulogic; 
-    
+    soMEM_Mp0_Write_tready      : in    std_ulogic;
+
     --------------------------------------------------------
     -- SHELL / Mem / Mp1 Interface
     --------------------------------------------------------
@@ -189,17 +189,17 @@ entity Role_Themisto is
     -- TOP : Secondary Clock (Asynchronous)
     --------------------------------------------------------
     piTOP_250_00Clk             : in    std_ulogic;  -- Freerunning
-    
+
     ------------------------------------------------
     -- SMC Interface
-    ------------------------------------------------ 
+    ------------------------------------------------
     piFMC_ROLE_rank             : in    std_logic_vector(31 downto 0);
     piFMC_ROLE_size             : in    std_logic_vector(31 downto 0);
-    
+
     poVoid                      : out   std_ulogic
 
   );
-  
+
 end Role_Themisto;
 
 
@@ -211,7 +211,7 @@ architecture DosaNode of Role_Themisto is
 
   --============================================================================
   --  SIGNAL DECLARATIONS
-  --============================================================================  
+  --============================================================================
 
   signal sResetApps_n : std_logic;
 
@@ -222,7 +222,7 @@ architecture DosaNode of Role_Themisto is
 
   --============================================================================
   --  DOSA DECLARATIONS
-  --============================================================================  
+  --============================================================================
 
   -- DOSA_ADD_decl_lines
 
@@ -265,13 +265,13 @@ architecture DosaNode of Role_Themisto is
       siNrc_meta_TREADY       : out std_logic;
       siNrc_meta_TKEEP        : in std_logic_vector (7 downto 0);
       siNrc_meta_TLAST        : in std_logic_vector (0 downto 0);
-      
+
       soNrc_meta_TDATA        : out std_logic_vector (63 downto 0);
       soNrc_meta_TVALID       : out std_logic;
       soNrc_meta_TREADY       : in std_logic;
       soNrc_meta_TKEEP        : out std_logic_vector (7 downto 0);
       soNrc_meta_TLAST        : out std_logic_vector (0 downto 0);
-      
+
       poROL_NRC_Rx_ports_V        : out std_logic_vector (31 downto 0);
       poROL_NRC_Rx_ports_V_ap_vld : out std_logic
     );
@@ -331,14 +331,14 @@ begin
 
   TAF: TriangleApplication
     port map (
-      
+
       ------------------------------------------------------
       -- From SHELL / Clock and Reset
       ------------------------------------------------------
       ap_clk                    => piSHL_156_25Clk,
       --ap_rst_n                  => (not piMMIO_Ly7_Rst),
       ap_rst_n                  => sResetApps_n,
-      
+
       piFMC_ROL_rank_V          => piFMC_ROLE_rank,
       piFMC_ROL_rank_V_ap_vld   => '1',
       piFMC_ROL_size_V          => piFMC_ROLE_size,
@@ -358,20 +358,20 @@ begin
       soNrc_data_TKEEP          => soNRC_Tcp_Data_tkeep,
       soNrc_data_TLAST          => soNRC_Tcp_Data_tlast,
       soNrc_data_TVALID         => soNRC_Tcp_Data_tvalid,
-      soNrc_data_TREADY         => soNRC_Tcp_Data_tready, 
-      
+      soNrc_data_TREADY         => soNRC_Tcp_Data_tready,
+
       siNrc_meta_TDATA          =>  siNRC_Role_Tcp_Meta_TDATA    ,
       siNrc_meta_TVALID         =>  siNRC_Role_Tcp_Meta_TVALID   ,
       siNrc_meta_TREADY         =>  siNRC_Role_Tcp_Meta_TREADY   ,
       siNrc_meta_TKEEP          =>  siNRC_Role_Tcp_Meta_TKEEP    ,
       siNrc_meta_TLAST          =>  sMetaInTlastAsVector_Tcp,
-      
+
       soNrc_meta_TDATA          =>  soROLE_Nrc_Tcp_Meta_TDATA  ,
       soNrc_meta_TVALID         =>  soROLE_Nrc_Tcp_Meta_TVALID ,
       soNrc_meta_TREADY         =>  soROLE_Nrc_Tcp_Meta_TREADY ,
       soNrc_meta_TKEEP          =>  soROLE_Nrc_Tcp_Meta_TKEEP  ,
       soNrc_meta_TLAST          =>  sMetaOutTlastAsVector_Tcp,
-      
+
       poROL_NRC_Rx_ports_V      => poROL_Nrc_Tcp_Rx_ports
     );
 

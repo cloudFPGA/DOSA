@@ -56,7 +56,7 @@ void pStateControl(
   //-- STATIC VARIABLES ------------------------------------------------------
   static uint8_t mpiCommands[DOSA_WRAPPER_PROG_LENGTH];
   static uint8_t mpiRanks[DOSA_WRAPPER_PROG_LENGTH];
-  static uint8_t mpiCounts[DOSA_WRAPPER_PROG_LENGTH];
+  static uint32_t mpiCounts[DOSA_WRAPPER_PROG_LENGTH];
   static uint8_t commandRepetitions[DOSA_WRAPPER_PROG_LENGTH];
 
   //-- LOCAL VARIABLES ------------------------------------------------------

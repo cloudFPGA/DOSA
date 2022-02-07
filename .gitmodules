@@ -7,3 +7,9 @@
 [submodule "dimidium/backend/codeGen/templates/ZRLMPI"]
 	path = dimidium/backend/codeGen/templates/ZRLMPI
 	url = git@github.ibm.com:cloudFPGA/ZRLMPI.git
+[submodule "dimidium/backend/buildTools/lib/cFDK"]
+	path = dimidium/backend/buildTools/lib/cFBuild1/cFDK
+	url = https://github.com/cloudFPGA/cFDK.git
+[submodule "dimidium/backend/buildTools/lib/cFCreate"]
+	path = dimidium/backend/buildTools/lib/cFBuild1/cFCreate
+	url = https://github.com/cloudFPGA/cFCreate.git

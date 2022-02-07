@@ -44,3 +44,7 @@ class ZrlmpiCommLib(BaseCommLib):
         build_tool.topVhdl.set_network_adapter(zrlmpi_vhdl_decl, zrlmpi_inst_tmpl, [InterfaceAxisFifo])
         return 0
 
+    def build_sw_node(self, todo):
+        """if node_o is set ind singleton?"""
+        return 0
+

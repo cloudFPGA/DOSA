@@ -71,6 +71,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                             cmnd_macro = 'MPI_INSTR_SEND'
                         rank = ie['rank']
                         counts = ie['count']
+                        assert counts < 0xFFFF  # max message size is uint16
                         repeat = ie['repeat']
                         outline += f'      mpiCommands[{instr_num}]          = {cmnd_macro};\n'
                         outline += f'      mpiRanks[{instr_num}]             = {rank};\n'
