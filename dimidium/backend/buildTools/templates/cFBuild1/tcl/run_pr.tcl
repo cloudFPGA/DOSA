@@ -208,7 +208,8 @@ set obj   [ get_filesets sources_1 ]
 set files [ list "[ file normalize "${hdlDir}" ]" ]
 #OBSOLETE  add_files -fileset ${obj} ${hdlDir}
 add_files -fileset ${obj} ${files}
-my_dbg_trace "Done with adding HDL files.." ${dbgLvl_1}
+my_dbg_trace "Done with adding HDL files..." ${dbgLvl_1}
+my_dbg_trace "HDL files: ${files} " ${dbgLvl_2}
 
 #OBSOLETE # Update Compile Order
 #OBSOLETE #-------------------------------------------------------------------------------

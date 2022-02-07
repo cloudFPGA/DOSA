@@ -176,9 +176,9 @@ class ZrlmpiWrapper(CommunicationWrapper):
         decl += ('[inst_name]: {ip_mod_name}\n' +
                  'port map (\n' +
                  '    piFMC_to_ROLE_rank_V         => piFMC_ROLE_rank,\n' +
-                 '    piFMC_to_ROLE_rank_V_ap_vld  => \'1\',\n' +
+                 # '    piFMC_to_ROLE_rank_V_ap_vld  => \'1\',\n' +
                  '    piFMC_to_ROLE_size_V         => piFMC_ROLE_size,\n' +
-                 '    piFMC_to_ROLE_size_V_ap_vld  => \'1\',\n' +
+                 # '    piFMC_to_ROLE_size_V_ap_vld  => \'1\',\n' +
                  '    siData_V_tdata_V_dout =>     [in_sig_0]  ,\n' +
                  '    siData_V_tdata_V_empty_n =>  [in_sig_1_n],\n' +
                  '    siData_V_tdata_V_read =>     [in_sig_2]  ,\n' +

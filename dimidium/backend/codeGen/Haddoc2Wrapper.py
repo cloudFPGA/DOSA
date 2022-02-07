@@ -61,9 +61,15 @@ class Haddoc2Wrapper:
         # 2. wrapper.hpp
         with open(os.path.join(self.templ_dir_path, 'src/haddoc_wrapper.hpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'src/haddoc_wrapper.hpp'), 'w') as out_file:
+            skip_line = False
             for line in in_file.readlines():
-                if 'DOSA_ADD_ip_name' in line:
-                    outline = 'void {}('.format(self.ip_name)
+                if skip_line:
+                    skip_line = False
+                    continue
+                if 'DOSA_ADD_ip_name_BELOW' in line:
+                    outline = 'void {}(\n'.format(self.ip_name)
+                    # skip next line
+                    skip_line = True
                 elif 'DOSA_ADD_INTERFACE_DEFINES' in line:
                     outline = ''
                     outline += '#define DOSA_WRAPPER_INPUT_IF_BITWIDTH {}\n'.format(self.if_in_bitw)
@@ -89,9 +95,15 @@ class Haddoc2Wrapper:
         # 3. wrapper.cpp
         with open(os.path.join(self.templ_dir_path, 'src/haddoc_wrapper.cpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'src/haddoc_wrapper.cpp'), 'w') as out_file:
+            skip_line = False
             for line in in_file.readlines():
-                if 'DOSA_ADD_ip_name' in line:
-                    outline = 'void {}('.format(self.ip_name)
+                if skip_line:
+                    skip_line = False
+                    continue
+                if 'DOSA_ADD_ip_name_BELOW' in line:
+                    outline = 'void {}(\n'.format(self.ip_name)
+                    # skip next line
+                    skip_line = True
                 elif 'DOSA_ADD_toHaddoc_buffer_param_decl' in line:
                     outline = ''
                     for b in range(0, self.in_dims[1]):

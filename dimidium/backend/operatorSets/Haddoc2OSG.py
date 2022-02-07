@@ -267,6 +267,8 @@ class Haddoc2OSG(BaseOSG):
         wrapper_decl = block_wrapper.get_wrapper_vhdl_decl_lines()
         wrapper_inst_tmpl = block_wrapper.get_vhdl_inst_tmpl()
 
+        lib_lines = ['bitwidths_b1.all', 'cnn_types.all', 'work.params_b1.all']
+        build_tool.topVhdl.add_lib_include('xil_defaultlib', lib_lines)
         build_tool.topVhdl.add_proc_comp_inst(arch_block, wrapper_decl, wrapper_inst_tmpl, wrapper_input_fifo,
                                               wrapper_output_fifo)
         return 0

@@ -46,6 +46,7 @@ class cFBuild1(HwBuildTopVhdl):
         self.global_vhdl_entity_path = "{}/ROLE/hdl/Role.vhdl".format(self.build_dir)
         self.global_vhdl_dir = "{}/ROLE/hdl/".format(self.build_dir)
         self.global_hls_dir = "{}/ROLE/hls/".format(self.build_dir)
+        self.my_makefile = '{}/ROLE/Makefile'.format(self.build_dir)
         # os.system("cp {0}/Role.vhdl {1}/ROLE/hdl/Role.vhdl".format(my_templates, self.build_dir))
         self.topVhdl.set_template('{}/Role.vhdl'.format(my_templates))
         # cFDK setup etc.
@@ -140,8 +141,9 @@ class cFBuild1(HwBuildTopVhdl):
         return ip_dir_list
 
     def add_makefile_entry(self, path, target):
-        if path not in self.makefile_targets.keys():
-            self.makefile_targets[path] = target
+        relpath = './' + os.path.relpath(path, self.my_makefile)
+        if relpath not in self.makefile_targets.keys():
+            self.makefile_targets[relpath] = target
 
     def _write_tcl_file(self):
         with open('{}/tcl/create_ip_cores.tcl'.format(self.my_templates), 'r') as in_file, \
@@ -162,7 +164,7 @@ class cFBuild1(HwBuildTopVhdl):
 
     def _write_makefile(self):
         with open('{}/Makefile'.format(self.my_templates), 'r') as in_file, \
-                open('{}/ROLE/Makefile'.format(self.build_dir), 'w') as out_file:
+                open(self.my_makefile, 'w') as out_file:
             for line in in_file.readlines():
                 if 'DOSA_add_make_targets' in line:
                     outline = ''

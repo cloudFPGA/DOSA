@@ -268,7 +268,7 @@ class InterfaceAxisFifo(WrapperInterface):
             self._calculate_bitws()
         inst_tmpl = ('{in_sig_1_n} <= not {in_sig_1};\n' +
                      '{out_sig_1_n} <= not {out_sig_1};\n' +
-                     '{inst_name}: ' + str(self.name) + '_tdata' + '\n' +
+                     '{inst_name}_tdata: ' + str(self.name) + '_tdata' + '\n' +
                      'port map (\n' +
                      '           clk     => {clk},\n' +
                      '           srst    => {rst},\n' +
@@ -281,7 +281,7 @@ class InterfaceAxisFifo(WrapperInterface):
                      '         );\n')
         inst_tmpl += ('\n{in_sig_4_n} <= not {in_sig_4};\n' +
                       '{out_sig_4_n} <= not {out_sig_4};\n' +
-                      '{inst_name}: ' + str(self.name) + '_tkeep' + '\n' +
+                      '{inst_name}_tkeep: ' + str(self.name) + '_tkeep' + '\n' +
                       'port map (\n' +
                       '           clk     => {clk},\n' +
                       '           srst    => {rst},\n' +
@@ -294,7 +294,7 @@ class InterfaceAxisFifo(WrapperInterface):
                       '         );\n')
         inst_tmpl += ('\n{in_sig_7_n} <= not {in_sig_7};\n' +
                       '{out_sig_7_n} <= not {out_sig_7};\n' +
-                      '{inst_name}: ' + str(self.name) + '_tlast' + '\n' +
+                      '{inst_name}_tlast: ' + str(self.name) + '_tlast' + '\n' +
                       'port map (\n' +
                       '           clk     => {clk},\n' +
                       '           srst    => {rst},\n' +

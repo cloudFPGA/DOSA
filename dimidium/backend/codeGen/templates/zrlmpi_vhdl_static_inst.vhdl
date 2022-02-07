@@ -9,8 +9,8 @@
 
   FIFO_IF_APP_MPE: FifoMpiInfo
   port map (
-             clk     => piSHL_156_25Clk,
-             srst    => piMMIO_Ly7_Rst,
+             clk     => [clk],
+             srst    => [rst],
              din     => sAPP_Fifo_MPIif_din    ,
              full    => sAPP_Fifo_MPIif_full   ,
              wr_en   => sAPP_Fifo_MPIif_write  ,
@@ -21,8 +21,8 @@
 
   FIFO_DATA_APP_MPE: FifoMpiData
   port map (
-             clk     => piSHL_156_25Clk,
-             srst    => piMMIO_Ly7_Rst,
+             clk     => [clk],
+             srst    => [rst],
              din     => sAPP_Fifo_MPIdata_din    ,
              full    => sAPP_Fifo_MPIdata_full   ,
              wr_en   => sAPP_Fifo_MPIdata_write  ,
@@ -33,8 +33,8 @@
 
   FIFO_DATA_MPE_APP: FifoMpiData
   port map (
-             clk     => piSHL_156_25Clk,
-             srst    => piMMIO_Ly7_Rst,
+             clk     => [clk],
+             srst    => [rst],
              din     => sMPE_Fifo_MPIdata_din     ,
              full    => sMPE_Fifo_MPIdata_full    ,
              wr_en   => sMPE_Fifo_MPIdata_write   ,
@@ -45,8 +45,8 @@
 
   FIFO_FEB_MPE_APP: FifoMpiFeedback
   port map (
-             clk     => piSHL_156_25Clk,
-             srst    => piMMIO_Ly7_Rst,
+             clk     => [clk],
+             srst    => [rst],
              din     => sMPE_Fifo_MPIFeB_din     ,
              full    => sMPE_Fifo_MPIFeB_full    ,
              wr_en   => sMPE_Fifo_MPIFeB_write   ,
@@ -66,8 +66,8 @@
 
   MPE: MessagePassingEngine
   port map (
-             ap_clk              => piSHL_156_25Clk,
-             ap_rst_n            => active_low_reset,
+             ap_clk              => [clk],
+             ap_rst_n            => [rst_n],
         --ap_start            => piMMIO_Ly7_En,
              siTcp_data_TDATA    =>  siNRC_Udp_Data_tdata ,
              siTcp_data_TKEEP    =>  siNRC_Udp_Data_tkeep ,

@@ -709,11 +709,8 @@ void pFromHaddocDeq(
 
 
 
-#ifdef WRAPPER_TEST
+//DOSA_ADD_ip_name_BELOW
 void haddoc_wrapper_test(
-#else
-//DOSA_ADD_ip_name
-#endif
     // ----- Wrapper Interface -----
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,

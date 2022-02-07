@@ -26,6 +26,7 @@ class VhdlEntity:
         self.next_proc_comp_cnt = 0
         self.add_tcl_valid = False
         self.add_tcl_lines = []
+        self.lib_includes = {}
 
     def set_template(self, template_file):
         self.template_file = template_file
@@ -43,6 +44,12 @@ class VhdlEntity:
 
     def add_signal_decls(self, decl_lines):
         self.signal_decls.append(decl_lines)
+
+    def add_lib_include(self, lib_name, use_lines: list):
+        if lib_name in self.lib_includes:
+            self.lib_includes[lib_name].extend(use_lines)
+        else:
+            self.lib_includes[lib_name] = use_lines
 
     def add_proc_comp_inst(self, arch_block, decl_lines, inst_template, input_if: WrapperInterface, output_if=None):
         if output_if is not None:
@@ -85,7 +92,17 @@ class VhdlEntity:
         with open(self.template_file, 'r') as in_file, \
                 open(target_path, 'w') as out_file:
             for line in in_file.readlines():
-                if 'DOSA_ADD_decl_lines' in line:
+                if 'DOSA_ADD_library_includes' in line:
+                    if len(self.lib_includes) > 0:
+                        outline = '-- DOSA generated library includes\n'
+                        for lk in self.lib_includes:
+                            outline += 'library {};\n'.format(lk)
+                            for ll in self.lib_includes[lk]:
+                                outline += '  use {}.{};\n'.format(lk, ll)
+                        outline += '\n'
+                    else:
+                        outline = '-- no further DOSA libraries'
+                elif 'DOSA_ADD_decl_lines' in line:
                     outline = '  -- DOSA generated interface declarations\n'
                     for pci in self.processing_comp_insts.keys():
                         pc = self.processing_comp_insts[pci]
