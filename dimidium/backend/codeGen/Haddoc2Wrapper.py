@@ -63,14 +63,22 @@ class Haddoc2Wrapper:
         with open(os.path.join(self.templ_dir_path, 'src/haddoc_wrapper.hpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'src/haddoc_wrapper.hpp'), 'w') as out_file:
             skip_line = False
+            continue_skip = False
             for line in in_file.readlines():
                 if skip_line:
                     skip_line = False
+                    continue
+                if continue_skip:
+                    if 'DOSA_REMOVE_STOP' in line:
+                        continue_skip = False
                     continue
                 if 'DOSA_ADD_ip_name_BELOW' in line:
                     outline = 'void {}(\n'.format(self.ip_name)
                     # skip next line
                     skip_line = True
+                elif 'DOSA_REMOVE_START' in line:
+                    continue_skip = True
+                    continue
                 elif 'DOSA_ADD_INTERFACE_DEFINES' in line:
                     outline = ''
                     outline += '#define DOSA_WRAPPER_INPUT_IF_BITWIDTH {}\n'.format(self.if_in_bitw)

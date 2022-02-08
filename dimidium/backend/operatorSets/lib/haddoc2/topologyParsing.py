@@ -297,11 +297,11 @@ def WriteLibs(target, block_id):
     target.write("  use work.params_b{}.all;\n".format(block_id))
 
 
-def WriteEntity(target, block_id):
+def WriteEntity(target, block_id, first_layer_name):
     target.write("entity cnn_process_b{} is\n".format(block_id))
     target.write("generic(\n")
     target.write("  BITWIDTH  : integer := GENERAL_BITWIDTH;\n")
-    target.write("  IMAGE_WIDTH : integer := CONV1_IMAGE_WIDTH\n")
+    target.write("  IMAGE_WIDTH : integer := " + first_layer_name + "_IMAGE_WIDTH\n")
     target.write(");\n")
     target.write("port(\n")
     target.write("  clk      : in std_logic;\n")

@@ -441,7 +441,7 @@ void pToHaddocDeq(
 void pFromHaddocEnq(
     ap_uint<1>                                *pi_haddoc_data_valid,
     ap_uint<1>                                *pi_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *pi_haddoc_data_vector,
+    ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
     stream<bool>                              &sHaddocUnitProcessing,
     stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> >  &sFromHaddocBuffer
     )

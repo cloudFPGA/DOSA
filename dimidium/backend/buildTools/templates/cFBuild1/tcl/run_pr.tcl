@@ -101,6 +101,8 @@ my_puts "#######################################################################
 my_puts "##"
 my_puts "##  CREATING PROJECT: ${xprName}  "
 my_puts "##"
+my_puts "##    Vivado Version is ${VIVADO_VERSION}  "
+my_puts "##"
 my_puts "################################################################################"
 my_puts "Start at: [clock format [clock seconds] -format {%T %a %b %d %Y}] \n"
 
@@ -108,56 +110,21 @@ my_puts "Start at: [clock format [clock seconds] -format {%T %a %b %d %Y}] \n"
 #-------------------------------------------------------------------------------
 catch { cd ${rootDir} }
 
-# Check if the Xilinx Project Already Exists
-#-------------------------------------------------------------------------------
-#if { [ file exists ${xprDir}/${xprName}.xpr ] == 1 && ! ${force} } {
-#    my_warn_puts "The project \'${xprName}.xpr\' already exists!"
-#    my_warn_puts "You are about to delete the project directory: '${xprDir}\' "
-#    my_warn_puts "\t Are you sure (Y/N) ? "
-#    flush stdout
-#    set kbdIn [ gets stdin ]
-#    scan ${kbdIn} "%s" keyPressed
-#    if { [ string toupper ${keyPressed} ] ne "Y" } {
-#        my_puts "OK, go it. This script (\'${argv0}\') will be aborted now."
-#        my_puts "Bye.\n" 
-#        exit 0
-#    }
-#}
-#
-## Clean Previous Xilinx Project Directory
-##-------------------------------------------------------------------------------
-#file delete -force ${xprDir}
-#file mkdir ${xprDir}
-
-# # Check if the Managed IP Project Already Exists
-# #-------------------------------------------------------------------------------
-# if { ! [ file exists ${ipXprDir}/${ipXprName}.xpr ] } {
-#     my_info_puts "The managed IP project \'${ipXprName}.xpr\' does not exist yet!"
-#     my_info_puts "Do you want to generate the IP cores used by the SHELL now (Y/N) ? "
-#     flush stdout
-#     set kbdIn [ gets stdin ]
-#     scan ${kbdIn} "%s" keyPressed
-#     if { [ string toupper ${keyPressed} ] eq "Y" } {
-#         set rc [ source ${tclDir}/create_ip_cores.tcl ]
-#         if { ${rc} != ${OK} } {
-#             my_puts("")
-#             my_warn_puts "Failed to generate the IPs cores used by the SHELL!"
-#             my_warn_puts "  (Number IPs that failed to be generated = ${rc})"
-#             my_puts("")
-#         } else {
-#             my_puts "##  Done with IP cores generation."
-#         }
-#     } else {
-#         my_puts "OK, go it. The generation of the IP cores will be skipped."
-#         my_puts("")
-#    }
-# }
-
 #===============================================================================
 # Create Xilinx Project
 #===============================================================================
-#create_project ${xprName} ${xprDir} -part ${xilPartName} 
-create_project -in_memory -part ${xilPartName} ${xprDir}/${xprName}.log
+
+#create_project -in_memory -part ${xilPartName} ${xprDir}/${xprName}.log
+
+# Create the Xilinx project
+#-------------------------------------------------------------------------------
+if { [ file exists ${xprDir} ] != 1 } {
+    file mkdir ${xprDir}
+}
+create_project ${xprName} ${xprDir} -force
+
+
+
 my_dbg_trace "Done with create_project." ${dbgLvl_1}
 
 # Set Project Properties
@@ -175,7 +142,13 @@ set_property -name "part"                       -value "xcku060-ffva1156-2-i" -o
 set_property -name "simulator_language"         -value "Mixed"                -objects ${obj}
 set_property -name "sim.ip.auto_export_scripts" -value "1"                    -objects ${obj}
 
-#set_property -name "ip_output_repo"             -value "${xprDir}/${xprName}/${xprName}.cache/ip" -objects ${obj}
+set_property -name "ip_output_repo"             -value "${xprDir}/${xprName}/${xprName}.cache/ip" -objects ${obj}
+
+if { [format "%.1f" ${VIVADO_VERSION}] == 2017.4 } {
+  my_dbg_trace "Enabling the use of deprecated PRAGMAs." ${dbgLvl_2};
+  set_property verilog_define {USE_DEPRECATED_DIRECTIVES=true} [ current_fileset ]
+  set_property generic        {gVivadoVersion=2017}            [ current_fileset ]
+}
 
 my_dbg_trace "Done with set project properties." ${dbgLvl_1}
 
@@ -205,39 +178,38 @@ if { [ string equal [ get_filesets -quiet sources_1 ] "" ] } {
 #  Directory (Recursively) 
 #-------------------------------------------------------------------------------
 set obj   [ get_filesets sources_1 ]
-set files [ list "[ file normalize "${hdlDir}" ]" ]
-#OBSOLETE  add_files -fileset ${obj} ${hdlDir}
-add_files -fileset ${obj} ${files}
+
+
+#set files [ list "[ file normalize "${hdlDir}" ]" ]
+##OBSOLETE  add_files -fileset ${obj} ${hdlDir}
+#add_files -fileset ${obj} ${files}
+#my_dbg_trace "HDL files: ${files} " ${dbgLvl_2}
+
+# Add HDL Source Files for the ROLE and turn VHDL-2008 mode on
+#---------------------------------------------------------------------------
+add_files  ${hdlDir}
+set roleVhdlList [ glob -nocomplain ${hdlDir}/*.vhd* ]
+if { $roleVhdlList ne "" } {
+  set_property file_type {VHDL 2008} [ get_files [ file normalize ${hdlDir}/*.vhd* ] ]
+}
+update_compile_order -fileset sources_1
+
 my_dbg_trace "Done with adding HDL files..." ${dbgLvl_1}
-my_dbg_trace "HDL files: ${files} " ${dbgLvl_2}
 
-#OBSOLETE # Update Compile Order
-#OBSOLETE #-------------------------------------------------------------------------------
-#OBSOLETE update_compile_order -fileset sources_1
 
-# Set 'sources_1' fileset file properties for remote files
-#-------------------------------------------------------------------------------
-# set file "$origin_dir/../hdl/roleFlash.vhdl"
-# set file [file normalize $file]
-# set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-# set_property -name "file_type" -value "VHDL" -objects $file_obj
+# Add *ALL* the User-based IPs (i.e. VIVADO- as well HLS-based) needed for the ROLE. 
+#---------------------------------------------------------------------------
+set ipList [ glob -nocomplain ${ipDir}/ip_user_files/ip/* ]
+if { $ipList ne "" } {
+    foreach ip $ipList {
+        set ipName [file tail ${ip} ]
+        add_files ${ipDir}/${ipName}/${ipName}.xci
+        my_dbg_trace "Done with add_files for ROLE: ${ipDir}/${ipName}/${ipName}.xci" 2
+    }
+}
 
-# Set 'sources_1' fileset file properties for local files
-# None
-
-        # Add *ALL* the User-based IPs (i.e. VIVADO- as well HLS-based) needed for the ROLE. 
-        #---------------------------------------------------------------------------
-        set ipList [ glob -nocomplain ${ipDir}/ip_user_files/ip/* ]
-        if { $ipList ne "" } {
-            foreach ip $ipList {
-                set ipName [file tail ${ip} ]
-                add_files ${ipDir}/${ipName}/${ipName}.xci
-                my_dbg_trace "Done with add_files for ROLE: ${ipDir}/${ipName}/${ipName}.xci" 2
-            }
-        }
-
-        update_ip_catalog
-        my_dbg_trace "Done with update_ip_catalog for the ROLE" ${dbgLvl_1}
+update_ip_catalog
+my_dbg_trace "Done with update_ip_catalog for the ROLE" ${dbgLvl_1}
 
 
 
@@ -248,10 +220,6 @@ set obj [ get_filesets sources_1 ]
 set_property -name "top"      -value ${topName}           -objects ${obj} -verbose
 set_property -name "top_file" -value ${hdlDir}/${topFile} -objects ${obj} -verbose
 
-# Turn VHDL-2008 mode on 
-#-------------------------------------------------------------------------------
-set_property file_type {VHDL 2008} [ get_files *.vhd* ]
-
 
 # Create 'constrs_1' fileset (if not found)
 #-------------------------------------------------------------------------------
@@ -259,64 +227,7 @@ if { [ string equal [ get_filesets -quiet constrs_1 ] "" ] } {
   create_fileset -constrset constrs_1
 }
 
-# Set 'constrs_1' fileset object and Add/Import constrs file and set constraint
-#  file properties
-#-------------------------------------------------------------------------------
-#set obj [ get_filesets constrs_1 ]
-#set dir "[ file normalize "${xdcDir}" ]" 
-#my_dbg_trace "Set \'constrs_1\': dir   = ${dir}" ${dbgLvl_3}  
-#set files [ add_files -fileset ${obj} ${dir} ]
-#my_dbg_trace "Set \'constrs_1\': files = ${files}" ${dbgLvl_3}  
-#set file_obj [ get_files -of_objects [ get_filesets constrs_1 ] [ list "$dir/*" ] ] 
-#my_dbg_trace "Set \'constrs_1\': file_obj = ${file_obj}" ${dbgLvl_3}  
-#set_property -name "file_type" -value "XDC" -objects ${file_obj}
 
-#[TODO]set_property used_in_synthesis false [get_files ${xdcDir}/${xprName}_timg.xdc]
-#[TODO] set_property used_in_synthesis false [get_files ${xdcDir}/${xprName}_pins.xdc]
-#my_dbg_trace "Done with adding XDC files." ${dbgLvl_1}
-
-
-
-# Create 'sim_1' fileset (if not found)
-#-------------------------------------------------------------------------------
-#if {[string equal [get_filesets -quiet sim_1] ""]} {
-#  create_fileset -simset sim_1
-#}
-## Set 'sim_1' fileset object
-#set obj [get_filesets sim_1]
-## [TODO] Empty (no sources present)
-## Set 'sim_1' fileset properties
-#set obj [get_filesets sim_1]
-#set_property -name "top" -value ${topName} -objects $obj
-#
-
-# Create 'synth_1' run (if not found)
-#-------------------------------------------------------------------------------
-#set year [ lindex [ split [ version -short ] "." ] 0 ]  
-#if { [ string equal [ get_runs -quiet synth_1 ] ""] } {
-#    create_run -name synth_1 -part ${xilPartName} -flow {Vivado Synthesis ${year}} -strategy "Vivado Synthesis Defaults" -constrset constrs_1
-#} else {
-#  set_property strategy "Vivado Synthesis Defaults" [ get_runs synth_1 ]
-#    set_property flow "Vivado Synthesis ${year}" [ get_runs synth_1 ]
-#}
-#set obj [ get_runs synth_1 ]
-#set_property set_report_strategy_name 1 ${obj}
-#set_property report_strategy {Vivado Synthesis Default Reports} ${obj}
-#set_property set_report_strategy_name 0 ${obj}
-## Create 'synth_1_synth_report_utilization_0' report (if not found)
-#if { [ string equal [ get_report_configs -of_objects [get_runs synth_1] synth_1_synth_report_utilization_0] "" ] } {
-#  create_report_config -report_name synth_1_synth_report_utilization_0 -report_type report_utilization:1.0 -steps synth_design -runs synth_1
-#}
-#set obj [get_report_configs -of_objects [get_runs synth_1] synth_1_synth_report_utilization_0]
-#if { ${obj} != "" } {
-#
-#}
-#set obj [get_runs synth_1]
-#set_property -name "part" -value ${xilPartName} -objects ${obj}
-#set_property -name "strategy" -value "Vivado Synthesis Defaults" -objects ${obj}
-#
-#set_property -name "mode" -value "out_of_context" -objects ${obj}
-#
 ## set the current synth run
 #current_run -synthesis [get_runs synth_1]
 
@@ -336,7 +247,7 @@ my_puts "Start at: [clock format [clock seconds] -format {%T %a %b %d %Y}] \n"
 
 #launch_runs synth_1
 #wait_on_run synth_1
-        
+
 #synth ip cores
 set ipList [ glob -nocomplain ${ipDir}/ip_user_files/ip/* ]
         if { $ipList ne "" } {
@@ -361,11 +272,6 @@ write_checkpoint -force ${topName}_OOC.dcp
 # Close project
 #-------------------------------------------------------------------------------
  close_project
-
-# Launch Vivado' GUI
-#-------------------------------------------------------------------------------
-#catch { cd ${xprDir} }
-#start_gui
 
 
 

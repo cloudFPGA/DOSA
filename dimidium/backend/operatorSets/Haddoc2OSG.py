@@ -210,11 +210,13 @@ class Haddoc2OSG(BaseOSG):
         # TODO: make dynamic
         output_bit_width *= output_dim[1]
         self._generate_bitwidth(bitwidthFile, arch_block.block_uuid, used_bit_width, input_bit_width, output_bit_width)
+        wrapper_first_op = ops_implemented_ordered[0]
         wrapper_last_op = None
         # finally, create the topology
         with open(topFile, 'w') as topf:
             topologyParsing.WriteLibs(topf, arch_block.block_uuid)
-            topologyParsing.WriteEntity(topf, arch_block.block_uuid)
+            topologyParsing.WriteEntity(topf, arch_block.block_uuid,
+                                        layer_names_by_op_id[wrapper_first_op.global_op_id])
             topologyParsing.WriteArchitecutreHead(topf, arch_block.block_uuid)
             # we always need an input
             input_layer_name = "haddoc2_osg_input"
@@ -269,11 +271,11 @@ class Haddoc2OSG(BaseOSG):
         if_axis_tcl = wrapper_input_fifo.get_tcl_lines()
         build_tool.add_tcl_entry(if_axis_tcl)
 
-        wrapper_first_op = ops_implemented_ordered[0]
         # wrapper_last_op
         block_wrapper = Haddoc2Wrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_first_op.dims.out,
                                        used_bit_width, if_in_bitw, if_out_bitw, used_hls_dir_path, wrapper_flatten_op,
-                                       len(ops_implemented_ordered), layer_names_by_op_id[wrapper_first_op.global_op_id])
+                                       len(ops_implemented_ordered),
+                                       layer_names_by_op_id[wrapper_first_op.global_op_id])
         block_wrapper.generate_haddoc2_wrapper()
         build_tool.add_makefile_entry(used_hls_dir_path, 'all')
         wrapper_inst_tcl = block_wrapper.get_tcl_lines_wrapper_inst('IP Core to connect DOSA infrastructure with '
@@ -283,7 +285,7 @@ class Haddoc2OSG(BaseOSG):
         wrapper_inst_tmpl = block_wrapper.get_vhdl_inst_tmpl()
 
         lib_lines = ['bitwidths_b{}.all'.format(arch_block.block_uuid), 'cnn_types.all',
-                     'work.params_b{}.all'.format(arch_block.block_uuid)]
+                     'params_b{}.all'.format(arch_block.block_uuid)]
         build_tool.topVhdl.add_lib_include('work', lib_lines)
         build_tool.topVhdl.add_proc_comp_inst(arch_block, wrapper_decl, wrapper_inst_tmpl, wrapper_input_fifo,
                                               wrapper_output_fifo)

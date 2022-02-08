@@ -106,6 +106,7 @@ void pHaddoc() {
     if(!sHaddocProcessing.empty())
     {
       ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> tmp_out = sHaddocProcessing.read();
+      tmp_out |= ((ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>) 0xBB) << DOSA_HADDOC_INPUT_BITDIWDTH;
       pi_haddoc_data_valid = 1;
       pi_haddoc_frame_valid = 1;
       pi_haddoc_data_vector = tmp_out;
@@ -130,8 +131,8 @@ int main() {
   printf("## TESTBENCH STARTS HERE                           ##\n");
   printf("#####################################################\n");
 
-  assert(DOSA_HADDOC_INPUT_CHAN_NUM == DOSA_HADDOC_OUTPUT_CHAN_NUM);
-  assert(DOSA_HADDOC_INPUT_BITDIWDTH == DOSA_HADDOC_OUTPUT_BITDIWDTH);
+  //assert(DOSA_HADDOC_INPUT_CHAN_NUM == DOSA_HADDOC_OUTPUT_CHAN_NUM);
+  //assert(DOSA_HADDOC_INPUT_BITDIWDTH == DOSA_HADDOC_OUTPUT_BITDIWDTH);
   assert(TB_HADDOC_STORE_VALUE_PROP > 1);
 
     // 01010101...
@@ -177,6 +178,25 @@ int main() {
         }
       }
     }
+    //adding additional out channel
+    for(int c = 0; c < (DOSA_HADDOC_OUTPUT_CHAN_NUM - DOSA_HADDOC_INPUT_CHAN_NUM); c++)
+    {
+      bytes_written_this_frame = 0;
+      for(int f = 0; f < DOSA_HADDOC_INPUT_FRAME_WIDTH; f++)
+      {
+        for(int l = 0; l < DOSA_HADDOC_INPUT_FRAME_WIDTH; l++)
+        {
+          if(bytes_written_this_frame < TB_PER_FRAME_FILTER_CNT)
+          {
+            sGoldenOut.write(0xBB);
+            golden_bytes_written++;
+            bytes_written_this_frame++;
+          }
+        }
+      }
+    }
+
+
     assert((DOSA_WRAPPER_INPUT_IF_BITWIDTH % DOSA_HADDOC_GENERAL_BITWIDTH) == 0);
     while(!sTmpIn.empty())
     {
