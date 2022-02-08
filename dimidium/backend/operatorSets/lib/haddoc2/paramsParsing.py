@@ -175,11 +175,8 @@ def write_fileHead(target, block_id):
         "--------------------------------------------------------\n\n")
     target.write("library ieee;\n")
     target.write("    use    ieee.std_logic_1164.all;\n")
-    # target.write("library work;\n")
-    # target.write("    use    work.cnn_types.all;\n")
-    # TODO: make dynamic based on target device
-    target.write("library xil_defaultlib;\n")
-    target.write("    use    xil_defaultlib.cnn_types.all;\n")
+    target.write("library work;\n")
+    target.write("    use    work.cnn_types.all;\n")
     target.write("package params_b{} is\n".format(block_id))
 
 

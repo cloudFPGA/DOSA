@@ -19,7 +19,7 @@ __filedir__ = os.path.dirname(os.path.abspath(__file__))
 class Haddoc2Wrapper:
 
     def __init__(self, block_id, in_dims, out_dims, general_bitw, if_in_bitw, if_out_bitw, out_dir_path,
-                 wrapper_flatten_op, haddoc_op_cnt):
+                 wrapper_flatten_op, haddoc_op_cnt, first_layer_name):
         self.templ_dir_path = os.path.join(__filedir__, 'templates/haddoc2_wrapper/')
         self.ip_name = 'haddoc_wrapper_b{}'.format(block_id)
         self.ip_mod_name = 'Haddoc2Wrapper_b{}'.format(block_id)
@@ -32,6 +32,7 @@ class Haddoc2Wrapper:
         self.out_dir_path = out_dir_path
         self.wrapper_flatten_op = wrapper_flatten_op
         self.haddoc_op_cnt = haddoc_op_cnt
+        self.first_layer_name = first_layer_name
 
     def generate_haddoc2_wrapper(self):
         # 0. copy 'static' files, dir structure
@@ -172,7 +173,7 @@ class Haddoc2Wrapper:
         decl += ('component cnn_process_b{block_id} is\n' +
                  'generic(\n' +
                  '  BITWIDTH  : integer := GENERAL_BITWIDTH;\n' +
-                 '  IMAGE_WIDTH : integer := CONV1_IMAGE_WIDTH\n' +
+                 '  IMAGE_WIDTH : integer := {first_layer_name}_IMAGE_WIDTH\n' +
                  ');\n' +
                  'port(\n' +
                  '  clk      : in std_logic;\n' +
@@ -235,7 +236,8 @@ class Haddoc2Wrapper:
                           if_out_width_tdata=(self.if_out_bitw - 1),
                           if_out_width_tkeep=(int((self.if_out_bitw + 7) / 8) - 1),
                           if_out_width_tlast=0, haddoc_in_width=((self.general_bitw * self.in_dims[1]) - 1),
-                          haddoc_out_width=((self.general_bitw * self.out_dims[1]) - 1))
+                          haddoc_out_width=((self.general_bitw * self.out_dims[1]) - 1),
+                          first_layer_name=self.first_layer_name)
         return ret
 
     def get_vhdl_inst_tmpl(self):

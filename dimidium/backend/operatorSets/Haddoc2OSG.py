@@ -66,8 +66,20 @@ class Haddoc2OSG(BaseOSG):
             elif 'dropout' in e:
                 self.relay2osg['nn'][e] = self._generate_hdl_dropout_instance
 
-    def _copy_hdl_lib(self, target_hdl_dir):
+    def _copy_hdl_lib(self, target_hdl_dir, block_id):
         os.system("cp -n {}/* {}/".format(self.my_hdl_template_folder, target_hdl_dir))
+        # overwrite cnn_types, due to other lib name
+        with open(os.path.join(self.my_hdl_template_folder, 'cnn_types.vhd'), 'r') as in_file, \
+                open(os.path.join(target_hdl_dir, 'cnn_types.vhd'), 'w') as out_file:
+            line_num = 1
+            for line in in_file.readlines():
+                if line_num == 18:
+                    outline = 'use work.bitwidths_b{}.all;\n'.format(block_id)
+                else:
+                    outline = line
+                out_file.write(outline)
+                line_num += 1
+        return 0
 
     def build_block(self, arch_block, build_tool):
         assert isinstance(build_tool, HwBuildTopVhdl)
@@ -80,9 +92,9 @@ class Haddoc2OSG(BaseOSG):
             used_vhdl_dir_path = build_tool.add_ip_dir(arch_block.block_uuid)
             used_hls_dir_path = used_vhdl_dir_path
         # first, copy all lib files
-        # self._copy_hdl_lib(used_dir_path)
-        # use global_vhdl_dir to have it only once per node
-        self._copy_hdl_lib(build_tool.global_vhdl_dir)
+        # use global_vhdl_dir to have it only once per node --> no, different cnn_types per block
+        # self._copy_hdl_lib(build_tool.global_vhdl_dir)
+        self._copy_hdl_lib(used_vhdl_dir_path, arch_block.block_uuid)
         # file names are in specific folder, don't need to match entity name
         paramFile = os.path.abspath(used_vhdl_dir_path + '/params.vhd')  # Configuration VHDL output
         topFile = os.path.abspath(used_vhdl_dir_path + '/cnn_process.vhd')  # Top level VHDL output
@@ -249,6 +261,9 @@ class Haddoc2OSG(BaseOSG):
         if_in_bitw = wrapper_input_fifo.get_if_bitwidth()
         wrapper_output_fifo = InterfaceAxisFifo('output_{}'.format(arch_block.block_uuid),
                                                 wrapper_last_brick.output_bw_Bs, build_tool.target_device)
+        if len(arch_block.parent_node.arch_block_list) < 2:
+            # we are the only one, so output must also be set
+            wrapper_output_fifo.bitwidth = wrapper_default_interface_bitwidth
         if_out_bitw = wrapper_output_fifo.get_if_bitwidth()
         # if_fifo_name = wrapper_input_fifo.get_if_name()
         if_axis_tcl = wrapper_input_fifo.get_tcl_lines()
@@ -258,7 +273,7 @@ class Haddoc2OSG(BaseOSG):
         # wrapper_last_op
         block_wrapper = Haddoc2Wrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_first_op.dims.out,
                                        used_bit_width, if_in_bitw, if_out_bitw, used_hls_dir_path, wrapper_flatten_op,
-                                       len(ops_implemented_ordered))
+                                       len(ops_implemented_ordered), layer_names_by_op_id[wrapper_first_op.global_op_id])
         block_wrapper.generate_haddoc2_wrapper()
         build_tool.add_makefile_entry(used_hls_dir_path, 'all')
         wrapper_inst_tcl = block_wrapper.get_tcl_lines_wrapper_inst('IP Core to connect DOSA infrastructure with '
@@ -267,8 +282,9 @@ class Haddoc2OSG(BaseOSG):
         wrapper_decl = block_wrapper.get_wrapper_vhdl_decl_lines()
         wrapper_inst_tmpl = block_wrapper.get_vhdl_inst_tmpl()
 
-        lib_lines = ['bitwidths_b1.all', 'cnn_types.all', 'work.params_b1.all']
-        build_tool.topVhdl.add_lib_include('xil_defaultlib', lib_lines)
+        lib_lines = ['bitwidths_b{}.all'.format(arch_block.block_uuid), 'cnn_types.all',
+                     'work.params_b{}.all'.format(arch_block.block_uuid)]
+        build_tool.topVhdl.add_lib_include('work', lib_lines)
         build_tool.topVhdl.add_proc_comp_inst(arch_block, wrapper_decl, wrapper_inst_tmpl, wrapper_input_fifo,
                                               wrapper_output_fifo)
         return 0

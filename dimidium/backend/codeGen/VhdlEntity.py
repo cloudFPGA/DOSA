@@ -264,7 +264,7 @@ class VhdlEntity:
                                 'out_sig_7_n': our_signals['from_signals']['7_n'],
                                 'out_sig_7': our_signals['from_signals']['7'],
                                 'out_sig_8': our_signals['from_signals']['8'],
-                                'inst_name': pc['name'] + '_input_if',
+                                'inst_name': pc['name'] + '_output_if',
                                 'clk': 'piSHL_156_25Clk',
                                 'rst': 'piMMIO_Ly7_Rst',
                                 'rst_n': 'sResetApps_n',

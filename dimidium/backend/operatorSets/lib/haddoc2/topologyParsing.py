@@ -291,15 +291,10 @@ def WriteLibs(target, block_id):
     target.write("library ieee;\n")
     target.write("  use ieee.std_logic_1164.all;\n")
     target.write("  use ieee.numeric_std.all;\n")
-    # target.write("library work;\n")
-    # target.write("  use work.bitwidths_b{}.all;\n".format(block_id))
-    # target.write("  use work.cnn_types.all;\n")  # independent across Haddoc2
-    # target.write("  use work.params_b{}.all;\n".format(block_id))
-    # TODO: make dynamic based on target device
-    target.write("library xil_defaultlib;\n")
-    target.write("  use xil_defaultlib.bitwidths_b{}.all;\n".format(block_id))
-    target.write("  use xil_defaultlib.cnn_types.all;\n")  # independent across Haddoc2
-    target.write("  use xil_defaultlib.params_b{}.all;\n".format(block_id))
+    target.write("library work;\n")
+    target.write("  use work.bitwidths_b{}.all;\n".format(block_id))
+    target.write("  use work.cnn_types.all;\n")  # independent across Haddoc2
+    target.write("  use work.params_b{}.all;\n".format(block_id))
 
 
 def WriteEntity(target, block_id):

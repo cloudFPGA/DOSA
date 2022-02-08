@@ -156,7 +156,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                  '       siMPI_data_V_dout : IN STD_LOGIC_VECTOR (72 downto 0);\n' +
                  '       siMPI_data_V_empty_n : IN STD_LOGIC;\n' +
                  '       siMPI_data_V_read : OUT STD_LOGIC;\n' +
-                 '       debug_out_V : IN STD_LOGIC_VECTOR (31 downto 0);\n' +
+                 # '       debug_out_V : IN STD_LOGIC_VECTOR (31 downto 0);\n' +
                  '       ap_clk : IN STD_LOGIC;\n' +
                  '       ap_rst : IN STD_LOGIC );\n' +
                  '   end component {ip_mod_name};\n')
