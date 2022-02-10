@@ -36,7 +36,7 @@ __mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_
 def print_usage(sys_argv):
     print("USAGE: {} ./path/to/dosa_config.json ./path/to/nn.onnx ./path/to/constraint.json ./path/to/build_dir "
           .format(sys.argv[0]) +
-          "[--no-roofline]")
+          "[--no-roofline|--no-build]")
     exit(1)
 
 
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     if len(sys.argv) < 5 or len(sys.argv) > 6:
         print_usage(sys.argv)
 
-    if len(sys.argv) == 6 and sys.argv[5] != '--no-roofline':
+    if len(sys.argv) == 6 and (sys.argv[5] != '--no-roofline' and sys.argv[5] != '--no-build'):
         print_usage(sys.argv)
 
     dosa_config_path = sys.argv[1]
@@ -52,8 +52,11 @@ if __name__ == '__main__':
     const_path = sys.argv[3]
     global_build_dir = os.path.abspath(sys.argv[4])
     show_graphics = True
+    generate_build = True
     if len(sys.argv) == 6 and sys.argv[5] == '--no-roofline':
         show_graphics = False
+    if len(sys.argv) == 6 and sys.argv[5] == '--no-build':
+        generate_build = False
 
     with open(dosa_config_path, 'r') as inp:
         dosa_config = json.load(inp)
@@ -121,7 +124,7 @@ if __name__ == '__main__':
     archDict = arch_gen(mod, params, used_name, arch_gen_strategy, available_OSGs, available_devices,
                         available_comm_libs, used_batch, used_sample_size, target_sps, target_latency,
                         target_resource_budget, arch_target_devices, arch_fallback_hw, debug=debug_mode, profiling=True,
-                        verbose=True)
+                        verbose=True, generate_build=generate_build)
     print("\t...done.\n")
 
     if show_graphics:

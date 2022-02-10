@@ -21,7 +21,9 @@ class TvmCpuOsg(BaseOSG):
 
     def __init__(self):
         super().__init__('Tvm CPU OSG', [DosaHwClasses.CPU_generic, DosaHwClasses.CPU_x86], '/t/b/a',
-                         [BrickImplTypes.ENGINE])
+                         [BrickImplTypes.ENGINE, BrickImplTypes.STREAM])
+        # TODO: does difference between stream and engine makes sense for CPUs?
+        #  This should anyhow only be fallback?
         self.priority = 49
 
     def init(self, dosa_hw_classes_dict, priority_internal):

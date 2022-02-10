@@ -36,7 +36,7 @@ from dimidium.middleend.archGen.archOpt import merge_bricks_pass, delete_ops_pas
 def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices,
              available_comm_libs: [BaseCommLib], batch_size=1, sample_size=1, target_sps=-1, target_latency=-1,
              target_resources=-1, arch_target_devices=None, arch_fallback_devices=None, debug=False, profiling=False,
-             verbose=False):
+             verbose=False, generate_build=True):
     arch_gen_start = time.time()
     oi_calc = OiCalculator(default_oi=1.0)
     oi_pass = OiPipeline(fallback_size_t=32, oiCalc=oi_calc)
@@ -144,7 +144,10 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     print("\nDOSA: Found best and valid draft, generating architecture and software in {}...\n"
           .format(dosa_singleton.config.global_build_dir))
     build_start = time.time()
-    best_draft.build()
+    if generate_build:
+        best_draft.build()
+    else:
+        print("\tINFO: Skipping build on user request")
     build_stop = time.time()
 
     # synth_start = time.time()
