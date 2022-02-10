@@ -14,10 +14,12 @@ import math
 import json
 
 from dimidium.lib.util import OptimizationStrategies, config_bits_per_byte
+from dimidium.lib.dosa_dtype import convert_tvmDtype_to_DosaDtype, DosaDtype
+
 
 __mandatory_user_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_sps', 'targeted_hw',
                            'target_resource_budget', 'arch_gen_strategy', 'fallback_hw', 'used_input_size_t',
-                           'target_latency']
+                           'target_latency', 'quantization']
 __arch_gen_strategies__ = ['performance', 'resources', 'default', 'latency', 'throughput']
 # __valid_fallback_hws__ = ['None']
 # __valid_fallback_hws__.extend(dosa_devices.fallback_hw)
@@ -86,6 +88,20 @@ def parse_uc_dict(path, dosa_devices):
             sample_size_bit *= d
     used_sample_size = math.ceil(sample_size_bit / config_bits_per_byte)
     user_constraints['used_sample_size'] = used_sample_size
+
+    if user_constraints['quantization'] == 'none':
+        user_constraints['do_quantization'] = False
+    else:
+        user_constraints['do_quantization'] = True
+        low_dtype = convert_tvmDtype_to_DosaDtype(user_constraints['quantization'])
+        if low_dtype == DosaDtype.UNKNOWN:
+            print("ERROR: Quantization data type {} is not supported. Stop.".format(user_constraints['quantization']))
+            exit(1)
+        user_constraints['target_dtype'] = low_dtype
+
+    # TODO: alow float as input?
+    input_dtype_str = f'int{used_in_size_t}'
+    user_constraints['input_dtype'] = convert_tvmDtype_to_DosaDtype(input_dtype_str)
 
     return user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw
 

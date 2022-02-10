@@ -17,7 +17,7 @@ import math
 
 import dimidium.lib.singleton as dosa_singelton
 from dimidium.frontend.user_constraints import parse_uc_dict
-from dimidium.frontend.model_import import onnx_import, tvm_optimization_pass
+from dimidium.frontend.model_import import onnx_import, tvm_optimization_pass, tvm_quantization
 from dimidium.middleend.archGen.archGen import arch_gen
 import dimidium.lib.plot_2Droofline as plot_2Droofline
 import dimidium.lib.plot_3Droofline as plot_3Droofline
@@ -102,8 +102,13 @@ if __name__ == '__main__':
     print("\t...done.\n")
 
     print("DOSA: Importing ONNX...")
-    mod_i, params_i = onnx_import(onnx_path, user_constraints['shape_dict'])
+    mod_i, params_i = onnx_import(onnx_path, user_constraints['shape_dict'],  repr(user_constraints['input_dtype']))
     print("\t...done.\n")
+
+    if user_constraints['do_quantization']:
+        print("DOSA: Executing TVM quantization...")
+        mod_i, params_i = tvm_quantization(mod_i, params_i, user_constraints)
+        print("\t...done.\n")
 
     print("DOSA: Executing TVM optimization passes...")
     mod, params = tvm_optimization_pass(mod_i, params_i, debug=debug_mode)

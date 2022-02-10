@@ -15,13 +15,14 @@ import tvm
 import tvm.relay as relay
 
 from dimidium.frontend.TvmPrintMeta import PrintMeta
+from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype
 
 
-def onnx_import(onnx_path, shape_dict, debug=False):
+def onnx_import(onnx_path, shape_dict, input_dtype, debug=False):
     onnx_model = onnx.load(onnx_path)
     # freeze_params=True is important, otherwise copy and certain visitors can't work
     # frozen parameters also lead to more optimizations and higher level operators
-    mod, params = relay.frontend.from_onnx(onnx_model, shape_dict, freeze_params=True)
+    mod, params = relay.frontend.from_onnx(onnx_model, shape_dict, dtype=input_dtype, freeze_params=True)
     if debug:
         print(mod.astext(show_meta_data=False))
     return mod, params
@@ -58,3 +59,15 @@ def tvm_optimization_pass(mod, params, debug=False):
 
     return mod2, params
 
+
+def tvm_quantization(mod, params, user_constraints):
+    input_size_t = user_constraints['used_input_size_t']
+    input_dtype = repr(user_constraints['input_dtype'])
+    weight_dtype = repr(user_constraints['target_dtype'])
+    weight_size_t = get_bitwidth_of_DosaDtype(user_constraints['target_dtype'])
+
+    with relay.quantize.qconfig(calibrate_mode="global_scale", global_scale=8.0,
+                                nbit_input=input_size_t, nbit_weight=weight_size_t, dtype_input=input_dtype,
+                                dtype_weight=weight_dtype, dtype_activation=weight_dtype):
+        mod = relay.quantize.quantize(mod)
+    return mod, params
