@@ -16,6 +16,7 @@ import tvm.relay as relay
 
 from dimidium.frontend.TvmPrintMeta import PrintMeta
 from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype
+from dimidium.frontend.TvmGlobalTypeCast import CorrectionPipeline
 
 
 def onnx_import(onnx_path, shape_dict, input_dtype, debug=False):
@@ -71,3 +72,30 @@ def tvm_quantization(mod, params, user_constraints):
                                 dtype_weight=weight_dtype, dtype_activation=weight_dtype):
         mod = relay.quantize.quantize(mod)
     return mod, params
+
+
+def overwrite_dtypes(mod, params, user_constraints):
+    custom_pass = CorrectionPipeline(input_name=list(user_constraints['shape_dict'].keys())[0],
+                                     var_type=user_constraints['overwrite_dtypes']['data'],
+                                     constant_type=user_constraints['overwrite_dtypes']['weights'])
+    mod_2 = custom_pass(mod)
+    return mod_2, params
+
+
+def user_import(onnx_path, user_constraints, debug_mode=False):
+    mod_i, params_i = onnx_import(onnx_path, user_constraints['shape_dict'],  repr(user_constraints['input_dtype']))
+    print("\t...done.\n")
+
+    if user_constraints['do_quantization']:
+        print("DOSA: Executing TVM quantization...")
+        mod_i, params_i = tvm_quantization(mod_i, params_i, user_constraints)
+        print("\t...done.\n")
+    elif user_constraints['overwrite_imported_dtypes']:
+        print("[DOSA:import:INFO] overwriting ONNX data types...")
+        mod_i, params_i = overwrite_dtypes(mod_i, params_i, user_constraints)
+        print("\t...done.\n")
+
+    print("DOSA: Executing TVM optimization passes...")
+    mod, params = tvm_optimization_pass(mod_i, params_i, debug=debug_mode)
+    return mod, params
+

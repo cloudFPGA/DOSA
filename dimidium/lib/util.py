@@ -16,7 +16,7 @@ import math
 import copy
 
 from dimidium.lib.units import config_bits_per_byte
-
+from dimidium.lib.dosa_dtype import convert_tvmDtype_to_DosaDtype, get_bitwidth_of_DosaDtype
 
 # Dosa Return Value
 class DosaRv(Enum):
@@ -93,11 +93,12 @@ def rf_calc_sweet_spot(oi_list, roof_F, b_s):
 
 
 def dtype_to_bit(dtype):
-    if dtype == 'float32' or 'int32':
-        return 32
-    if dtype == 'float16' or 'int16':
-        return 16
-    return 32  # default
+    # if dtype == 'float32' or 'int32':
+    #     return 32
+    # if dtype == 'float16' or 'int16':
+    #     return 16
+    # return 32  # default
+    return get_bitwidth_of_DosaDtype(convert_tvmDtype_to_DosaDtype(dtype))
 
 
 def dtype_to_size_b(dtype):

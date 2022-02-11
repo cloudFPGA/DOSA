@@ -20,6 +20,7 @@ from dimidium.lib.dosa_dtype import convert_tvmDtype_to_DosaDtype, DosaDtype
 __mandatory_user_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_sps', 'targeted_hw',
                            'target_resource_budget', 'arch_gen_strategy', 'fallback_hw', 'used_input_size_t',
                            'target_latency', 'quantization']
+__optional_user_keys__ = ['overwrite_dtypes']
 __arch_gen_strategies__ = ['performance', 'resources', 'default', 'latency', 'throughput']
 # __valid_fallback_hws__ = ['None']
 # __valid_fallback_hws__.extend(dosa_devices.fallback_hw)
@@ -29,20 +30,27 @@ def parse_uc_dict(path, dosa_devices):
     with open(path, 'r') as inp:
         user_constraints = json.load(inp)
 
+    parsed_constraints = {}
     for k in __mandatory_user_keys__:
         if k not in user_constraints:
             print("ERROR: Mandatory key {} is missing in the constraints file {}. Stop.".format(k, path))
             exit(1)
+        else:
+            parsed_constraints[k] = user_constraints[k]
+
+    for k in __optional_user_keys__:
+        if k in user_constraints:
+            parsed_constraints[k] = user_constraints[k]
 
     arch_target_devices = []
-    for td in user_constraints['targeted_hw']:
+    for td in parsed_constraints['targeted_hw']:
         if td not in dosa_devices.types_str:
             print("ERROR: Target hardware {} is not supported. Stop.".format(td))
             exit(1)
         else:
             arch_target_devices.append(dosa_devices.types_dict[td])
 
-    uags = user_constraints['arch_gen_strategy']
+    uags = parsed_constraints['arch_gen_strategy']
     if uags not in __arch_gen_strategies__:
         print("ERROR: Architecture optimization strategy {} is not supported. Stop.".format(uags))
         exit(1)
@@ -60,24 +68,24 @@ def parse_uc_dict(path, dosa_devices):
         arch_gen_strategy = OptimizationStrategies.DEFAULT
 
     arch_fallback_hw = None
-    if type(user_constraints['fallback_hw']) is list:
-        for fhw in user_constraints['fallback_hw']:
+    if type(parsed_constraints['fallback_hw']) is list:
+        for fhw in parsed_constraints['fallback_hw']:
             if fhw not in dosa_devices.types_str:
                 print("ERROR: Fallback hardware {} is not supported. Stop.".format(fhw))
                 exit(1)
-        arch_fallback_hw = user_constraints['fallback_hw']
+        arch_fallback_hw = parsed_constraints['fallback_hw']
     else:
-        if user_constraints['fallback_hw'] != "None":
+        if parsed_constraints['fallback_hw'] != "none":
             print("ERROR: Fallback hardware {} is not supported. Stop."
-                  .format(user_constraints['fallback_hw']))
+                  .format(parsed_constraints['fallback_hw']))
             exit(1)
         # arch_fallback_hw stays None
 
-    used_batch = user_constraints['used_batch_n']
-    used_in_size_t = user_constraints['used_input_size_t']
+    used_batch = parsed_constraints['used_batch_n']
+    used_in_size_t = parsed_constraints['used_input_size_t']
     sample_size_bit = used_in_size_t
-    for inp_k in user_constraints['shape_dict']:
-        inp_v = user_constraints['shape_dict'][inp_k]
+    for inp_k in parsed_constraints['shape_dict']:
+        inp_v = parsed_constraints['shape_dict'][inp_k]
         total_d = len(inp_v)
         if used_batch != inp_v[0]:
             print("ERROR: Batch sizes in constraint file contradict each other ({} != {}). Stop."
@@ -87,21 +95,35 @@ def parse_uc_dict(path, dosa_devices):
             d = inp_v[i]
             sample_size_bit *= d
     used_sample_size = math.ceil(sample_size_bit / config_bits_per_byte)
-    user_constraints['used_sample_size'] = used_sample_size
+    parsed_constraints['used_sample_size'] = used_sample_size
 
-    if user_constraints['quantization'] == 'none':
-        user_constraints['do_quantization'] = False
+    if parsed_constraints['quantization'] == 'none':
+        parsed_constraints['do_quantization'] = False
     else:
-        user_constraints['do_quantization'] = True
-        low_dtype = convert_tvmDtype_to_DosaDtype(user_constraints['quantization'])
+        parsed_constraints['do_quantization'] = True
+        low_dtype = convert_tvmDtype_to_DosaDtype(parsed_constraints['quantization'])
         if low_dtype == DosaDtype.UNKNOWN:
-            print("ERROR: Quantization data type {} is not supported. Stop.".format(user_constraints['quantization']))
+            print("ERROR: Quantization data type {} is not supported. Stop.".format(parsed_constraints['quantization']))
             exit(1)
-        user_constraints['target_dtype'] = low_dtype
+        parsed_constraints['target_dtype'] = low_dtype
 
-    # TODO: alow float as input?
+    # TODO: allow float as input?
     input_dtype_str = f'int{used_in_size_t}'
-    user_constraints['input_dtype'] = convert_tvmDtype_to_DosaDtype(input_dtype_str)
+    parsed_constraints['input_dtype'] = convert_tvmDtype_to_DosaDtype(input_dtype_str)
+    if 'overwrite_dtypes' in parsed_constraints:
+        parsed_constraints['overwrite_imported_dtypes'] = True
+        data_dtype = convert_tvmDtype_to_DosaDtype(parsed_constraints['overwrite_dtypes']['data'])
+        if data_dtype == DosaDtype.UNKNOWN:
+            print('ERROR: Datatype {} to overwrite "data" data types is not supported. Stop.'.format(
+                parsed_constraints['overwrite_dtypes']['data']))
+            exit(1)
+        weights_dtype = convert_tvmDtype_to_DosaDtype(parsed_constraints['overwrite_dtypes']['weights'])
+        if weights_dtype == DosaDtype.UNKNOWN:
+            print('ERROR: Datatype {} to overwrite "weights" data types is not supported. Stop.'.format(
+                parsed_constraints['overwrite_dtypes']['weights']))
+            exit(1)
+    else:
+        parsed_constraints['overwrite_imported_dtypes'] = False
 
-    return user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw
+    return parsed_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw
 

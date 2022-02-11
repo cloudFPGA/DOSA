@@ -116,6 +116,8 @@ class ArchDraft(object):
         del self.nodes[id_to_delete]
         self.nid_cnt -= 1
         for i in range(id_to_delete, self.nid_cnt):
+            self.nodes[i] = self.nodes[i+1]
+            del self.nodes[i+1]
             self.nodes[i].set_node_id(i)
 
     def set_tvm_mod(self, tvm_mod):
@@ -681,7 +683,7 @@ class ArchDraft(object):
                         if verbose:
                             print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
                                   .format(n1.node_id, n2.node_id))
-                        node_ids_to_delete.append(n1 + 1)
+                        node_ids_to_delete.append(ni + 1)
                         for bb in n2.local_brick_iter_gen():
                             n1.add_brick(bb)
         for nd in node_ids_to_delete:
@@ -820,6 +822,7 @@ class ArchDraft(object):
                 # take data parallelism into account
                 local_data_par_level = node.data_parallelism_level
                 for brick in node.local_brick_iter_gen():
+                    # no need to differentiate between Stream an Engine here -> oi is separate
                     brick.input_bw_Bs = brick.input_bytes * (self.target_sps / local_data_par_level)
                     brick.output_bw_Bs = brick.output_bytes * (self.target_sps / local_data_par_level)
                     orig_req_flops = brick.flops * (self.target_sps / local_data_par_level)

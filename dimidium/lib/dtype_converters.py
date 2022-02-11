@@ -57,6 +57,12 @@ def get_flops_conv_factor(dtype: DosaDtype):
         # using 0.3 as middle between 0 and 0.5
         # ret = (0.3 / config_dsps_per_dosa_flops_xilinx_fpgas)
         ret = (0.3 / dosa_singleton.config.dtype.dsps_per_dosa_flops_xilinx_fpgas)
+    elif dtype == DosaDtype.int8:
+        # requires 0 or 0.5 DSPs
+        # return 0.25  # or 0.2?
+        # using 0.3 as middle between 0 and 0.5
+        # ret = (0.3 / config_dsps_per_dosa_flops_xilinx_fpgas)
+        ret = (0.3 / dosa_singleton.config.dtype.dsps_per_dosa_flops_xilinx_fpgas)
     elif dtype == DosaDtype.double:
         # requires 8 DSPs
         # return 4

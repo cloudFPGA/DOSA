@@ -282,6 +282,8 @@ def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.E
                     cur_inp = bb.input_bytes
                 if cur_perf == 0 or cur_oi == 0:
                     continue
+                # correct for datatypes
+                cur_oi *= bb.flops_conv_factor
                 total_cur_perf = cur_perf * local_data_par_level
                 cur_local_tp = total_cur_perf / cur_oi
                 req_local_tp = cur_inp * draft.target_sps
@@ -313,6 +315,7 @@ def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.E
                 if cur_perf == 0 or bb.flops == 0:
                     continue
                 total_cur_perf = cur_perf * local_data_par_level
+                # TODO: correct for flops_conv_factor/datatype?
                 local_time = bb.flops / total_cur_perf
                 total_time += local_time
         for ni in draft.nodes:

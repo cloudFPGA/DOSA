@@ -36,7 +36,7 @@ class OiPipeline:
         self.data_per_layer = {}
         self.size_t = fallback_size_t
         self.default_size_b = math.ceil(self.size_t/config_bits_per_byte)
-        self.default_dtype = bit_to_dtype(self.size_t)
+        self.default_dtype = bit_to_dtype(fallback_size_t)
         self.bw_layer_cnt = 0
         self.oiCalc = oiCalc
         self.fn_cnt = 0
@@ -128,7 +128,8 @@ class OiPipeline:
                 my_hash = str(hash(func))
                 obj.fn_dict[my_hash] = my_name
 
-                used_dtype = obj.default_dtype
+                # used_dtype = obj.default_dtype
+                used_dtype = None
                 if hasattr(func, 'params'):
                     bw_tmp = obj.default_size_b
                     for p in func.params:
