@@ -158,7 +158,7 @@ bool genericEnqState(
   Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) combined_input,
       createTReady(to_axis_cnt), to_axis_tlast);
   cur_buffer.write(tmp_write_0);
-  
+
   return go_to_next_state;
 }
 
@@ -225,7 +225,7 @@ void pToHaddocEnq(
 #pragma HLS reset variable=hangover_store
   static ap_uint<64> hangover_store_valid_bits = 0x0;
 #pragma HLS reset variable=hangover_store_valid_bits
-  static uint32_t wait_drain_cnt = input_fifo_depth;
+  static uint32_t wait_drain_cnt = cnn_input_frame_size;
 #pragma HLS reset variable=wait_drain_cnt
 
   //-- LOCAL VARIABLES ------------------------------------------------------
@@ -238,7 +238,7 @@ void pToHaddocEnq(
       current_frame_bit_cnt = 0x0;
       hangover_store = 0x0;
       hangover_store_valid_bits = 0;
-      wait_drain_cnt = input_fifo_depth;
+      wait_drain_cnt = cnn_input_frame_size;
 #ifndef __SYNTHESIS_
       wait_drain_cnt = 10;
 #endif
@@ -378,7 +378,7 @@ void pToHaddocDeq(
         combined_input[i] = 0x0;
         cur_line_bit_cnt[i] = 0x0;
       }
-      
+
       if( !only_hangover_processing )
       {
 #ifdef WRAPPER_TEST
@@ -401,7 +401,7 @@ void pToHaddocDeq(
           hangover_bits_valid_bits[i] = 0x0;
         }
       }
-      
+
       only_hangover_processing = false;
       ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH> output_data = 0x0;
       for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
@@ -422,7 +422,7 @@ void pToHaddocDeq(
         //DynLayerInput requires (chan2,chan1,chan0) vector layout
         output_data |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) ((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) combined_input[i])) << (i*DOSA_HADDOC_GENERAL_BITWIDTH);
       }
-    
+
       *po_haddoc_data_valid = 0x1;
       *po_haddoc_data_vector = output_data;
       printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
@@ -509,7 +509,7 @@ void pFromHaddocFlatten(
     current_array_slot_pnt = 0x0;
     current_array_write_pnt = 0x0;
     //we have to write the array...
-    for(int i = 0; i < DOSA_HADDOC_OUTPUT_CHAN_NUM*2*output_fifo_depth; i++)
+    for(int i = 0; i < DOSA_HADDOC_OUTPUT_CHAN_NUM*2*cnn_output_frame_size; i++)
     {
       arrFromHaddocBuffer_global[i] = 0;
     }
@@ -519,11 +519,11 @@ void pFromHaddocFlatten(
     {
       input_data = sFromHaddocBuffer.read();
       //slot structure: |a0....b0....c0|a1....b1....c1|
-      //output_fifo_depth: WIDTH*WIDTH
+      //cnn_output_frame_size: WIDTH*WIDTH
       for(int c = 0; c < DOSA_HADDOC_OUTPUT_CHAN_NUM; c++)
       {
         ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = (ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> c * DOSA_HADDOC_GENERAL_BITWIDTH);
-        uint32_t np = DOSA_HADDOC_OUTPUT_CHAN_NUM*current_array_slot_pnt*output_fifo_depth + c*output_fifo_depth + current_array_write_pnt;
+        uint32_t np = DOSA_HADDOC_OUTPUT_CHAN_NUM*current_array_slot_pnt*cnn_output_frame_size + c*cnn_output_frame_size + current_array_write_pnt;
         arrFromHaddocBuffer_global[np] = nv;
         //printf("pFromHaddocFlatten: sorted incoming %2.2x to position %d\n", (uint8_t) nv, np);
       }
@@ -596,7 +596,7 @@ void pFromHaddocDeq(
         ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
         for(int r = 0; r < WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL; r++)
         {
-          uint32_t rp = current_array_slot_pnt*DOSA_HADDOC_OUTPUT_CHAN_NUM*output_fifo_depth + r;
+          uint32_t rp = current_array_slot_pnt*DOSA_HADDOC_OUTPUT_CHAN_NUM*cnn_output_frame_size + r;
           ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = arrFromHaddocBuffer_global[rp];
           combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH>) nv) << (r*DOSA_HADDOC_GENERAL_BITWIDTH + hangover_store_valid_bits);
           if(current_batch_bit_cnt + r*DOSA_HADDOC_GENERAL_BITWIDTH < HADDOC_OUTPUT_FRAME_BIT_CNT*DOSA_HADDOC_OUTPUT_CHAN_NUM)
@@ -653,7 +653,7 @@ void pFromHaddocDeq(
         ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
         for(int r = 0; r < WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL; r++)
         {
-          uint32_t rp = current_array_slot_pnt*DOSA_HADDOC_OUTPUT_CHAN_NUM*output_fifo_depth + r + current_array_read_pnt;
+          uint32_t rp = current_array_slot_pnt*DOSA_HADDOC_OUTPUT_CHAN_NUM*cnn_output_frame_size + r + current_array_read_pnt;
           ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = arrFromHaddocBuffer_global[rp];
           combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH>) nv) << (r*DOSA_HADDOC_GENERAL_BITWIDTH + hangover_store_valid_bits);
           if(current_batch_bit_cnt + r*DOSA_HADDOC_GENERAL_BITWIDTH < HADDOC_OUTPUT_FRAME_BIT_CNT*DOSA_HADDOC_OUTPUT_CHAN_NUM)
@@ -746,8 +746,8 @@ void haddoc_wrapper_test(
 #ifndef __SYNTHESIS__
   assert(DOSA_WRAPPER_INPUT_IF_BITWIDTH >= DOSA_HADDOC_GENERAL_BITWIDTH); //currently, the assumption is that one "pixel" is smaller than the interface bitwidth
   assert(HADDOC_INPUT_FRAME_BIT_CNT % 8 == 0); //currently, only byte-aligned FRAMES are supported
-  //printf("input_fifo_depth: %d\n", input_fifo_depth);
-  //printf("output_fifo_depth: %d\n", output_fifo_depth);
+  //printf("cnn_input_frame_size: %d\n", cnn_input_frame_size);
+  //printf("cnn_output_frame_size: %d\n", cnn_output_frame_size);
 #endif
 
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
@@ -755,11 +755,11 @@ void haddoc_wrapper_test(
   //-- STATIC DATAFLOW VARIABLES ------------------------------------------
 #ifdef WRAPPER_TEST
   static stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> > sToHaddocBuffer_chan1 ("sToHaddocBuffer_chan1");
-  #pragma HLS STREAM variable=sToHaddocBuffer_chan1   depth=input_fifo_depth
+  #pragma HLS STREAM variable=sToHaddocBuffer_chan1   depth=cnn_input_frame_size
   static stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> > sToHaddocBuffer_chan2 ("sToHaddocBuffer_chan2");
-  #pragma HLS STREAM variable=sToHaddocBuffer_chan2   depth=input_fifo_depth
+  #pragma HLS STREAM variable=sToHaddocBuffer_chan2   depth=cnn_input_frame_size
   static stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> > sToHaddocBuffer_chan3 ("sToHaddocBuffer_chan3");
-  #pragma HLS STREAM variable=sToHaddocBuffer_chan3   depth=input_fifo_depth
+  #pragma HLS STREAM variable=sToHaddocBuffer_chan3   depth=cnn_input_frame_size
 #else
   //DOSA_ADD_haddoc_buffer_instantiation
 #endif
@@ -768,11 +768,11 @@ void haddoc_wrapper_test(
   #pragma HLS STREAM variable=sHaddocUnitProcessing depth=haddoc_processing_fifo_depth
   static stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > sFromHaddocBuffer ("sFromHaddocBuffer");
   #pragma HLS STREAM variable=sFromHaddocBuffer depth=haddoc_processing_fifo_depth+3  //so that we can receive, what we send out...
-  static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> arrFromHaddocBuffer_global[DOSA_HADDOC_OUTPUT_CHAN_NUM*2*output_fifo_depth + WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL];
+  static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> arrFromHaddocBuffer_global[DOSA_HADDOC_OUTPUT_CHAN_NUM*2*cnn_output_frame_size + WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL];
   #pragma HLS ARRAY_PARTITION variable=arrFromHaddocBuffer_global
   static stream<bool> sFromHaddocFrameComplete ("sFromHaddocFrameComplete");
   #pragma HLS STREAM variable=sFromHaddocFrameComplete depth=2  //2! since arrays are double-buffers
-  
+
   //-- PROCESS INSTANTIATION ------------------------------------------------------
 
   // with the current strategy [INPUT] -> [CHANEL, with same bitwidth] -> [BATCH_PIXEL], we can maintain
