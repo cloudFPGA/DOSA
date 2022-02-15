@@ -76,8 +76,8 @@ open_solution ${solutionName}
 set_part      ${xilPartName}
 create_clock -period 6.4 -name default
 
-#catch {config_array_partition -maximum_size 4096}
 catch {config_array_partition -maximum_size 4096}
+#catch {config_array_partition -maximum_size 16384}
 
 
 # Run C Simulation and Synthesis

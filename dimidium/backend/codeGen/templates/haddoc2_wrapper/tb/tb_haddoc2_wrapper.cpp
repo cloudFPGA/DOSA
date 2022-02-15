@@ -148,7 +148,7 @@ int main() {
     // 2a2a...
     //siData.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0x010101010101010101,0xFF,0b0));
     //siData.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0x010102020202020202,0xFF,0b0));
-    
+
     stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>> sTmpIn("sTmpIn");
     stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>> sGoldenOut("sGoldenOut");
     //int filter_out_value_cnt = 0;
