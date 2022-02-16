@@ -141,5 +141,5 @@ dmypy.json
 ##############################
 
 build_dirs/*
-
+save_dirs/*
 
