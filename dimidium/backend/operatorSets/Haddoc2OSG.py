@@ -271,8 +271,7 @@ class Haddoc2OSG(BaseOSG):
         if_axis_tcl = wrapper_input_fifo.get_tcl_lines()
         build_tool.add_tcl_entry(if_axis_tcl)
 
-        # wrapper_last_op
-        block_wrapper = Haddoc2Wrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_first_op.dims.out,
+        block_wrapper = Haddoc2Wrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_last_op.dims.out,
                                        used_bit_width, if_in_bitw, if_out_bitw, used_hls_dir_path, wrapper_flatten_op,
                                        len(ops_implemented_ordered),
                                        layer_names_by_op_id[wrapper_first_op.global_op_id])

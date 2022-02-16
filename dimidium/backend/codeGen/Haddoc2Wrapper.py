@@ -164,13 +164,13 @@ class Haddoc2Wrapper:
                     for b in range(0, self.out_dims[1]):
                         outline += '          ' + 'chan{b}_buffer_0[current_array_write_pnt] = (' \
                                                   'ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) ' \
-                                                  '(input_data >> {b} * DOSA_HADDOC_GENERAL_BITWIDTH);' \
+                                                  '(input_data >> {b} * DOSA_HADDOC_GENERAL_BITWIDTH);\n' \
                             .format(b=b)
                     outline += '        } else {\n'
                     for b in range(0, self.out_dims[1]):
                         outline += '          ' + 'chan{b}_buffer_1[current_array_write_pnt] = (' \
                                                   'ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) ' \
-                                                  '(input_data >> {b} * DOSA_HADDOC_GENERAL_BITWIDTH);' \
+                                                  '(input_data >> {b} * DOSA_HADDOC_GENERAL_BITWIDTH);\n' \
                             .format(b=b)
                     outline += '        }\n'
                 elif 'DOSA_ADD_output_deq_read_switch_case_buff0' in line:
