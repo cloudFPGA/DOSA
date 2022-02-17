@@ -953,6 +953,9 @@ class ArchDraft(object):
             exit(-1)
         # update node_id if necessary
         if dosa_singleton.config.backend.create_rank_0_for_io:
+            # TODO: add new ArchNode just with SW comm lib
+            #  update predec/succ in other Nodes
+            #  and build SW app
             # i.e. we need to shift all node_ids by one
             for ni in self.nodes:
                 nn = self.nodes[ni]
