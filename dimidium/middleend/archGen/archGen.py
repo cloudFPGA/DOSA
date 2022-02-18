@@ -137,9 +137,9 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
 
     print("\t...done.")
 
-    if debug or verbose:
-        print("\n[DEBUG] best draft found:")
-        print(best_draft)
+    # if debug or verbose:
+    #     print("\n[DEBUG] best draft found:")
+    #     print(best_draft)
 
     print("\nDOSA: Found best and valid draft, generating architecture and software in {}...\n"
           .format(dosa_singleton.config.global_build_dir))
@@ -149,6 +149,10 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     else:
         print("\tINFO: Skipping build on user request")
     build_stop = time.time()
+
+    if debug or verbose:
+        print("\n[DEBUG] draft build:")
+        print(best_draft)
 
     # synth_start = time.time()
     # best_draft.synth()

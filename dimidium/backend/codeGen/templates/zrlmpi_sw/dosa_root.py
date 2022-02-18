@@ -22,18 +22,27 @@ __so_lib_name__ = 'dosa_infer_pass.so'
 
 class DosaRoot:
 
-    def __init__(self, used_bitwidth):
+    def __init__(self, used_bitwidth, signed=True):
         libname = os.path.abspath(__filedir__ + '/' + __so_lib_name__)
         self.c_lib = ctypes.CDLL(libname)
         self.c_lib.cmult.restype = ctypes.c_int
         self.nbits = used_bitwidth
         self.n_bytes = (used_bitwidth + 7) / 8
         if used_bitwidth == 8:
-            self.npdtype = np.int8
+            if signed:
+                self.ndtype = np.int8
+            else:
+                self.ndtype = np.uint8
         elif used_bitwidth == 16:
-            self.ndtype = np.int16
+            if signed:
+                self.ndtype = np.int16
+            else:
+                self.ndtype = np.uint16
         else:
-            self.ndtype = np.int32
+            if signed:
+                self.ndtype = np.int32
+            else:
+                self.ndtype = np.uint32
 
     # def _prepare_data(self, tmp_array):
     #     bin_str = ''

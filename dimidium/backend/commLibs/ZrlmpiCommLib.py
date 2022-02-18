@@ -46,7 +46,10 @@ class ZrlmpiCommLib(BaseCommLib):
         elif isinstance(build_tool, BaseSwBuild):
             if comm_plan.node.node_id == 0:
                 # SW app
-                comm_inst = ZrlmpiSwApp()
+                node_dir = build_tool.build_dir
+                comm_inst = ZrlmpiSwApp(comm_plan.node.node_id, node_dir, comm_plan)
+                comm_inst.generate()
+                # add nothing to SwBuild Tool, since this is the root app (?)
             else:
                 print("[DOSA:CommLibBuild:ERROR] not yet implemented.")
         else:

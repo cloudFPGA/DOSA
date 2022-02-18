@@ -27,6 +27,7 @@ int infer(int *input, int input_length, int *output, int output_length)
 #else
   //DOSA_ADD_mpi_config
 #endif
+  //TODO: add repeat factor? with batch input/output
 
   if(send_mesage_length != input_length)
   {

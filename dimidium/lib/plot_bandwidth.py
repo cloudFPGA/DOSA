@@ -61,6 +61,8 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
     output_B_list = []
     param_B_list = []
     for bb in arch_draft.brick_iter_gen():
+        if bb.skip_in_roofline:
+            continue
         id_list.append(bb.brick_uuid)
         input_B_list.append(bb.input_bw_Bs/gigaU)
         output_B_list.append(bb.output_bw_Bs/gigaU)

@@ -140,6 +140,8 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
     total_uinp_B = 0
     total_param_B = 0
     for bb in arch_draft.brick_iter_gen():
+        if bb.skip_in_roofline:
+            continue
         fn_name = bb.brick_uuid
         if show_ops:
             fn_name = bb.fn_label

@@ -20,6 +20,7 @@ from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
+from dimidium.backend.devices.builtin import vCPU_x86
 from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane, get_rightmost_roofline_region
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 from dimidium.backend.commLibs.BaseCommLib import placeholderCommLib
@@ -57,6 +58,7 @@ class ArchDraft(object):
         self.all_selected_hw_types = []
         self.possible_comm_libs = []
         self.selected_comm_lib = placeholderCommLib
+        self.substract_node_0 = False
 
     def __repr__(self):
         return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
@@ -120,6 +122,13 @@ class ArchDraft(object):
             del self.nodes[i+1]
             self.nodes[i].set_node_id(i)
 
+    # def update_node_links(self):
+    #     # updates the successors and predecessors of the nodes
+    #     last_ni = None
+    #     for i in range(1, self.nid_cnt):
+    #         self.nodes[i].predecessors = [i-1]
+    #         self.nodes[i].successors = [i+1]
+
     def set_tvm_mod(self, tvm_mod):
         self.main_tvm_mod = tvm_mod
 
@@ -172,6 +181,8 @@ class ArchDraft(object):
         total_nodes = 0
         for nn in self.node_iter_gen():
             total_nodes += nn.data_parallelism_level
+        if self.substract_node_0:
+            total_nodes -= 1
         return total_nodes
 
     # def legalize(self, verbose=False):
@@ -935,6 +946,27 @@ class ArchDraft(object):
     #     for nn in self.node_iter_gen():
     #         nn.synth()
 
+    def _add_node_0(self):
+        node_0 = ArchNode(0, target_hw=vCPU_x86)
+        node_0.selected_hw_type = vCPU_x86
+        node_0.skip_in_roofline = True
+        # add output brick first, so they match the input...output logic of CommPlan
+        output_brick = ArchBrick()
+        output_brick.from_dpl_dict(self.output_layer)
+        output_brick.skip_in_roofline = True
+        node_0.add_brick(output_brick)
+        input_brick = ArchBrick()
+        input_brick.from_dpl_dict(self.input_layer)
+        input_brick.skip_in_roofline = True
+        node_0.add_brick(input_brick)
+        self.insert_node(node_0, 0)
+        self.substract_node_0 = True
+        # add also with "inverted" successor/predecessor
+        node_0.add_succ_node(self.nodes[1])
+        node_0.add_pred_node(self.nodes[self.nid_cnt-1])
+        self.nodes[1].add_pred_node(node_0)
+        self.nodes[self.nid_cnt-1].add_succ_node(node_0)
+
     def generate_communication(self):
         # first, decide for communication lib
         # communication lib is "global" for the draft
@@ -953,13 +985,7 @@ class ArchDraft(object):
             exit(-1)
         # update node_id if necessary
         if dosa_singleton.config.backend.create_rank_0_for_io:
-            # TODO: add new ArchNode just with SW comm lib
-            #  update predec/succ in other Nodes
-            #  and build SW app
-            # i.e. we need to shift all node_ids by one
-            for ni in self.nodes:
-                nn = self.nodes[ni]
-                nn.node_id += 1
+            self._add_node_0()
         # then, populate
         for nn in self.node_iter_gen():
             nn.generate_communication(self.selected_comm_lib)

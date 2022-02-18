@@ -138,6 +138,8 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
     total_mem_share_stream = 0
     total_comp_share_stream = 0
     for bb in arch_draft.brick_iter_gen():
+        if bb.skip_in_roofline:
+            continue
         cn = {'name': "{}_engine".format(bb.brick_uuid), 'oi': bb.oi_engine,
               'mem_share': bb.req_util_mem_engine*100, 'comp_share': bb.req_util_comp_engine*100}
         un = {'name': "{}_stream".format(bb.brick_uuid), 'oi': bb.oi_stream,

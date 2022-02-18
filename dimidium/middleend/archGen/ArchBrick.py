@@ -72,6 +72,7 @@ class ArchBrick(object):
         self.req_util_mem = 0
         self.req_util_mem_engine = 0
         self.req_util_mem_stream = 0
+        self.skip_in_roofline = False
 
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.local_brick_id, self.name)

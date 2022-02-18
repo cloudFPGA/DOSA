@@ -24,8 +24,10 @@ class DefaultCpuBuild(BaseSwBuild):
         pass
 
     def write_build_scripts(self):
-        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
+        # print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
+        print("[DOSA:DefaultCpuBuild:WARNING] Nothing to do for write_build_scripts.")
 
     def add_makefile_entry(self, path, target):
-        print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
+        # print("[DOSA:Build:ERROR] NOT YET IMPLEMENTED.")
+        print("[DOSA:DefaultCpuBuild:WARNING] Nothing to do for add_makefile_entry.")
 

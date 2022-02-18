@@ -48,6 +48,7 @@ class ArchNode(object):
         self.build_tool = None
         self.comm_plan = None
         self.used_comm_lib = None
+        self.skip_in_roofline = False
 
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.targeted_hw)

@@ -138,6 +138,8 @@ if __name__ == '__main__':
                                                      print_debug=False)
         plt_nodes = []
         for nn in archDict['draft'].node_iter_gen():
+            if nn.skip_in_roofline:
+                continue
             new_plt = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
                                                                      show_splits=True, show_labels=True, selected_only=True,
                                                                      print_debug=False)
