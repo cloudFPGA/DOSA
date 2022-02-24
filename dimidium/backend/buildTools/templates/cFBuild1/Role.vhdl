@@ -189,10 +189,26 @@ entity Role_Themisto is
     piTOP_250_00Clk             : in    std_ulogic;  -- Freerunning
 
     ------------------------------------------------
-    -- SMC Interface
+    -- FMC Interface
     ------------------------------------------------
     piFMC_ROLE_rank             : in    std_logic_vector(31 downto 0);
     piFMC_ROLE_size             : in    std_logic_vector(31 downto 0);
+
+    ------------------------------------------------
+    -- DEBUG PORTS (see UG909)
+    ------------------------------------------------
+    dpBSCAN_drck              : in    std_logic;
+    dpBSCAN_shift             : in    std_logic;
+    dpBSCAN_tdi               : in    std_logic;
+    dpBSCAN_update            : in    std_logic;
+    dpBSCAN_sel               : in    std_logic;
+    dpBSCAN_tdo               : out   std_logic;
+    dpBSCAN_tms               : in    std_logic;
+    dpBSCAN_tck               : in    std_logic;
+    dpBSCAN_runtest           : in    std_logic;
+    dpBSCAN_reset             : in    std_logic;
+    dpBSCAN_capture           : in    std_logic;
+    dpBSCAN_bscanid_en        : in    std_logic;
 
     poVoid                      : out   std_ulogic
 
@@ -206,6 +222,36 @@ end Role_Themisto;
 -- *****************************************************************************
 
 architecture DosaNode of Role_Themisto is
+
+  --============================================================================
+  --  DEBUG SIGNALS ATTRIBUTE DECLARATIONS (see UG909)
+  --============================================================================
+  attribute X_INTERFACE_INFO : string;
+  attribute DEBUG : string;
+  attribute X_INTERFACE_INFO of dpBSCAN_drck: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN drck";
+  attribute DEBUG of dpBSCAN_drck: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_shift: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN shift";
+  attribute DEBUG of dpBSCAN_shift: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_tdi: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN tdi";
+  attribute DEBUG of dpBSCAN_tdi: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_update: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN update";
+  attribute DEBUG of dpBSCAN_update: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_sel: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN sel";
+  attribute DEBUG of dpBSCAN_sel: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_tdo: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN tdo";
+  attribute DEBUG of dpBSCAN_tdo: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_tms: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN tms";
+  attribute DEBUG of dpBSCAN_tms: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_tck: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN tck";
+  attribute DEBUG of dpBSCAN_tck: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_runtest: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN runtest";
+  attribute DEBUG of dpBSCAN_runtest: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_reset: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN reset";
+  attribute DEBUG of dpBSCAN_reset: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_capture: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN capture";
+  attribute DEBUG of dpBSCAN_capture: signal is "true";
+  attribute X_INTERFACE_INFO of dpBSCAN_bscanid_en: signal is "xilinx.com:interface:bscan:1.0 S_BSCAN bscanid_en";
+  attribute DEBUG of dpBSCAN_bscanid_en: signal is "true";
 
   --============================================================================
   --  SIGNAL DECLARATIONS
