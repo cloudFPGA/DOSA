@@ -240,9 +240,10 @@ class ArchNode(object):
         cur_block_id = 0
         for bb in self.local_brick_iter_gen():
             if bb.selected_osg != cur_osg or bb.selected_impl_type != cur_impl_type \
-                or (cur_osg is not None and cur_block is not None  # TODO: remove?
-                    and cur_impl_type != BrickImplTypes.ENGINE
-                    and len(cur_block.brick_list) >= cur_osg.suggested_max_block_length):
+                or (cur_osg is not None and cur_block is not None
+                    # and cur_impl_type != BrickImplTypes.ENGINE
+                    #   with additional compiler steps for Engine --> doesn't make sense any more
+                    and len(cur_block.brick_list) >= cur_osg.suggested_max_block_length):  # TODO: remove?
                 if cur_block is not None:
                     self.arch_block_list.append(cur_block)
                 cur_impl_type = bb.selected_impl_type

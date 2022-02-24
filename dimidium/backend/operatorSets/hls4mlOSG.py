@@ -64,7 +64,7 @@ class Hls4mlOSG(BaseOSG):
         # no DosaHwClasses.FPGA_generic, since it is bound to xilinx?
         self.priority = 92
         self.existing_layer_names = []
-        self.suggested_max_block_length = 1
+        # self.suggested_max_block_length = 1
 
     def init(self, dosa_hw_classes_dict, priority_internal):
         self.priority_internal = priority_internal
@@ -189,24 +189,26 @@ class Hls4mlOSG(BaseOSG):
                 used_dtype = cur_dt
                 cur_w = bitw
         precision_string = ''
-        if used_dtype == DosaDtype.float16 or used_dtype.float32:
+        if used_dtype == DosaDtype.float16 or used_dtype == DosaDtype.float32:
             precision_string = 'ap_fixed<16,6>'  # TODO
         else:
             precision_string = 'ap_uint<{}>'.format(cur_w)
-        reuse_factor_stream = 1
+        # reuse_factor_stream = 1
+        reuse_factor_stream = 4  # TODO
         reuse_factor_engine = 2
         hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_engine,
                                 'Strategy': 'Resource'}}
         # TODO: tune hls pragmas...
-        # if arch_block.block_impl_type == BrickImplTypes.STREAM:
-        #     hls_config['Model']['Strategy'] = 'Latency'
-        #     hls_config['Model']['ReuseFactor'] = reuse_factor_stream
+        if arch_block.block_impl_type == BrickImplTypes.STREAM:
+            hls_config['Model']['Strategy'] = 'Latency'
+            hls_config['Model']['ReuseFactor'] = reuse_factor_stream
 
         hls_model_config = {'OutputDir': used_dir_path, 'ProjectName': project_name, 'Backend': 'Vivado',
                             'XilinxPart': build_tool.target_device.part_string, 'Board': None,
                             'ClockPeriod': build_tool.target_device.clock_period_ns,
-                            # 'IOType': 'io_stream',  # the interface is then even more weired...
-                            'IOType': 'io_parallel',
+                            # 'IOType': 'io_stream',  # the interface is then even more weired... (or does not compile)
+                            # 'IOType': 'io_parallel',  # TODO
+                            'IOType': 'io_serial',
                             'HLSConfig': hls_config}  # ,
         # 'KerasJson': 'KERAS_3layer.json', 'KerasH5': 'KERAS_3layer_weights.h5'}  # TODO
 
