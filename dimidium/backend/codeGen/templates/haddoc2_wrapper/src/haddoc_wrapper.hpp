@@ -39,7 +39,7 @@ using namespace hls;
 #define DOSA_HADDOC_LAYER_CNT 3
 enum ToHaddocEnqStates {RESET0 = 0, WAIT_DRAIN, FILL_BUF_0, FILL_BUF_1, FILL_BUF_2};
 #endif
-//LESSON LEARNED: ifdef/else for constants that affect INTERFACES does not work with vivado HLS...it uses the first occurence apparently...
+//LESSON LEARNED: ifdef/else for constants that affect INTERFACES does not work with vivado HLS...it uses the first occurence, apparently...
 
 //DOSA_REMOVE_STOP
 //DOSA_ADD_INTERFACE_DEFINES

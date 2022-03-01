@@ -94,14 +94,17 @@ void pStateControl(
         not_empty = true;
       }
 #ifdef WRAPPER_TEST
-      mpiCommands[0]          = MPI_INSTR_RECV;
-      mpiRanks[0]             = 0;
-      mpiCounts[0]            = 22;
-      commandRepetitions[0]   = 1;
-      mpiCommands[1]          = MPI_INSTR_SEND;
-      mpiRanks[1]             = 0;
-      mpiCounts[1]            = 22;
-      commandRepetitions[1]   = 1;
+      if(*role_rank_arg == 1)
+      {
+        mpiCommands[0]          = MPI_INSTR_RECV;
+        mpiRanks[0]             = 0;
+        mpiCounts[0]            = 22;
+        commandRepetitions[0]   = 1;
+        mpiCommands[1]          = MPI_INSTR_SEND;
+        mpiRanks[1]             = 0;
+        mpiCounts[1]            = 22;
+        commandRepetitions[1]   = 1;
+      }
 #else
   //DOSA_ADD_mpi_commands
 #endif

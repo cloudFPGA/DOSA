@@ -31,14 +31,17 @@ using namespace hls;
 
 
 //generated defines
+//DOSA_REMOVE_START
 #ifdef WRAPPER_TEST
 #define DOSA_WRAPPER_INPUT_IF_BITWIDTH 64
 #define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH 64
 #define DOSA_WRAPPER_BUFFER_FIFO_DEPTH_LINES 1500
 #define DOSA_WRAPPER_PROG_LENGTH 2
-#else
-//DOSA_ADD_INTERFACE_DEFINES
 #endif
+//LESSON LEARNED: ifdef/else for constants that affect INTERFACES does not work with vivado HLS...it uses the first occurence, apparently...
+
+//DOSA_REMOVE_STOP
+//DOSA_ADD_INTERFACE_DEFINES
 
 const uint32_t buffer_fifo_depth = DOSA_WRAPPER_BUFFER_FIFO_DEPTH_LINES;
 enum controlFsmStates {RESET = 0, ISSUE_COMMAND, PROC_SEND, WAIT_SEND, PROC_RECEIVE, WAIT_RECEIVE};

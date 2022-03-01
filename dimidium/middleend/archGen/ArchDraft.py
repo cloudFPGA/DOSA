@@ -902,14 +902,33 @@ class ArchDraft(object):
                 brick.req_latency = brick.flops / brick.req_flops
         return DosaRv.OK
 
-    def update_uuids(self):
+    def update_uuids(self, add_backlink=False):
         next_kuuid = 0
         next_buuid = 0
         next_bluuid = 0
+        cur_rank = 0
+        old_node = None
+        first_node = None
         for nn in self.node_iter_gen():
             next_kuuid = nn.update_kernel_uuids(next_kuuid)
             next_buuid = nn.update_brick_uuids(next_buuid)
             next_bluuid = nn.update_block_ids(next_bluuid)
+            new_ranks = [cur_rank]
+            cur_rank += 1
+            for c in range(1, nn.data_parallelism_level):
+                new_ranks.append(cur_rank)
+                cur_rank += 1
+            nn.ranks = new_ranks
+            if first_node is None:
+                first_node = nn
+            if old_node is not None:
+                nn.inp_ranks = old_node.ranks
+                old_node.out_ranks = new_ranks
+            old_node = nn
+        if add_backlink:
+            first_node.inp_ranks = old_node.ranks
+            old_node.out_ranks = first_node.ranks
+        return
 
     def update_possible_osgs(self):
         for nn in self.node_iter_gen():
@@ -941,6 +960,8 @@ class ArchDraft(object):
         self.generate_communication()
         for nn in self.node_iter_gen():
             nn.build()
+            build_folder_name = nn.build_tool.get_node_folder_name()
+            # TODO: add to global cluster setup info
 
     # def synth(self):
     #     for nn in self.node_iter_gen():
@@ -966,6 +987,7 @@ class ArchDraft(object):
         node_0.add_pred_node(self.nodes[self.nid_cnt-1])
         self.nodes[1].add_pred_node(node_0)
         self.nodes[self.nid_cnt-1].add_succ_node(node_0)
+        self.update_uuids(add_backlink=True)
 
     def generate_communication(self):
         # first, decide for communication lib

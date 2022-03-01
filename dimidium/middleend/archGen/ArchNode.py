@@ -36,6 +36,9 @@ class ArchNode(object):
         # self.twins = []  # compute parallelization
         self.predecessors = []
         self.successors = []
+        self.ranks = []
+        self.inp_ranks = []
+        self.out_ranks = []
         self.roofline = None
         self.max_perf_F = -1
         self.used_perf_F = -1
@@ -56,6 +59,7 @@ class ArchNode(object):
     def as_dict(self):
         res = {'node_id': self.node_id, 'targeted_hw': str(self.targeted_hw),
                'data_paral_level': self.data_parallelism_level,  # 'twin_nodes': [],
+               'ranks': self.ranks, 'inp_ranks': self.inp_ranks, 'out_ranks': self.out_ranks,
                'pred_nodes': [], 'succ_nodes': [], 'possible_hw_types': [],
                'selected_hw_type': repr(self.selected_hw_type),
                'blocks': [], 'engineContainers': [],

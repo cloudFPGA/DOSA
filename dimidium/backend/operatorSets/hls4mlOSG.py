@@ -128,7 +128,7 @@ class Hls4mlOSG(BaseOSG):
         return base_str
 
     def write_makefile(self, ip_dir, project_name, reset=False, csim=True, synth=True,
-                       cosim=False, validation=False, export=False, vsynth=False):
+                       cosim=False, validation=False, export=True, vsynth=False):
         echo_cmd = os.popen('which echo').read().rstrip()
         bc_cmd = os.popen('which bc').read().rstrip()
         target_file = '{}/Makefile'.format(ip_dir)
@@ -194,7 +194,8 @@ class Hls4mlOSG(BaseOSG):
         else:
             precision_string = 'ap_uint<{}>'.format(cur_w)
         # reuse_factor_stream = 1
-        reuse_factor_stream = 4  # TODO
+        # reuse_factor_stream = 4  # TODO
+        reuse_factor_stream = 32  # works so far...TODO
         reuse_factor_engine = 2
         hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_engine,
                                 'Strategy': 'Resource'}}
@@ -208,7 +209,7 @@ class Hls4mlOSG(BaseOSG):
                             'ClockPeriod': build_tool.target_device.clock_period_ns,
                             # 'IOType': 'io_stream',  # the interface is then even more weired... (or does not compile)
                             # 'IOType': 'io_parallel',  # TODO
-                            'IOType': 'io_serial',
+                            'IOType': 'io_serial',  # is deprecated from version 0.5.0, but is the only one working
                             'HLSConfig': hls_config}  # ,
         # 'KerasJson': 'KERAS_3layer.json', 'KerasH5': 'KERAS_3layer_weights.h5'}  # TODO
 

@@ -12,9 +12,20 @@
 #define MPI_INSTR_RECV 2
 #define MPI_NO_RANK 0xFE
 
+//generated defines
+#ifdef WRAPPER_TEST
+#define DOSA_WRAPPER_PROG_LENGTH 2
+#define DOSA_MINIMAL_PROG_LENGTH 2
+#else
+//DOSA_ADD_APP_NODE_DEFINES
+#endif
 
 //#define DEBUG
 //#define DEBUG2
+
+
+//DOCSTRING...
+void reset_state();
 
 //DOCSTRING...
 int infer(int *input, int input_length, int *output, int output_length);

@@ -18,17 +18,22 @@ from dimidium.backend.codeGen.VhdlEntity import VhdlEntity
 
 class BaseBuild(metaclass=abc.ABCMeta):
 
-    def __init__(self, name, build_dir=None, out_dir=None):
+    def __init__(self, name, build_dir=None):
         self.name = name
         self.build_dir = build_dir
+        self.node_folder_name = None
         # self.out_dir = out_dir # TODO
         self.global_Makefile = None
         self.makefile_targets = {}
 
     def create_build_dir(self, node_id: int):
-        new_dir_path = os.path.abspath("{}/node_{}/".format(dosa_singleton.config.global_build_dir, node_id))
+        self.node_folder_name = 'node_{}'.format(node_id)
+        new_dir_path = os.path.abspath("{}/{}/".format(dosa_singleton.config.global_build_dir, self.node_folder_name))
         os.system("mkdir -p {}".format(new_dir_path))
         self.build_dir = new_dir_path
+
+    def get_node_folder_name(self):
+        return self.node_folder_name
 
     @abc.abstractmethod
     def write_build_scripts(self):
@@ -41,8 +46,8 @@ class BaseBuild(metaclass=abc.ABCMeta):
 
 class BaseHwBuild(BaseBuild, metaclass=abc.ABCMeta):
 
-    def __init__(self, name, target_device, build_dir=None, out_dir=None):
-        super().__init__(name, build_dir, out_dir)
+    def __init__(self, name, target_device, build_dir=None):
+        super().__init__(name, build_dir)
         self.global_vhdl_entity_path = None
         self.global_vhdl_dir = None
         self.global_tcl = None
@@ -60,8 +65,8 @@ class BaseHwBuild(BaseBuild, metaclass=abc.ABCMeta):
 
 class BaseSwBuild(BaseBuild, metaclass=abc.ABCMeta):
 
-    def __init__(self, name, target_device=None, build_dir=None, out_dir=None):
-        super().__init__(name, build_dir, out_dir)
+    def __init__(self, name, target_device=None, build_dir=None):
+        super().__init__(name, build_dir)
         self.global_cpp = None
         self.global_hpp = None
         self.lib_dirs = {}
@@ -74,8 +79,8 @@ class BaseSwBuild(BaseBuild, metaclass=abc.ABCMeta):
 
 class HwBuildTopVhdl(BaseHwBuild, metaclass=abc.ABCMeta):
 
-    def __init__(self, name, target_device, build_dir=None, out_dir=None):
-        super().__init__(name, target_device, build_dir, out_dir)
+    def __init__(self, name, target_device, build_dir=None):
+        super().__init__(name, target_device, build_dir)
         self.topVhdl = VhdlEntity()
 
 

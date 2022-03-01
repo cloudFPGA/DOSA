@@ -48,6 +48,15 @@ class ZrlmpiWrapper(CommunicationWrapper):
         # 2. wrapper.hpp
         with open(os.path.join(self.templ_dir_path, 'src/zrlmpi_wrapper.hpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'src/zrlmpi_wrapper.hpp'), 'w') as out_file:
+            continue_skip = False
+            for line in in_file.readlines():
+                if continue_skip:
+                    if 'DOSA_REMOVE_STOP' in line:
+                        continue_skip = False
+                    continue
+                elif 'DOSA_REMOVE_START' in line:
+                    continue_skip = True
+                    continue
             for line in in_file.readlines():
                 if 'DOSA_ADD_INTERFACE_DEFINES' in line:
                     outline = ''
@@ -65,19 +74,41 @@ class ZrlmpiWrapper(CommunicationWrapper):
                 if 'DOSA_ADD_mpi_commands' in line:
                     outline = ''
                     instr_num = 0
-                    for ie in self.comm_plan.get_comm_instr():
-                        cmnd_macro = 'MPI_INSTR_RECV'
-                        if ie['instr'] == 'send':
-                            cmnd_macro = 'MPI_INSTR_SEND'
-                        rank = ie['rank']
-                        counts = ie['count']
-                        assert counts < 0xFFFF  # max message size is uint16
-                        repeat = ie['repeat']
-                        outline += f'      mpiCommands[{instr_num}]          = {cmnd_macro};\n'
-                        outline += f'      mpiRanks[{instr_num}]             = {rank};\n'
-                        outline += f'      mpiCounts[{instr_num}]            = {counts};\n'
-                        outline += f'      commandRepetitions[{instr_num}]   = {repeat};\n'
-                        instr_num += 1
+                    # for ie in self.comm_plan.get_comm_instr():
+                    #     cmnd_macro = 'MPI_INSTR_RECV'
+                    #     if ie['instr'] == 'send':
+                    #         cmnd_macro = 'MPI_INSTR_SEND'
+                    #     rank = ie['rank']
+                    #     counts = ie['count']
+                    #     assert counts < 0xFFFF  # max message size is uint16
+                    #     repeat = ie['repeat']
+                    #     outline += f'      mpiCommands[{instr_num}]          = {cmnd_macro};\n'
+                    #     outline += f'      mpiRanks[{instr_num}]             = {rank};\n'
+                    #     outline += f'      mpiCounts[{instr_num}]            = {counts};\n'
+                    #     outline += f'      commandRepetitions[{instr_num}]   = {repeat};\n'
+                    #     instr_num += 1
+                    sorted_instr = self.comm_plan.get_comm_instr_sorted()
+                    for self_id in sorted_instr.keys():
+                        if len(sorted_instr.keys()) > 1:
+                            outline += f'      if(*role_rank_arg == {self_id})\n'+'      {\n'
+                            indent = '  '
+                        else:
+                            indent = ''
+                        for ie in sorted_instr[self_id]:
+                            cmnd_macro = 'MPI_INSTR_RECV'
+                            if ie['instr'] == 'send':
+                                cmnd_macro = 'MPI_INSTR_SEND'
+                            rank = ie['rank']
+                            counts = ie['count']
+                            assert counts < 0xFFFF  # max message size is uint16
+                            repeat = ie['repeat']
+                            outline += indent + f'      mpiCommands[{instr_num}]          = {cmnd_macro};\n'
+                            outline += indent + f'      mpiRanks[{instr_num}]             = {rank};\n'
+                            outline += indent + f'      mpiCounts[{instr_num}]            = {counts};\n'
+                            outline += indent + f'      commandRepetitions[{instr_num}]   = {repeat};\n'
+                            instr_num += 1
+                        if len(sorted_instr.keys()) > 1:
+                            outline += '      }\n'
                     assert instr_num == comm_plan_length
                 else:
                     outline = line
