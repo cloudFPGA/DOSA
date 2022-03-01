@@ -961,11 +961,29 @@ class ArchDraft(object):
         for nn in self.node_iter_gen():
             nn.build()
             build_folder_name = nn.build_tool.get_node_folder_name()
-            # TODO: add to global cluster setup info
+        # add to global cluster setup info
+        self._generate_cluster_description()
 
     # def synth(self):
     #     for nn in self.node_iter_gen():
     #         nn.synth()
+
+    def _generate_cluster_description(self):
+        num_nodes = self.get_total_nodes_cnt()
+        if self.substract_node_0:
+            num_nodes += 1
+        cluster_dict = {'name': self.name, 'total_nodes': num_nodes, 'nodes': []}
+        for nn in self.node_iter_gen():
+            nn_f = nn.build_tool.node_folder_name
+            nn_ranks = nn.ranks
+            n_hw = nn.selected_hw_type.name
+            # ne = {nn_f: nn_ranks}
+            ne = {'folder': nn_f, 'ranks': nn_ranks, 'type': n_hw}
+            cluster_dict['nodes'].append(ne)
+            # cluster_dict['nodes'][nn_f] = nn_ranks
+        out_file = '{}/cluster.json'.format(dosa_singleton.config.global_build_dir)
+        with open(out_file, 'w') as of:
+            json.dump(cluster_dict, of, indent=4)
 
     def _add_node_0(self):
         node_0 = ArchNode(0, target_hw=vCPU_x86)

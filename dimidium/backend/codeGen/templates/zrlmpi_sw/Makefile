@@ -61,7 +61,7 @@ ifeq ($(BUILD_TYPE), production)
 	strip $@
 endif 
 
-lib_test.so: dosa_infer.cpp $(OBJS) $(HEADS)
+lib_test.so: dosa_infer.cpp $(HEADS)
 	@# rebuild dosa_infer.o with right flag
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(LIBS) $< -o dosa_infer.o -DWRAPPER_TEST
 	$(CC) -o $@ $(LDFLAGS) $(OBJS) $(LIBS) -shared -DWRAPPER_TEST

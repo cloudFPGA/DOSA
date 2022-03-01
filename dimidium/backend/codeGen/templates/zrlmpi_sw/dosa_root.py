@@ -25,7 +25,7 @@ class DosaRoot:
     def __init__(self, used_bitwidth, signed=True):
         libname = os.path.abspath(__filedir__ + '/' + __so_lib_name__)
         self.c_lib = ctypes.CDLL(libname)
-        self.c_lib.cmult.restype = ctypes.c_int
+        self.c_lib.infer.restype = ctypes.c_int
         self.nbits = used_bitwidth
         self.n_bytes = (used_bitwidth + 7) / 8
         if used_bitwidth == 8:
@@ -43,6 +43,9 @@ class DosaRoot:
                 self.ndtype = np.int32
             else:
                 self.ndtype = np.uint32
+        # MPI init
+        # TODO
+        # self.c_lib.init()
 
     # def _prepare_data(self, tmp_array):
     #     bin_str = ''

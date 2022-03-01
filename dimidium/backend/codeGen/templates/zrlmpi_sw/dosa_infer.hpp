@@ -23,6 +23,8 @@
 //#define DEBUG
 //#define DEBUG2
 
+//DOCSTRING...
+void init(int argc, char **argv);
 
 //DOCSTRING...
 void reset_state();

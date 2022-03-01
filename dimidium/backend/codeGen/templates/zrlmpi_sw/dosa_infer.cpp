@@ -19,6 +19,12 @@ static uint8_t curRank = MPI_NO_RANK;
 static uint8_t curCount = 0;
 static uint8_t curRep = 0;
 
+void init(int argc, char **argv)
+{
+  MPI_Init(&argc, &argv);
+}
+
+
 
 void reset_state()
 {
@@ -35,7 +41,6 @@ int infer(int *input, int input_length, int *output, int output_length)
   int rank;
   int size;
   uint8_t status;
-  MPI_Init(); //TODO: ZRLMPI init?, make extra method?
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   printf("[DOSA:INFO] Here is rank %d, size is %d.\n", rank, size);
@@ -100,7 +105,14 @@ int infer(int *input, int input_length, int *output, int output_length)
   }
 
   //return success
-  MPI_Finalize();
+  //MPI_Finalize();
+  return 0;
+}
+
+
+//function dummy to get ZRLMPI to compile
+int app_main(int argc, char **argv)
+{
   return 0;
 }
 
