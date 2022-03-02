@@ -365,3 +365,34 @@ class Haddoc2Wrapper:
         # replace [] with {}
         inst_tmpl = inst.replace('[', '{').replace(']', '}')
         return inst_tmpl
+
+    def get_debug_lines(self):
+        signal_lines = [
+            's{ip_mod_name}_to_Haddoc_b{block_id}_data\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            's{ip_mod_name}_to_Haddoc_b{block_id}_dv\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            's{ip_mod_name}_to_Haddoc_b{block_id}_fv\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            'sHaddoc_b{block_id}_to_{ip_mod_name}_data\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            'sHaddoc_b{block_id}_to_{ip_mod_name}_dv\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            'sHaddoc_b{block_id}_to_{ip_mod_name}_fv\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+        ]
+        width_lines = [(self.general_bitw * self.in_dims[1]), 1, 1,
+                       (self.general_bitw * self.out_dims[1]), 1, 1]
+        assert len(signal_lines) == len(width_lines)
+        tcl_tmpl_lines = []
+        decl_tmpl_lines = []
+        inst_tmpl_lines = []
+
+        for i in range(len(signal_lines)):
+            sn = signal_lines[i]
+            sw = width_lines[i]
+            tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(sw) + '}}\\\n'
+            decl_l = '; probe{i}    : in  std_logic_vector( ' + str(sw - 1) + ' downto 0)\n'  # semicolon at begin
+            if sw == 1:
+                inst_l = ', probe{i}(0)   =>   ' + sn + '\n'  # comma at begin
+            else:
+                inst_l = ', probe{i}      =>   ' + sn + '\n'  # comma at begin
+            tcl_tmpl_lines.append(tcl_l)
+            decl_tmpl_lines.append(decl_l)
+            inst_tmpl_lines.append(inst_l)
+
+        return tcl_tmpl_lines, decl_tmpl_lines, inst_tmpl_lines
