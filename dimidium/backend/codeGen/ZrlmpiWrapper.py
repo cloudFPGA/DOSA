@@ -156,6 +156,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
         decl += ('component {ip_mod_name} is\n' +
                  '   port (\n' +
                  '       piFMC_to_ROLE_rank_V : IN STD_LOGIC_VECTOR (31 downto 0);\n' +
+                 '       piFMC_to_ROLE_rank_V_ap_vld: IN STD_LOGIC;\n' +
                  '       piFMC_to_ROLE_size_V : IN STD_LOGIC_VECTOR (31 downto 0);\n' +
                  '       siData_V_tdata_V_dout : IN STD_LOGIC_VECTOR ({in_bitwidth} downto 0);\n' +
                  '       siData_V_tdata_V_empty_n : IN STD_LOGIC;\n' +
@@ -207,7 +208,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
         decl += ('[inst_name]: {ip_mod_name}\n' +
                  'port map (\n' +
                  '    piFMC_to_ROLE_rank_V         => piFMC_ROLE_rank,\n' +
-                 # '    piFMC_to_ROLE_rank_V_ap_vld  => \'1\',\n' +
+                 '    piFMC_to_ROLE_rank_V_ap_vld  => \'1\',\n' +
                  '    piFMC_to_ROLE_size_V         => piFMC_ROLE_size,\n' +
                  # '    piFMC_to_ROLE_size_V_ap_vld  => \'1\',\n' +
                  '    siData_V_tdata_V_dout =>     [in_sig_0]  ,\n' +
