@@ -20,7 +20,7 @@ endif
 
 ${ipName}_prj/solution1/impl/ip: $(DEPS)
 	@rm -rf ${ipName}_prj
-	export dosaIpName=${ipName}; export hlsSim=0; export hlsCoSim=0; export useWrapperTest=1; vivado_hls -f run_hls.tcl
+	export dosaIpName=${ipName}; export hlsSim=0; export hlsCoSim=0; export useWrapperTest=0; vivado_hls -f run_hls.tcl
 	@cat ${ipName}_prj/solution1/syn/report/${appName}_csynth.rpt
 	@touch $@
 	touch $(IP_GUARD)

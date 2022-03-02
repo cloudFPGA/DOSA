@@ -57,7 +57,6 @@ class ZrlmpiWrapper(CommunicationWrapper):
                 elif 'DOSA_REMOVE_START' in line:
                     continue_skip = True
                     continue
-            for line in in_file.readlines():
                 if 'DOSA_ADD_INTERFACE_DEFINES' in line:
                     outline = ''
                     outline += '#define DOSA_WRAPPER_INPUT_IF_BITWIDTH {}\n'.format(self.if_bitwidth)
