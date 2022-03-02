@@ -418,11 +418,11 @@ class InterfaceAxisFifo(WrapperInterface):
         width_dict['from_signals']['4']     = 1
         width_dict['from_signals']['5']     = 1
 
-        width_dict['to_signals']['6']       = self.tlast_bitw
+        width_dict['to_signals']['6']       = self.tlast_bitw + 0.1  # to allow right port map
         width_dict['to_signals']['7_n']     = 1
         width_dict['to_signals']['7']       = 1
         width_dict['to_signals']['8']       = 1
-        width_dict['from_signals']['6']     = self.tlast_bitw
+        width_dict['from_signals']['6']     = self.tlast_bitw + 0.1  # to allow right port map
         width_dict['from_signals']['7_n']   = 1
         width_dict['from_signals']['7']     = 1
         width_dict['from_signals']['8']     = 1
@@ -440,8 +440,8 @@ class InterfaceAxisFifo(WrapperInterface):
         for k in signal_dict['to_signals']:
             sn = signal_dict['to_signals'][k]
             sw = width_dict['to_signals'][k]
-            tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(sw) + '}}\\\n'
-            decl_l = '; probe{i}    : in  std_logic_vector( ' + str(sw - 1) + ' downto 0)\n'  # semicolon at begin
+            tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(int(sw)) + '}}\\\n'
+            decl_l = '; probe{i}    : in  std_logic_vector( ' + str(int(sw - 1)) + ' downto 0)\n'  # semicolon at begin
             if sw == 1:
                 inst_l = ', probe{i}(0)   =>   ' + sn + '\n'  # comma at begin
             else:
@@ -453,8 +453,8 @@ class InterfaceAxisFifo(WrapperInterface):
         for k in signal_dict['from_signals']:
             sn = signal_dict['from_signals'][k]
             sw = width_dict['from_signals'][k]
-            tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(sw) + '}}\\\n'
-            decl_l = '; probe{i}    : in  std_logic_vector( ' + str(sw - 1) + ' downto 0)\n'  # semicolon at begin
+            tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(int(sw)) + '}}\\\n'
+            decl_l = '; probe{i}    : in  std_logic_vector( ' + str(int(sw - 1)) + ' downto 0)\n'  # semicolon at begin
             if sw == 1:
                 inst_l = ', probe{i}(0)   =>   ' + sn + '\n'  # comma at begin
             else:
