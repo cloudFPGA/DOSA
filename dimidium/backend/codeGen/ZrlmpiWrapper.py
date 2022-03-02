@@ -90,7 +90,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                     sorted_instr = self.comm_plan.get_comm_instr_sorted()
                     for self_id in sorted_instr.keys():
                         if len(sorted_instr.keys()) > 1:
-                            outline += f'      if(*role_rank_arg == {self_id})\n'+'      {\n'
+                            outline += f'      if(*role_rank_arg == {self_id})\n' + '      {\n'
                             indent = '  '
                         else:
                             indent = ''
@@ -126,8 +126,9 @@ class ZrlmpiWrapper(CommunicationWrapper):
             line_num = 1
             for line in in_file.readlines():
                 if line_num == 9:
-                    outline = ('#include "../../lib/axi_utils.hpp"\n#include "../../../../cFDK/SRA/LIB/hls/network.hpp"'+
-                               '\n#include "../../../../cFDK/SRA/LIB/hls/cfdk.hpp"\n')
+                    outline = (
+                                '#include "../../lib/axi_utils.hpp"\n#include "../../../../cFDK/SRA/LIB/hls/network.hpp"' +
+                                '\n#include "../../../../cFDK/SRA/LIB/hls/cfdk.hpp"\n')
                 elif line_num in [10, 11]:
                     line_num += 1
                     continue
@@ -250,3 +251,81 @@ class ZrlmpiWrapper(CommunicationWrapper):
         dyn_lines = inst.replace('[', '{').replace(']', '}')
         inst_tmpl = static_lines + dyn_lines
         return inst_tmpl
+
+    def get_debug_lines(self):
+        signal_lines = [
+            'siNRC_Udp_Data_tdata',
+            'siNRC_Udp_Data_tkeep',
+            'siNRC_Udp_Data_tvalid',
+            'siNRC_Udp_Data_tlast',
+            'siNRC_Udp_Data_tready',
+            'siNRC_Role_Udp_Meta_TDATA',
+            'siNRC_Role_Udp_Meta_TVALID',
+            'siNRC_Role_Udp_Meta_TREADY',
+            'siNRC_Role_Udp_Meta_TKEEP',
+            'siNRC_Role_Udp_Meta_TLAST',
+            'soNRC_Udp_Data_tdata',
+            'soNRC_Udp_Data_tkeep',
+            'soNRC_Udp_Data_tvalid',
+            'soNRC_Udp_Data_tlast',
+            'soNRC_Udp_Data_tready',
+            'soROLE_Nrc_Udp_Meta_TDATA',
+            'soROLE_Nrc_Udp_Meta_TVALID',
+            'soROLE_Nrc_Udp_Meta_TREADY',
+            'soROLE_Nrc_Udp_Meta_TKEEP',
+            'soROLE_Nrc_Udp_Meta_TLAST',
+            'sAPP_Fifo_MPIif_din',
+            'sAPP_Fifo_MPIif_full_n',
+            'sAPP_Fifo_MPIif_full',
+            'sAPP_Fifo_MPIif_write',
+            'sAPP_Fifo_MPIdata_din',
+            'sAPP_Fifo_MPIdata_full_n',
+            'sAPP_Fifo_MPIdata_full',
+            'sAPP_Fifo_MPIdata_write',
+            'sFifo_APP_MPIdata_dout',
+            'sFifo_APP_MPIdata_empty_n',
+            'sFifo_APP_MPIdata_empty',
+            'sFifo_APP_MPIdata_read',
+            'sFifo_MPE_MPIif_dout',
+            'sFifo_MPE_MPIif_empty_n',
+            'sFifo_MPE_MPIif_empty',
+            'sFifo_MPE_MPIif_read',
+            'sFifo_MPE_MPIdata_dout',
+            'sFifo_MPE_MPIdata_empty_n',
+            'sFifo_MPE_MPIdata_empty',
+            'sFifo_MPE_MPIdata_read',
+            'sMPE_Fifo_MPIdata_din',
+            'sMPE_Fifo_MPIdata_full_n',
+            'sMPE_Fifo_MPIdata_full',
+            'sMPE_Fifo_MPIdata_write',
+            'sFifo_APP_MPIFeB_dout',
+            'sFifo_APP_MPIFeB_empty_n',
+            'sFifo_APP_MPIFeB_empty',
+            'sFifo_APP_MPIFeB_read',
+            'sMPE_Fifo_MPIFeB_din',
+            'sMPE_Fifo_MPIFeB_full_n',
+            'sMPE_Fifo_MPIFeB_full',
+            'sMPE_Fifo_MPIFeB_write'
+        ]
+        width_lines = [64, 8, 1, 1, 1, 64, 1, 1, 8, 1, 64, 8, 1, 1, 1, 64, 1, 1, 8, 1,
+                       72, 1, 1, 1, 73, 1, 1, 1, 73, 1, 1, 1, 72, 1, 1, 1, 73, 1, 1, 1, 73, 1, 1, 1,
+                       8, 1, 1, 1, 8, 1, 1, 1]
+        assert len(signal_lines) == len(width_lines)
+        tcl_tmpl_lines = []
+        decl_tmpl_lines = []
+        inst_tmpl_lines = []
+
+        for i in range(len(signal_lines)):
+            sn = signal_lines[i]
+            sw = width_lines[i]
+            tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(sw) + '}}\\\n'
+            decl_l = '; probe{i}    : in  std_logic_vector( ' + str(sw - 1) + ' downto 0)\n'  # semicolon at begin
+            if sw == 1:
+                inst_l = ', probe{i}(0)   =>   ' + sn + '\n'  # comma at begin
+            else:
+                inst_l = ', probe{i}      =>   ' + sn + '\n'  # comma at begin
+            tcl_tmpl_lines.append(tcl_l)
+            decl_tmpl_lines.append(decl_l)
+            inst_tmpl_lines.append(inst_l)
+
+        return tcl_tmpl_lines, decl_tmpl_lines, inst_tmpl_lines

@@ -38,4 +38,12 @@ class CommunicationWrapper(metaclass=abc.ABCMeta):
     def get_vhdl_inst_tmpl(self):
         print("[DOSA:WrapperGeneration:ERROR] NOT YET IMPLEMENTED.")
 
+    @abc.abstractmethod
+    def get_debug_lines(self):
+        """
+        :return: tcl_template lines, vhdl_decl lines, vhdl_instantiation lines as list
+                    all having {i} as template for probe number
+        """
+        print("[DOSA:WrapperGeneration:ERROR] NOT YET IMPLEMENTED.")
+
 

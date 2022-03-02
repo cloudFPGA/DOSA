@@ -288,6 +288,10 @@ class Haddoc2OSG(BaseOSG):
         build_tool.topVhdl.add_lib_include('work', lib_lines)
         build_tool.topVhdl.add_proc_comp_inst(arch_block, wrapper_decl, wrapper_inst_tmpl, wrapper_input_fifo,
                                               wrapper_output_fifo)
+        tcl_tmp, decl_tmp, inst_tmp = wrapper_input_fifo.get_debug_lines()
+        build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
+        tcl_tmp, decl_tmp, inst_tmp = wrapper_output_fifo.get_debug_lines()
+        build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
         return 0
 
     def build_container(self, container, build_tool):

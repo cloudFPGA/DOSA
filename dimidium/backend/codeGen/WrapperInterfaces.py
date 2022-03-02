@@ -85,6 +85,14 @@ class WrapperInterface(metaclass=abc.ABCMeta):
         """
         print("[DOSA:WrapperGeneration:ERROR] NOT YET IMPLEMENTED.")
 
+    @abc.abstractmethod
+    def get_debug_lines(self):
+        """
+        :return: tcl_template lines, vhdl_decl lines, vhdl_instantiation lines as list
+                    all having {i} as template for probe number
+        """
+        print("[DOSA:WrapperGeneration:ERROR] NOT YET IMPLEMENTED.")
+
 
 class InterfaceVectorFifo(WrapperInterface):
 
@@ -153,6 +161,53 @@ class InterfaceVectorFifo(WrapperInterface):
         signal_dict['from_signals']['1'] = 'sTo{}_empty'.format(self.name)
         signal_dict['from_signals']['2'] = 'sTo{}_read'.format(self.name)
         return signal_dict
+
+    def _get_vhdl_signal_width_dict(self):
+        with_dict = {'to_signals': {}, 'from_signals': {}}
+        with_dict['to_signals']['0']        = self.bitwidth
+        with_dict['to_signals']['1_n']      = 1
+        with_dict['to_signals']['1']        = 1
+        with_dict['to_signals']['2']        = 1
+        with_dict['from_signals']['0']      = self.bitwidth
+        with_dict['from_signals']['1_n']    = 1
+        with_dict['from_signals']['1']      = 1
+        with_dict['from_signals']['2']      = 1
+        return with_dict
+
+    def get_debug_lines(self):
+        signal_dict = self.get_vhdl_signal_dict()
+        width_dict = self._get_vhdl_signal_width_dict()
+        tcl_tmpl_lines = []
+        decl_tmpl_lines = []
+        inst_tmpl_lines = []
+
+        for k in signal_dict['to_signals']:
+            sn = signal_dict['to_signals'][k]
+            sw = width_dict['to_signals'][k]
+            tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(sw) + '}}\n'
+            decl_l = '; probe{i}    : in  std_logic_vector( ' + str(sw - 1) + ' downto 0)\\\n'  # semicolon at begin
+            if sw == 1:
+                inst_l = ', probe{i}(0)   =>   ' + sn + '\n'  # comma at begin
+            else:
+                inst_l = ', probe{i}      =>   ' + sn + '\n'  # comma at begin
+            tcl_tmpl_lines.append(tcl_l)
+            decl_tmpl_lines.append(decl_l)
+            inst_tmpl_lines.append(inst_l)
+
+        for k in signal_dict['from_signals']:
+            sn = signal_dict['from_signals'][k]
+            sw = width_dict['from_signals'][k]
+            tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(sw) + '}}\n'
+            decl_l = '; probe{n}    : in  std_logic_vector( ' + str(sw - 1) + ' downto 0)\\\n'  # semicolon at begin
+            if sw == 1:
+                inst_l = ', probe{i}(0)   =>   ' + sn + '\n'  # comma at begin
+            else:
+                inst_l = ', probe{i}      =>   ' + sn + '\n'  # comma at begin
+            tcl_tmpl_lines.append(tcl_l)
+            decl_tmpl_lines.append(decl_l)
+            inst_tmpl_lines.append(inst_l)
+
+        return tcl_tmpl_lines, decl_tmpl_lines, inst_tmpl_lines
 
 
 class InterfaceAxisFifo(WrapperInterface):
@@ -339,3 +394,74 @@ class InterfaceAxisFifo(WrapperInterface):
         signal_dict['from_signals']['7'] = 'sTo{}_empty'.format(self.name + '_tlast')
         signal_dict['from_signals']['8'] = 'sTo{}_read'.format(self.name + '_tlast')
         return signal_dict
+
+    def _get_vhdl_signal_width_dict(self):
+        if self._calc_bitw_ != self.bitwidth:
+            self._calculate_bitws()
+        width_dict = {'to_signals': {}, 'from_signals': {}}
+
+        width_dict['to_signals']['0']       = self.tdata_bitw
+        width_dict['to_signals']['1_n']     = 1
+        width_dict['to_signals']['1']       = 1
+        width_dict['to_signals']['2']       = 1
+        width_dict['from_signals']['0']     = self.tdata_bitw
+        width_dict['from_signals']['1_n']   = 1
+        width_dict['from_signals']['1']     = 1
+        width_dict['from_signals']['2']     = 1
+
+        width_dict['to_signals']['3']       = self.tkeep_bitw
+        width_dict['to_signals']['4_n']     = 1
+        width_dict['to_signals']['4']       = 1
+        width_dict['to_signals']['5']       = 1
+        width_dict['from_signals']['3']     = self.tkeep_bitw
+        width_dict['from_signals']['4_n']   = 1
+        width_dict['from_signals']['4']     = 1
+        width_dict['from_signals']['5']     = 1
+
+        width_dict['to_signals']['6']       = self.tlast_bitw
+        width_dict['to_signals']['7_n']     = 1
+        width_dict['to_signals']['7']       = 1
+        width_dict['to_signals']['8']       = 1
+        width_dict['from_signals']['6']     = self.tlast_bitw
+        width_dict['from_signals']['7_n']   = 1
+        width_dict['from_signals']['7']     = 1
+        width_dict['from_signals']['8']     = 1
+        return width_dict
+
+    def get_debug_lines(self):
+        if self._calc_bitw_ != self.bitwidth:
+            self._calculate_bitws()
+        signal_dict = self.get_vhdl_signal_dict()
+        width_dict = self._get_vhdl_signal_width_dict()
+        tcl_tmpl_lines = []
+        decl_tmpl_lines = []
+        inst_tmpl_lines = []
+
+        for k in signal_dict['to_signals']:
+            sn = signal_dict['to_signals'][k]
+            sw = width_dict['to_signals'][k]
+            tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(sw) + '}}\\\n'
+            decl_l = '; probe{i}    : in  std_logic_vector( ' + str(sw - 1) + ' downto 0)\n'  # semicolon at begin
+            if sw == 1:
+                inst_l = ', probe{i}(0)   =>   ' + sn + '\n'  # comma at begin
+            else:
+                inst_l = ', probe{i}      =>   ' + sn + '\n'  # comma at begin
+            tcl_tmpl_lines.append(tcl_l)
+            decl_tmpl_lines.append(decl_l)
+            inst_tmpl_lines.append(inst_l)
+
+        for k in signal_dict['from_signals']:
+            sn = signal_dict['from_signals'][k]
+            sw = width_dict['from_signals'][k]
+            tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(sw) + '}}\\\n'
+            decl_l = '; probe{i}    : in  std_logic_vector( ' + str(sw - 1) + ' downto 0)\n'  # semicolon at begin
+            if sw == 1:
+                inst_l = ', probe{i}(0)   =>   ' + sn + '\n'  # comma at begin
+            else:
+                inst_l = ', probe{i}      =>   ' + sn + '\n'  # comma at begin
+            tcl_tmpl_lines.append(tcl_l)
+            decl_tmpl_lines.append(decl_l)
+            inst_tmpl_lines.append(inst_l)
+
+        return tcl_tmpl_lines, decl_tmpl_lines, inst_tmpl_lines
+

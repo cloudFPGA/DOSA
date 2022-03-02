@@ -43,6 +43,8 @@ class ZrlmpiCommLib(BaseCommLib):
             zrlmpi_vhdl_decl = comm_wrapper.get_wrapper_vhdl_decl_lines()
             zrlmpi_inst_tmpl = comm_wrapper.get_vhdl_inst_tmpl()
             build_tool.topVhdl.set_network_adapter(zrlmpi_vhdl_decl, zrlmpi_inst_tmpl, [InterfaceAxisFifo])
+            tcl_tmp, decl_tmp, inst_tmp = comm_wrapper.get_debug_lines()
+            build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
         elif isinstance(build_tool, BaseSwBuild):
             if comm_plan.node.node_id == 0:
                 # SW app

@@ -10,15 +10,15 @@
 #  *        for DOSA build tools
 #  *
 #  *
-
+from dimidium.backend.codeGen.IlaDebugCore import IlaDebugCore
 from dimidium.backend.codeGen.WrapperInterfaces import WrapperInterface, InterfaceAxisFifo
 
 
 class VhdlEntity:
 
-    def __init__(self, template_file=None):
+    def __init__(self, template_file=None, use_debug=False):
         self.template_file = template_file
-        self.signal_decls = []
+        # self.signal_decls = []
         self.comp_decls = {}
         self.network_adapter_inst = None
         # self.network_output_adapter_inst = None
@@ -27,6 +27,8 @@ class VhdlEntity:
         self.add_tcl_valid = False
         self.add_tcl_lines = []
         self.lib_includes = {}
+        self.debug_core = IlaDebugCore()
+        self.inst_debug = use_debug
 
     def set_template(self, template_file):
         self.template_file = template_file
@@ -42,8 +44,8 @@ class VhdlEntity:
     def add_comp_decls(self, name, decl_lines):
         self.comp_decls[name] = decl_lines
 
-    def add_signal_decls(self, decl_lines):
-        self.signal_decls.append(decl_lines)
+    # def add_signal_decls(self, decl_lines):
+    #     self.signal_decls.append(decl_lines)
 
     def add_lib_include(self, lib_name, use_lines: list):
         if lib_name in self.lib_includes:
@@ -84,8 +86,22 @@ class VhdlEntity:
         # for pci in self.processing_comp_insts.keys():
         #     pc = self.processing_comp_insts[pci]
         #     tcl_l = pc['input_if'].get_tcl_lines()
+        # generate debug
+        add_decl_lines = ''
+        add_inst_lines = ''
+        if self.inst_debug:
+            add_decl_lines = self.debug_core.get_vhdl_decl()
+            map_dict = {
+                        'clk': 'piSHL_156_25Clk',
+                        'rst': 'piMMIO_Ly7_Rst',
+                        'rst_n': 'sResetApps_n',
+                        'enable': 'piMMIO_Ly7_En'
+                        }
+            add_inst_lines = self.debug_core.get_vhdl_inst_tmpl().format_map(map_dict)
         # 2. add output_if tcl
         tcl_lines = output_if.get_tcl_lines()
+        if self.inst_debug:
+            tcl_lines += self.debug_core.get_tcl_lines()
         self.add_tcl_lines.append(tcl_lines)
         self.add_tcl_valid = True
         # 3. write vhdl, from top to bottom
@@ -117,6 +133,7 @@ class VhdlEntity:
                         comp_decl = self.comp_decls[dk]
                         outline += '\n' + comp_decl
                     outline += '\n'
+                    outline += add_decl_lines
                 elif 'DOSA_ADD_inst_lines' in line:
                     outline = '  -- DOSA generated instantiations\n'
                     outline += '\n  -- Instantiate network adapter\n'
@@ -273,6 +290,7 @@ class VhdlEntity:
                     new_inst = inst_tmpl.format_map(map_dict)
                     outline += '\n' + new_inst
                     outline += '\n'
+                    outline += add_inst_lines
                 else:
                     outline = line
                 out_file.write(outline)

@@ -79,8 +79,8 @@ class BaseSwBuild(BaseBuild, metaclass=abc.ABCMeta):
 
 class HwBuildTopVhdl(BaseHwBuild, metaclass=abc.ABCMeta):
 
-    def __init__(self, name, target_device, build_dir=None):
+    def __init__(self, name, target_device, build_dir=None, use_debug=False):
         super().__init__(name, target_device, build_dir)
-        self.topVhdl = VhdlEntity()
+        self.topVhdl = VhdlEntity(use_debug=use_debug)
 
 

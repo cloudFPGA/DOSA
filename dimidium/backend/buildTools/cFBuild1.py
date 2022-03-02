@@ -31,7 +31,7 @@ class cFBuild1(HwBuildTopVhdl):
     build_wide_structure_created = False
 
     def __init__(self, name, target_device: DosaBaseHw, build_dir=None):
-        super().__init__(name, target_device, build_dir)
+        super().__init__(name, target_device, build_dir, use_debug=True)
         self.basic_structure_created = False
         self.global_hls_dir = None
 
