@@ -52,6 +52,42 @@ inline uint8_t extractByteCnt(Axis<64> &currWord)
   return ret;
 }
 
+inline uint8_t byteCntToTKeep(uint8_t byte_cnt)
+{
+#pragma HLS INLINE
+
+  uint8_t ret = 0;
+
+  switch (byte_cnt) {
+    case 8:
+      ret = 0b11111111;
+      break;
+    case 7:
+      ret = 0b01111111;
+      break;
+    case 6:
+      ret = 0b00111111;
+      break;
+    case 5:
+      ret = 0b00011111;
+      break;
+    case 4:
+      ret = 0b00001111;
+      break;
+    case 3:
+      ret = 0b00000111;
+      break;
+    case 2:
+      ret = 0b00000011;
+      break;
+    default:
+    case 1:
+      ret = 0b00000001;
+      break;
+  }
+  return ret;
+}
+
 //TODO: add 512 and 2048 version?
 
 

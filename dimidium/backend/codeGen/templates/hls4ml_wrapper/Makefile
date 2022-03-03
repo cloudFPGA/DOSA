@@ -1,5 +1,5 @@
 # Name of the HLS core to build (inserted by DOSA)
-ipName =haddoc_wrapper_test
+ipName =hls4ml_wrapper_test
 
 # line 4: don't modify below, above lines are ignored by DOSA generation
 appName =${ipName}

@@ -871,13 +871,13 @@ void pFromHaddocDeq(
       if( !soData.full() )
       {
         combined_output = hangover_store;
-        ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
+        ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
         uint8_t tkeep_offset_hangover = 0x0;
         for(int k = 0; k < (DOSA_HADDOC_GENERAL_BITWIDTH+7)/8; k++)
         {
-          if(hangover_store_valid_bits > k)
+          if(hangover_store_valid_bits > k*8)
           {
-            tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) 0b1) << k;
+            tkeep |= ((ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) 0b1) << k;
             tkeep_offset_hangover++;
           } else {
             break;
@@ -925,7 +925,7 @@ void pFromHaddocDeq(
           //{
             for(int k = 0; k < DOSA_HADDOC_GENERAL_BITWIDTH/8; k++)
             {
-              tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) 0b1) << r*(DOSA_HADDOC_GENERAL_BITWIDTH/8) + k + tkeep_offset_hangover;
+              tkeep |= ((ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) 0b1) << r*(DOSA_HADDOC_GENERAL_BITWIDTH/8) + k + tkeep_offset_hangover;
             }
           //}
           printf("pFromHaddocDeq: read %2.2x, from position %d in channels %d and slot %d\n", (uint8_t) nv, (uint16_t) cur_read_position, (uint8_t) cur_channel, (uint8_t) current_array_slot_pnt);
