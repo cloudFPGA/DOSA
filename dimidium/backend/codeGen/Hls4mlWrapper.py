@@ -116,7 +116,8 @@ class Hls4mlWrapper:
         # also adding hls4ml ArchBlock export
         new_tcl_lines += '\n\n'
         new_tcl_lines += template_lines.format(DOSA_FMSTR_DESCR='Hls4ml instantiation',
-                                               DOSA_FMSTR_MOD_NAME='HSL4ML_ArchBlock_{}'.format(self.block_id),
+                                               # both 'names' must be different, apparently...
+                                               DOSA_FMSTR_MOD_NAME='HLS4ML_ArchBlock_{}'.format(self.block_id),
                                                DOSA_FMSTR_IP_NAME='ArchBlock_{}'.format(self.block_id))
         return new_tcl_lines
 
