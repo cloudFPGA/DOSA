@@ -293,8 +293,9 @@ class Haddoc2OSG(BaseOSG):
         # adding debug
         tcl_tmp, decl_tmp, inst_tmp = wrapper_input_fifo.get_debug_lines()
         build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
-        tcl_tmp, decl_tmp, inst_tmp = wrapper_output_fifo.get_debug_lines()
-        build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
+        # unsure if output will be used --> add debug lines later
+        # tcl_tmp, decl_tmp, inst_tmp = wrapper_output_fifo.get_debug_lines()
+        # build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
         tcl_tmp, decl_tmp, inst_tmp = block_wrapper.get_debug_lines()
         build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
         return 0

@@ -82,6 +82,8 @@ class VhdlEntity:
             output_if = out_type('output_node_end', last_brick.output_bw_Bs, target_device)
         else:
             output_if = self.processing_comp_insts[self.next_proc_comp_cnt - 1]['output_if']
+        tcl_tmp, decl_tmp, inst_tmp = output_if.get_debug_lines()
+        self.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
         # get tcl from all interfaces --> no, is done by OSGs
         # for pci in self.processing_comp_insts.keys():
         #     pc = self.processing_comp_insts[pci]

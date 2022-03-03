@@ -32,7 +32,8 @@ void pStateControl(
     stream<bool>            &sReceiveReset,
     stream<bool>            &sSendReset,
     stream<bool>            &sReceiveDone,
-    stream<bool>            &sSendDone
+    stream<bool>            &sSendDone,
+    ap_uint<32> *debug_out
   )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -212,6 +213,9 @@ void pStateControl(
       }
       break;
   }
+
+  //to always "use" piFMC_to_ROLE_rank
+  *debug_out = *role_rank_arg;
 }
 
 
@@ -1016,7 +1020,7 @@ void zrlmpi_wrapper(
 
   //process with highest II last
   pStateControl(role_rank_arg, cluster_size_arg, soMPIif, siMPIFeB, sReceiveLength, sSendLength, sReceiveReset, sSendReset,
-                sReceiveDone, sSendDone);
+                sReceiveDone, sSendDone, debug_out);
 
 }
 

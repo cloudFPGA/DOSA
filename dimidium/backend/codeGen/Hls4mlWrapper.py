@@ -116,7 +116,7 @@ class Hls4mlWrapper:
         # also adding hls4ml ArchBlock export
         new_tcl_lines += '\n\n'
         new_tcl_lines += template_lines.format(DOSA_FMSTR_DESCR='Hls4ml instantiation',
-                                               DOSA_FMSTR_MOD_NAME='ArchBlock_{}'.format(self.block_id),
+                                               DOSA_FMSTR_MOD_NAME='HSL4ML_ArchBlock_{}'.format(self.block_id),
                                                DOSA_FMSTR_IP_NAME='ArchBlock_{}'.format(self.block_id))
         return new_tcl_lines
 
@@ -129,7 +129,7 @@ class Hls4mlWrapper:
                 'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tready : std_ulogic;\n' +
                 'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid : std_ulogic;\n')
         decl += '\n'
-        decl += ('component ArchBlock_{block_id} is\n' +
+        decl += ('component HLS4ML_ArchBlock_{block_id} is\n' +
                  'port (\n' +
                  '    input_0_V_TDATA : IN STD_LOGIC_VECTOR ({acc_inw_sub} downto 0);\n' +
                  '    output_0_V_TDATA : OUT STD_LOGIC_VECTOR ({acc_outw_sub} downto 0);\n' +
@@ -148,7 +148,7 @@ class Hls4mlWrapper:
                  '    ap_ready : OUT STD_LOGIC;\n' +
                  '    ap_idle : OUT STD_LOGIC\n' +
                  '  );\n' +
-                 'end component ArchBlock_{block_id};\n')
+                 'end component HLS4ML_ArchBlock_{block_id};\n')
         decl += '\n'
         decl += ('component {ip_mod_name} is\n' +
                  'port (\n' +
@@ -223,7 +223,7 @@ class Hls4mlWrapper:
                 # '    debug_out_V_ap_vld =>  \n' +  # no comma
                 ');\n')
         decl += '\n'
-        decl += ('[inst_name]: ArchBlock_{block_id}\n' +
+        decl += ('[inst_name]: HLS4ML_ArchBlock_{block_id}\n' +
                  'port map (\n' +
                  '    input_0_V_TDATA   =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata ,\n' +
                  '    input_0_V_TVALID  =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid,\n' +

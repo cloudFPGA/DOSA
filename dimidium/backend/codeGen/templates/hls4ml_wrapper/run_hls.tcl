@@ -26,7 +26,7 @@ set solutionName   "solution1"
 set xilPartName    "xcku060-ffva1156-2-i"
 
 set ipName         ${projectName}
-set ipDisplayName  "Wrapper for Haddoc2 Layers"
+set ipDisplayName  "Wrapper for HLS4ML Layers"
 set ipDescription  "Application for cloudFPGA"
 set ipVendor       "IBM"
 set ipLibrary      "hls"
