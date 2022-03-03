@@ -368,12 +368,12 @@ class Haddoc2Wrapper:
 
     def get_debug_lines(self):
         signal_lines = [
-            's{ip_mod_name}_to_Haddoc_b{block_id}_data\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
-            's{ip_mod_name}_to_Haddoc_b{block_id}_dv\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
-            's{ip_mod_name}_to_Haddoc_b{block_id}_fv\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
-            'sHaddoc_b{block_id}_to_{ip_mod_name}_data\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
-            'sHaddoc_b{block_id}_to_{ip_mod_name}_dv\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
-            'sHaddoc_b{block_id}_to_{ip_mod_name}_fv\n'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            's{ip_mod_name}_to_Haddoc_b{block_id}_data'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            's{ip_mod_name}_to_Haddoc_b{block_id}_dv'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            's{ip_mod_name}_to_Haddoc_b{block_id}_fv'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            'sHaddoc_b{block_id}_to_{ip_mod_name}_data'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            'sHaddoc_b{block_id}_to_{ip_mod_name}_dv'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            'sHaddoc_b{block_id}_to_{ip_mod_name}_fv'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
         ]
         width_lines = [(self.general_bitw * self.in_dims[1]), 1, 1,
                        (self.general_bitw * self.out_dims[1]), 1, 1]

@@ -255,6 +255,7 @@ class Haddoc2OSG(BaseOSG):
             topologyParsing.InstanceDynOutputLayer(topf, previous_layer_name)
             topologyParsing.WriteArchitectureEnd(topf)
 
+        # wrapper & interface generation
         wrapper_input_fifo = InterfaceAxisFifo('input_{}'.format(arch_block.block_uuid),
                                                wrapper_first_brick.input_bw_Bs, build_tool.target_device)
         if build_tool.topVhdl.next_proc_comp_cnt == 0:

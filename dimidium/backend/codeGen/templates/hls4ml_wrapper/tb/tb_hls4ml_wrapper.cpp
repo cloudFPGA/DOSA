@@ -39,6 +39,9 @@ stream<ap_uint<DOSA_HLS4ML_OUTPUT_BITWIDTH> >   siFromHls4mlData("siFromHls4mlDa
 // ----- DEBUG IO ------
 ap_uint<32> debug_out = 0;
 
+#define DOSA_HLS4ML_INPUT_CHAN_NUM 3
+#define DOSA_HLS4ML_OUTPUT_CHAN_NUM 4
+#define DOSA_HLS4ML_INPUT_FRAME_WIDTH 10
 
 //------------------------------------------------------
 //-- TESTBENCH GLOBAL VARIABLES

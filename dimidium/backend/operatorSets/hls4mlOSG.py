@@ -17,7 +17,9 @@ import numpy as np
 import tvm.relay
 
 import dimidium.lib.singleton as dosa_singleton
-from dimidium.backend.buildTools.BaseBuild import BaseHwBuild
+from dimidium.backend.buildTools.BaseBuild import BaseHwBuild, HwBuildTopVhdl
+from dimidium.backend.codeGen.Hls4mlWrapper import Hls4mlWrapper
+from dimidium.backend.codeGen.WrapperInterfaces import InterfaceAxisFifo, wrapper_default_interface_bitwidth
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
@@ -177,7 +179,7 @@ class Hls4mlOSG(BaseOSG):
         return int(max)
 
     def build_block(self, arch_block, build_tool):
-        assert isinstance(build_tool, BaseHwBuild)
+        assert isinstance(build_tool, HwBuildTopVhdl)
         used_dir_path = build_tool.add_ip_dir(arch_block.block_uuid)
         project_name = 'ArchBlock_{}'.format(arch_block.block_uuid)
         used_dtype = DosaDtype.int32
@@ -383,22 +385,34 @@ class Hls4mlOSG(BaseOSG):
         layer_names_ordered = []
         layer_confs = []
         last_layer_name = ''
+        wrapper_first_brick = None
+        wrapper_last_brick = None
+        wrapper_first_op = None
+        wrapper_last_op = None
         for bb in arch_block.brick_list:
             # for op in bb.local_op_iter_gen():
+            if wrapper_first_brick is None:
+                wrapper_first_brick = bb
+            wrapper_last_brick = bb
             bb_speedup_req = bb.req_flops / bb.flops
             skip_i = []
             for op_i in bb.ops.keys():
                 if op_i in skip_i:
                     continue
                 op = bb.ops[op_i]
+                if wrapper_first_op is None:
+                    wrapper_first_op = op
+                wrapper_last_op = op
                 next_i = op_i + 1
                 next_op = None
                 if next_i in bb.ops.keys():
                     next_op = bb.ops[next_i]
+                    wrapper_last_op = next_op
                 next_next_i = op_i + 2
                 next_next_op = None
                 if next_next_i in bb.ops.keys():
                     next_next_op = bb.ops[next_next_i]
+                    wrapper_last_op = next_next_op
                 layer_name = self._create_unique_layer_name(op.name)
                 layer_names_by_op_id[op.global_op_id] = layer_name
                 layer_names_ordered.append(layer_name)
@@ -452,9 +466,45 @@ class Hls4mlOSG(BaseOSG):
         # arch_block.add_synth_entry(synth_entry)
         self.write_makefile(used_dir_path, project_name, reset=True)
         build_tool.add_makefile_entry(used_dir_path, 'all')
-        # TODO: merge with cF ip core tcl scripts? ip_export?
-        # TODO: generate wrapper
-        # TODO: generate vhdl component and instance, for node integration
+        # wrapper & interface generation
+        wrapper_input_fifo = InterfaceAxisFifo('input_{}'.format(arch_block.block_uuid),
+                                               wrapper_first_brick.input_bw_Bs, build_tool.target_device)
+        if build_tool.topVhdl.next_proc_comp_cnt == 0:
+            # i.e. we are connected to the input
+            wrapper_input_fifo.bitwidth = wrapper_default_interface_bitwidth
+        if_in_bitw = wrapper_input_fifo.get_if_bitwidth()
+        wrapper_output_fifo = InterfaceAxisFifo('output_{}'.format(arch_block.block_uuid),
+                                                wrapper_last_brick.output_bw_Bs, build_tool.target_device)
+        if len(arch_block.parent_node.arch_block_list) < 2:
+            # we are the only one, so output must also be set
+            wrapper_output_fifo.bitwidth = wrapper_default_interface_bitwidth
+        if_out_bitw = wrapper_output_fifo.get_if_bitwidth()
+        # if_fifo_name = wrapper_input_fifo.get_if_name()
+        if_axis_tcl = wrapper_input_fifo.get_tcl_lines()
+        build_tool.add_tcl_entry(if_axis_tcl)
+
+        wrapper_dir_path = build_tool.add_ip_dir('{}_wrapper'.format(arch_block.block_uuid))
+        block_wrapper = Hls4mlWrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_last_op.dims.out,
+                                      get_bitwidth_of_DosaDtype(wrapper_first_brick.used_dtype),
+                                      get_bitwidth_of_DosaDtype(wrapper_last_brick.used_dtype),
+                                      if_in_bitw, if_out_bitw, wrapper_dir_path)
+        block_wrapper.generate()
+        build_tool.add_makefile_entry(wrapper_dir_path, 'all')
+        wrapper_inst_tcl = block_wrapper.get_tcl_lines_wrapper_inst()
+        build_tool.add_tcl_entry(wrapper_inst_tcl)
+        wrapper_decl = block_wrapper.get_wrapper_vhdl_decl_lines()
+        wrapper_inst_tmpl = block_wrapper.get_vhdl_inst_tmpl()
+
+        build_tool.topVhdl.add_proc_comp_inst(arch_block, wrapper_decl, wrapper_inst_tmpl, wrapper_input_fifo,
+                                              wrapper_output_fifo)
+
+        # adding debug
+        tcl_tmp, decl_tmp, inst_tmp = wrapper_input_fifo.get_debug_lines()
+        build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
+        tcl_tmp, decl_tmp, inst_tmp = wrapper_output_fifo.get_debug_lines()
+        build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
+        tcl_tmp, decl_tmp, inst_tmp = block_wrapper.get_debug_lines()
+        build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
         return 0
 
     def build_container(self, container, build_tool):
