@@ -18,7 +18,7 @@ _valid_fifo_depth_ = [4096, 8192, 16384]
 
 class IlaDebugCore:
 
-    def __init__(self, fifo_depth=_valid_fifo_depth_[1]):
+    def __init__(self, fifo_depth=_valid_fifo_depth_[0]):
         self.tcl_templates = []
         self.decl_templates = []
         self.inst_templates = []
