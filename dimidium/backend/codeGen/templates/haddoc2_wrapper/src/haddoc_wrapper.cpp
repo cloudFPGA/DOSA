@@ -971,10 +971,11 @@ void pFromHaddocDeq(
           {
             tlast = 0b1;
           }
-        } else {
-          //stay here
-          dequeueFSM = READ_FRAME;
         }
+        //else {
+        //  //stay here
+        //  dequeueFSM = READ_FRAME;
+        //}
         Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) combined_output, tkeep, tlast);
         soData.write(tmp_write_0);
         printf("pFromHaddocDeq: write Axis tdata: %16.16llx, tkeep: %2.2x, tlast: %x;\n", (uint64_t) tmp_write_0.getTData(), (uint8_t) tmp_write_0.getTKeep(), (uint8_t) tmp_write_0.getTLast());

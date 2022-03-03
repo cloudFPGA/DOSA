@@ -217,11 +217,10 @@ void pFromAcc(
         //printf("total_bit_cnt: %d\n", total_bit_cnt);
         for(int k = 0; k < DOSA_WRAPPER_OUTPUT_IF_BITWIDTH/8; k++)
         {
-          if(k*8 >= total_bit_cnt)
+          if(k*8 < total_bit_cnt)
           {
-            break;
+            tkeep |= ((ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) 0b1) << k;
           }
-          tkeep |= ((ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) 0b1) << k;
         }
         //tkeep = (ap_uint<(DOSA_HLS4ML_OUTPUT_BITWIDTH+7)/8>) byteCntToTKeep((uint8_t) (bits_read + hangover_store_valid_bits));
 
