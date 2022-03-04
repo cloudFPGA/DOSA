@@ -21,6 +21,10 @@ static uint8_t curRep = 0;
 
 void init(int argc, char **argv)
 {
+  //for(int i =0; i<argc; i++)
+  //{
+  //  printf("%d: %s\n",i,argv[i]);
+  //}
   MPI_Init(&argc, &argv);
 }
 

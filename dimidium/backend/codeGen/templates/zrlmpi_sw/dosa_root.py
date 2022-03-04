@@ -115,10 +115,19 @@ class DosaRoot:
 
     def init(self, mpi_arg_list):
         argc = len(mpi_arg_list) + 1
-        argv = __so_lib_name__ + ' '.join(mpi_arg_list)
-        self.c_lib.init(ctypes.c_int(argc), ctypes.c_char_p(bytes(argv, 'ascii')))
+        argv = __so_lib_name__ + ' ' + ' '.join(mpi_arg_list)
+        argv += ' \0'
+        # print(argv)
+        arglist = [__so_lib_name__]
+        arglist.extend(mpi_arg_list)
+        blist = []
+        for a in arglist:
+            blist.append(bytes(a, 'ascii'))
+        cargs = (ctypes.c_char_p * len(blist))(*blist)
+        #self.c_lib.init(ctypes.c_int(argc), ctypes.c_char_p(bytes(argv, 'ascii')))
+        self.c_lib.init(ctypes.c_int(argc), cargs)
 
-    def init_from_cluster(self, cluster_id, json_file='./user.json'):
+    def init_from_cluster(self, cluster_id, host_address, json_file='./user.json'):
         _, user_dict = load_user_credentials(json_file)
         self.user_dict = user_dict
         cluster = get_cluster_data(cluster_id, user_dict)
@@ -126,13 +135,13 @@ class DosaRoot:
         slot_ip_list = [0]*number_of_nodes
         print("Ping all nodes, build ARP table...")
         sw_node_id = 0
-        host_address = 'localhost'
+        # host_address = 'localhost'
         for node in cluster['nodes']:
             if node['image_id'] == __NON_FPGA_IDENTIFIER__:
                 sw_node_id = node['node_id']
-                if host_address != 'localhost':
-                    print("Warning: More than one CPU host in cluster, that's unexpected...")
-                host_address = node['node_ip']
+                # if host_address != 'localhost':
+                #     print("Warning: More than one CPU host in cluster, that's unexpected...")
+                # host_address = node['node_ip']
                 slot_ip_list[sw_node_id] = __NON_FPGA_IDENTIFIER__
                 continue
             subprocess.call(["/usr/bin/ping","-I{}".format(host_address), "-c3", "{0}".format(node['node_ip'])],
@@ -145,6 +154,7 @@ class DosaRoot:
         for e in slot_ip_list:
             if e != __NON_FPGA_IDENTIFIER__:
                 arg_list.append(e)
+        # print(arg_list)
         self.init(arg_list)
 
     def infer(self, x: np.ndarray, output_shape, debug=False):
