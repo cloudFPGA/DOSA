@@ -13,7 +13,7 @@
 
 from dimidium.backend.codeGen.WrapperInterfaces import WrapperInterface, InterfaceAxisFifo
 
-_valid_fifo_depth_ = [4096, 8192, 16384]
+_valid_fifo_depth_ = [2048, 4096, 8192, 16384]
 
 
 class IlaDebugCore:

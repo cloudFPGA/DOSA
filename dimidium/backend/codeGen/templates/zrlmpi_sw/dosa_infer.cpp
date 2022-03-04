@@ -16,7 +16,7 @@ static uint32_t nextCommandPtr = 0x0;
 static uint8_t curIterationCnt = 0x0;
 static uint8_t curCmnd = MPI_INSTR_NOP;
 static uint8_t curRank = MPI_NO_RANK;
-static uint8_t curCount = 0;
+static uint32_t curCount = 0;
 static uint8_t curRep = 0;
 
 void init(int argc, char **argv)
@@ -36,7 +36,7 @@ void reset_state()
 }
 
 
-int infer(int *input, int input_length, int *output, int output_length)
+int infer(int *input, uint32_t input_length, int *output, uint32_t output_length)
 {
   int rank;
   int size;

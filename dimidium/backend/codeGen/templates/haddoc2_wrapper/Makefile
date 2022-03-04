@@ -25,8 +25,8 @@ ${ipName}_prj/solution1/impl/ip: $(DEPS)
 	@cat ${ipName}_prj/solution1/syn/report/${appName}_csynth.rpt
 	@echo "-" > .tmp_stamp_2
 	@date +%s > .tmp_stamp_1
-	@/usr/bin/echo -n "HLS4ML build time: "
-	@/bin/bash -c "cat <(cat .tmp_stamp_* | tr '\n' ' ') <(echo '') | /usr/bin/bc -l"
+	@echo -n "HLS4ML build time: "
+	@/bin/bash -c "cat <(cat .tmp_stamp_* | tr '\n' ' ') <(echo '') | /usr/bin/bc -l || echo 'see .tmp_stamp files'"
 	@touch $@
 	touch $(IP_GUARD)
 	@# to be sure...

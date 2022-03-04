@@ -24,13 +24,16 @@
 //#define DEBUG2
 
 //DOCSTRING...
-void init(int argc, char **argv);
+__attribute__ ((visibility("default")))
+extern "C" void init(int argc, char **argv);
 
 //DOCSTRING...
-void reset_state();
+__attribute__ ((visibility("default")))
+extern "C" void reset_state();
 
 //DOCSTRING...
-int infer(int *input, int input_length, int *output, int output_length);
+__attribute__ ((visibility("default")))
+extern "C" int infer(int *input, uint32_t input_length, int *output, uint32_t output_length);
 
 
 #endif
