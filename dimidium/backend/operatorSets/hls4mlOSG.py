@@ -143,8 +143,8 @@ class Hls4mlOSG(BaseOSG):
                 .format(reset=int(reset), csim=int(csim), synth=int(synth), cosim=int(cosim),
                         validation=int(validation), export=int(export), vsynth=int(vsynth))
             m_file.write(new_str)
-            m_file.write('all: {}\n\n'.format(project_name))
-            new_str = ('{project}:\n\t@date +%s > .tmp_stamp_3\n\tvivado_hls -f build_prj.tcl \n'
+            m_file.write('all: {}_prj/solution1/impl/ip\n\n'.format(project_name))
+            new_str = ('{project}_prj/solution1/impl/ip:\n\t@date +%s > .tmp_stamp_3\n\tvivado_hls -f build_prj.tcl \n'
                        + '\t@cat {project}_prj/solution1/syn/report/{project}_csynth.rpt\n\t@echo "-" > .tmp_stamp_2' +
                        '\n\t@date +%s > .tmp_stamp_1') \
                 .format(project=project_name)

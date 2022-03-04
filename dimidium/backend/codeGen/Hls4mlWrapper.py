@@ -16,6 +16,11 @@ from pathlib import Path
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
 
+def _ceil_to_next_byte_bitw(bitw):
+    ret = int((bitw*8+7)/8)
+    return ret
+
+
 class Hls4mlWrapper:
 
     def __init__(self, block_id, in_dims, out_dims, acc_in_bitw, acc_out_bitw, if_in_bitw, if_out_bitw, out_dir_path):
@@ -25,8 +30,8 @@ class Hls4mlWrapper:
         self.block_id = block_id
         self.in_dims = in_dims
         self.out_dims = out_dims
-        self.acc_in_bitw = acc_in_bitw
-        self.acc_out_bitw = acc_out_bitw
+        self.acc_in_bitw = _ceil_to_next_byte_bitw(acc_in_bitw)
+        self.acc_out_bitw = _ceil_to_next_byte_bitw(acc_out_bitw)
         self.if_in_bitw = if_in_bitw
         self.if_out_bitw = if_out_bitw
         self.out_dir_path = out_dir_path
@@ -114,21 +119,69 @@ class Hls4mlWrapper:
         new_tcl_lines = template_lines.format(DOSA_FMSTR_DESCR=ip_description, DOSA_FMSTR_MOD_NAME=self.ip_mod_name,
                                               DOSA_FMSTR_IP_NAME=self.ip_name)
         # also adding hls4ml ArchBlock export
-        new_tcl_lines += '\n\n'
+        new_tcl_lines += '\n'
         new_tcl_lines += template_lines.format(DOSA_FMSTR_DESCR='Hls4ml instantiation',
                                                # both 'names' must be different, apparently...
                                                DOSA_FMSTR_MOD_NAME='HLS4ML_ArchBlock_{}'.format(self.block_id),
                                                DOSA_FMSTR_IP_NAME='ArchBlock_{}'.format(self.block_id))
+        template_lines = Path(os.path.join(__filedir__, 'templates/create_axis_slice.tcl')).read_text()
+        new_tcl_lines += '\n'
+        acc_in_byte_num = int(self.acc_in_bitw/8)
+        acc_out_byte_num = int(self.acc_out_bitw/8)
+        new_tcl_lines += template_lines.format(DOSA_FMSTR_NAME='AxisRegisterSlice_b{}_input'.format(self.block_id),
+                                               DOSA_FMSTR_NUM_BYTES='{' + str(acc_in_byte_num) + '}',
+                                               DOSA_FMSTR_TKEEP_YES='{0}', DOSA_FMSTR_TLAST_YES='{0}')
+        new_tcl_lines += '\n'
+        new_tcl_lines += template_lines.format(DOSA_FMSTR_NAME='AxisRegisterSlice_b{}_output'.format(self.block_id),
+                                               DOSA_FMSTR_NUM_BYTES='{' + str(acc_out_byte_num) + '}',
+                                               DOSA_FMSTR_TKEEP_YES='{0}', DOSA_FMSTR_TLAST_YES='{0}')
         return new_tcl_lines
 
     def get_wrapper_vhdl_decl_lines(self):
         # we need to do the connections between wrapper and haddoc ourselves
-        decl = ('signal ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata  : std_ulogic_vector({acc_inw_sub} downto 0);\n' +
-                'signal ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready : std_ulogic;\n' +
-                'signal ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid : std_ulogic;\n'
-                'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata  : std_ulogic_vector({acc_outw_sub} downto 0);\n' +
-                'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tready : std_ulogic;\n' +
-                'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid : std_ulogic;\n')
+        decl = ('signal ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata_to_slice  : std_ulogic_vector({acc_inw_sub} '
+                'downto 0);\n' +
+                'signal ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready_to_slice : std_ulogic;\n' +
+                'signal ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid_to_slice : std_ulogic;\n'
+                'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata_to_slice  : std_ulogic_vector({acc_outw_sub} '
+                'downto 0);\n' +
+                'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tready_to_slice : std_ulogic;\n' +
+                'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid_to_slice : std_ulogic;\n' +
+                'signal ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata_from_slice  : std_ulogic_vector({acc_inw_sub} '
+                'downto 0);\n' +
+                'signal ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready_from_slice : std_ulogic;\n' +
+                'signal ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid_from_slice : std_ulogic;\n'
+                'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata_from_slice  : std_ulogic_vector({acc_outw_sub} '
+                'downto 0);\n' +
+                'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tready_from_slice : std_ulogic;\n' +
+                'signal ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid_from_slice : std_ulogic;\n'
+                )
+        decl += '\n'
+        decl += ('component AxisRegisterSlice_b{block_id}_input is\n' +
+                 'port (\n' +
+                 '    aclk : IN STD_LOGIC;\n' +
+                 '    aresetn : IN STD_LOGIC;\n' +
+                 '    s_axis_TDATA : IN STD_LOGIC_VECTOR ({acc_inw_sub} downto 0);\n' +
+                 '    s_axis_TVALID : IN STD_LOGIC;\n' +
+                 '    s_axis_TREADY : OUT STD_LOGIC;\n' +
+                 '    m_axis_TDATA : OUT STD_LOGIC_VECTOR ({acc_inw_sub} downto 0);\n' +
+                 '    m_axis_TVALID : OUT STD_LOGIC;\n' +
+                 '    m_axis_TREADY : IN STD_LOGIC\n' +
+                 '  );\n' +
+                 'end component AxisRegisterSlice_b{block_id}_input;\n')
+        decl += '\n'
+        decl += ('component AxisRegisterSlice_b{block_id}_output is\n' +
+                 'port (\n' +
+                 '    aclk : IN STD_LOGIC;\n' +
+                 '    aresetn : IN STD_LOGIC;\n' +
+                 '    s_axis_TDATA : IN STD_LOGIC_VECTOR ({acc_outw_sub} downto 0);\n' +
+                 '    s_axis_TVALID : IN STD_LOGIC;\n' +
+                 '    s_axis_TREADY : OUT STD_LOGIC;\n' +
+                 '    m_axis_TDATA : OUT STD_LOGIC_VECTOR ({acc_outw_sub} downto 0);\n' +
+                 '    m_axis_TVALID : OUT STD_LOGIC;\n' +
+                 '    m_axis_TREADY : IN STD_LOGIC\n' +
+                 '  );\n' +
+                 'end component AxisRegisterSlice_b{block_id}_output;\n')
         decl += '\n'
         decl += ('component HLS4ML_ArchBlock_{block_id} is\n' +
                  'port (\n' +
@@ -212,26 +265,50 @@ class Hls4mlWrapper:
                 '    soData_V_tlast_V_din =>      [out_sig_6]  ,\n' +
                 '    soData_V_tlast_V_full_n =>   [out_sig_7_n],\n' +
                 '    soData_V_tlast_V_write =>    [out_sig_8]  ,\n' +
-                '    soToHls4mlData_V_V_TDATA    =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata ,\n' +
-                '    soToHls4mlData_V_V_TVALID   =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid,\n' +
-                '    soToHls4mlData_V_V_TREADY   =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready,\n' +
-                '    siFromHls4mlData_V_V_TDATA  =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata ,\n' +
-                '    siFromHls4mlData_V_V_TVALID =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid,\n' +
-                '    siFromHls4mlData_V_V_TREADY =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tready,\n' +
+                '    soToHls4mlData_V_V_TDATA    =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata_to_slice ,\n' +
+                '    soToHls4mlData_V_V_TVALID   =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid_to_slice,\n' +
+                '    soToHls4mlData_V_V_TREADY   =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready_to_slice,\n' +
+                '    siFromHls4mlData_V_V_TDATA  =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata_from_slice ,\n' +
+                '    siFromHls4mlData_V_V_TVALID =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid_from_slice,\n' +
+                '    siFromHls4mlData_V_V_TREADY =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tready_from_slice,\n' +
                 # '    debug_out_V =>  open,\n' +
                 '    ap_clk =>  [clk],\n' +
                 '    ap_rst_n =>  [rst_n]\n' +
                 # '    debug_out_V_ap_vld =>  \n' +  # no comma
                 ');\n')
         decl += '\n'
+        decl += ('[inst_name]_slice_in: AxisRegisterSlice_b{block_id}_input\n' +
+                 'port map (\n' +
+                 '    aclk => [clk],\n' +
+                 '    aresetn => [rst_n],\n' +
+                 '    s_axis_TDATA  =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata_to_slice ,\n' +
+                 '    s_axis_TVALID =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid_to_slice,\n' +
+                 '    s_axis_TREADY =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready_to_slice,\n' +
+                 '    m_axis_TDATA  =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata_from_slice ,\n' +
+                 '    m_axis_TVALID =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid_from_slice,\n' +
+                 '    m_axis_TREADY =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready_from_slice\n' +  # no comma
+                 '  );\n')
+        decl += '\n'
+        decl += ('[inst_name]_slice_out: AxisRegisterSlice_b{block_id}_output\n' +
+                 'port map (\n' +
+                 '    aclk => [clk],\n' +
+                 '    aresetn => [rst_n],\n' +
+                 '    s_axis_TDATA  =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata_to_slice ,\n' +
+                 '    s_axis_TVALID =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid_to_slice,\n' +
+                 '    s_axis_TREADY =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tready_to_slice,\n' +
+                 '    m_axis_TDATA  =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata_from_slice ,\n' +
+                 '    m_axis_TVALID =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid_from_slice,\n' +
+                 '    m_axis_TREADY =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tready_from_slice\n' +  # no comma
+                 '  );\n')
+        decl += '\n'
         decl += ('[inst_name]: HLS4ML_ArchBlock_{block_id}\n' +
                  'port map (\n' +
-                 '    input_0_V_TDATA   =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata ,\n' +
-                 '    input_0_V_TVALID  =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid,\n' +
-                 '    input_0_V_TREADY  =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready,\n' +
-                 '    output_0_V_TDATA  =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata ,\n' +
-                 '    output_0_V_TVALID =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid,\n' +
-                 '    output_0_V_TREADY =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tready,\n' +
+                 '    input_0_V_TDATA   =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata_from_slice ,\n' +
+                 '    input_0_V_TVALID  =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid_from_slice,\n' +
+                 '    input_0_V_TREADY  =>  ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready_from_slice,\n' +
+                 '    output_0_V_TDATA  =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata_to_slice ,\n' +
+                 '    output_0_V_TVALID =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid_to_slice,\n' +
+                 '    output_0_V_TREADY =>  ssHls4ml_b{block_id}_to_{ip_mod_name}_tready_to_slice,\n' +
                  # '    const_size_in_1 => open,\n' +
                  # '    const_size_out_1 => open,\n' +
                  # '    const_size_in_1_ap_vld => open,\n' +
@@ -250,12 +327,18 @@ class Hls4mlWrapper:
 
     def get_debug_lines(self):
         signal_lines = [
-            'ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
-            'ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
-            'ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
-            'ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
-            'ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
-            'ssHls4ml_b{block_id}_to_{ip_mod_name}_tready'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            'ss{ip_mod_name}_to_Hls4ml_b{block_id}_tdata_from_slice'.format(block_id=self.block_id,
+                                                                            ip_mod_name=self.ip_mod_name),
+            'ss{ip_mod_name}_to_Hls4ml_b{block_id}_tvalid_from_slice'.format(block_id=self.block_id,
+                                                                             ip_mod_name=self.ip_mod_name),
+            'ss{ip_mod_name}_to_Hls4ml_b{block_id}_tready_from_slice'.format(block_id=self.block_id,
+                                                                             ip_mod_name=self.ip_mod_name),
+            'ssHls4ml_b{block_id}_to_{ip_mod_name}_tdata_to_slice'.format(block_id=self.block_id,
+                                                                          ip_mod_name=self.ip_mod_name),
+            'ssHls4ml_b{block_id}_to_{ip_mod_name}_tvalid_to_slice'.format(block_id=self.block_id,
+                                                                           ip_mod_name=self.ip_mod_name),
+            'ssHls4ml_b{block_id}_to_{ip_mod_name}_tready_to_slice'.format(block_id=self.block_id,
+                                                                           ip_mod_name=self.ip_mod_name),
         ]
         width_lines = [self.acc_in_bitw, 1, 1,  self.acc_out_bitw, 1, 1]
         assert len(signal_lines) == len(width_lines)

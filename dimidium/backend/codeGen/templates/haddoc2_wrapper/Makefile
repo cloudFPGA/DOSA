@@ -19,9 +19,14 @@ ifndef usedRoleDir
 endif
 
 ${ipName}_prj/solution1/impl/ip: $(DEPS)
+	@date +%s > .tmp_stamp_3
 	@rm -rf ${ipName}_prj
 	export dosaIpName=${ipName}; export hlsSim=0; export hlsCoSim=0; export useWrapperTest=1; vivado_hls -f run_hls.tcl
 	@cat ${ipName}_prj/solution1/syn/report/${appName}_csynth.rpt
+	@echo "-" > .tmp_stamp_2
+	@date +%s > .tmp_stamp_1
+	@/usr/bin/echo -n "HLS4ML build time: "
+	@/bin/bash -c "cat <(cat .tmp_stamp_* | tr '\n' ' ') <(echo '') | /usr/bin/bc -l"
 	@touch $@
 	touch $(IP_GUARD)
 	@# to be sure...
