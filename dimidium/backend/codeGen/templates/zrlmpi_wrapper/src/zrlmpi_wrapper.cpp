@@ -112,7 +112,7 @@ void pStateControl(
       curCmnd = MPI_INSTR_NOP;
       curRep = 0;
       curRank = MPI_NO_RANK;
-      if( !not_empty)
+      if( !not_empty && *cluster_size_arg != 0)
       {
         controlFSM = ISSUE_COMMAND;
       }
