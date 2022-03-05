@@ -42,7 +42,7 @@ void pStateControl(
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   static controlFsmStates controlFSM = RESET;
 #pragma HLS reset variable=controlFSM
-  static uint32_t nextCommandPtr = 0x0;
+  static uint8_t nextCommandPtr = 0x0;
 #pragma HLS reset variable=nextCommandPtr
   static uint8_t curIterationCnt = 0x0;
 #pragma HLS reset variable=curIterationCnt
@@ -50,7 +50,7 @@ void pStateControl(
 #pragma HLS reset variable=curCmnd
   static uint8_t curRank = MPI_NO_RANK;
 #pragma HLS reset variable=curRank
-  static uint8_t curCount = 0;
+  static uint32_t curCount = 0;
 #pragma HLS reset variable=curCount
   static uint8_t curRep = 0;
 #pragma HLS reset variable=curRep

@@ -45,6 +45,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
         longest_msg = self.comm_plan.get_longest_msg_bytes()
         longest_msg_lines = math.ceil(float(longest_msg) / float(self.if_bitwidth / 8)) + self._add_spare_lines_
         comm_plan_length = self.comm_plan.get_comm_instr_num()
+        assert comm_plan_length < 255  # uint8 limit
         # 2. wrapper.hpp
         with open(os.path.join(self.templ_dir_path, 'src/zrlmpi_wrapper.hpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'src/zrlmpi_wrapper.hpp'), 'w') as out_file:
