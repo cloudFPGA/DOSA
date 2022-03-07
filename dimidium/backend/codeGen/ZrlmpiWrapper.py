@@ -313,7 +313,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
         ]
         width_lines = [64, 8, 1, 1, 1, 64, 1, 1, 8, 1, 64, 8, 1, 1, 1, 64, 1, 1, 8, 1,
                        72, 1, 1, 1, 73, 1, 1, 1, 73, 1, 1, 1, 72, 1, 1, 1, 73, 1, 1, 1, 73, 1, 1, 1,
-                       8, 1, 1, 1, 8, 1, 1, 1, 32]
+                       8, 1, 1, 1, 8, 1, 1, 1, 64]
         assert len(signal_lines) == len(width_lines)
         tcl_tmpl_lines = []
         decl_tmpl_lines = []
