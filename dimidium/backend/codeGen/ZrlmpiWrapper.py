@@ -89,11 +89,12 @@ class ZrlmpiWrapper(CommunicationWrapper):
                     #     instr_num += 1
                     sorted_instr = self.comm_plan.get_comm_instr_sorted()
                     for self_id in sorted_instr.keys():
-                        if len(sorted_instr.keys()) > 1:
-                            outline += f'      if(*role_rank_arg == {self_id})\n' + '      {\n'
-                            indent = '  '
-                        else:
-                            indent = ''
+                        # if len(sorted_instr.keys()) > 1:
+                        # TODO: necessary for synthesis in all cases? (to avoid unwanted optimizations)
+                        outline += f'      if(*role_rank_arg == {self_id})\n' + '      {\n'
+                        indent = '  '
+                        # else:
+                        #     indent = ''
                         for ie in sorted_instr[self_id]:
                             cmnd_macro = 'MPI_INSTR_RECV'
                             if ie['instr'] == 'send':
@@ -108,8 +109,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
                             outline += indent + f'      mpiCounts[{instr_num}]            = {counts};\n'
                             outline += indent + f'      commandRepetitions[{instr_num}]   = {repeat};\n'
                             instr_num += 1
-                        if len(sorted_instr.keys()) > 1:
-                            outline += '      }\n'
+                        # if len(sorted_instr.keys()) > 1:
+                        outline += '      }\n'
                     assert instr_num == comm_plan_length
                 else:
                     outline = line

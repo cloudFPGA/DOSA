@@ -29,8 +29,8 @@ void pStateControl(
     stream<MPI_Feedback>    &siMPIFeB,
     stream<uint32_t>        &sReceiveLength,
     stream<uint32_t>        &sSendLength,
-    stream<bool>            &sReceiveReset,
-    stream<bool>            &sSendReset,
+    //stream<bool>            &sReceiveReset,
+    //stream<bool>            &sSendReset,
     stream<bool>            &sReceiveDone,
     stream<bool>            &sSendDone,
     ap_uint<32> *debug_out
@@ -119,7 +119,8 @@ void pStateControl(
       break;
     case ISSUE_COMMAND:
       if( !soMPIif.full() && !sReceiveLength.full() && !sSendLength.full()
-          && !sReceiveReset.full() && !sSendReset.full()
+          //&& !sReceiveReset.full()
+          //&& !sSendReset.full()
         )
       {
         if(curIterationCnt >= curRep)
@@ -161,17 +162,19 @@ void pStateControl(
       break;
 
     case PROC_SEND:
-      if( !siMPIFeB.empty() && !sSendReset.full() )
+      if( !siMPIFeB.empty() 
+          //&& !sSendReset.full() 
+        )
       {
         fedb = siMPIFeB.read();
         if( fedb == ZRLMPI_FEEDBACK_OK )
         {
           controlFSM = WAIT_SEND;
-          sSendReset.write(false);
+          //sSendReset.write(false);
           printf("[pStateControl] Issue send ok.\n");
         } else {
           //Timeout occured
-          sSendReset.write(true);
+          //sSendReset.write(true);
           printf("[pStateControl] Issue send reset.\n");
           //stay here
         }
@@ -188,7 +191,9 @@ void pStateControl(
       break;
 
     case PROC_RECEIVE:
-      if( !siMPIFeB.empty() && !sReceiveReset.full() )
+      if( !siMPIFeB.empty() 
+          //&& !sReceiveReset.full() 
+          )
       {
         fedb = siMPIFeB.read();
         if( fedb == ZRLMPI_FEEDBACK_OK )
@@ -197,7 +202,7 @@ void pStateControl(
           controlFSM = WAIT_RECEIVE;
         } else {
           //Timeout occured
-          sReceiveReset.write(true);
+          //sReceiveReset.write(true);
           printf("[pStateControl] Issue receive reset.\n");
           //stay here
         }
@@ -222,7 +227,7 @@ void pStateControl(
 void pRecvEnq(
     stream<Axis<64> >       &siMPI_data,
     stream<uint32_t>        &sReceiveLength,
-    stream<bool>            &sReceiveReset,
+    //stream<bool>            &sReceiveReset,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >   &sRecvBuff_0,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >   &sRecvBuff_1,
     stream<deqBufferCmd>    &sRecvBufferCmds,
@@ -261,11 +266,11 @@ void pRecvEnq(
         sReceiveLength.read();
         not_empty = true;
       }
-      if( !sReceiveReset.empty() )
-      {
-        sReceiveReset.read();
-        not_empty = true;
-      }
+      //if( !sReceiveReset.empty() )
+      //{
+      //  sReceiveReset.read();
+      //  not_empty = true;
+      //}
       if( !siMPI_data.empty() )
       {
         siMPI_data.read();
@@ -294,17 +299,18 @@ void pRecvEnq(
       break;
 
     case RECV_BUF_0:
-      if( !sReceiveReset.empty() && !sRecvBuff_0.full() && !sRecvBufferCmds.full() )
-      {
-        ignore_me = sReceiveReset.read();
-        sRecvBufferCmds.write(DRAIN_0);
-        //"poison pill"
-        sRecvBuff_0.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0,0,1));
-        curCnt = 0;
-        recvEnqFsm = RECV_BUF_1;
-        nextBuffer = 0;
-      }
-      else if( !siMPI_data.empty() && !sRecvBuff_0.full() && !sRecvBufferCmds.full() )
+      //if( !sReceiveReset.empty() && !sRecvBuff_0.full() && !sRecvBufferCmds.full() )
+      //{
+      //  ignore_me = sReceiveReset.read();
+      //  sRecvBufferCmds.write(DRAIN_0);
+      //  //"poison pill"
+      //  sRecvBuff_0.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0,0,1));
+      //  curCnt = 0;
+      //  recvEnqFsm = RECV_BUF_1;
+      //  nextBuffer = 0;
+      //}
+      //else
+      if( !siMPI_data.empty() && !sRecvBuff_0.full() && !sRecvBufferCmds.full() )
       {
         tmp_read = siMPI_data.read();
         curCnt += extractByteCnt(tmp_read);
@@ -324,17 +330,18 @@ void pRecvEnq(
       break;
 
     case RECV_BUF_1:
-      if( !sReceiveReset.empty() && !sRecvBuff_1.full() && !sRecvBufferCmds.full() )
-      {
-        ignore_me = sReceiveReset.read();
-        sRecvBufferCmds.write(DRAIN_1);
-        //"poison pill"
-        sRecvBuff_1.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0,0,1));
-        curCnt = 0;
-        recvEnqFsm = RECV_BUF_0;
-        nextBuffer = 1;
-      }
-      else if( !siMPI_data.empty() && !sRecvBuff_1.full() && !sRecvBufferCmds.full() )
+      //if( !sReceiveReset.empty() && !sRecvBuff_1.full() && !sRecvBufferCmds.full() )
+      //{
+      //  ignore_me = sReceiveReset.read();
+      //  sRecvBufferCmds.write(DRAIN_1);
+      //  //"poison pill"
+      //  sRecvBuff_1.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0,0,1));
+      //  curCnt = 0;
+      //  recvEnqFsm = RECV_BUF_0;
+      //  nextBuffer = 1;
+      //}
+      //else
+      if( !siMPI_data.empty() && !sRecvBuff_1.full() && !sRecvBufferCmds.full() )
       {
         tmp_read = siMPI_data.read();
         curCnt += extractByteCnt(tmp_read);
@@ -584,7 +591,7 @@ void pSendDeq(
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &sSendBuff_0,
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &sSendBuff_1,
     stream<sendBufferCmd>    &sSendBufferCmds,
-    stream<bool>             &sSendReset,
+    //stream<bool>             &sSendReset,
     stream<bool>             &sSendDone,
     stream<Axis<64> >        &soMPI_data
   )
@@ -640,11 +647,11 @@ void pSendDeq(
         sSendBufferCmds.read();
         not_empty = true;
       }
-      if( !sSendReset.empty() )
-      {
-        sSendReset.read();
-        not_empty = true;
-      }
+      //if( !sSendReset.empty() )
+      //{
+      //  sSendReset.read();
+      //  not_empty = true;
+      //}
       if( !sCopyContainer_0.empty() )
       {
         sCopyContainer_0.read();
@@ -677,22 +684,23 @@ void pSendDeq(
       break;
 
     case SEND_DEQ_0:
-      if( !sSendReset.empty() )
-      {
-        tmp_reset = sSendReset.read();
-        if( tmp_reset == true )
-        {
-          lastBuffer = 0;
-          if( nextCC == 0 )
-          {
-            sendDeqFsm = SEND_CC_0;
-          } else {
-            sendDeqFsm = SEND_CC_1;
-          }
-        }
-        //else, better ignore?
-      }
-      else if( !sSendBuff_0.empty() && !soMPI_data.full()
+      //if( !sSendReset.empty() )
+      //{
+      //  tmp_reset = sSendReset.read();
+      //  if( tmp_reset == true )
+      //  {
+      //    lastBuffer = 0;
+      //    if( nextCC == 0 )
+      //    {
+      //      sendDeqFsm = SEND_CC_0;
+      //    } else {
+      //      sendDeqFsm = SEND_CC_1;
+      //    }
+      //  }
+      //  //else, better ignore?
+      //}
+      //else 
+      if( !sSendBuff_0.empty() && !soMPI_data.full()
               && nextCC == 0 && !sCopyContainer_0.full()
           )
       {
@@ -721,22 +729,23 @@ void pSendDeq(
       break;
 
     case SEND_DEQ_1:
-      if( !sSendReset.empty() )
-      {
-        tmp_reset = sSendReset.read();
-        if( tmp_reset == true )
-        {
-          lastBuffer = 1;
-          if( nextCC == 0 )
-          {
-            sendDeqFsm = SEND_CC_0;
-          } else {
-            sendDeqFsm = SEND_CC_1;
-          }
-        }
-        //else, better ignore?
-      }
-      else if( !sSendBuff_1.empty() && !soMPI_data.full()
+      //if( !sSendReset.empty() )
+      //{
+      //  tmp_reset = sSendReset.read();
+      //  if( tmp_reset == true )
+      //  {
+      //    lastBuffer = 1;
+      //    if( nextCC == 0 )
+      //    {
+      //      sendDeqFsm = SEND_CC_0;
+      //    } else {
+      //      sendDeqFsm = SEND_CC_1;
+      //    }
+      //  }
+      //  //else, better ignore?
+      //}
+      //else 
+      if( !sSendBuff_1.empty() && !soMPI_data.full()
               && nextCC == 0 && !sCopyContainer_0.full()
           )
       {
@@ -765,18 +774,19 @@ void pSendDeq(
       break;
 
     case SEND_CC_0:
-      if( !sSendReset.empty() )
-      {
-        tmp_reset = sSendReset.read();
-        if( tmp_reset == true )
-        {
-          //TODO: implement true call stack?
-          back_to_other_cc = true;
-          sendDeqFsm = SEND_CC_1;
-        }
-        //else, better ignore?
-      }
-      else if( !sCopyContainer_0.empty() && !soMPI_data.full()
+      //if( !sSendReset.empty() )
+      //{
+      //  tmp_reset = sSendReset.read();
+      //  if( tmp_reset == true )
+      //  {
+      //    //TODO: implement true call stack?
+      //    back_to_other_cc = true;
+      //    sendDeqFsm = SEND_CC_1;
+      //  }
+      //  //else, better ignore?
+      //}
+      //else 
+      if( !sCopyContainer_0.empty() && !soMPI_data.full()
                 && !sCopyContainer_1.full()
           )
       {
@@ -813,18 +823,19 @@ void pSendDeq(
       break;
 
     case SEND_CC_1:
-      if( !sSendReset.empty() )
-      {
-        tmp_reset = sSendReset.read();
-        if( tmp_reset == true )
-        {
-          //TODO: implement true call stack?
-          back_to_other_cc = true;
-          sendDeqFsm = SEND_CC_0;
-        }
-        //else, better ignore?
-      }
-      else if( !sCopyContainer_1.empty() && !soMPI_data.full()
+      //if( !sSendReset.empty() )
+      //{
+      //  tmp_reset = sSendReset.read();
+      //  if( tmp_reset == true )
+      //  {
+      //    //TODO: implement true call stack?
+      //    back_to_other_cc = true;
+      //    sendDeqFsm = SEND_CC_0;
+      //  }
+      //  //else, better ignore?
+      //}
+      //else 
+      if( !sCopyContainer_1.empty() && !soMPI_data.full()
                 && !sCopyContainer_0.full()
           )
       {
@@ -861,20 +872,21 @@ void pSendDeq(
       break;
 
     case WAIT_OK:
-      if( !sSendReset.empty() && !sSendDone.full() )
+      if( //!sSendReset.empty() && 
+          !sSendDone.full() )
       {
-        tmp_reset = sSendReset.read();
-        printf("[pSendDeq] received reset: %d\n", (uint8_t) tmp_reset);
-        if( tmp_reset == true )
-        {
-          //will go to right buffer one cycle later, if necessary
-          if( nextCC == 0 )
-          {
-            sendDeqFsm = SEND_CC_0;
-          } else {
-            sendDeqFsm = SEND_CC_1;
-          }
-        } else {
+        //tmp_reset = sSendReset.read();
+        //printf("[pSendDeq] received reset: %d\n", (uint8_t) tmp_reset);
+        //if( tmp_reset == true )
+        //{
+        //  //will go to right buffer one cycle later, if necessary
+        //  if( nextCC == 0 )
+        //  {
+        //    sendDeqFsm = SEND_CC_0;
+        //  } else {
+        //    sendDeqFsm = SEND_CC_1;
+        //  }
+        //} else {
           //success
           sSendDone.write(true);
           sendDeqFsm = WAIT_DRAIN;
@@ -886,7 +898,7 @@ void pSendDeq(
             drain_cc_1 = true;
             nextCC = 0;
           }
-        }
+        //}
       }
       break;
 
@@ -984,14 +996,14 @@ void zrlmpi_wrapper(
   #pragma HLS STREAM variable=sReceiveLength depth=2  //TODO?
   static stream<bool> sReceiveDone ("sReceiveDone");
   #pragma HLS STREAM variable=sReceiveDone depth=2
-  static stream<bool> sReceiveReset ("sReceiveReset");
-  #pragma HLS STREAM variable=sReceiveReset depth=2
+  //static stream<bool> sReceiveReset ("sReceiveReset");
+  //#pragma HLS STREAM variable=sReceiveReset depth=2
   static stream<uint32_t> sSendLength ("sSendLength");
   #pragma HLS STREAM variable=sSendLength depth=2
   static stream<bool> sSendDone ("sSendDone");
   #pragma HLS STREAM variable=sSendDone depth=2
-  static stream<bool> sSendReset ("sSendReset");
-  #pragma HLS STREAM variable=sSendReset depth=2
+  //static stream<bool> sSendReset ("sSendReset");
+  //#pragma HLS STREAM variable=sSendReset depth=2
 
   static stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > sRecvBuff_0 ("sRecvBuff_0");
   #pragma HLS STREAM variable=sRecvBuff_0 depth=buffer_fifo_depth
@@ -1010,16 +1022,21 @@ void zrlmpi_wrapper(
 
   //-- PROCESS INSTANTIATION ------------------------------------------------------
 
-  pRecvEnq(siMPI_data, sReceiveLength, sReceiveReset, sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, sReceiveDone);
+  pRecvEnq(siMPI_data, sReceiveLength, 
+      //sReceiveReset, 
+      sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, sReceiveDone);
 
   pRecvDeq(sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, soData);
 
   pSendEnq(siData, sSendLength, sSendBuff_0, sSendBuff_1, sSendBufferCmds);
 
-  pSendDeq(sSendBuff_0, sSendBuff_1, sSendBufferCmds, sSendReset, sSendDone, soMPI_data);
+  pSendDeq(sSendBuff_0, sSendBuff_1, sSendBufferCmds, 
+      //sSendReset, 
+      sSendDone, soMPI_data);
 
   //process with highest II last
-  pStateControl(role_rank_arg, cluster_size_arg, soMPIif, siMPIFeB, sReceiveLength, sSendLength, sReceiveReset, sSendReset,
+  pStateControl(role_rank_arg, cluster_size_arg, soMPIif, siMPIFeB, sReceiveLength, sSendLength, 
+      //sReceiveReset, sSendReset,
                 sReceiveDone, sSendDone, debug_out);
 
 }

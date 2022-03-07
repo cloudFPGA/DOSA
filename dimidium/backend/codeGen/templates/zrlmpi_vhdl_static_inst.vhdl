@@ -92,6 +92,8 @@
              poROL_NRC_Rx_ports_V => poROL_Nrc_Udp_Rx_ports,
              piFMC_rank_V        =>  piFMC_ROLE_rank,
              piFMC_rank_V_ap_vld =>  '1',
+             piFMC_size_V        =>  piFMC_ROLE_size,
+             piFMC_size_V_ap_vld =>  '1',
              poMMIO_V            =>  sMPE_Debug,
              siMPIif_V_dout       => sFifo_MPE_MPIif_dout      ,
              siMPIif_V_empty_n    => sFifo_MPE_MPIif_empty_n   ,

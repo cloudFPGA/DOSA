@@ -57,6 +57,7 @@
            soTcp_meta_TLAST : OUT STD_LOGIC_VECTOR (0 downto 0);
            poROL_NRC_Rx_ports_V : OUT STD_LOGIC_VECTOR (31 downto 0);
            piFMC_rank_V : IN STD_LOGIC_VECTOR (31 downto 0);
+           piFMC_size_V : IN STD_LOGIC_VECTOR (31 downto 0);
            poMMIO_V : OUT STD_LOGIC_VECTOR (63 downto 0);
            siMPIif_V_dout : IN STD_LOGIC_VECTOR (71 downto 0);
            siMPIif_V_empty_n : IN STD_LOGIC;
@@ -82,7 +83,8 @@
            siTcp_data_TREADY : OUT STD_LOGIC;
            siTcp_meta_TVALID : IN STD_LOGIC;
            siTcp_meta_TREADY : OUT STD_LOGIC;
-           piFMC_rank_V_ap_vld : IN STD_LOGIC );
+           piFMC_rank_V_ap_vld : IN STD_LOGIC;
+           piFMC_size_V_ap_vld : IN STD_LOGIC );
   end component;
 
 
