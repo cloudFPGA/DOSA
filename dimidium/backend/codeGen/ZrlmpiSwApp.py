@@ -74,10 +74,13 @@ class ZrlmpiSwApp:
                         c0 = 'MPI_INSTR_SEND'
                         if ie0['instr'] == 'recv':
                             c0 = 'MPI_INSTR_RECV'
+                        # counts must be in byte4 size!
+                        l0 = int((ie0['count'] + 3)/4)
+                        l1 = int((ie1['count'] + 3)/4)
                         # outline = tmpl.format(r0=comm_instr[i+1]['rank'], sl=comm_instr[i+1]['count'],
                         #                       r1=comm_instr[i+0]['rank'], rl=comm_instr[i+0]['count'])
-                        outline += tmpl.format(i=i, i1=i+1, c1=c1, r1=ie1['rank'], l1=ie1['count'], t1=repetitions,
-                                               c0=c0, r0=ie0['rank'], l0=ie0['count'], t0=repetitions)
+                        outline += tmpl.format(i=i, i1=i+1, c1=c1, r1=ie1['rank'], l1=l1, t1=repetitions,
+                                               c0=c0, r0=ie0['rank'], l0=l0, t0=repetitions)
                 else:
                     outline = line
                 out_file.write(outline)

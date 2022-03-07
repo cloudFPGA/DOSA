@@ -39,7 +39,7 @@
   signal sDataOutTlastAsVector_Udp : std_logic_vector(0 downto 0);
   signal sDataInTlastAsVector_Udp  : std_logic_vector(0 downto 0);
 
-
+  signal sMPE_Debug  : std_logic_vector(31 downto 0);
 
   component MessagePassingEngine is
     port (
@@ -57,7 +57,7 @@
            soTcp_meta_TLAST : OUT STD_LOGIC_VECTOR (0 downto 0);
            poROL_NRC_Rx_ports_V : OUT STD_LOGIC_VECTOR (31 downto 0);
            piFMC_rank_V : IN STD_LOGIC_VECTOR (31 downto 0);
-           -- poMMIO_V : OUT STD_LOGIC_VECTOR (31 downto 0);
+           poMMIO_V : OUT STD_LOGIC_VECTOR (31 downto 0);
            siMPIif_V_dout : IN STD_LOGIC_VECTOR (71 downto 0);
            siMPIif_V_empty_n : IN STD_LOGIC;
            siMPIif_V_read : OUT STD_LOGIC;
@@ -73,7 +73,7 @@
            ap_clk : IN STD_LOGIC;
            ap_rst_n : IN STD_LOGIC;
            poROL_NRC_Rx_ports_V_ap_vld : OUT STD_LOGIC;
-           -- poMMIO_V_ap_vld : OUT STD_LOGIC;
+           poMMIO_V_ap_vld : OUT STD_LOGIC;
            soTcp_meta_TVALID : OUT STD_LOGIC;
            soTcp_meta_TREADY : IN STD_LOGIC;
            soTcp_data_TVALID : OUT STD_LOGIC;

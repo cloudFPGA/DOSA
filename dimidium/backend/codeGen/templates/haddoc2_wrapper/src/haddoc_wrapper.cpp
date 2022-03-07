@@ -302,7 +302,7 @@ void pToHaddocDeq(
     //DOSA_ADD_toHaddoc_buffer_param_decl
 #endif
     ap_uint<1>                                *po_haddoc_data_valid,
-    ap_uint<1>                                *po_haddoc_frame_valid,
+    //ap_uint<1>                                *po_haddoc_frame_valid,
     ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
     stream<bool>                              &sHaddocUnitProcessing,
     ap_uint<32> *debug_out
@@ -357,7 +357,7 @@ void pToHaddocDeq(
     //DOSA_ADD_toHaddoc_deq_buffer_drain
 #endif
     *po_haddoc_data_valid = 0x0;
-    *po_haddoc_frame_valid = 0x0;
+    //*po_haddoc_frame_valid = 0x0;
     *po_haddoc_data_vector = 0x0;
     only_hangover_processing = false;
     if( !one_not_empty )
@@ -430,7 +430,7 @@ void pToHaddocDeq(
     } else {
       *po_haddoc_data_valid = 0x0;
     }
-    *po_haddoc_frame_valid = 0x1;
+    //*po_haddoc_frame_valid = 0x1;
   }
 
   //debugging?
@@ -1090,13 +1090,17 @@ static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_1[CNN_OUTPUT_FRAME_S
 #endif
       siData);
 
+  *po_haddoc_frame_valid = 0x1;
+
   pToHaddocDeq(
 #ifdef WRAPPER_TEST
       sToHaddocBuffer_chan1, sToHaddocBuffer_chan2, sToHaddocBuffer_chan3,
 #else
       //DOSA_ADD_toHaddoc_buffer_list
 #endif
-      po_haddoc_data_valid, po_haddoc_frame_valid, po_haddoc_data_vector, sHaddocUnitProcessing, debug_out);
+      po_haddoc_data_valid,
+      //po_haddoc_frame_valid,
+      po_haddoc_data_vector, sHaddocUnitProcessing, debug_out);
 
   pFromHaddocEnq(pi_haddoc_data_valid, pi_haddoc_frame_valid, pi_haddoc_data_vector, sHaddocUnitProcessing, sFromHaddocBuffer);
 

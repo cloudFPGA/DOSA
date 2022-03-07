@@ -99,7 +99,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
                             if ie['instr'] == 'send':
                                 cmnd_macro = 'MPI_INSTR_SEND'
                             rank = ie['rank']
-                            counts = ie['count']
+                            # counts must be in WORDS!
+                            counts = int((ie['count'] + 3)/4)
                             assert counts < 0xFFFF  # max message size is uint16
                             repeat = ie['repeat']
                             outline += indent + f'      mpiCommands[{instr_num}]          = {cmnd_macro};\n'
@@ -307,11 +308,12 @@ class ZrlmpiWrapper(CommunicationWrapper):
             'sMPE_Fifo_MPIFeB_din',
             'sMPE_Fifo_MPIFeB_full_n',
             'sMPE_Fifo_MPIFeB_full',
-            'sMPE_Fifo_MPIFeB_write'
+            'sMPE_Fifo_MPIFeB_write',
+            'sMPE_Debug'
         ]
         width_lines = [64, 8, 1, 1, 1, 64, 1, 1, 8, 1, 64, 8, 1, 1, 1, 64, 1, 1, 8, 1,
                        72, 1, 1, 1, 73, 1, 1, 1, 73, 1, 1, 1, 72, 1, 1, 1, 73, 1, 1, 1, 73, 1, 1, 1,
-                       8, 1, 1, 1, 8, 1, 1, 1]
+                       8, 1, 1, 1, 8, 1, 1, 1, 32]
         assert len(signal_lines) == len(width_lines)
         tcl_tmpl_lines = []
         decl_tmpl_lines = []
