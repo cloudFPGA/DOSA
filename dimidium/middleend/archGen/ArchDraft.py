@@ -675,6 +675,8 @@ class ArchDraft(object):
                           " since it is an engine with only one operation.")
         # 6. merge sequential nodes (no data par, no twins, same targeted_hw) if possible, based on used_perf,
         #  (i.e move bricks after each other)
+        for nn in self.node_iter_gen():
+            nn.update_used_perf_util()
         node_ids_to_delete = []
         for ni in range(0, len(self.nodes)):
             if ni in node_ids_to_delete:
@@ -689,7 +691,9 @@ class ArchDraft(object):
                 if n1.targeted_hw == n2.targeted_hw:
                     # TODO: move bricks after each other?
                     #  does it make sense? just reduces the resource usage somewhere else?
-                    if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
+                    # if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
+                    if ((n1.used_comp_util_share + n2.used_comp_util_share) < 1) \
+                            and ((n1.used_mem_util_share + n2.used_mem_util_share) < 1):
                         # merge nodes totally
                         if verbose:
                             print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
@@ -810,6 +814,8 @@ class ArchDraft(object):
         # 12. update kernel uuids & req. perf
         self.update_uuids()
         self.update_required_perf()
+        for nn in self.node_iter_gen():
+            nn.update_used_perf_util()
         return DosaRv.OK
 
     def update_required_perf(self):

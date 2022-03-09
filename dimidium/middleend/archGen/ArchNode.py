@@ -42,6 +42,7 @@ class ArchNode(object):
         self.roofline = None
         self.max_perf_F = -1
         self.used_perf_F = -1
+        self.used_perf_share = 0
         self.used_comp_util_share = 0
         self.used_mem_util_share = 0
         self.possible_hw_types = []
@@ -62,6 +63,8 @@ class ArchNode(object):
                'ranks': self.ranks, 'inp_ranks': self.inp_ranks, 'out_ranks': self.out_ranks,
                'pred_nodes': [], 'succ_nodes': [], 'possible_hw_types': [],
                'selected_hw_type': repr(self.selected_hw_type),
+               'estimations': {'comp_util%': self.used_comp_util_share*100, 'mem_util%': self.used_mem_util_share*100,
+                               'used_perf%': self.used_perf_share*100},
                'blocks': [], 'engineContainers': [],
                'bricks': {}}
         # for tn in self.twins:
@@ -185,6 +188,7 @@ class ArchNode(object):
         self.used_perf_F = total_perf_F
         self.used_comp_util_share = total_comp_per
         self.used_mem_util_share = total_mem_per
+        self.used_perf_share = self.used_perf_F/self.max_perf_F
 
     def update_kernel_uuids(self, kuuid_start):
         # TODO: take parallelism into account?
