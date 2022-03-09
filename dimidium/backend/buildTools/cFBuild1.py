@@ -70,10 +70,13 @@ class cFBuild1(HwBuildTopVhdl):
         copy_templates_and_set_env(self.build_dir, cf_envs, False)
         # link dcps
         os.system('cd {}; mkdir -p dcps'.format(self.build_dir))
-        os.system('cd {build}; ln -s {gdcps}/3_top{mod}_STATIC.dcp dcps/3_top{mod}_STATIC.dcp'.
-                  format(build=self.build_dir, mod=self.target_device.cf_mod_type, gdcps=self.my_global_dcps))
-        os.system('cd {build}; ln -s {gdcps}/3_top{mod}_STATIC.json dcps/3_top{mod}_STATIC.json'.
-                  format(build=self.build_dir, mod=self.target_device.cf_mod_type, gdcps=self.my_global_dcps))
+        # use relative symlinks
+        dcp_dir = os.path.abspath(self.build_dir + '/dcps/')
+        gdcps_rel = os.path.relpath(self.my_global_dcps, dcp_dir)
+        os.system('cd {build}; ln -s {gdcps}/3_top{mod}_STATIC.dcp 3_top{mod}_STATIC.dcp'.
+                  format(build=dcp_dir, mod=self.target_device.cf_mod_type, gdcps=gdcps_rel))
+        os.system('cd {build}; ln -s {gdcps}/3_top{mod}_STATIC.json 3_top{mod}_STATIC.json'.
+                  format(build=dcp_dir, mod=self.target_device.cf_mod_type, gdcps=gdcps_rel))
         # add role and set active
         cfp_json_file = os.path.abspath(self.build_dir + '/' + __cfp_json_name__)
         with open(cfp_json_file, 'r') as json_file:
@@ -92,6 +95,7 @@ class cFBuild1(HwBuildTopVhdl):
         self.my_global_build_lib_dir = os.path.abspath('{}/cFBuild1/'.format(dosa_singleton.config.global_build_dir))
         my_libs = os.path.abspath(me_abs_dir + '/lib/cFBuild1/')
         self.my_libs = my_libs
+        my_templates = os.path.abspath(me_abs_dir + '/templates/cFBuild1/')
         os.system('mkdir -p {}/cFDK'.format(self.my_global_build_lib_dir))
         os.system('cp -R {}/cFDK/* {}/cFDK/'.format(my_libs, self.my_global_build_lib_dir))
         self.my_global_dcps = '{}/global_dcps/'.format(self.my_global_build_lib_dir)
@@ -111,6 +115,8 @@ class cFBuild1(HwBuildTopVhdl):
         os.system('cd {}; virtualenv -p {} {}'
                   .format(os.path.abspath(cfenv_dir + '/../'), sys_py_bin, __cfenv_small_name__))
         os.system('/bin/bash -c "source {}/bin/activate; pip install {}"'.format(cfenv_dir, __cfenv_req_packages__))
+        # copy deploy script
+        os.system('cp {}/dosa_deploy.py {}/'.format(my_templates, dosa_singleton.config.global_build_dir))
         cFBuild1.build_wide_structure_created = True
 
     def add_ip_dir(self, block_id, path=None, vhdl_only=False, hybrid=False):
