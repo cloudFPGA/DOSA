@@ -78,7 +78,7 @@ int main() {
   //------------------------------------------------------
   int         nrErr = 0;
   int feb_2_cnt = -1;
-  int fw_cnt = 0;
+  //int fw_cnt = 0;
 
   printf("#####################################################\n");
   printf("## TESTBENCH STARTS HERE                           ##\n");
@@ -108,6 +108,7 @@ int main() {
 
     simCnt = 0;
     nrErr  = 0;
+    feb_2_cnt = simCnt + 6;
 
     //------------------------------------------------------
     //-- STEP-2 : MAIN TRAFFIC LOOP
@@ -124,14 +125,14 @@ int main() {
           Axis<64> tmp_fw = soData.read();
           printf("[TB] Forwarding (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_fw.getTData(), (uint32_t) tmp_fw.getTKeep(), (uint8_t) tmp_fw.getTLast());
           siData.write(tmp_fw);
-          fw_cnt++;
+          //fw_cnt++;
           feb_2_cnt = simCnt + 6;
         }
 
-        if( fw_cnt == 1 )
-        {
-          siMPIFeB.write(ZRLMPI_FEEDBACK_OK);
-        }
+        //if( fw_cnt == 1 )
+        //{
+        //  siMPIFeB.write(ZRLMPI_FEEDBACK_OK);
+        //}
         if( feb_2_cnt == simCnt )
         {
           siMPIFeB.write(ZRLMPI_FEEDBACK_OK);
