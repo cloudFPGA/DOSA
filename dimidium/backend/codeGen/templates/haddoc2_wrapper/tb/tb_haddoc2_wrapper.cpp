@@ -41,7 +41,7 @@ ap_uint<1>                                pi_haddoc_data_valid = 0;
 ap_uint<1>                                pi_haddoc_frame_valid = 0;
 ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     pi_haddoc_data_vector = 0;
 // ----- DEBUG IO ------
-ap_uint<32> debug_out = 0;
+ap_uint<64> debug_out = 0;
 
 
 //------------------------------------------------------

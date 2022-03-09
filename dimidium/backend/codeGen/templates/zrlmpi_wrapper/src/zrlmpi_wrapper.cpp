@@ -99,11 +99,11 @@ void pStateControl(
       {
         mpiCommands[0]          = MPI_INSTR_RECV;
         mpiRanks[0]             = 0;
-        mpiCounts[0]            = 22;
+        mpiCounts[0]            = 6; // 22/4;  //MUST be wordsize!
         commandRepetitions[0]   = 1;
         mpiCommands[1]          = MPI_INSTR_SEND;
         mpiRanks[1]             = 0;
-        mpiCounts[1]            = 22;
+        mpiCounts[1]            = 6; //22/4; //MUST be wordsize!
         commandRepetitions[1]   = 1;
       }
 #else
@@ -145,11 +145,13 @@ void pStateControl(
           if(curCmnd == MPI_INSTR_SEND)
           {
             info.mpi_call = MPI_SEND_INT;
-            sSendLength.write(curCount);
+            //curCount is WORD length
+            sSendLength.write(curCount*4);
             controlFSM = PROC_SEND;
           } else {
             info.mpi_call = MPI_RECV_INT;
-            sReceiveLength.write(curCount);
+            //curCount is WORD length
+            sReceiveLength.write(curCount*4);
             controlFSM = PROC_RECEIVE;
           }
           info.rank = (uint32_t) curRank;

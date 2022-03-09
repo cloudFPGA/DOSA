@@ -816,6 +816,8 @@ class ArchDraft(object):
         self.update_required_perf()
         for nn in self.node_iter_gen():
             nn.update_used_perf_util()
+            assert nn.used_comp_util_share < 1
+            assert nn.used_mem_util_share < 1
         return DosaRv.OK
 
     def update_required_perf(self):

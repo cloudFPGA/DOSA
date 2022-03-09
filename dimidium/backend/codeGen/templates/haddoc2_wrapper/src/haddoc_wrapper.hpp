@@ -80,7 +80,7 @@ void haddoc_wrapper_test(
     ap_uint<1>                                *pi_haddoc_frame_valid,
     ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
     // ----- DEBUG IO ------
-    ap_uint<32> *debug_out
+    ap_uint<64> *debug_out
 );
 
 #endif

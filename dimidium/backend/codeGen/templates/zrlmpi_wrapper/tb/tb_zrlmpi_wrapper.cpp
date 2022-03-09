@@ -148,13 +148,13 @@ int main() {
     //-- STEP-3 : COMPARE INPUT AND OUTPUT STREAMS
     //------------------------------------------------------
     MPI_Interface info_out = soMPIif.read();
-    if( !(info_out.rank == 0 && info_out.count == 22 && info_out.mpi_call == MPI_RECV_INT) )
+    if( !(info_out.rank == 0 && info_out.count == 6 && info_out.mpi_call == MPI_RECV_INT) )
     {
       nrErr++;
       printf("ERROR: First MPI_Interface command is wrong.\n");
     }
     info_out = soMPIif.read();
-    if( !(info_out.rank == 0 && info_out.count == 22 && info_out.mpi_call == MPI_SEND_INT) )
+    if( !(info_out.rank == 0 && info_out.count == 6 && info_out.mpi_call == MPI_SEND_INT) )
     {
       nrErr++;
       printf("ERROR: Second MPI_Interface command is wrong.\n");
@@ -163,7 +163,7 @@ int main() {
     {
       info_out = soMPIif.read();
       //in case the wrapper issued the next recv already, this would be ok
-      if( !(info_out.rank == 0 && info_out.count == 22 && info_out.mpi_call == MPI_RECV_INT)
+      if( !(info_out.rank == 0 && info_out.count == 6 && info_out.mpi_call == MPI_RECV_INT)
           || !soMPIif.empty()
         )
       {

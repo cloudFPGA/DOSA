@@ -231,6 +231,8 @@ class Haddoc2Wrapper:
                 'signal sHaddoc_b{block_id}_to_{ip_mod_name}_dv    : std_ulogic;\n' +
                 'signal sHaddoc_b{block_id}_to_{ip_mod_name}_fv    : std_ulogic;\n')
         decl += '\n'
+        decl += 'signal s{ip_mod_name}_debug    : std_ulogic_vector(63 downto 0);\n'
+        decl += '\n'
         decl += ('component cnn_process_b{block_id} is\n' +
                  'generic(\n' +
                  '  BITWIDTH  : integer := GENERAL_BITWIDTH;\n' +
@@ -281,7 +283,7 @@ class Haddoc2Wrapper:
                  '    pi_haddoc_data_valid_V : IN STD_LOGIC_VECTOR (0 downto 0);\n' +
                  '    pi_haddoc_frame_valid_V : IN STD_LOGIC_VECTOR (0 downto 0);\n' +
                  '    pi_haddoc_data_vector_V : IN STD_LOGIC_VECTOR ({haddoc_out_width} downto 0);\n' +
-                 '    debug_out_V : OUT STD_LOGIC_VECTOR (31 downto 0);\n' +
+                 '    debug_out_V : OUT STD_LOGIC_VECTOR (63 downto 0);\n' +
                  '    ap_clk : IN STD_LOGIC;\n' +
                  '    ap_rst : IN STD_LOGIC;\n' +
                  '    pi_haddoc_data_valid_V_ap_vld : IN STD_LOGIC;\n' +
@@ -333,7 +335,7 @@ class Haddoc2Wrapper:
                  '    pi_haddoc_data_valid_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_dv_as_vector,\n' +
                  '    pi_haddoc_frame_valid_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_fv_as_vector,\n' +
                  '    pi_haddoc_data_vector_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_data,\n' +
-                 # '    debug_out_V =>  open,\n' +
+                 '    debug_out_V =>  s{ip_mod_name}_debug,\n' +
                  '    ap_clk =>  [clk],\n' +
                  '    ap_rst =>  [rst],\n' +
                  '    pi_haddoc_data_valid_V_ap_vld =>  \'1\' ,\n' +
@@ -374,9 +376,11 @@ class Haddoc2Wrapper:
             'sHaddoc_b{block_id}_to_{ip_mod_name}_data'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
             'sHaddoc_b{block_id}_to_{ip_mod_name}_dv'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
             'sHaddoc_b{block_id}_to_{ip_mod_name}_fv'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            's{ip_mod_name}_debug'.format(ip_mod_name=self.ip_mod_name)
         ]
         width_lines = [(self.general_bitw * self.in_dims[1]), 1, 1,
-                       (self.general_bitw * self.out_dims[1]), 1, 1]
+                       (self.general_bitw * self.out_dims[1]), 1, 1,
+                       64]
         assert len(signal_lines) == len(width_lines)
         tcl_tmpl_lines = []
         decl_tmpl_lines = []

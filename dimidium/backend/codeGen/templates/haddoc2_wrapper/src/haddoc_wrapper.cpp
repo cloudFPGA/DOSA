@@ -209,7 +209,8 @@ void pToHaddocEnq(
 #else
     //DOSA_ADD_toHaddoc_buffer_param_decl
 #endif
-    stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData
+    stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
+    uint16_t *debug
     )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -290,6 +291,9 @@ void pToHaddocEnq(
 #endif
   }
 
+  *debug = (uint8_t) enqueueFSM;
+  *debug = ((uint16_t) hangover_store_valid_bits) << 8;
+
 }
 
 
@@ -305,7 +309,7 @@ void pToHaddocDeq(
     //ap_uint<1>                                *po_haddoc_frame_valid,
     ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
     stream<bool>                              &sHaddocUnitProcessing,
-    ap_uint<32> *debug_out
+    uint16_t *debug
     )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -434,7 +438,9 @@ void pToHaddocDeq(
   }
 
   //debugging?
-  *debug_out = 0x0;
+  //*debug_out = 0x0;
+  *debug = (uint8_t) hangover_bits_valid_bits[0];
+  *debug |= ((uint16_t) only_hangover_processing) << 15;
 
 }
 
@@ -722,7 +728,8 @@ void pFromHaddocFlatten(
     //DOSA_ADD_from_haddoc_buffer_param_decl
 #endif
     stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> >  &sFromHaddocBuffer,
-    stream<bool>                              &sFromHaddocFrameComplete
+    stream<bool>                              &sFromHaddocFrameComplete,
+    uint16_t *debug
     )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -798,6 +805,9 @@ void pFromHaddocFlatten(
       break;
   }
 
+  *debug = ((uint16_t) current_array_write_pnt) & 0xFFF;
+  *debug |= ((uint16_t) current_array_slot_pnt) << 12;
+
 }
 
 
@@ -815,7 +825,8 @@ void pFromHaddocDeq(
     //DOSA_ADD_from_haddoc_buffer_param_decl
 #endif
     stream<bool>                              &sFromHaddocFrameComplete,
-    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
+    uint16_t *debug
     )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -983,6 +994,8 @@ void pFromHaddocDeq(
       break;
   }
 
+  *debug = current_frame_bit_cnt;
+
 }
 
 
@@ -1000,7 +1013,7 @@ void haddoc_wrapper_test(
     ap_uint<1>                                *pi_haddoc_frame_valid,
     ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
     // ----- DEBUG IO ------
-    ap_uint<32> *debug_out
+    ap_uint<64> *debug_out
     )
 {
   //-- DIRECTIVES FOR THE BLOCK ---------------------------------------------
@@ -1078,6 +1091,11 @@ static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_1[CNN_OUTPUT_FRAME_S
   static stream<bool> sFromHaddocFrameComplete ("sFromHaddocFrameComplete");
   #pragma HLS STREAM variable=sFromHaddocFrameComplete depth=2  //2! since arrays are double-buffers
 
+  //-- LOCAL VARIABLES ------------------------------------------------------------
+  uint16_t debug0 = 0;
+  uint16_t debug1 = 0;
+  uint16_t debug2 = 0;
+  uint16_t debug3 = 0;
   //-- PROCESS INSTANTIATION ------------------------------------------------------
 
   // with the current strategy [INPUT] -> [CHANEL, with same bitwidth] -> [BATCH_PIXEL], we can maintain
@@ -1088,7 +1106,7 @@ static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_1[CNN_OUTPUT_FRAME_S
 #else
       //DOSA_ADD_toHaddoc_buffer_list
 #endif
-      siData);
+      siData, &debug0);
 
   *po_haddoc_frame_valid = 0x1;
 
@@ -1100,7 +1118,7 @@ static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_1[CNN_OUTPUT_FRAME_S
 #endif
       po_haddoc_data_valid,
       //po_haddoc_frame_valid,
-      po_haddoc_data_vector, sHaddocUnitProcessing, debug_out);
+      po_haddoc_data_vector, sHaddocUnitProcessing, &debug1);
 
   pFromHaddocEnq(pi_haddoc_data_valid, pi_haddoc_frame_valid, pi_haddoc_data_vector, sHaddocUnitProcessing, sFromHaddocBuffer);
 
@@ -1110,7 +1128,7 @@ static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_1[CNN_OUTPUT_FRAME_S
 #else
       //DOSA_ADD_from_haddoc_buffer_list
 #endif
-      sFromHaddocBuffer, sFromHaddocFrameComplete);
+      sFromHaddocBuffer, sFromHaddocFrameComplete, &debug2);
 
   pFromHaddocDeq(
 #ifdef WRAPPER_TEST
@@ -1118,7 +1136,12 @@ static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_1[CNN_OUTPUT_FRAME_S
 #else
       //DOSA_ADD_from_haddoc_buffer_list
 #endif
-      sFromHaddocFrameComplete, soData);
+      sFromHaddocFrameComplete, soData, &debug3);
+
+  *debug_out = (uint64_t) debug0;
+  *debug_out |= ((uint64_t) debug1) << 16;
+  *debug_out |= ((uint64_t) debug2) << 32;
+  *debug_out |= ((uint64_t) debug3) << 48;
 
 
 }
