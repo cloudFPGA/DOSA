@@ -78,7 +78,7 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
     # fig, ax1 = plt.subplots()
     fig = plt.figure()
     ax1 = fig.add_subplot()
-    ax1.set_xlim(0, id_list[-1])
+    ax1.set_xlim(id_list[0], id_list[-1])
     color = 'tab:grey'
     ax1.set_xlabel('ArchBrick Ids', fontsize=MY_SIZE)
     ax1.set_ylabel('Bandwidth in GB/s', fontsize=MY_SIZE, color=color)

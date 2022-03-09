@@ -46,10 +46,16 @@ def set_size(w, h, ax=None):
     ax.figure.set_size_inches(figw, figh)
 
 
-def turn_to_log(n):
+def turn_to_log(n, maxv=None, disable_min=False):
     if n <= 0.001:
         return 0
-    return math.log10(n)
+    if disable_min:
+        return math.log10(n)
+    ret = max(math.log10(n), 0.01)
+    if maxv is None:
+        return ret
+    else:
+        return min(ret, maxv)
 
 
 def turn_to_log_np(n):
@@ -73,7 +79,8 @@ def draw_oi_list(ax, color, line_style, font_size, line_width, y_max, oi_list, x
                 e_oi = x_max
             else:
                 e_oi = x_min
-        ax.plot([e_oi, e_oi], [turn_to_log(e['mem_share']), turn_to_log(e['comp_share'])], [y_min, y_max], color=color,
+        ax.plot([e_oi, e_oi], [turn_to_log(e['mem_share'], maxv=10.1), turn_to_log(e['comp_share'], maxv=10.1)],
+                [y_min, y_max], color=color,
                 linestyle=line_style, linewidth=line_width, zorder=z_order)
         if show_labels:
             text_y_shift_factor = 1.0
@@ -168,8 +175,10 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
             uinp_list.append(un)
             uinp_list2.append(un2)
     total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B,
-             'comp_share_engine': total_comp_share_engine, 'comp_share_stream': total_comp_share_stream,
-             'mem_share_stream': total_mem_share_stream, 'mem_share_engine': total_mem_share_engine}
+             'comp_share_engine': total_comp_share_engine/arch_draft.get_total_nodes_cnt(),
+             'comp_share_stream': total_comp_share_stream/arch_draft.get_total_nodes_cnt(),
+             'mem_share_stream': total_mem_share_stream/arch_draft.get_total_nodes_cnt(),
+             'mem_share_engine': total_mem_share_engine/arch_draft.get_total_nodes_cnt()}
     # print(total)
     plt_name = "{}\n(draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
                                                             str(arch_draft.strategy).split('.')[-1],
@@ -293,7 +302,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         # ax.plot(oi_list, p_fpga_lutram_max, color='tab:orange', linewidth=MY_WIDTH, label='current Role LUTRAM bandwidth', linestyle=line_style, zorder=1)
         # ax.plot_surface(X, Y, Z,
         # verts_lutram = [list(zip(oi_list, utt_list, p_fpga_lutram_max))]
-        lutram_sp = turn_to_log(rf_calc_sweet_spot(oi_list_full, upper_limit_full, perf_dict['bw_lutram_gBs']))
+        lutram_sp = turn_to_log(rf_calc_sweet_spot(oi_list_full, upper_limit_full, perf_dict['bw_lutram_gBs']),
+                                disable_min=True)
         x = [oi_list[0], lutram_sp, lutram_sp, oi_list[0]]
         y = [utt_list[0], utt_list[0], utt_list[-1], utt_list[-1]]
         z = [0, upper_limit, upper_limit, 0]
@@ -442,7 +452,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # color3 = 'orchid'
     color3 = 'aqua'
     oai_avg = turn_to_log(total['flops'] / (total['uinp_B'] + total['para_B']))
-    zs = [turn_to_log(total['mem_share_engine']), turn_to_log(total['comp_share_engine'])]
+    zs = [turn_to_log(total['mem_share_engine'], maxv=10.1), turn_to_log(total['comp_share_engine'], maxv=10.1)]
     ax.plot([oai_avg, oai_avg], zs, [-0.1, upper_limit], color=color3, linestyle=line_style, linewidth=MY_WIDTH * 1.2,
             zorder=8)
     text = 'Engine avg.'
@@ -452,7 +462,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     if print_debug:
         print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg, used_name))
     oai_avg2 = turn_to_log(total['flops'] / total['uinp_B'])
-    zs2 = [turn_to_log(total['mem_share_stream']), turn_to_log(total['comp_share_stream'])]
+    zs2 = [turn_to_log(total['mem_share_stream'], maxv=10.1), turn_to_log(total['comp_share_stream'], maxv=10.1)]
     ax.plot([oai_avg2, oai_avg2], zs2, [-0.1, upper_limit], color=color3, linestyle=line_style,
             linewidth=MY_WIDTH * 1.2,
             zorder=8)
