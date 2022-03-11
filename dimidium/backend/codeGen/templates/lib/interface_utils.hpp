@@ -104,7 +104,7 @@ inline uint8_t byteCntToTKeep(uint8_t byte_cnt)
   byte2keep[0] =  0b00000000;
 
   ret = byte2keep[byte_cnt];
-
+  //printf("\tgetting tkeep for %d bytes is %X\n", byte_cnt, ret);
   return ret;
 }
 

@@ -38,7 +38,7 @@ using namespace hls;
 #define DOSA_HADDOC_OUTPUT_BATCH_FLATTEN true
 #define DOSA_HADDOC_LAYER_CNT 3
 enum ToHaddocEnqStates {RESET0 = 0, WAIT_DRAIN, FILL_BUF_0, FILL_BUF_1, FILL_BUF_2};
-enum FromHaddocDeqStates {RESET1 = 0, READ_BUF_0, READ_BUF_1, READ_BUF_2, READ_BUF_3, ONLY_HANGOVER_PROC};
+enum FromHaddocDeqStates {RESET1 = 0, READ_BUF_0, READ_BUF_1, READ_BUF_2, READ_BUF_3};
 #endif
 //LESSON LEARNED: ifdef/else for constants that affect INTERFACES does not work with vivado HLS...it uses the first occurence, apparently...
 

@@ -98,6 +98,11 @@ class Haddoc2Wrapper:
                         enum_def += ', FILL_BUF_{}'.format(b)
                     enum_def += '};\n'
                     outline += enum_def
+                    enum_def = 'enum FromHaddocDeqStates {RESET1 = 0'
+                    for b in range(0, self.out_dims[1]):
+                        enum_def += ', READ_BUF_{}'.format(b)
+                    enum_def += '};\n'
+                    outline += enum_def
                 else:
                     outline = line
                 out_file.write(outline)
@@ -147,70 +152,159 @@ class Haddoc2Wrapper:
                     outline = ''
                     for b in range(0, self.in_dims[1]):
                         outline += fsm_tmpl.format(b=b)
-                elif 'DOSA_ADD_from_haddoc_buffer_param_decl' in line:
-                    outline = ''
-                    for b in range(0, self.out_dims[1]):
-                        outline += '    ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan{b}_buffer_0,\n' \
-                                   '    ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan{b}_buffer_1,\n' \
-                            .format(b=b)
+                # elif 'DOSA_ADD_from_haddoc_buffer_param_decl' in line:
+                #    outline = ''
+                #    for b in range(0, self.out_dims[1]):
+                #        outline += '    ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan{b}_buffer_0,\n' \
+                #                   '    ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan{b}_buffer_1,\n' \
+                #            .format(b=b)
                 # elif 'DOSA_ADD_from_haddoc_buffer_clear' in line:
                 #     outline = ''
                 #     for b in range(0, self.out_dims[1]):
                 #         outline += '        chan{b}_buffer_0[i] = 0x0;\n' \
                 #                    '        chan{b}_buffer_1[i] = 0x0;\n' \
                 #             .format(b=b)
-                elif 'DOSA_ADD_from_haddoc_buffer_read' in line:
-                    outline = 'if( current_array_slot_pnt == 0 )\n        {\n'
+                elif 'DOSA_ADD_from_haddoc_stream_param_decl' in line:
+                    outline = ''
                     for b in range(0, self.out_dims[1]):
-                        outline += '          ' + 'chan{b}_buffer_0[current_array_write_pnt] = (' \
-                                                  'ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) ' \
-                                                  '(input_data >> {b} * DOSA_HADDOC_GENERAL_BITWIDTH);\n' \
+                        outline += '  stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chan{b},\n' \
                             .format(b=b)
-                    outline += '        } else {\n'
+                elif 'DOSA_ADD_from_haddoc_stream_full_check' in line:
+                    outline = '         '
                     for b in range(0, self.out_dims[1]):
-                        outline += '          ' + 'chan{b}_buffer_1[current_array_write_pnt] = (' \
-                                                  'ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) ' \
-                                                  '(input_data >> {b} * DOSA_HADDOC_GENERAL_BITWIDTH);\n' \
+                        outline += ' && !sFromHaddocBuffer_chan{b}.full()' \
                             .format(b=b)
-                    outline += '        }\n'
-                elif 'DOSA_ADD_output_deq_read_switch_case_buff0' in line:
-                    outline = '            switch (cur_channel) {\n'
+                    outline += '\n'
+                elif 'DOSA_ADD_from_haddoc_stream_write' in line:
+                    outline = ''
                     for b in range(0, self.out_dims[1]):
-                        outline += '              case {b}: nv = chan{b}_buffer_0[cur_read_position]; break;\n'\
+                        outline += ('        sFromHaddocBuffer_chan{b}.write((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) ' +
+                                    '(input_data >> {b} * DOSA_HADDOC_GENERAL_BITWIDTH));\n') \
                             .format(b=b)
-                    outline += '            }\n'
-                elif 'DOSA_ADD_output_deq_read_switch_case_buff1' in line:
-                    outline = '            switch (cur_channel) {\n'
+                elif 'DOSA_ADD_output_stream_param_decl' in line:
+                    outline = ''
                     for b in range(0, self.out_dims[1]):
-                        outline += '              case {b}: nv = chan{b}_buffer_1[cur_read_position]; break;\n' \
+                        outline += '    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan{b},\n' \
                             .format(b=b)
-                    outline += '            }\n'
+                elif 'DOSA_ADD_from_haddoc_stream_drain' in line:
+                    fsm_tmpl = ('    if(!sFromHaddocBuffer_chan{b}.empty())\n    {{\n' +
+                                '      sFromHaddocBuffer_chan{b}.read();\n' +
+                                '      not_empty = true;\n    }}\n')
+                    outline = ''
+                    for b in range(0, self.out_dims[1]):
+                        outline += fsm_tmpl.format(b=b)
+                elif 'DOSA_ADD_widen' in line:
+                    fsm_tmpl = ('    if(!sFromHaddocBuffer_chan{b}.empty() && !sOutBuffer_chan{b}.full())\n    {{\n' +
+                                '      genericWiden(sFromHaddocBuffer_chan{b}, sOutBuffer_chan{b}, ' +
+                                'current_frame_bit_cnt[{b}], current_line_read_pnt[{b}], hangover_store[{b}],' +
+                                ' hangover_store_valid_bits[{b}]);\n    }}\n')
+                    outline = ''
+                    for b in range(0, self.out_dims[1]):
+                        outline += fsm_tmpl.format(b=b)
+                elif 'DOSA_ADD_out_stream_drain' in line:
+                    fsm_tmpl = ('    if(!sOutBuffer_chan{b}.empty())\n    {{\n' +
+                                '      sOutBuffer_chan{b}.read();\n' +
+                                '      not_empty = true;\n    }}\n')
+                    outline = ''
+                    for b in range(0, self.out_dims[1]):
+                        outline += fsm_tmpl.format(b=b)
+                elif 'DOSA_ADD_from_haddoc_deq_buf_read' in line:
+                    fsm_tmpl = ('\n    case READ_BUF_{b}:\n      if(!soData.full() && !sOutBuffer_chan{b}.empty())\n' +
+                                '      {{\n        tmp_read_0 = sOutBuffer_chan{b}.read();\n' +
+                                '        uint32_t bit_read = extractByteCnt(tmp_read_0) * 8;\n' +
+                                '        current_frame_bit_cnt += bit_read;\n' +
+                                '        if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT ||' +
+                                ' tmp_read_0.getTLast() == 1)\n        {{\n          current_frame_bit_cnt = 0x0;\n' +
+                                '          dequeueFSM = READ_BUF_{b1};\n          //check for tlast after each frame\n' +
+                                '          if(!DOSA_HADDOC_OUTPUT_BATCH_FLATTEN)\n          {{\n' +
+                                '            tmp_read_0.setTLast(0b1);\n          }} else {{\n' +
+                                '            tmp_read_0.setTLast(0b0);\n          }}\n        }}\n' +
+                                '        soData.write(tmp_read_0);\n      }}\n      break;\n')
+                    fsm_tmpl_last = (
+                            '\n    case READ_BUF_{b}:\n      if(!soData.full() && !sOutBuffer_chan{b}.empty())\n' +
+                            '      {{\n        tmp_read_0 = sOutBuffer_chan{b}.read();\n' +
+                            '        uint32_t bit_read = extractByteCnt(tmp_read_0) * 8;\n' +
+                            '        current_frame_bit_cnt += bit_read;\n' +
+                            '        if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT ||' +
+                            ' tmp_read_0.getTLast() == 1)\n        {{\n          current_frame_bit_cnt = 0x0;\n' +
+                            '          dequeueFSM = READ_BUF_0;\n          //in all cases\n' +
+                            '          tmp_read_0.setTLast(0b1);\n        }}\n' +
+                            '        soData.write(tmp_read_0);\n      }}\n      break;\n')
+                    outline = ''
+                    for b in range(0, self.out_dims[1] - 1):
+                        outline += fsm_tmpl.format(b=b, b1=b + 1)
+                    outline += fsm_tmpl_last.format(b=self.out_dims[1] - 1)
+                # elif 'DOSA_ADD_from_haddoc_buffer_read' in line:
+                #     outline = 'if( current_array_slot_pnt == 0 )\n        {\n'
+                #     for b in range(0, self.out_dims[1]):
+                #         outline += '          ' + 'chan{b}_buffer_0[current_array_write_pnt] = (' \
+                #                                   'ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) ' \
+                #                                   '(input_data >> {b} * DOSA_HADDOC_GENERAL_BITWIDTH);\n' \
+                #             .format(b=b)
+                #     outline += '        } else {\n'
+                #     for b in range(0, self.out_dims[1]):
+                #         outline += '          ' + 'chan{b}_buffer_1[current_array_write_pnt] = (' \
+                #                                   'ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) ' \
+                #                                   '(input_data >> {b} * DOSA_HADDOC_GENERAL_BITWIDTH);\n' \
+                #             .format(b=b)
+                #     outline += '        }\n'
+                # elif 'DOSA_ADD_output_deq_read_switch_case_buff0' in line:
+                #     outline = '            switch (cur_channel) {\n'
+                #     for b in range(0, self.out_dims[1]):
+                #         outline += '              case {b}: nv = chan{b}_buffer_0[cur_read_position]; break;\n'\
+                #             .format(b=b)
+                #     outline += '            }\n'
+                # elif 'DOSA_ADD_output_deq_read_switch_case_buff1' in line:
+                #     outline = '            switch (cur_channel) {\n'
+                #     for b in range(0, self.out_dims[1]):
+                #         outline += '              case {b}: nv = chan{b}_buffer_1[cur_read_position]; break;\n' \
+                #             .format(b=b)
+                #     outline += '            }\n'
                 elif 'DOSA_ADD_haddoc_buffer_instantiation' in line:
                     fsm_tmpl = '  static stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> > sToHaddocBuffer_chan{b} ' + \
                                '("sToHaddocBuffer_chan{b}");\n  #pragma HLS STREAM variable=sToHaddocBuffer_chan{b}   ' + \
-                               'depth=input_fifo_depth\n'
-                    outline = ''
+                               'depth=cnn_input_frame_size\n'
+                    outline = '\n'
                     for b in range(0, self.in_dims[1]):
                         outline += fsm_tmpl.format(b=b)
-                    fsm_tmpl = '  static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan{b}_buffer_0[' \
-                               'CNN_OUTPUT_FRAME_SIZE];\n' + \
-                               '  #pragma HLS ARRAY_PARTITION variable=g_chan{b}_buffer_0 cyclic ' \
-                               'factor=2*wrapper_output_if_haddoc_words_cnt_ceil\n ' + \
-                               '  static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan{b}_buffer_1[' \
-                               'CNN_OUTPUT_FRAME_SIZE];\n' + \
-                               '  #pragma HLS ARRAY_PARTITION variable=g_chan{b}_buffer_1 cyclic ' \
-                               'factor=2*wrapper_output_if_haddoc_words_cnt_ceil\n '
+                    outline += '\n'
+                    fsm_tmpl = '  static stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> > ' + \
+                               'sFromHaddocBuffer_chan{b} ("sFromHaddocBuffer_chan{b}");\n' + \
+                               '  #pragma HLS STREAM variable=sFromHaddocBuffer_chan{b} depth=cnn_output_frame_size\n'
+                    fsm_tmpl += '  static stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > ' + \
+                                'sOutBuffer_chan{b} ("sOutBuffer_chan{b}");\n' + \
+                                '  #pragma HLS STREAM variable=sOutBuffer_chan{b} depth=cnn_output_frame_size\n'
                     for b in range(0, self.out_dims[1]):
                         outline += fsm_tmpl.format(b=b)
+                    # fsm_tmpl = '  static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan{b}_buffer_0[' \
+                    #            'CNN_OUTPUT_FRAME_SIZE];\n' + \
+                    #            '  #pragma HLS ARRAY_PARTITION variable=g_chan{b}_buffer_0 cyclic ' \
+                    #            'factor=2*wrapper_output_if_haddoc_words_cnt_ceil\n ' + \
+                    #            '  static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan{b}_buffer_1[' \
+                    #            'CNN_OUTPUT_FRAME_SIZE];\n' + \
+                    #            '  #pragma HLS ARRAY_PARTITION variable=g_chan{b}_buffer_1 cyclic ' \
+                    #            'factor=2*wrapper_output_if_haddoc_words_cnt_ceil\n '
+                    # for b in range(0, self.out_dims[1]):
+                    #     outline += fsm_tmpl.format(b=b)
                 elif 'DOSA_ADD_toHaddoc_buffer_list' in line:
                     outline = '     '
                     for b in range(0, self.in_dims[1]):
                         outline += ' sToHaddocBuffer_chan{},'.format(b)
                     outline += '\n'
-                elif 'DOSA_ADD_from_haddoc_buffer_list' in line:
+                # elif 'DOSA_ADD_from_haddoc_buffer_list' in line:
+                #     outline = '     '
+                #     for b in range(0, self.out_dims[1]):
+                #         outline += ' g_chan{b}_buffer_0, g_chan{b}_buffer_1,'.format(b=b)
+                #     outline += '\n'
+                elif 'DOSA_ADD_from_haddoc_stream_list' in line:
                     outline = '     '
                     for b in range(0, self.out_dims[1]):
-                        outline += ' g_chan{b}_buffer_0, g_chan{b}_buffer_1,'.format(b=b)
+                        outline += ' sFromHaddocBuffer_chan{b},'.format(b=b)
+                    outline += '\n'
+                elif 'DOSA_ADD_from_haddoc_out_list' in line:
+                    outline = '     '
+                    for b in range(0, self.out_dims[1]):
+                        outline += ' sOutBuffer_chan{b},'.format(b=b)
                     outline += '\n'
                 else:
                     outline = line
