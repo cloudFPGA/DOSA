@@ -124,6 +124,7 @@ class CfThemisto1(DosaBaseHw):
         # ret = {'sweet_spot': 0.081}  # old DSP calc
         # ret = {'sweet_spot': 0.1566}  # for BRAM
         ret = {'sweet_spot': 0.0100}  # for LUTRAM
+        # TODO: calculate dynamically respecting kappa
         return ret
 
     def get_resource_dict(self):
