@@ -58,7 +58,7 @@ set_top       ${projectName}
 
 # library files
 add_files ${srcDir}/../../lib/axi_utils.hpp -cflags "-Wno-attributes"
-#add_files ${srcDir}/../../lib/interface_utils.hpp
+add_files ${srcDir}/../../lib/interface_utils.hpp -cflags "-Wno-attributes"
 
 if { $useWrapperTest } {
   add_files   ${srcDir}/haddoc_wrapper.cpp -cflags "-DWRAPPER_TEST -Wno-attributes"
