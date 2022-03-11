@@ -94,6 +94,16 @@ void pStateControl(
         sSendDone.read();
         not_empty = true;
       }
+      curCmnd = MPI_INSTR_NOP;
+      curRep = 0;
+      curRank = MPI_NO_RANK;
+      if( !not_empty && *cluster_size_arg != 0)
+      {
+        controlFSM = WRITE_PROGRAM;
+      }
+      break;
+    case WRITE_PROGRAM:
+      //extra state to avoid fatal HLS optimizations (?)
 #ifdef WRAPPER_TEST
       if(*role_rank_arg == 1)
       {
@@ -107,15 +117,9 @@ void pStateControl(
         commandRepetitions[1]   = 1;
       }
 #else
-  //DOSA_ADD_mpi_commands
+      //DOSA_ADD_mpi_commands
 #endif
-      curCmnd = MPI_INSTR_NOP;
-      curRep = 0;
-      curRank = MPI_NO_RANK;
-      if( !not_empty && *cluster_size_arg != 0)
-      {
-        controlFSM = ISSUE_COMMAND;
-      }
+      controlFSM = ISSUE_COMMAND;
       break;
     case ISSUE_COMMAND:
       if( !soMPIif.full() && !sReceiveLength.full() && !sSendLength.full()
@@ -320,10 +324,11 @@ void pRecvEnq(
       {
         tmp_read = siMPI_data.read();
         curCnt += extractByteCnt(tmp_read);
-        if(curCnt >= curLength)
-        {
-          tmp_read.setTLast(1);
-        }
+        //TODO: remove couning? MPE does always set tlast?
+        //if(curCnt >= curLength)
+        //{
+        //  tmp_read.setTLast(1);
+        //}
         if(tmp_read.getTLast() == 1)
         {
           //also fail will set TLAST
@@ -355,10 +360,11 @@ void pRecvEnq(
       {
         tmp_read = siMPI_data.read();
         curCnt += extractByteCnt(tmp_read);
-        if(curCnt >= curLength)
-        {
-          tmp_read.setTLast(1);
-        }
+        //TODO: remove couning? MPE does always set tlast?
+        //if(curCnt >= curLength)
+        //{
+        //  tmp_read.setTLast(1);
+        //}
         if(tmp_read.getTLast() == 1)
         {
           //also fail will set TLAST

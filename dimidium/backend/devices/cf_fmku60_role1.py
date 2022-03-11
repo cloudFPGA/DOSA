@@ -99,7 +99,7 @@ class CfThemisto1(DosaBaseHw):
         total_flops_dsps = self.cF_bigRole_dsp48_gflops * gigaU * self.config_dosa_kappa
         role6_luts_available = 101600
         total_flops_luts = (role6_luts_available / dosa_singleton.config.utilization.xilinx_luts_to_dsp_factor) \
-                           * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
+                           * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz * self.config_dosa_kappa
         self.total_flops_hw = total_flops_luts + total_flops_dsps
         total_bytes_bram = (role6_brams * 36 * kiloU) / 8  # 36Kb RAMs
         total_bytes_lutram = role6_lutram_available_inBytes / \

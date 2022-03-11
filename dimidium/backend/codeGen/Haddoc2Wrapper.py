@@ -153,12 +153,12 @@ class Haddoc2Wrapper:
                         outline += '    ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan{b}_buffer_0,\n' \
                                    '    ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan{b}_buffer_1,\n' \
                             .format(b=b)
-                elif 'DOSA_ADD_from_haddoc_buffer_clear' in line:
-                    outline = ''
-                    for b in range(0, self.out_dims[1]):
-                        outline += '        chan{b}_buffer_0[i] = 0x0;\n' \
-                                   '        chan{b}_buffer_1[i] = 0x0;\n' \
-                            .format(b=b)
+                # elif 'DOSA_ADD_from_haddoc_buffer_clear' in line:
+                #     outline = ''
+                #     for b in range(0, self.out_dims[1]):
+                #         outline += '        chan{b}_buffer_0[i] = 0x0;\n' \
+                #                    '        chan{b}_buffer_1[i] = 0x0;\n' \
+                #             .format(b=b)
                 elif 'DOSA_ADD_from_haddoc_buffer_read' in line:
                     outline = 'if( current_array_slot_pnt == 0 )\n        {\n'
                     for b in range(0, self.out_dims[1]):
@@ -195,11 +195,11 @@ class Haddoc2Wrapper:
                     fsm_tmpl = '  static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan{b}_buffer_0[' \
                                'CNN_OUTPUT_FRAME_SIZE];\n' + \
                                '  #pragma HLS ARRAY_PARTITION variable=g_chan{b}_buffer_0 cyclic ' \
-                               'factor=wrapper_output_if_haddoc_words_cnt_ceil\n ' + \
+                               'factor=2*wrapper_output_if_haddoc_words_cnt_ceil\n ' + \
                                '  static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan{b}_buffer_1[' \
                                'CNN_OUTPUT_FRAME_SIZE];\n' + \
                                '  #pragma HLS ARRAY_PARTITION variable=g_chan{b}_buffer_1 cyclic ' \
-                               'factor=wrapper_output_if_haddoc_words_cnt_ceil\n '
+                               'factor=2*wrapper_output_if_haddoc_words_cnt_ceil\n '
                     for b in range(0, self.out_dims[1]):
                         outline += fsm_tmpl.format(b=b)
                 elif 'DOSA_ADD_toHaddoc_buffer_list' in line:

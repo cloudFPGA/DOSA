@@ -16,6 +16,7 @@ import json
 import requests
 import glob
 import urllib.parse
+from datetime import datetime
 
 # from cFSPlib import cFSP
 from cFSPlib.cfsp_image import ImagesApi, ApiException, ApiClient, Configuration
@@ -60,6 +61,25 @@ def load_user_credentials(json_file):
     return -1, {}
 
 
+def upload_image(dcp_folder, user_dict, node_name, app_name, api_instance):
+    lt = glob.glob(dcp_folder + '/4_*{}.bit'.format(node_name))
+    assert len(lt) == 1
+    bit_file_name = os.path.basename(lt[0])
+    assert 'partial' not in bit_file_name
+    bit_file_path = os.path.abspath(dcp_folder + '/' + bit_file_name)
+    static_json_file = dcp_folder + '/3_topFMKU60_STATIC.json'
+    with open(static_json_file, 'r') as f:
+        cl_data = json.load(f)
+    tstmp = datetime.today().strftime('%Y-%m-%d_%H:%M')
+    image_details = '{"breed": "SHELL", "fpga_board": "' + str(cl_data['fpga_board']) + \
+                    '", "shell_type": "' + str(cl_data['shell']) + '", "comment": "DOSA automatic deploy of ' + app_name \
+                    + ' on ' + tstmp + '"}'
+    pr_verify_rpt = ""
+    api_response = api_instance.cf_manager_rest_api_post_images(image_details, bit_file_path, pr_verify_rpt,
+                                                                str(user_dict['user']), str(user_dict['pw']))
+    return api_response.id
+
+
 def upload_app_logic(dcp_folder, user_dict, app_name, api_instance):
     lt = glob.glob(dcp_folder + '/4_*partial.bin')
     assert len(lt) == 1
@@ -74,9 +94,10 @@ def upload_app_logic(dcp_folder, user_dict, app_name, api_instance):
     static_json_file = dcp_folder + '/3_topFMKU60_STATIC.json'
     with open(static_json_file, 'r') as f:
         cl_data = json.load(f)
+    tstmp = datetime.today().strftime('%Y-%m-%d_%H:%M')
     image_details = '{"cl_id": "' + str(cl_data['id']) + '", "fpga_board": "' + str(cl_data['fpga_board']) + \
                     '", "shell_type": "' + str(cl_data['shell']) + '", "comment": "DOSA automatic deploy of ' + app_name \
-                    + '"}'
+                    + ' on ' + tstmp + '"}'
     api_response = api_instance.cf_manager_rest_api_post_app_logic(image_details, bin_file_path, sig_file_path,
                                                                    rpt_file_path, str(user_dict['user']), str(user_dict['pw']))
     return api_response.id
@@ -98,7 +119,7 @@ def create_new_cluster(cluster_data, host_address, sw_rank, user_dict):
                     'node_id': int(r)
                 }
                 cluster_req.append(fpgaNode)
-    print(json.dumps(cluster_req))
+    print(json.dumps(cluster_req, indent=2))
 
     print("Executing POST ...")
     r1 = requests.post("http://" + __cf_manager_url__ + "/clusters?username={0}&password={1}&project_name={2}"
@@ -107,7 +128,7 @@ def create_new_cluster(cluster_data, host_address, sw_rank, user_dict):
                        json=cluster_req)
 
     if r1.status_code != 200:
-        # something went horrible wrong
+        # something went wrong
         return errorReqExit("POST cluster", r1.status_code)
 
     cluster_data = json.loads(r1.text)
@@ -116,7 +137,7 @@ def create_new_cluster(cluster_data, host_address, sw_rank, user_dict):
     return cluster_data
 
 
-def main(path_to_build_folder, user_file, host_address):
+def main(path_to_build_folder, user_file, host_address, use_pr_flow=True):
     cluster_json_path = path_to_build_folder + '/' + __cluster_filename__
     with open(cluster_json_path, 'r') as infile:
         cluster_data = json.load(infile)
@@ -131,21 +152,24 @@ def main(path_to_build_folder, user_file, host_address):
     for n in cluster_data['nodes']:
         if n['type'] == __cf_device_name__:
             dcp_folder = os.path.abspath(path_to_build_folder + '/' + n['folder'] + '/dcps/')
-            bitfile_id = upload_app_logic(dcp_folder, user_dict, cluster_data['name'], api_instance)
+            if use_pr_flow:
+                bitfile_id = upload_app_logic(dcp_folder, user_dict, cluster_data['name'], api_instance)
+            else:
+                bitfile_id = upload_image(dcp_folder, user_dict, n['folder'], cluster_data['name'], api_instance)
             n['image-id'] = bitfile_id
             print_dict[n['folder']] = bitfile_id
         elif n['type'] == __cpu_device_name__:
             sw_rank = n['ranks'][0]
 
     print('Images uploaded:')
-    print(json.dumps(print_dict, indent='2'))
+    print(json.dumps(print_dict, indent=2))
     cfrm_data = create_new_cluster(cluster_data, host_address, sw_rank, user_dict)
     print('Cluster details:')
-    print(json.dumps(cfrm_data, indent='2'))
+    print(json.dumps(cfrm_data, indent=2))
     return 0
 
 
 if __name__ == '__main__':
     if len(sys.argv) != 4:
         print("USAGE: {} <path/to/dosa/build_dir/> <path/to/user.json> <node_0_ip_addr>".format(sys.argv[0]))
-    main(os.path.abspath(sys.argv[1]), sys.argv[2], sys.argv[3])
+    main(os.path.abspath(sys.argv[1]), sys.argv[2], sys.argv[3], use_pr_flow=False)
