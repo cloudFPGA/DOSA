@@ -108,9 +108,9 @@ class CfThemisto1(DosaBaseHw):
         # role6_luts_available = 101600
         role8_luts_available = 122400  # POSITION 8
         self.lutlog = role8_luts_available
-        total_flops_luts = (role8_luts_available / dosa_singleton.config.utilization.xilinx_luts_to_dsp_factor) \
+        self.total_flops_luts = (role8_luts_available / dosa_singleton.config.utilization.xilinx_luts_to_dsp_factor) \
                            * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz * self.config_dosa_kappa
-        self.total_flops_hw = total_flops_luts + total_flops_dsps
+        self.total_flops_hw = self.total_flops_luts + total_flops_dsps
         total_bytes_bram = (role8_brams * 36 * kiloU) / 8  # 36Kb RAMs
         total_bytes_lutram = role_lutram_available_inBytes / \
                              dosa_singleton.config.utilization.xilinx_lutram_to_bram_factor

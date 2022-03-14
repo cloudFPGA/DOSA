@@ -18,6 +18,7 @@ import copy
 from dimidium.lib.units import config_bits_per_byte
 from dimidium.lib.dosa_dtype import convert_tvmDtype_to_DosaDtype, get_bitwidth_of_DosaDtype
 
+
 # Dosa Return Value
 class DosaRv(Enum):
     OK = 0
@@ -112,4 +113,10 @@ def bit_to_dtype(bit):
     if bit == 16:
         return 'float16'
     return 'int32'  # default
+
+
+# https://stackoverflow.com/questions/51716916/built-in-module-to-calculate-the-least-common-multiple
+def my_lcm(a, b):
+    return abs(a*b) // math.gcd(a, b)  # // is floor div
+
 

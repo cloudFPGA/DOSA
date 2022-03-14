@@ -978,6 +978,7 @@ class ArchDraft(object):
             build_folder_name = nn.build_tool.get_node_folder_name()
         # add to global cluster setup info
         self._generate_cluster_description()
+        self._generate_extended_cluster_description()
 
     # def synth(self):
     #     for nn in self.node_iter_gen():
@@ -997,6 +998,27 @@ class ArchDraft(object):
             cluster_dict['nodes'].append(ne)
             # cluster_dict['nodes'][nn_f] = nn_ranks
         out_file = '{}/cluster.json'.format(dosa_singleton.config.global_build_dir)
+        with open(out_file, 'w') as of:
+            json.dump(cluster_dict, of, indent=4)
+
+    def _generate_extended_cluster_description(self):
+        num_nodes = self.get_total_nodes_cnt()
+        if self.substract_node_0:
+            num_nodes += 1
+        cluster_dict = {'name': self.name, 'total_nodes': num_nodes, 'nodes': []}
+        for nn in self.node_iter_gen():
+            nn_f = nn.build_tool.node_folder_name
+            nn_ranks = nn.ranks
+            n_hw = nn.selected_hw_type.name
+            # ne = {nn_f: nn_ranks}
+            node_dict = nn.as_dict()
+            ne = {'folder': nn_f, 'ranks': nn_ranks, 'type': n_hw, 'blocks': node_dict['blocks'], 'bricks': {}}
+            for bb in nn.local_brick_iter_gen():
+                bb_sum = bb.as_summary()
+                ne['bricks'][bb.local_brick_id] = bb_sum
+            cluster_dict['nodes'].append(ne)
+            # cluster_dict['nodes'][nn_f] = nn_ranks
+        out_file = '{}/draft_info.json'.format(dosa_singleton.config.global_build_dir)
         with open(out_file, 'w') as of:
             json.dump(cluster_dict, of, indent=4)
 

@@ -23,7 +23,6 @@ from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG, sort_
 
 
 class ArchBrick(object):
-
     """
     dpl = {'name': my_name, 'cmpl': oi_cmpl, 'uinp': oi_uinp, 'flop': flop_total, 'parB': bw_param_B,
            'inpB': bw_data_B, 'outB': out_bw, 'layer': istr, 'fn': obj.cur_fstr, 'op': op_name,
@@ -76,6 +75,14 @@ class ArchBrick(object):
 
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.local_brick_id, self.name)
+
+    def as_summary(self):
+        res = {'name': self.name, 'brick_uuid': self.brick_uuid,
+               'op_calls': []}
+        for oi in self.ops:
+            o = self.ops[oi]
+            res['op_calls'].append(o.op_call)
+        return res
 
     def as_dict(self):
         res = {'name': self.name, 'brick_uuid': self.brick_uuid,
@@ -138,7 +145,7 @@ class ArchBrick(object):
 
     def del_arch_op(self, op_i):
         del self.ops[op_i]
-        for i in range(op_i+1, self.oid_cnt):
+        for i in range(op_i + 1, self.oid_cnt):
             self.ops[i].local_op_id -= 1
         self.oid_cnt -= 1
 
@@ -240,5 +247,3 @@ class ArchBrick(object):
         elif self.selected_impl_type == BrickImplTypes.ENGINE:
             self.req_util_mem_engine = 0  # TODO: ? for engine, always 0!
             self.req_util_comp_engine = share_comp
-
-

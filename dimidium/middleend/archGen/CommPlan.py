@@ -11,6 +11,7 @@
 #  *
 
 import dimidium.lib.singleton as dosa_singleton
+from dimidium.lib.util import my_lcm
 
 
 class CommPlan:
@@ -28,15 +29,15 @@ class CommPlan:
         last_brick = self.node.bricks[brick_keys[-1]]
         # TODO: using new rank scheme
         #  need also conditional instr, e.g. 'cond' as rank number?
-        #if len(self.node.inp_ranks) == 0:
+        # if len(self.node.inp_ranks) == 0:
         #    number_of_in_conns = len(self.node.ranks)
         #    incomming_ranks =
-        #else:
+        # else:
         # TODO: make dynamic:
         assert len(self.node.inp_ranks) > 0 and len(self.node.out_ranks) > 0
-        #if len(self.node.out_ranks) == 0:
+        # if len(self.node.out_ranks) == 0:
         #    number_of_out_conns = len(self.node.out_ranks)
-        #else:
+        # else:
         number_of_in_conns = len(self.node.inp_ranks) * len(self.node.ranks)
         number_of_out_conns = len(self.node.out_ranks) * len(self.node.ranks)
         comms_per_rank_in = int(number_of_in_conns / len(self.node.ranks))
@@ -60,18 +61,27 @@ class CommPlan:
             out_cmd_rank_list.extend(tm)
         assert len(incomming_ranks) == len(in_cmd_rank_list)
         assert len(outgoing_ranks) == len(out_cmd_rank_list)
-        if len(incomming_ranks) > len(outgoing_ranks):
+        if (len(incomming_ranks) > len(outgoing_ranks)) and \
+                (len(incomming_ranks) % len(outgoing_ranks) == 0):
             ef = int(len(incomming_ranks) / len(outgoing_ranks))
-            assert len(incomming_ranks) % len(outgoing_ranks) == 0
+            # assert len(incomming_ranks) % len(outgoing_ranks) == 0
             outgoing_ranks *= ef
             out_cmd_rank_list *= ef
-        elif len(outgoing_ranks) > len(incomming_ranks):
+        elif (len(outgoing_ranks) > len(incomming_ranks)) and \
+                (len(outgoing_ranks) % len(incomming_ranks) == 0):
             ef = int(len(outgoing_ranks) / len(incomming_ranks))
-            # TODO: isn't working always, allow also to use only partial lists?
-            #  after 2 total list usages?
-            assert len(outgoing_ranks) % len(incomming_ranks) == 0
+            # assert len(outgoing_ranks) % len(incomming_ranks) == 0
             incomming_ranks *= ef
             in_cmd_rank_list *= ef
+        else:
+            # use least common mutliple
+            lcm = my_lcm(len(outgoing_ranks), len(incomming_ranks))
+            ef_1 = int(lcm/len(incomming_ranks))
+            incomming_ranks *= ef_1
+            in_cmd_rank_list *= ef_1
+            ef_2 = int(lcm/len(outgoing_ranks))
+            outgoing_ranks *= ef_2
+            out_cmd_rank_list *= ef_2
         assert len(incomming_ranks) == len(outgoing_ranks)
         in_cmd_rank_list.sort()
         out_cmd_rank_list.sort()
