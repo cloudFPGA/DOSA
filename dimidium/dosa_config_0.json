@@ -22,7 +22,7 @@
       "int8": 1.0,
       "double": 1.0
     },
-    "mu": 1.1
+    "mu": 1.25
   },
   "generate_testbenchs": 1,
   "utilization": {
