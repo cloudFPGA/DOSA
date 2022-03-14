@@ -67,6 +67,8 @@ class CommPlan:
             out_cmd_rank_list *= ef
         elif len(outgoing_ranks) > len(incomming_ranks):
             ef = int(len(outgoing_ranks) / len(incomming_ranks))
+            # TODO: isn't working always, allow also to use only partial lists?
+            #  after 2 total list usages?
             assert len(outgoing_ranks) % len(incomming_ranks) == 0
             incomming_ranks *= ef
             in_cmd_rank_list *= ef

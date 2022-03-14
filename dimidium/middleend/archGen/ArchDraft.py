@@ -575,6 +575,9 @@ class ArchDraft(object):
         # ensure all are decided
         for bb in self.brick_iter_gen():
             assert bb.selected_impl_type != BrickImplTypes.UNDECIDED
+        # TODO: overwriting all for STREAM
+        for bb in self.brick_iter_gen():
+            bb.selected_impl_type = BrickImplTypes.STREAM
         # 3. split based on used memory utility shares
         # TODO: reflect resource budget?
         #  if opt. goal resources, the STREAMS must be ENGINES?
@@ -816,8 +819,12 @@ class ArchDraft(object):
         self.update_required_perf()
         for nn in self.node_iter_gen():
             nn.update_used_perf_util()
-            assert nn.used_comp_util_share < 1
-            assert nn.used_mem_util_share < 1
+            assert nn.used_comp_util_share < 1.1
+            # TODO
+            # if nn.used_comp_util_share > 1:
+            #     print("[DOSA:archGen:WARNING] node {} has {} compute utilization...implementation may fail"
+            #           .format(nn.node_id, nn.used_comp_util_share))
+            assert nn.used_mem_util_share < 1.1
         return DosaRv.OK
 
     def update_required_perf(self):

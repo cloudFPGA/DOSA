@@ -13,12 +13,14 @@
 
 from dimidium.backend.codeGen.WrapperInterfaces import WrapperInterface, InterfaceAxisFifo
 
-_valid_fifo_depth_ = [2048, 4096, 8192, 16384]
+_valid_fifo_depth_ = [1024, 2048, 4096, 8192, 16384]
+_probe_len_threshold_ = 90
+_fifo_depth_lower_index_ = 0
 
 
 class IlaDebugCore:
 
-    def __init__(self, fifo_depth=_valid_fifo_depth_[0]):
+    def __init__(self, fifo_depth='auto'):
         self.tcl_templates = []
         self.decl_templates = []
         self.inst_templates = []
@@ -49,6 +51,10 @@ class IlaDebugCore:
                           '      clk => {clk}\n'  # comma always at the begin of next line
         self.inst_end = '    );\n\n'
         self.num_probes = 0
+        if fifo_depth not in _valid_fifo_depth_ and fifo_depth != 'auto':
+            print("[DOSA:DEBUG:ERROR] The debug_core fifo depth must be in {} or 'auto'. STOP."
+                  .format(_valid_fifo_depth_))
+            exit(1)
         self.fifo_depth = fifo_depth
 
     def add_new_probes(self, tcl_tmpl, decl_tmpl, inst_tmpl):
@@ -60,6 +66,11 @@ class IlaDebugCore:
 
     def get_tcl_lines(self):
         indent = '                     '
+        if self.fifo_depth == 'auto':
+            if len(self.tcl_templates) > _probe_len_threshold_:
+                self.fifo_depth = _valid_fifo_depth_[_fifo_depth_lower_index_]
+            else:
+                self.fifo_depth = _valid_fifo_depth_[_fifo_depth_lower_index_+1]
         tcl_lines = self.tcl_start.format(num_probes=self.num_probes, fifo_depth=self.fifo_depth)
         for i in range(self.num_probes):
             te = self.tcl_templates[i]

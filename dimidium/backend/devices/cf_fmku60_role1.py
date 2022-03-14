@@ -54,8 +54,10 @@ class CfThemisto1(DosaBaseHw):
         cF_1_dsp48_gflops = config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
         # cF_bigRole_dsp48_gflops = 1028.0 * 4.0 * freq_fpga_ghz
         big_role_dsps = 1028.0
-        role6_dsps = 1106
-        self.cF_bigRole_dsp48_gflops = role6_dsps * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
+        # role6_dsps = 1106
+        role8_dsps = 1200  # POSITION 8
+        self.dsps = role8_dsps
+        self.cF_bigRole_dsp48_gflops = role8_dsps * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
 
         # cF_mantle_dsp48_gflops = 938.0 * 4.0 * freq_fpga_ghz
         cF_mantle_dsp48_gflops = 938.0 * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
@@ -68,8 +70,10 @@ class CfThemisto1(DosaBaseHw):
         # BRAM bandwidth
         fpga_brams = 1080
         # big_role_brams = 351
-        role6_brams = 348
-        b_s_fpga_bram_Bs = (role6_brams * 72 / 8) / (
+        # role6_brams = 348
+        role8_brams = 396  # POSITION 8
+        self.bram = role8_brams
+        b_s_fpga_bram_Bs = (role8_brams * 72 / 8) / (
                 1 / self.freq_fpga)  # 1080 BRAMs with 72 bit write per cycle each, Bytes/s
         self.b_s_fpga_bram_gBs = b_s_fpga_bram_Bs / gigaU
 
@@ -80,14 +84,18 @@ class CfThemisto1(DosaBaseHw):
         fpga_lutram_available_B = (9180 * 2 * 8) * 8  # 146880 available LUTRAMs, 64bit/8Byte each, Bytes
         # big_role_lutram_available_B = 52640.0
         # small_role_lutram_available_B = 47040.0
-        role6_lutram_available = 53400
-        role6_lutram_available_inBytes = role6_lutram_available * 8
-        b_s_fpga_lutram_Bs = role6_lutram_available_inBytes / (1 / self.freq_fpga)  # Bytes/s
+        # role6_lutram_available = 53400
+        role8_lutram_available = 61920  # POSITION 8
+        self.lutmem = role8_lutram_available
+        role_lutram_available_inBytes = role8_lutram_available * 8
+        b_s_fpga_lutram_Bs = role_lutram_available_inBytes / (1 / self.freq_fpga)  # Bytes/s
         self.b_s_fpga_lutram_gBs = b_s_fpga_lutram_Bs / gigaU
 
         # TODO: flip flops?
         #  --> but are rather used internally?
-        role6_ff_available = 203200
+        # role6_ff_available = 203200
+        role8_ff_available = 244800  # POSITION 8
+        self.registers = role8_ff_available
 
         # b_s_mantle_lutram_gBs = (small_role_lutram_available_B / (1/freq_fpga)) / gigaU
 
@@ -97,12 +105,14 @@ class CfThemisto1(DosaBaseHw):
 
         # utilization
         total_flops_dsps = self.cF_bigRole_dsp48_gflops * gigaU * self.config_dosa_kappa
-        role6_luts_available = 101600
-        total_flops_luts = (role6_luts_available / dosa_singleton.config.utilization.xilinx_luts_to_dsp_factor) \
+        # role6_luts_available = 101600
+        role8_luts_available = 122400  # POSITION 8
+        self.lutlog = role8_luts_available
+        total_flops_luts = (role8_luts_available / dosa_singleton.config.utilization.xilinx_luts_to_dsp_factor) \
                            * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz * self.config_dosa_kappa
         self.total_flops_hw = total_flops_luts + total_flops_dsps
-        total_bytes_bram = (role6_brams * 36 * kiloU) / 8  # 36Kb RAMs
-        total_bytes_lutram = role6_lutram_available_inBytes / \
+        total_bytes_bram = (role8_brams * 36 * kiloU) / 8  # 36Kb RAMs
+        total_bytes_lutram = role_lutram_available_inBytes / \
                              dosa_singleton.config.utilization.xilinx_lutram_to_bram_factor
         self.total_bytes_hw = total_bytes_bram + total_bytes_lutram
 
@@ -129,7 +139,14 @@ class CfThemisto1(DosaBaseHw):
 
     def get_resource_dict(self):
         self._gen_numbers()
-        ret = {'total_flops': self.total_flops_hw, 'total_on_chip_memory_bytes': self.total_bytes_hw}
+        ret = {'total_flops': self.total_flops_hw, 'total_on_chip_memory_bytes': self.total_bytes_hw,
+               'FPGA_utility': {
+                   'LUTLOG': self.lutlog,
+                   'LUTMEM': self.lutmem,
+                   'Registers': self.registers,
+                   'BRAM': self.bram,
+                   'DSPs': self.dsps
+               }}
         return ret
 
     def get_max_flops(self):
@@ -141,7 +158,7 @@ class CfThemisto1(DosaBaseHw):
 
     def get_hw_utilization_tuple(self, flops, bake_in_params_bytes):
         self._gen_numbers()
-        share_flops = float(flops/self.total_flops_hw) * dosa_singleton.config.utilization.dosa_mu
-        share_memory = float(bake_in_params_bytes/self.total_bytes_hw) * dosa_singleton.config.utilization.dosa_mu
+        share_flops = float(flops / self.total_flops_hw) * dosa_singleton.config.utilization.dosa_mu
+        share_memory = float(bake_in_params_bytes / self.total_bytes_hw) * dosa_singleton.config.utilization.dosa_mu
         return share_flops, share_memory
 
