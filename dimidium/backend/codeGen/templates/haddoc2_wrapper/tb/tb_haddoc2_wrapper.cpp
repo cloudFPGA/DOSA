@@ -34,12 +34,21 @@ using namespace std;
 stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   siData("siData");
 stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  soData("soData");
 // ----- Haddoc Interface -----
-ap_uint<1>                                po_haddoc_data_valid = 0;
+//ap_uint<1>                                *po_haddoc_data_valid,
+//ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
 ap_uint<1>                                po_haddoc_frame_valid = 0;
-ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      po_haddoc_data_vector = 0;
-ap_uint<1>                                pi_haddoc_data_valid = 0;
+stream<ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH> > po_haddoc_data ("po_haddoc_data");
+//ap_uint<1>                                *pi_haddoc_data_valid,
+//ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
 ap_uint<1>                                pi_haddoc_frame_valid = 0;
-ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     pi_haddoc_data_vector = 0;
+stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > pi_haddoc_data ("pi_haddoc_data");
+//// ----- Haddoc Interface -----
+//ap_uint<1>                                po_haddoc_data_valid = 0;
+//ap_uint<1>                                po_haddoc_frame_valid = 0;
+//ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      po_haddoc_data_vector = 0;
+//ap_uint<1>                                pi_haddoc_data_valid = 0;
+//ap_uint<1>                                pi_haddoc_frame_valid = 0;
+//ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     pi_haddoc_data_vector = 0;
 // ----- DEBUG IO ------
 ap_uint<64> debug_out = 0;
 
@@ -67,18 +76,22 @@ int frame_pixel_cnt = 0;
 void stepDut() {
   haddoc_wrapper_test(
       siData, soData,
-      &po_haddoc_data_valid, &po_haddoc_frame_valid, &po_haddoc_data_vector,
-      &pi_haddoc_data_valid, &pi_haddoc_frame_valid, &pi_haddoc_data_vector,
+      //&po_haddoc_data_valid, &po_haddoc_frame_valid, &po_haddoc_data_vector,
+      &po_haddoc_frame_valid, po_haddoc_data,
+      //&pi_haddoc_data_valid, &pi_haddoc_frame_valid, &pi_haddoc_data_vector,
+      &pi_haddoc_frame_valid, pi_haddoc_data,
       &debug_out);
     simCnt++;
     printf("[%4.4d] STEP DUT \n", simCnt);
 }
 
 void pHaddoc() {
-  pi_haddoc_data_valid = 0;
+  //pi_haddoc_data_valid = 0;
   pi_haddoc_frame_valid = 0;
-  if(po_haddoc_data_valid == 1 && po_haddoc_frame_valid == 1)
+  //if(po_haddoc_data_valid == 1 && po_haddoc_frame_valid == 1)
+  if(!po_haddoc_data.empty() && po_haddoc_frame_valid == 1)
   {
+    ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      po_haddoc_data_vector = po_haddoc_data.read();
     //if(ignore_haddoc_value_cnt >= TB_HADDOC_STORE_VALUE_PROP)
     if(forwarded_this_frame < TB_PER_FRAME_FILTER_CNT)
     {
@@ -107,9 +120,10 @@ void pHaddoc() {
     {
       ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> tmp_out = sHaddocProcessing.read();
       tmp_out |= ((ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>) 0xBB) << DOSA_HADDOC_INPUT_BITDIWDTH;
-      pi_haddoc_data_valid = 1;
+      //pi_haddoc_data_valid = 1;
       pi_haddoc_frame_valid = 1;
-      pi_haddoc_data_vector = tmp_out;
+      //pi_haddoc_data_vector = tmp_out;
+      pi_haddoc_data.write(tmp_out);
     }
   }
 }

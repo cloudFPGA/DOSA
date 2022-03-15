@@ -29,6 +29,7 @@ void pStateControl(
     stream<MPI_Feedback>    &siMPIFeB,
     stream<uint32_t>        &sReceiveLength,
     stream<uint32_t>        &sSendLength,
+    stream<bool>            &sDataArrived,
     stream<bool>            &sReceiveReset,
     stream<bool>            &sSendReset,
     stream<bool>            &sReceiveDone,
@@ -94,6 +95,11 @@ void pStateControl(
         sSendDone.read();
         not_empty = true;
       }
+      if( !sDataArrived.empty() )
+      {
+        sDataArrived.read();
+        not_empty = true;
+      }
       curCmnd = MPI_INSTR_NOP;
       curRep = 0;
       curRank = MPI_NO_RANK;
@@ -148,22 +154,39 @@ void pStateControl(
           MPI_Interface info = MPI_Interface();
           if(curCmnd == MPI_INSTR_SEND)
           {
-            info.mpi_call = MPI_SEND_INT;
             //curCount is WORD length
             sSendLength.write(curCount*4);
-            controlFSM = PROC_SEND;
+            //info.mpi_call = MPI_SEND_INT;
+            //controlFSM = PROC_SEND;
+            controlFSM = WAIT_DATA;
           } else {
             info.mpi_call = MPI_RECV_INT;
             //curCount is WORD length
             sReceiveLength.write(curCount*4);
             controlFSM = PROC_RECEIVE;
+            info.rank = (uint32_t) curRank;
+            info.count = (uint32_t) curCount;
+            soMPIif.write(info);
+            printf("[pStateControl] Issuing %d command, rank %d, count %d.\n", (uint8_t) info.mpi_call, (uint8_t) info.rank, (uint32_t) info.count);
           }
-          info.rank = (uint32_t) curRank;
-          info.count = (uint32_t) curCount;
-          soMPIif.write(info);
-          printf("[pStateControl] Issuing %d command, rank %d, count %d.\n", (uint8_t) info.mpi_call, (uint8_t) info.rank, (uint32_t) info.count);
         }
         //else, stay here, read next
+      }
+      break;
+
+    case WAIT_DATA:
+      if( !sDataArrived.empty() && !soMPIif.full() )
+      {
+        ignore_me = sDataArrived.read();
+        MPI_Interface info = MPI_Interface();
+        info.mpi_call = MPI_SEND_INT;
+        //curCount is WORD length
+        sSendLength.write(curCount*4);
+        controlFSM = PROC_SEND;
+        info.rank = (uint32_t) curRank;
+        info.count = (uint32_t) curCount;
+        soMPIif.write(info);
+        printf("[pStateControl] Issuing %d command, rank %d, count %d.\n", (uint8_t) info.mpi_call, (uint8_t) info.rank, (uint32_t) info.count);
       }
       break;
 
@@ -199,7 +222,7 @@ void pStateControl(
     case PROC_RECEIVE:
       if( !siMPIFeB.empty()
           && !sReceiveReset.full()
-          )
+        )
       {
         fedb = siMPIFeB.read();
         if( fedb == ZRLMPI_FEEDBACK_OK )
@@ -530,6 +553,7 @@ void pRecvDeq(
 void pSendEnq(
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
     stream<uint32_t>        &sSendLength,
+    stream<bool>            &sDataArrived,
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &sSendBuff_0,
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &sSendBuff_1,
     stream<sendBufferCmd>    &sSendBufferCmds
@@ -585,14 +609,34 @@ void pSendEnq(
         curCnt = 0;
         if(nextBuffer == 0)
         {
-          sendEnqFsm = SEND_BUF_0;
+          sendEnqFsm = SEND_BUF_0_INIT;
           nextBuffer = 1;
           sSendBufferCmds.write(SEND_0);
         } else {
-          sendEnqFsm = SEND_BUF_1;
+          sendEnqFsm = SEND_BUF_1_INIT;
           sSendBufferCmds.write(SEND_1);
           nextBuffer = 0;
         }
+      }
+      break;
+
+    case SEND_BUF_0_INIT:
+      if( !siData.empty() && !sSendBuff_0.full() && !sDataArrived.full() )
+      {
+        tmp_read = siData.read();
+        curCnt += extractByteCnt(tmp_read);
+        if(curCnt >= curLength)
+        {
+          tmp_read.setTLast(1);
+        }
+        if(tmp_read.getTLast() == 1)
+        {
+          sendEnqFsm = SEND_WAIT;
+          nextBuffer = 1;
+        }
+        sSendBuff_0.write(tmp_read);
+        sDataArrived.write(true);
+        sendEnqFsm = SEND_BUF_0;
       }
       break;
 
@@ -614,7 +658,27 @@ void pSendEnq(
       }
       break;
 
-    case RECV_BUF_1:
+    case SEND_BUF_1_INIT:
+      if( !siData.empty() && !sSendBuff_1.full() && !sDataArrived.full() )
+      {
+        tmp_read = siData.read();
+        curCnt += extractByteCnt(tmp_read);
+        if(curCnt >= curLength)
+        {
+          tmp_read.setTLast(1);
+        }
+        if(tmp_read.getTLast() == 1)
+        {
+          sendEnqFsm = SEND_WAIT;
+          nextBuffer = 1;
+        }
+        sSendBuff_1.write(tmp_read);
+        sDataArrived.write(true);
+        sendEnqFsm = SEND_BUF_1;
+      }
+      break;
+
+    case SEND_BUF_1:
       if( !siData.empty() && !sSendBuff_1.full() )
       {
         tmp_read = siData.read();
@@ -1052,6 +1116,8 @@ void zrlmpi_wrapper(
   #pragma HLS STREAM variable=sSendDone depth=2
   static stream<bool> sSendReset ("sSendReset");
   #pragma HLS STREAM variable=sSendReset depth=2
+  static stream<bool> sDataArrived ("sDataArrived");
+  #pragma HLS STREAM variable=sDataArrived depth=2
 
   static stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > sRecvBuff_0 ("sRecvBuff_0");
   #pragma HLS STREAM variable=sRecvBuff_0 depth=buffer_fifo_depth
@@ -1076,7 +1142,7 @@ void zrlmpi_wrapper(
 
   pRecvDeq(sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, soData);
 
-  pSendEnq(siData, sSendLength, sSendBuff_0, sSendBuff_1, sSendBufferCmds);
+  pSendEnq(siData, sSendLength, sDataArrived, sSendBuff_0, sSendBuff_1, sSendBufferCmds);
 
   pSendDeq(sSendBuff_0, sSendBuff_1, sSendBufferCmds,
       sSendReset,
@@ -1084,7 +1150,7 @@ void zrlmpi_wrapper(
 
   //process with highest II last
   pStateControl(role_rank_arg, cluster_size_arg, soMPIif, siMPIFeB, sReceiveLength, sSendLength,
-      sReceiveReset, sSendReset,
+      sDataArrived, sReceiveReset, sSendReset,
                 sReceiveDone, sSendDone, debug_out);
 
 }

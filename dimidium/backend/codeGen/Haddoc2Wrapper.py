@@ -320,9 +320,11 @@ class Haddoc2Wrapper:
         # we need to do the connections between wrapper and haddoc ourselves
         decl = ('signal s{ip_mod_name}_to_Haddoc_b{block_id}_data  : std_ulogic_vector({haddoc_in_width} downto 0);\n' +
                 'signal s{ip_mod_name}_to_Haddoc_b{block_id}_dv    : std_ulogic;\n' +
+                'signal s{ip_mod_name}_to_Haddoc_b{block_id}_rdy   : std_ulogic;\n' +
                 'signal s{ip_mod_name}_to_Haddoc_b{block_id}_fv    : std_ulogic;\n'
                 'signal sHaddoc_b{block_id}_to_{ip_mod_name}_data  : std_ulogic_vector({haddoc_out_width} downto 0);\n' +
                 'signal sHaddoc_b{block_id}_to_{ip_mod_name}_dv    : std_ulogic;\n' +
+                'signal sHaddoc_b{block_id}_to_{ip_mod_name}_rdy   : std_ulogic;\n' +
                 'signal sHaddoc_b{block_id}_to_{ip_mod_name}_fv    : std_ulogic;\n')
         decl += '\n'
         decl += 'signal s{ip_mod_name}_debug    : std_ulogic_vector(63 downto 0);\n'
@@ -333,22 +335,24 @@ class Haddoc2Wrapper:
                  '  IMAGE_WIDTH : integer := {first_layer_name}_IMAGE_WIDTH\n' +
                  ');\n' +
                  'port(\n' +
-                 '  clk      : in std_logic;\n' +
-                 '  reset_n  : in std_logic;\n' +
-                 '  enable   : in std_logic;\n' +
-                 '  in_data  : in std_logic_vector(INPUT_BIT_WIDTH-1 downto 0);\n' +
-                 '  in_dv    : in std_logic;\n' +
-                 '  in_fv    : in std_logic;\n' +
+                 '  clk      : in  std_logic;\n' +
+                 '  reset_n  : in  std_logic;\n' +
+                 '  enable   : in  std_logic;\n' +
+                 '  in_data  : in  std_logic_vector(INPUT_BIT_WIDTH-1 downto 0);\n' +
+                 '  in_dv    : in  std_logic;\n' +
+                 '  in_rdy   : out std_logic;\n' +
+                 '  in_fv    : in  std_logic;\n' +
                  '  out_data : out std_logic_vector(OUTPUT_BITWIDTH-1 downto 0);\n' +
                  '  out_dv   : out std_logic;\n' +
+                 '  out_rdy  : in  std_logic;\n' +
                  '  out_fv   : out std_logic\n' +
                  '  );\n' +
                  'end component cnn_process_b{block_id};\n')
         decl += '\n'
         decl += ('-- thanks to the fantastic and incredible Vivado HLS...we need vectors with (0 downto 0)\n' +
-                 'signal s{ip_mod_name}_to_Haddoc_b{block_id}_dv_as_vector    : std_ulogic_vector(0 downto 0);\n' +
+                 # 'signal s{ip_mod_name}_to_Haddoc_b{block_id}_dv_as_vector    : std_ulogic_vector(0 downto 0);\n' +
                  'signal s{ip_mod_name}_to_Haddoc_b{block_id}_fv_as_vector    : std_ulogic_vector(0 downto 0);\n'
-                 'signal sHaddoc_b{block_id}_to_{ip_mod_name}_dv_as_vector    : std_ulogic_vector(0 downto 0);\n' +
+                 # 'signal sHaddoc_b{block_id}_to_{ip_mod_name}_dv_as_vector    : std_ulogic_vector(0 downto 0);\n' +
                  'signal sHaddoc_b{block_id}_to_{ip_mod_name}_fv_as_vector    : std_ulogic_vector(0 downto 0);\n')
         decl += '\n'
         decl += ('component {ip_mod_name} is\n' +
@@ -371,12 +375,18 @@ class Haddoc2Wrapper:
                  '    soData_V_tlast_V_din : OUT STD_LOGIC_VECTOR ({if_out_width_tlast} downto 0);\n' +
                  '    soData_V_tlast_V_full_n : IN STD_LOGIC;\n' +
                  '    soData_V_tlast_V_write : OUT STD_LOGIC;\n' +
-                 '    po_haddoc_data_valid_V : OUT STD_LOGIC_VECTOR (0 downto 0);\n' +
+                 # '    po_haddoc_data_valid_V : OUT STD_LOGIC_VECTOR (0 downto 0);\n' +
+                 # '    po_haddoc_data_vector_V : OUT STD_LOGIC_VECTOR ({haddoc_in_width} downto 0);\n' +
+                 '    po_haddoc_data_V_V_TDATA  : OUT STD_LOGIC_VECTOR ({haddoc_in_width} downto 0);\n' +
+                 '    po_haddoc_data_V_V_TVALID : OUT STD_LOGIC;\n' +
+                 '    po_haddoc_data_V_V_TREADY : IN  STD_LOGIC;\n' +
                  '    po_haddoc_frame_valid_V : OUT STD_LOGIC_VECTOR (0 downto 0);\n' +
-                 '    po_haddoc_data_vector_V : OUT STD_LOGIC_VECTOR ({haddoc_in_width} downto 0);\n' +
-                 '    pi_haddoc_data_valid_V : IN STD_LOGIC_VECTOR (0 downto 0);\n' +
+                 # '    pi_haddoc_data_valid_V : IN STD_LOGIC_VECTOR (0 downto 0);\n' +
+                 # '    pi_haddoc_data_vector_V : IN STD_LOGIC_VECTOR ({haddoc_out_width} downto 0);\n' +
+                 '    pi_haddoc_data_V_V_TDATA  : IN  STD_LOGIC_VECTOR ({haddoc_out_width} downto 0);\n' +
+                 '    pi_haddoc_data_V_V_TVALID : IN  STD_LOGIC;\n' +
+                 '    pi_haddoc_data_V_V_TREADY : OUT STD_LOGIC;\n' +
                  '    pi_haddoc_frame_valid_V : IN STD_LOGIC_VECTOR (0 downto 0);\n' +
-                 '    pi_haddoc_data_vector_V : IN STD_LOGIC_VECTOR ({haddoc_out_width} downto 0);\n' +
                  '    debug_out_V : OUT STD_LOGIC_VECTOR (63 downto 0);\n' +
                  '    ap_clk : IN STD_LOGIC;\n' +
                  '    ap_rst : IN STD_LOGIC;\n' +
@@ -398,9 +408,9 @@ class Haddoc2Wrapper:
         return ret
 
     def get_vhdl_inst_tmpl(self):
-        decl = ('s{ip_mod_name}_to_Haddoc_b{block_id}_dv <= s{ip_mod_name}_to_Haddoc_b{block_id}_dv_as_vector(0);\n' +
+        decl = ( # 's{ip_mod_name}_to_Haddoc_b{block_id}_dv <= s{ip_mod_name}_to_Haddoc_b{block_id}_dv_as_vector(0);\n' +
                 's{ip_mod_name}_to_Haddoc_b{block_id}_fv <= s{ip_mod_name}_to_Haddoc_b{block_id}_fv_as_vector(0);\n' +
-                'sHaddoc_b{block_id}_to_{ip_mod_name}_dv_as_vector(0) <=  sHaddoc_b{block_id}_to_{ip_mod_name}_dv;\n' +
+                # 'sHaddoc_b{block_id}_to_{ip_mod_name}_dv_as_vector(0) <=  sHaddoc_b{block_id}_to_{ip_mod_name}_dv;\n' +
                 'sHaddoc_b{block_id}_to_{ip_mod_name}_fv_as_vector(0) <=  sHaddoc_b{block_id}_to_{ip_mod_name}_fv;\n')
         decl += '\n'
         decl += ('[inst_name]_wrapper: {ip_mod_name}\n' +
@@ -423,12 +433,18 @@ class Haddoc2Wrapper:
                  '    soData_V_tlast_V_din =>      [out_sig_6]  ,\n' +
                  '    soData_V_tlast_V_full_n =>   [out_sig_7_n],\n' +
                  '    soData_V_tlast_V_write =>    [out_sig_8]  ,\n' +
-                 '    po_haddoc_data_valid_V =>  s{ip_mod_name}_to_Haddoc_b{block_id}_dv_as_vector,\n' +
+                 # '    po_haddoc_data_valid_V =>  s{ip_mod_name}_to_Haddoc_b{block_id}_dv_as_vector,\n' +
+                 # '    po_haddoc_data_vector_V =>  s{ip_mod_name}_to_Haddoc_b{block_id}_data,\n' +
+                 '    po_haddoc_data_V_V_TDATA =>  s{ip_mod_name}_to_Haddoc_b{block_id}_data,\n' +
+                 '    po_haddoc_data_V_V_TVALID =>  s{ip_mod_name}_to_Haddoc_b{block_id}_dv,\n' +
+                 '    po_haddoc_data_V_V_TREADy =>  s{ip_mod_name}_to_Haddoc_b{block_id}_rdy,\n' +
                  '    po_haddoc_frame_valid_V =>  s{ip_mod_name}_to_Haddoc_b{block_id}_fv_as_vector,\n' +
-                 '    po_haddoc_data_vector_V =>  s{ip_mod_name}_to_Haddoc_b{block_id}_data,\n' +
-                 '    pi_haddoc_data_valid_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_dv_as_vector,\n' +
+                 # '    pi_haddoc_data_valid_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_dv_as_vector,\n' +
+                 # '    pi_haddoc_data_vector_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_data,\n' +
+                 '    pi_haddoc_data_V_V_TDATA =>  sHaddoc_b{block_id}_to_{ip_mod_name}_data,\n' +
+                 '    pi_haddoc_data_V_V_TVALID =>  sHaddoc_b{block_id}_to_{ip_mod_name}_dv,\n' +
+                 '    pi_haddoc_data_V_V_TREADY =>  sHaddoc_b{block_id}_to_{ip_mod_name}_rdy,\n' +
                  '    pi_haddoc_frame_valid_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_fv_as_vector,\n' +
-                 '    pi_haddoc_data_vector_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_data,\n' +
                  '    debug_out_V =>  s{ip_mod_name}_debug,\n' +
                  '    ap_clk =>  [clk],\n' +
                  '    ap_rst =>  [rst],\n' +
@@ -451,9 +467,11 @@ class Haddoc2Wrapper:
                  '  enable   =>  [enable],\n' +
                  '  in_data  =>  s{ip_mod_name}_to_Haddoc_b{block_id}_data,\n' +
                  '  in_dv    =>  s{ip_mod_name}_to_Haddoc_b{block_id}_dv,\n' +
+                 '  in_rdy   =>  s{ip_mod_name}_to_Haddoc_b{block_id}_rdy,\n' +
                  '  in_fv    =>  s{ip_mod_name}_to_Haddoc_b{block_id}_fv,\n' +
                  '  out_data =>  sHaddoc_b{block_id}_to_{ip_mod_name}_data,\n' +
                  '  out_dv   =>  sHaddoc_b{block_id}_to_{ip_mod_name}_dv,\n' +
+                 '  out_rdy  =>  sHaddoc_b{block_id}_to_{ip_mod_name}_rdy,\n' +
                  '  out_fv   =>  sHaddoc_b{block_id}_to_{ip_mod_name}_fv\n' +  # no comma
                  '  );\n')
         inst = decl.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name, haddoc_general_bitw=self.general_bitw,
@@ -466,14 +484,16 @@ class Haddoc2Wrapper:
         signal_lines = [
             's{ip_mod_name}_to_Haddoc_b{block_id}_data'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
             's{ip_mod_name}_to_Haddoc_b{block_id}_dv'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            's{ip_mod_name}_to_Haddoc_b{block_id}_rdy'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
             's{ip_mod_name}_to_Haddoc_b{block_id}_fv'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
             'sHaddoc_b{block_id}_to_{ip_mod_name}_data'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
             'sHaddoc_b{block_id}_to_{ip_mod_name}_dv'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
+            'sHaddoc_b{block_id}_to_{ip_mod_name}_rdy'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
             'sHaddoc_b{block_id}_to_{ip_mod_name}_fv'.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name),
             's{ip_mod_name}_debug'.format(ip_mod_name=self.ip_mod_name)
         ]
-        width_lines = [(self.general_bitw * self.in_dims[1]), 1, 1,
-                       (self.general_bitw * self.out_dims[1]), 1, 1,
+        width_lines = [(self.general_bitw * self.in_dims[1]), 1, 1, 1,
+                       (self.general_bitw * self.out_dims[1]), 1, 1, 1,
                        64]
         assert len(signal_lines) == len(width_lines)
         tcl_tmpl_lines = []

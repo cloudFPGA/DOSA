@@ -74,12 +74,14 @@ void haddoc_wrapper_test(
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
     // ----- Haddoc Interface -----
-    ap_uint<1>                                *po_haddoc_data_valid,
+    //ap_uint<1>                                *po_haddoc_data_valid,
+    //ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
     ap_uint<1>                                *po_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
-    ap_uint<1>                                *pi_haddoc_data_valid,
+    stream<ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH> > &po_haddoc_data,
+    //ap_uint<1>                                *pi_haddoc_data_valid,
+    //ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
     ap_uint<1>                                *pi_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
+    stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > &pi_haddoc_data,
     // ----- DEBUG IO ------
     ap_uint<64> *debug_out
 );

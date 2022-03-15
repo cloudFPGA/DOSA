@@ -308,7 +308,8 @@ void pToHaddocDeq(
     //ap_uint<1>                                *po_haddoc_data_valid,
     //ap_uint<1>                                *po_haddoc_frame_valid,
     //ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
-    ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>      *output_vector,
+    //ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>      *output_vector,
+    stream<ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH> > &po_haddoc_data,
     stream<bool>                              &sHaddocUnitProcessing,
     uint16_t *debug
     )
@@ -366,7 +367,7 @@ void pToHaddocDeq(
     //*po_haddoc_data_valid = 0x0;
     //*po_haddoc_frame_valid = 0x0;
     //*po_haddoc_data_vector = 0x0;
-    *output_vector = 0x0;
+    //*output_vector = 0x0;
     only_hangover_processing = false;
     if( !one_not_empty )
     {
@@ -379,6 +380,7 @@ void pToHaddocDeq(
 #else
         //DOSA_ADD_toHaddoc_deq_if_clause
 #endif
+        && !po_haddoc_data.full()
       )
     {
       for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
@@ -433,15 +435,16 @@ void pToHaddocDeq(
 
       //*po_haddoc_data_valid = 0x1;
       //*po_haddoc_data_vector = output_data;
-      *output_vector = output_data;
-      *output_vector |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>) 0x1) << DOSA_HADDOC_INPUT_BITDIWDTH;
+      //*output_vector = output_data;
+      //*output_vector |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>) 0x1) << DOSA_HADDOC_INPUT_BITDIWDTH;
+      po_haddoc_data.write(output_data);
       printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
       sHaddocUnitProcessing.write(true);
-    } else {
+    } //else {
       //*po_haddoc_data_vector = 0x0;
       //*po_haddoc_data_valid = 0x0;
-      *output_vector = 0x0;
-    }
+      //*output_vector = 0x0;
+    //}
     //*po_haddoc_frame_valid = 0x1;
   }
 
@@ -453,9 +456,10 @@ void pToHaddocDeq(
 }
 
 void pFromHaddocEnq(
-    ap_uint<1>                                *pi_haddoc_data_valid,
-    ap_uint<1>                                *pi_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
+    //ap_uint<1>                                *pi_haddoc_data_valid,
+    //ap_uint<1>                                *pi_haddoc_frame_valid,
+    //ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
+    stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > &pi_haddoc_data,
     stream<bool>                              &sHaddocUnitProcessing,
     stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> >  &sFromHaddocBuffer
     )
@@ -478,17 +482,20 @@ void pFromHaddocEnq(
       enqueueFSM = FORWARD;
     }
   } else {
-    if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full() )
+    if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
+        && !pi_haddoc_data.empty()
+        )
     {
       //ignore pi_haddoc_frame_valid?
-      if( *pi_haddoc_data_valid == 0b1 )
-      {
-        input_data = *pi_haddoc_data_vector;
+      //if( *pi_haddoc_data_valid == 0b1 )
+      //{
+        //input_data = *pi_haddoc_data_vector;
+        input_data = pi_haddoc_data.read();
         //read only if able to process
         bool ignore_me = sHaddocUnitProcessing.read();
         printf("pFromHaddocEnq: read 0x%6.6X\n", (uint32_t) input_data);
         sFromHaddocBuffer.write(input_data);
-      }
+      //}
     }
   }
 
@@ -925,12 +932,14 @@ void haddoc_wrapper_test(
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
     // ----- Haddoc Interface -----
-    ap_uint<1>                                *po_haddoc_data_valid,
+    //ap_uint<1>                                *po_haddoc_data_valid,
+    //ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
     ap_uint<1>                                *po_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
-    ap_uint<1>                                *pi_haddoc_data_valid,
+    stream<ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH> > &po_haddoc_data,
+    //ap_uint<1>                                *pi_haddoc_data_valid,
+    //ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
     ap_uint<1>                                *pi_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
+    stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > &pi_haddoc_data,
     // ----- DEBUG IO ------
     ap_uint<64> *debug_out
     )
@@ -941,13 +950,15 @@ void haddoc_wrapper_test(
 #pragma HLS INTERFACE ap_fifo port=siData
 #pragma HLS INTERFACE ap_fifo port=soData
 
-#pragma HLS INTERFACE ap_ovld register port=po_haddoc_data_valid
+//#pragma HLS INTERFACE ap_ovld register port=po_haddoc_data_valid
+//#pragma HLS INTERFACE ap_ovld register port=po_haddoc_data_vector
 #pragma HLS INTERFACE ap_ovld register port=po_haddoc_frame_valid
-#pragma HLS INTERFACE ap_ovld register port=po_haddoc_data_vector
-#pragma HLS INTERFACE ap_vld register port=pi_haddoc_data_valid
+//#pragma HLS INTERFACE ap_vld register port=pi_haddoc_data_valid
+//#pragma HLS INTERFACE ap_vld register port=pi_haddoc_data_vector
 #pragma HLS INTERFACE ap_vld register port=pi_haddoc_frame_valid
-#pragma HLS INTERFACE ap_vld register port=pi_haddoc_data_vector
 #pragma HLS INTERFACE ap_ovld register port=debug_out
+#pragma HLS INTERFACE axis register port=po_haddoc_data
+#pragma HLS INTERFACE axis register port=pi_haddoc_data
 
 
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -1033,7 +1044,7 @@ void haddoc_wrapper_test(
   uint16_t debug1 = 0;
   uint16_t debug2 = 0;
   uint16_t debug3 = 0;
-  ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>      output_vector = 0;
+  //ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>      output_vector = 0;
   //-- PROCESS INSTANTIATION ------------------------------------------------------
 
   // with the current strategy [INPUT] -> [CHANEL, with same bitwidth] -> [BATCH_PIXEL], we can maintain
@@ -1057,10 +1068,14 @@ void haddoc_wrapper_test(
       //po_haddoc_data_valid,
       //po_haddoc_frame_valid,
       //po_haddoc_data_vector,
-      &output_vector,
+      //&output_vector,
+      po_haddoc_data,
       sHaddocUnitProcessing, &debug1);
 
-  pFromHaddocEnq(pi_haddoc_data_valid, pi_haddoc_frame_valid, pi_haddoc_data_vector, sHaddocUnitProcessing, sFromHaddocBuffer);
+  pFromHaddocEnq(
+      //pi_haddoc_data_valid, pi_haddoc_frame_valid, pi_haddoc_data_vector,
+      pi_haddoc_data,
+      sHaddocUnitProcessing, sFromHaddocBuffer);
 
   pFromHaddocFlatten(
 #ifdef WRAPPER_TEST
@@ -1096,8 +1111,8 @@ void haddoc_wrapper_test(
   *debug_out |= ((uint64_t) debug3) << 48;
 
   //un-bundle output
-  *po_haddoc_data_valid = (ap_uint<1>) (output_vector >> DOSA_HADDOC_INPUT_BITDIWDTH);
-  *po_haddoc_data_vector = (ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) output_vector;
+  //*po_haddoc_data_valid = (ap_uint<1>) (output_vector >> DOSA_HADDOC_INPUT_BITDIWDTH);
+  //*po_haddoc_data_vector = (ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) output_vector;
 
 }
 

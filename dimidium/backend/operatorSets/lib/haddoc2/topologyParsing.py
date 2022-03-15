@@ -304,15 +304,17 @@ def WriteEntity(target, block_id, first_layer_name):
     target.write("  IMAGE_WIDTH : integer := " + first_layer_name + "_IMAGE_WIDTH\n")
     target.write(");\n")
     target.write("port(\n")
-    target.write("  clk      : in std_logic;\n")
-    target.write("  reset_n  : in std_logic;\n")
-    target.write("  enable   : in std_logic;\n")
-    # target.write("  select_i : in std_logic_vector(31 downto 0);\n")
-    target.write("  in_data  : in std_logic_vector(INPUT_BIT_WIDTH-1 downto 0);\n")
-    target.write("  in_dv    : in std_logic;\n")
-    target.write("  in_fv    : in std_logic;\n")
+    target.write("  clk      : in  std_logic;\n")
+    target.write("  reset_n  : in  std_logic;\n")
+    target.write("  enable   : in  std_logic;\n")
+    # target.write("  select_i : in  std_logic_vector(31 downto 0);\n")
+    target.write("  in_data  : in  std_logic_vector(INPUT_BIT_WIDTH-1 downto 0);\n")
+    target.write("  in_dv    : in  std_logic;\n")
+    target.write("  in_rdy   : out std_logic;\n")
+    target.write("  in_fv    : in  std_logic;\n")
     target.write("  out_data : out std_logic_vector(OUTPUT_BITWIDTH-1 downto 0);\n")
     target.write("  out_dv   : out std_logic;\n")
+    target.write("  out_rdy  : in  std_logic;\n")
     target.write("  out_fv   : out std_logic\n")
     target.write("  );\n")
     target.write("end entity;\n\n")
@@ -323,5 +325,6 @@ def WriteArchitecutreHead(target, block_id):
 
 
 def WriteArchitectureEnd(target):
+    target.write("-- to mimic AXIS, tready always 1\n in_rdy <= '1';\n")
     target.write("end architecture;\n")
 
