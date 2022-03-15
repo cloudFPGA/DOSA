@@ -389,12 +389,12 @@ class Haddoc2Wrapper:
                  '    pi_haddoc_frame_valid_V : IN STD_LOGIC_VECTOR (0 downto 0);\n' +
                  '    debug_out_V : OUT STD_LOGIC_VECTOR (63 downto 0);\n' +
                  '    ap_clk : IN STD_LOGIC;\n' +
-                 '    ap_rst : IN STD_LOGIC;\n' +
-                 '    pi_haddoc_data_valid_V_ap_vld : IN STD_LOGIC;\n' +
-                 '    pi_haddoc_data_vector_V_ap_vld : IN STD_LOGIC;\n' +
-                 '    po_haddoc_data_valid_V_ap_vld : OUT STD_LOGIC;\n' +
+                 '    ap_rst_n : IN STD_LOGIC;\n' +
+                 # '    pi_haddoc_data_valid_V_ap_vld : IN STD_LOGIC;\n' +
+                 # '    pi_haddoc_data_vector_V_ap_vld : IN STD_LOGIC;\n' +
+                 # '    po_haddoc_data_valid_V_ap_vld : OUT STD_LOGIC;\n' +
                  '    po_haddoc_frame_valid_V_ap_vld : OUT STD_LOGIC;\n' +
-                 '    po_haddoc_data_vector_V_ap_vld : OUT STD_LOGIC;\n' +
+                 # '    po_haddoc_data_vector_V_ap_vld : OUT STD_LOGIC;\n' +
                  '    debug_out_V_ap_vld : OUT STD_LOGIC );\n' +
                  'end component {ip_mod_name};\n')
         ret = decl.format(block_id=self.block_id, ip_mod_name=self.ip_mod_name,
@@ -447,9 +447,9 @@ class Haddoc2Wrapper:
                  '    pi_haddoc_frame_valid_V =>  sHaddoc_b{block_id}_to_{ip_mod_name}_fv_as_vector,\n' +
                  '    debug_out_V =>  s{ip_mod_name}_debug,\n' +
                  '    ap_clk =>  [clk],\n' +
-                 '    ap_rst =>  [rst],\n' +
-                 '    pi_haddoc_data_valid_V_ap_vld =>  \'1\' ,\n' +
-                 '    pi_haddoc_data_vector_V_ap_vld => \'1\'\n' +  # no comma
+                 '    ap_rst_n =>  [rst_n]\n' +  # no comma
+                 # '    pi_haddoc_data_valid_V_ap_vld =>  \'1\' ,\n' +
+                 # '    pi_haddoc_data_vector_V_ap_vld => \'1\'\n' +  # no comma
                  # '    po_haddoc_data_valid_V_ap_vld =>  open ,\n' +
                  # '    po_haddoc_frame_valid_V_ap_vld =>  open ,\n' +
                  # '    po_haddoc_data_vector_V_ap_vld =>  open,\n' +
