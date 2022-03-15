@@ -128,6 +128,27 @@ class ArchBrick(object):
         self.used_dtype = convert_tvmDtype_to_DosaDtype(self.tvm_dtype)
         self.flops_conv_factor = get_flops_conv_factor(self.used_dtype)
 
+    def reconstruct_from_op_list(self, op_list):
+        self.oid_cnt = 0
+        self.ops = []
+        total_flops = 0
+        total_uinp = 0
+        total_params = 0
+        self.input_bytes = 0
+        for op in op_list:
+            if self.input_bytes == 0:
+                # first op
+                self.input_bytes = op.input_bytes
+            total_flops += op.flops
+            total_uinp += op.input_bytes
+            total_params += op.parameter_bytes
+            self.output_bytes = op.output_bytes
+            self.add_arch_op(op)
+        self.oi_engine = (total_uinp + total_params) / total_flops
+        self.oi_stream = total_uinp / total_flops
+        self.flops = total_flops
+        self.parameter_bytes = total_params
+
     def set_brick_id(self, brick_id):
         self.local_brick_id = brick_id
 
@@ -159,6 +180,35 @@ class ArchBrick(object):
         elif self.selected_impl_type == BrickImplTypes.ENGINE:
             self.req_flops_engine /= factor
             self.req_util_comp_engine /= factor
+
+    def split(self, op_id_to_new_brick):
+        if op_id_to_new_brick == 0 or op_id_to_new_brick >= self.oid_cnt or op_id_to_new_brick < 0:
+            print("[DOSA:ArchNode:ERROR] invalid split attempt, skipping.")
+            return None
+        new_brick = ArchBrick()
+        orig_name = self.name
+        orig_label = self.fn_label
+        self.name += '_split_0'
+        self.fn_label += '_split_0'
+        new_brick.name = orig_name + '_split_1'
+        new_brick.fn_label = orig_label + '_split_1'
+        new_brick.tvm_dtype = self.tvm_dtype
+        new_brick.used_dtype = self.used_dtype
+        new_brick.flops_conv_factor = self.flops_conv_factor
+        new_brick.available_osgs = self.available_osgs
+        new_brick.possible_osgs = self.possible_osgs
+        new_brick.possible_hw_types = self.possible_hw_types
+        # update required performance afterwards...skip it for now
+        op_list_staying = []
+        op_list_new = []
+        for i in range(0, self.oid_cnt):
+            op = self.ops[i]
+            if i >= op_id_to_new_brick:
+                op_list_new.append(op)
+            else:
+                op_list_staying.append(op)
+        self.reconstruct_from_op_list(op_list_staying)
+        new_brick.reconstruct_from_op_list(op_list_new)
 
     def set_impl_type(self, it: BrickImplTypes):
         self.selected_impl_type = it

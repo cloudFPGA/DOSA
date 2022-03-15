@@ -54,11 +54,11 @@ int infer(int *input, uint32_t input_length, int *output, uint32_t output_length
 #ifdef WRAPPER_TEST
   mpiCommands[0]          = MPI_INSTR_SEND;
   mpiRanks[0]             = 1;
-  mpiCounts[0]            = 22;
+  mpiCounts[0]            = 6;  // 22/4;  //MUST be wordsize!
   commandRepetitions[0]   = 1;
   mpiCommands[1]          = MPI_INSTR_RECV;
   mpiRanks[1]             = 5;
-  mpiCounts[1]            = 22;
+  mpiCounts[1]            = 6;  // 22/4;  //MUST be wordsize!
   commandRepetitions[1]   = 1;
 #else
   //DOSA_ADD_mpi_config
@@ -84,14 +84,14 @@ int infer(int *input, uint32_t input_length, int *output, uint32_t output_length
     }
 
     //TODO: add possible repeat with additional buffers
-    if(curCmnd == MPI_INSTR_SEND && curCount != input_length)
+    if(curCmnd == MPI_INSTR_SEND && (curCount*4 < input_length || curCount*4 > input_length+4))
     {
-      fprintf(stderr, "[DOSA:ERROR] input_length %d is different from expected size %d. ABORTING.\n", input_length, curCount);
+      fprintf(stderr, "[DOSA:ERROR] input_length %d is different from expected size %d. ABORTING.\n", input_length, curCount*4);
       return 1;
     }
-    if(curCmnd == MPI_INSTR_RECV && curCount != output_length)
+    if(curCmnd == MPI_INSTR_RECV && (curCount*4 < output_length || curCount*4 > input_length+4))
     {
-      fprintf(stderr, "[DOSA:ERROR] output_length %d is different from expected size %d. ABORTING.\n", output_length, curCount);
+      fprintf(stderr, "[DOSA:ERROR] output_length %d is different from expected size %d. ABORTING.\n", output_length, curCount*4);
       return 1;
     }
 

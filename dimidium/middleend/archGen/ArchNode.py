@@ -89,9 +89,19 @@ class ArchNode(object):
         ret = self.as_dict()
         return json.dumps(ret, indent=2)
 
-    def add_brick(self, brick: ArchBrick):
-        # bstr = self._bstr_fmt_.format(self.bid_cnt)
-        b_id = self.bid_cnt
+    def add_brick(self, brick: ArchBrick, new_bid=None):
+        if new_bid is None:
+            # append at the end
+            # bstr = self._bstr_fmt_.format(self.bid_cnt)
+            b_id = self.bid_cnt
+        else:
+            b_id = new_bid
+            new_bricks = self.bricks
+            # new_bricks[new_bid] = brick
+            for i in range(new_bid, self.bid_cnt):
+                new_bricks[i+1] = self.bricks[i]
+                new_bricks[i+1].set_brick_id(i+1)
+            self.bricks = new_bricks
         self.bid_cnt += 1
         # if self.bid_cnt > self._bid_max_:
         #    print("[DOSA:ArchDraft:ERROR] Brick Id overflow occurred!")

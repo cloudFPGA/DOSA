@@ -63,6 +63,9 @@ def load_user_credentials(json_file):
 
 def upload_image(dcp_folder, user_dict, node_name, app_name, api_instance):
     lt = glob.glob(dcp_folder + '/4_*{}.bit'.format(node_name))
+    if len(lt) == 0:
+        # monolithic case?
+        lt = glob.glob(dcp_folder + '/4_*{}_monolithic.bit'.format(node_name))
     assert len(lt) == 1
     bit_file_name = os.path.basename(lt[0])
     assert 'partial' not in bit_file_name
@@ -123,7 +126,7 @@ def create_new_cluster(cluster_data, host_address, sw_rank, user_dict):
 
     print("Executing POST ...")
     r1 = requests.post("http://" + __cf_manager_url__ + "/clusters?username={0}&password={1}&project_name={2}"
-                                                        "&dont_verify_memory=0".format(
+                                                        "&dont_verify_memory=1".format(
         user_dict['user'], urllib.parse.quote(user_dict['pw']), user_dict['proj']),
                        json=cluster_req)
 

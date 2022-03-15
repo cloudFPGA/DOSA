@@ -305,9 +305,10 @@ void pToHaddocDeq(
 #else
     //DOSA_ADD_toHaddoc_buffer_param_decl
 #endif
-    ap_uint<1>                                *po_haddoc_data_valid,
+    //ap_uint<1>                                *po_haddoc_data_valid,
     //ap_uint<1>                                *po_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
+    //ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
+    ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>      *output_vector,
     stream<bool>                              &sHaddocUnitProcessing,
     uint16_t *debug
     )
@@ -362,9 +363,10 @@ void pToHaddocDeq(
 #else
     //DOSA_ADD_toHaddoc_deq_buffer_drain
 #endif
-    *po_haddoc_data_valid = 0x0;
+    //*po_haddoc_data_valid = 0x0;
     //*po_haddoc_frame_valid = 0x0;
-    *po_haddoc_data_vector = 0x0;
+    //*po_haddoc_data_vector = 0x0;
+    *output_vector = 0x0;
     only_hangover_processing = false;
     if( !one_not_empty )
     {
@@ -429,13 +431,16 @@ void pToHaddocDeq(
         output_data |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) ((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) combined_input[i])) << (i*DOSA_HADDOC_GENERAL_BITWIDTH);
       }
 
-      *po_haddoc_data_valid = 0x1;
-      *po_haddoc_data_vector = output_data;
+      //*po_haddoc_data_valid = 0x1;
+      //*po_haddoc_data_vector = output_data;
+      *output_vector = output_data;
+      *output_vector |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>) 0x1) << DOSA_HADDOC_INPUT_BITDIWDTH;
       printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
       sHaddocUnitProcessing.write(true);
     } else {
-      *po_haddoc_data_vector = 0x0;
-      *po_haddoc_data_valid = 0x0;
+      //*po_haddoc_data_vector = 0x0;
+      //*po_haddoc_data_valid = 0x0;
+      *output_vector = 0x0;
     }
     //*po_haddoc_frame_valid = 0x1;
   }
@@ -1015,9 +1020,9 @@ void haddoc_wrapper_test(
 #endif
   static stream<bool> sHaddocUnitProcessing ("sHaddocUnitProcessing");
   const int haddoc_processing_fifo_depth = HADDOC_AVG_LAYER_LATENCY * DOSA_HADDOC_LAYER_CNT;
-  #pragma HLS STREAM variable=sHaddocUnitProcessing depth=haddoc_processing_fifo_depth
+  #pragma HLS STREAM variable=sHaddocUnitProcessing depth=2*haddoc_processing_fifo_depth
   static stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > sFromHaddocBuffer ("sFromHaddocBuffer");
-  #pragma HLS STREAM variable=sFromHaddocBuffer depth=haddoc_processing_fifo_depth+3  //so that we can receive, what we send out...
+  #pragma HLS STREAM variable=sFromHaddocBuffer depth=3*haddoc_processing_fifo_depth  //so that we can receive, what we send out...
   //static stream<bool> sFromHaddocFrameComplete ("sFromHaddocFrameComplete");
   //#pragma HLS STREAM variable=sFromHaddocFrameComplete depth=2  //2! since arrays are double-buffers
   //static stream<bool> sFromHaddocIfLineComplete ("sFromHaddocIfLineComplete");
@@ -1028,6 +1033,7 @@ void haddoc_wrapper_test(
   uint16_t debug1 = 0;
   uint16_t debug2 = 0;
   uint16_t debug3 = 0;
+  ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>      output_vector = 0;
   //-- PROCESS INSTANTIATION ------------------------------------------------------
 
   // with the current strategy [INPUT] -> [CHANEL, with same bitwidth] -> [BATCH_PIXEL], we can maintain
@@ -1048,9 +1054,11 @@ void haddoc_wrapper_test(
 #else
       //DOSA_ADD_toHaddoc_buffer_list
 #endif
-      po_haddoc_data_valid,
+      //po_haddoc_data_valid,
       //po_haddoc_frame_valid,
-      po_haddoc_data_vector, sHaddocUnitProcessing, &debug1);
+      //po_haddoc_data_vector,
+      &output_vector,
+      sHaddocUnitProcessing, &debug1);
 
   pFromHaddocEnq(pi_haddoc_data_valid, pi_haddoc_frame_valid, pi_haddoc_data_vector, sHaddocUnitProcessing, sFromHaddocBuffer);
 
@@ -1087,6 +1095,9 @@ void haddoc_wrapper_test(
   *debug_out |= ((uint64_t) debug2) << 32;
   *debug_out |= ((uint64_t) debug3) << 48;
 
+  //un-bundle output
+  *po_haddoc_data_valid = (ap_uint<1>) (output_vector >> DOSA_HADDOC_INPUT_BITDIWDTH);
+  *po_haddoc_data_vector = (ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) output_vector;
 
 }
 
