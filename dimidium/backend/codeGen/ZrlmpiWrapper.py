@@ -101,7 +101,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                                 cmnd_macro = 'MPI_INSTR_SEND'
                             rank = ie['rank']
                             # counts must be in WORDS!
-                            counts = int((ie['count'] + 3)/4)
+                            counts = int((ie['count'] + 3) / 4)
                             assert counts < 0xFFFF  # max message size is uint16
                             repeat = ie['repeat']
                             outline += indent + f'      mpiCommands[{instr_num}]          = {cmnd_macro};\n'
@@ -129,8 +129,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
             for line in in_file.readlines():
                 if line_num == 9:
                     outline = (
-                                '#include "../../lib/axi_utils.hpp"\n#include "../../../../cFDK/SRA/LIB/hls/network.hpp"' +
-                                '\n#include "../../../../cFDK/SRA/LIB/hls/cfdk.hpp"\n')
+                            '#include "../../lib/axi_utils.hpp"\n#include "../../../../cFDK/SRA/LIB/hls/network.hpp"' +
+                            '\n#include "../../../../cFDK/SRA/LIB/hls/cfdk.hpp"\n')
                 elif line_num in [10, 11]:
                     line_num += 1
                     continue
@@ -334,3 +334,11 @@ class ZrlmpiWrapper(CommunicationWrapper):
             inst_tmpl_lines.append(inst_l)
 
         return tcl_tmpl_lines, decl_tmpl_lines, inst_tmpl_lines
+
+    def get_add_constr_lines(self):
+        add_constr_lines = '# necessary to avoid un-usable network due to timing failures...' +\
+                           'create_pblock pblock_MPE\n' +\
+                           'resize_pblock [get_pblocks pblock_MPE] -add {CLOCKREGION_X1Y3:CLOCKREGION_X2Y3}\n' +\
+                           'add_cells_to_pblock [get_pblocks pblock_MPE] [get_cells ROLE/MPE]\n'
+        return add_constr_lines
+

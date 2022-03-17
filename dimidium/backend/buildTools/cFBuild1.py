@@ -34,6 +34,7 @@ class cFBuild1(HwBuildTopVhdl):
         super().__init__(name, target_device, build_dir, use_debug=True)
         self.basic_structure_created = False
         self.global_hls_dir = None
+        self.constr_lines = []
 
     def _create_basic_structure(self):
         os.system("mkdir -p {0}/ROLE/hdl {0}/ROLE/hls {0}/ROLE/tcl".format(self.build_dir))
@@ -187,7 +188,22 @@ class cFBuild1(HwBuildTopVhdl):
         self.add_tcl_entry(self.topVhdl.get_add_tcl_lines())
         # 2. write tcl lines
         self._write_tcl_file()
-        #  write global Makefile
+        # 3. write additional constraints, if existing
+        self._write_constr_file()
+        #  last, write global Makefile
         self._write_makefile()
 
+    def add_additional_constraint_lines(self, constr_lines):
+        self.constr_lines.append(constr_lines)
+
+    def _write_constr_file(self):
+        if len(self.constr_lines) > 0:
+            os.system('mkdir -p {}/ROLE/xdc/'.format(self.build_dir))
+            constr_file = '# automatically DOSA generated additional constraints for the Role\n\n'
+            for e in self.constr_lines:
+                constr_file += e
+                constr_file += '\n'
+            constr_file += '\n'
+            with open('{}/ROLE/xdc/additional_role_constraints.tcl'.format(self.build_dir), 'w') as out_file:
+                out_file.write(constr_file)
 

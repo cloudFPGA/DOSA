@@ -11,6 +11,7 @@
 #  *
 import os
 
+from dimidium.backend.buildTools.cFBuild1 import cFBuild1
 from dimidium.backend.codeGen.WrapperInterfaces import InterfaceAxisFifo
 from dimidium.backend.codeGen.ZrlmpiSwApp import ZrlmpiSwApp
 from dimidium.backend.codeGen.ZrlmpiWrapper import ZrlmpiWrapper
@@ -45,6 +46,9 @@ class ZrlmpiCommLib(BaseCommLib):
             build_tool.topVhdl.set_network_adapter(zrlmpi_vhdl_decl, zrlmpi_inst_tmpl, [InterfaceAxisFifo])
             tcl_tmp, decl_tmp, inst_tmp = comm_wrapper.get_debug_lines()
             build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
+            if isinstance(build_tool, cFBuild1):
+                add_constr_lines = comm_wrapper.get_add_constr_lines()
+                build_tool.add_additional_constraint_lines(add_constr_lines)
         elif isinstance(build_tool, BaseSwBuild):
             if comm_plan.node.node_id == 0:
                 # SW app
