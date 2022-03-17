@@ -819,11 +819,11 @@ class ArchDraft(object):
         self.update_required_perf()
         for nn in self.node_iter_gen():
             nn.update_used_perf_util()
-            assert nn.used_comp_util_share < 1.1
+            # assert nn.used_comp_util_share < 1.1
             # TODO
-            # if nn.used_comp_util_share > 1:
-            #     print("[DOSA:archGen:WARNING] node {} has {} compute utilization...implementation may fail"
-            #           .format(nn.node_id, nn.used_comp_util_share))
+            if nn.used_comp_util_share > 1:
+                print("[DOSA:archGen:WARNING] node {} has {} compute utilization...implementation may fail"
+                      .format(nn.node_id, nn.used_comp_util_share))
             assert nn.used_mem_util_share < 1.1
         return DosaRv.OK
 
