@@ -120,3 +120,20 @@ def my_lcm(a, b):
     return abs(a*b) // math.gcd(a, b)  # // is floor div
 
 
+def bit_width_to_tkeep(bit_w):
+    byte_width = math.ceil(bit_w/config_bits_per_byte)
+    return byte_width_to_tkeep(byte_width)
+
+
+def dtype_to_tkeep(dtype):
+    byte_width = dtype_to_size_b(dtype)
+    return byte_width_to_tkeep(byte_width)
+
+
+def byte_width_to_tkeep(byte_width):
+    tkeep = 0x0
+    for i in range(byte_width):
+        tkeep = tkeep << 1
+        tkeep |= 0b1
+    return tkeep
+

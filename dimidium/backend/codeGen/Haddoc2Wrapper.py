@@ -12,6 +12,9 @@
 
 import os
 from pathlib import Path
+import math
+
+from dimidium.lib.util import bit_width_to_tkeep
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
@@ -80,10 +83,14 @@ class Haddoc2Wrapper:
                     continue_skip = True
                     continue
                 elif 'DOSA_ADD_INTERFACE_DEFINES' in line:
+                    tkeep_general = bit_width_to_tkeep(self.general_bitw)
+                    tkeep_width = math.ceil(math.log2(tkeep_general))
                     outline = ''
                     outline += '#define DOSA_WRAPPER_INPUT_IF_BITWIDTH {}\n'.format(self.if_in_bitw)
                     outline += '#define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH {}\n'.format(self.if_out_bitw)
                     outline += '#define DOSA_HADDOC_GENERAL_BITWIDTH {}\n'.format(self.general_bitw)
+                    outline += '#define DOSA_HADDOC_GENERAL_BITWIDTH_TKEEP {}\n'.format(tkeep_general)
+                    outline += '#define DOSA_HADDOC_GENERAL_BITWIDTH_TKEEP_WIDTH {}\n'.format(tkeep_width)
                     outline += '#define DOSA_HADDOC_INPUT_CHAN_NUM {}\n'.format(self.in_dims[1])
                     outline += '#define DOSA_HADDOC_OUTPUT_CHAN_NUM {}\n'.format(self.out_dims[1])
                     outline += '#define DOSA_HADDOC_INPUT_FRAME_WIDTH {}\n'.format(self.in_dims[2])
@@ -186,21 +193,27 @@ class Haddoc2Wrapper:
                     for b in range(0, self.out_dims[1]):
                         outline += '    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan{b},\n' \
                             .format(b=b)
-                elif 'DOSA_ADD_from_haddoc_stream_drain' in line:
-                    fsm_tmpl = ('    if(!sFromHaddocBuffer_chan{b}.empty())\n    {{\n' +
-                                '      sFromHaddocBuffer_chan{b}.read();\n' +
-                                '      not_empty = true;\n    }}\n')
+                # elif 'DOSA_ADD_from_haddoc_stream_drain' in line:
+                #     fsm_tmpl = ('    if(!sFromHaddocBuffer_chan{b}.empty())\n    {{\n' +
+                #                 '      sFromHaddocBuffer_chan{b}.read();\n' +
+                #                 '      not_empty = true;\n    }}\n')
+                #     outline = ''
+                #     for b in range(0, self.out_dims[1]):
+                #         outline += fsm_tmpl.format(b=b)
+                # elif 'DOSA_ADD_widen' in line:
+                #     fsm_tmpl = ('    if(!sFromHaddocBuffer_chan{b}.empty() && !sOutBuffer_chan{b}.full())\n    {{\n' +
+                #                 '      genericWiden(sFromHaddocBuffer_chan{b}, sOutBuffer_chan{b}, ' +
+                #                 'current_frame_bit_cnt[{b}], current_line_read_pnt[{b}], hangover_store[{b}],' +
+                #                 ' hangover_store_valid_bits[{b}]);\n    }}\n')
+                #     outline = ''
+                #     for b in range(0, self.out_dims[1]):
+                #         outline += fsm_tmpl.format(b=b)
+                elif 'DOSA_ADD_pFromHaddocWiden_X_declaration' in line:
+                    template_lines = Path(os.path.join(__filedir__, 'templates/haddoc2_wrapper/src/pFromHaddocWiden_b'
+                                                                    '.fstrtmpl')).read_text()
                     outline = ''
                     for b in range(0, self.out_dims[1]):
-                        outline += fsm_tmpl.format(b=b)
-                elif 'DOSA_ADD_widen' in line:
-                    fsm_tmpl = ('    if(!sFromHaddocBuffer_chan{b}.empty() && !sOutBuffer_chan{b}.full())\n    {{\n' +
-                                '      genericWiden(sFromHaddocBuffer_chan{b}, sOutBuffer_chan{b}, ' +
-                                'current_frame_bit_cnt[{b}], current_line_read_pnt[{b}], hangover_store[{b}],' +
-                                ' hangover_store_valid_bits[{b}]);\n    }}\n')
-                    outline = ''
-                    for b in range(0, self.out_dims[1]):
-                        outline += fsm_tmpl.format(b=b)
+                        outline += template_lines.format(b=b)
                 elif 'DOSA_ADD_out_stream_drain' in line:
                     fsm_tmpl = ('    if(!sOutBuffer_chan{b}.empty())\n    {{\n' +
                                 '      sOutBuffer_chan{b}.read();\n' +
@@ -305,6 +318,12 @@ class Haddoc2Wrapper:
                     outline = '     '
                     for b in range(0, self.out_dims[1]):
                         outline += ' sOutBuffer_chan{b},'.format(b=b)
+                    outline += '\n'
+                elif 'DOSA_ADD_pFromHaddocWiden_X_instantiate' in line:
+                    outline = ''
+                    tmpl = '  pFromHaddocWiden_{b}(sFromHaddocBuffer_chan{b}, sOutBuffer_chan{b});\n'
+                    for b in range(0, self.out_dims[1]):
+                        outline += tmpl.format(b=b)
                     outline += '\n'
                 else:
                     outline = line

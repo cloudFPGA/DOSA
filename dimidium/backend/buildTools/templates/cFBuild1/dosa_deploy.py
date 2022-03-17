@@ -75,15 +75,15 @@ def upload_image(dcp_folder, user_dict, node_name, app_name, api_instance):
         cl_data = json.load(f)
     tstmp = datetime.today().strftime('%Y-%m-%d_%H:%M')
     image_details = '{"breed": "SHELL", "fpga_board": "' + str(cl_data['fpga_board']) + \
-                    '", "shell_type": "' + str(cl_data['shell']) + '", "comment": "DOSA automatic deploy of ' + app_name \
-                    + ' on ' + tstmp + '"}'
+                    '", "shell_type": "' + str(cl_data['shell']) + '", "comment": "DOSA automatic deploy of ' + \
+                    node_name + ' from ' + app_name + ' on ' + tstmp + '"}'
     pr_verify_rpt = ""
     api_response = api_instance.cf_manager_rest_api_post_images(image_details, bit_file_path, pr_verify_rpt,
                                                                 str(user_dict['user']), str(user_dict['pw']))
     return api_response.id
 
 
-def upload_app_logic(dcp_folder, user_dict, app_name, api_instance):
+def upload_app_logic(dcp_folder, user_dict, node_name, app_name, api_instance):
     lt = glob.glob(dcp_folder + '/4_*partial.bin')
     assert len(lt) == 1
     bin_file_name = os.path.basename(lt[0])
@@ -99,8 +99,8 @@ def upload_app_logic(dcp_folder, user_dict, app_name, api_instance):
         cl_data = json.load(f)
     tstmp = datetime.today().strftime('%Y-%m-%d_%H:%M')
     image_details = '{"cl_id": "' + str(cl_data['id']) + '", "fpga_board": "' + str(cl_data['fpga_board']) + \
-                    '", "shell_type": "' + str(cl_data['shell']) + '", "comment": "DOSA automatic deploy of ' + app_name \
-                    + ' on ' + tstmp + '"}'
+                    '", "shell_type": "' + str(cl_data['shell']) + '", "comment": "DOSA automatic deploy of ' \
+                    + node_name + ' from ' + app_name + ' on ' + tstmp + '"}'
     api_response = api_instance.cf_manager_rest_api_post_app_logic(image_details, bin_file_path, sig_file_path,
                                                                    rpt_file_path, str(user_dict['user']), str(user_dict['pw']))
     return api_response.id
@@ -156,7 +156,7 @@ def main(path_to_build_folder, user_file, host_address, use_pr_flow=True):
         if n['type'] == __cf_device_name__:
             dcp_folder = os.path.abspath(path_to_build_folder + '/' + n['folder'] + '/dcps/')
             if use_pr_flow:
-                bitfile_id = upload_app_logic(dcp_folder, user_dict, cluster_data['name'], api_instance)
+                bitfile_id = upload_app_logic(dcp_folder, user_dict, n['folder'], cluster_data['name'], api_instance)
             else:
                 bitfile_id = upload_image(dcp_folder, user_dict, n['folder'], cluster_data['name'], api_instance)
             n['image-id'] = bitfile_id
