@@ -119,7 +119,7 @@ void pStateControl(
         commandRepetitions[0]   = 1;
         mpiCommands[1]          = MPI_INSTR_SEND;
         mpiRanks[1]             = 0;
-        mpiCounts[1]            = 6; //22/4; //MUST be wordsize!
+        mpiCounts[1]            = 6; // 22/4; //MUST be wordsize!
         commandRepetitions[1]   = 1;
       }
 #else
@@ -155,14 +155,16 @@ void pStateControl(
           if(curCmnd == MPI_INSTR_SEND)
           {
             //curCount is WORD length
-            sSendLength.write(curCount*4);
+            //sSendLength.write(curCount*4);
+            sSendLength.write((curCount*4)-3); //since it would be friction WITHIN a line -> should work
             //info.mpi_call = MPI_SEND_INT;
             //controlFSM = PROC_SEND;
             controlFSM = WAIT_DATA;
           } else {
             info.mpi_call = MPI_RECV_INT;
             //curCount is WORD length
-            sReceiveLength.write(curCount*4);
+            //sReceiveLength.write(curCount*4);
+            sReceiveLength.write((curCount*4)-3); //since it would be friction WITHIN a line -> should work
             controlFSM = PROC_RECEIVE;
             info.rank = (uint32_t) curRank;
             info.count = (uint32_t) curCount;
@@ -352,6 +354,8 @@ void pRecvEnq(
         //{
         //  tmp_read.setTLast(1);
         //}
+
+        // MPE sets the tlast --> we can trust it
         if(tmp_read.getTLast() == 1)
         {
           //also fail will set TLAST
@@ -388,6 +392,8 @@ void pRecvEnq(
         //{
         //  tmp_read.setTLast(1);
         //}
+
+        // MPE sets the tlast --> we can trust it
         if(tmp_read.getTLast() == 1)
         {
           //also fail will set TLAST
@@ -625,14 +631,14 @@ void pSendEnq(
       {
         tmp_read = siData.read();
         curCnt += extractByteCnt(tmp_read);
+        //we know the length, so we don't trust the incoming tlast
         if(curCnt >= curLength)
         {
           tmp_read.setTLast(1);
-        }
-        if(tmp_read.getTLast() == 1)
-        {
           sendEnqFsm = SEND_WAIT;
           nextBuffer = 1;
+        } else {
+          tmp_read.setTLast(0);
         }
         sSendBuff_0.write(tmp_read);
         sDataArrived.write(true);
@@ -645,14 +651,15 @@ void pSendEnq(
       {
         tmp_read = siData.read();
         curCnt += extractByteCnt(tmp_read);
+        //printf("curCnt: %d\n", curCnt);
+        //we know the length, so we don't trust the incoming tlast
         if(curCnt >= curLength)
         {
           tmp_read.setTLast(1);
-        }
-        if(tmp_read.getTLast() == 1)
-        {
           sendEnqFsm = SEND_WAIT;
           nextBuffer = 1;
+        } else {
+          tmp_read.setTLast(0);
         }
         sSendBuff_0.write(tmp_read);
       }
@@ -663,14 +670,14 @@ void pSendEnq(
       {
         tmp_read = siData.read();
         curCnt += extractByteCnt(tmp_read);
+        //we know the length, so we don't trust the incoming tlast
         if(curCnt >= curLength)
         {
           tmp_read.setTLast(1);
-        }
-        if(tmp_read.getTLast() == 1)
-        {
           sendEnqFsm = SEND_WAIT;
-          nextBuffer = 1;
+          nextBuffer = 0;
+        } else {
+          tmp_read.setTLast(0);
         }
         sSendBuff_1.write(tmp_read);
         sDataArrived.write(true);
@@ -683,14 +690,14 @@ void pSendEnq(
       {
         tmp_read = siData.read();
         curCnt += extractByteCnt(tmp_read);
+        //we know the length, so we don't trust the incoming tlast
         if(curCnt >= curLength)
         {
           tmp_read.setTLast(1);
-        }
-        if(tmp_read.getTLast() == 1)
-        {
           sendEnqFsm = SEND_WAIT;
           nextBuffer = 0;
+        } else {
+          tmp_read.setTLast(0);
         }
         sSendBuff_1.write(tmp_read);
       }
