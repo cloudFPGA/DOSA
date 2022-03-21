@@ -5,8 +5,13 @@ ipName =hls4ml_wrapper_test
 appName =${ipName}
 
 DEPS := $(shell find ./src/ -type f)
-IP_GUARD=$(usedRoleDir).ip_guard
-IP_GUARD_FORCE=$(usedRoleDir).ip_guard_delete_to_force_tcl_export
+ifeq ($(usedRoleDir),to-be-defined)
+	IP_GUARD=$(usedRole2Dir)/.ip_guard
+	IP_GUARD_FORCE=$(usedRole2Dir)/.ip_guard_delete_to_force_tcl_export
+else
+	IP_GUARD=$(usedRoleDir)/.ip_guard
+	IP_GUARD_FORCE=$(usedRoleDir)/.ip_guard_delete_to_force_tcl_export
+endif
 
 .PHONY: all csim cosim cosim_view assert_env syn_test
 all: assert_env ${ipName}_prj/solution1/impl/ip

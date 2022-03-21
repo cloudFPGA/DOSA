@@ -5,8 +5,13 @@ ipName =haddoc_wrapper_test
 appName =${ipName}
 
 DEPS := $(shell find ./src/ -type f)
-IP_GUARD=$(usedRoleDir).ip_guard
-IP_GUARD_FORCE=$(usedRoleDir).ip_guard_delete_to_force_tcl_export
+ifeq ($(usedRoleDir),to-be-defined)
+	IP_GUARD=$(usedRole2Dir)/.ip_guard
+	IP_GUARD_FORCE=$(usedRole2Dir)/.ip_guard_delete_to_force_tcl_export
+else
+	IP_GUARD=$(usedRoleDir)/.ip_guard
+	IP_GUARD_FORCE=$(usedRoleDir)/.ip_guard_delete_to_force_tcl_export
+endif
 
 .PHONY: all csim cosim cosim_view assert_env syn_test
 all: assert_env ${ipName}_prj/solution1/impl/ip
@@ -25,7 +30,7 @@ ${ipName}_prj/solution1/impl/ip: $(DEPS)
 	@cat ${ipName}_prj/solution1/syn/report/${appName}_csynth.rpt
 	@echo "-" > .tmp_stamp_2
 	@date +%s > .tmp_stamp_1
-	@echo -n "HLS4ML build time: "
+	@echo -n "HLS build time: "
 	@/bin/bash -c "cat <(cat .tmp_stamp_* | tr '\n' ' ') <(echo '') | /usr/bin/bc -l || echo 'see .tmp_stamp files'"
 	@touch $@
 	touch $(IP_GUARD)
