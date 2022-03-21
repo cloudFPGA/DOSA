@@ -497,6 +497,14 @@ void pFromHaddocEnq(
         sFromHaddocBuffer.write(input_data);
       //}
     }
+    else if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
+        && pi_haddoc_data.empty() //yes, empty!
+        )
+    { // consume one HUP token, so that the fifo doesn't sand
+      // and, since sFromHaddocBuffer isn't full, we can do this safely
+        bool ignore_me = sHaddocUnitProcessing.read();
+        printf("pFromHaddocEnq: read HUP token to avoid sanding..\n");
+    }
   }
 
 }
@@ -1462,7 +1470,7 @@ void haddoc_wrapper_test(
 #endif
   static stream<bool> sHaddocUnitProcessing ("sHaddocUnitProcessing");
   const int haddoc_processing_fifo_depth = HADDOC_AVG_LAYER_LATENCY * DOSA_HADDOC_LAYER_CNT;
-  #pragma HLS STREAM variable=sHaddocUnitProcessing depth=2*haddoc_processing_fifo_depth
+  #pragma HLS STREAM variable=sHaddocUnitProcessing depth=haddoc_processing_fifo_depth
   static stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > sFromHaddocBuffer ("sFromHaddocBuffer");
   #pragma HLS STREAM variable=sFromHaddocBuffer depth=3*haddoc_processing_fifo_depth  //so that we can receive, what we send out...
   //static stream<bool> sFromHaddocFrameComplete ("sFromHaddocFrameComplete");

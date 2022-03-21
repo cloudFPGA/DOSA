@@ -15,7 +15,7 @@ from dimidium.backend.codeGen.WrapperInterfaces import WrapperInterface, Interfa
 
 _valid_fifo_depth_ = [1024, 2048, 4096, 8192, 16384]
 _probe_len_threshold_ = 90
-_fifo_depth_lower_index_ = 0
+_fifo_depth_lower_index_ = 1
 
 
 class IlaDebugCore:
