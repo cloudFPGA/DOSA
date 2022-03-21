@@ -39,11 +39,11 @@ class ZrlmpiSwApp:
         # get comm_plan data
         comm_instr = self.comm_plan.get_comm_instr()
         # assert len(comm_instr) == 2  # this ist just the root app
-        comm_plan_one_iteration_length = 2  # TODO: make dynamic?
         comm_plan_len = len(comm_instr)
-        assert comm_plan_len % comm_plan_one_iteration_length == 0
+        assert comm_plan_len % 2 == 0
         assert len(self.comm_plan.get_comm_instr_sorted().keys()) == 1
         repetitions = 1 + dosa_singleton.config.backend.comm_message_interleaving
+        comm_plan_one_iteration_length = 2 * repetitions
         # 3. copy dosa_infer.hpp
         with open(os.path.join(self.templ_dir_path, 'dosa_infer.hpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'dosa_infer.hpp'), 'w') as out_file:

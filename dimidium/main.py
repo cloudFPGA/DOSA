@@ -35,7 +35,7 @@ __mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_
 
 def print_usage(sys_argv):
     print("USAGE: {} ./path/to/dosa_config.json ./path/to/nn.onnx ./path/to/constraint.json ./path/to/build_dir "
-          .format(sys.argv[0]) +
+          .format(sys_argv[0]) +
           "[--no-roofline|--no-build]")
     exit(1)
 

@@ -84,7 +84,10 @@ class Haddoc2Wrapper:
                     continue
                 elif 'DOSA_ADD_INTERFACE_DEFINES' in line:
                     tkeep_general = bit_width_to_tkeep(self.general_bitw)
-                    tkeep_width = math.ceil(math.log2(tkeep_general))
+                    tkeep_width = max(math.ceil(math.log2(tkeep_general)), 1)
+                    assert tkeep_general > 0
+                    assert tkeep_width > 0
+                    assert tkeep_general >= tkeep_width
                     outline = ''
                     outline += '#define DOSA_WRAPPER_INPUT_IF_BITWIDTH {}\n'.format(self.if_in_bitw)
                     outline += '#define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH {}\n'.format(self.if_out_bitw)
