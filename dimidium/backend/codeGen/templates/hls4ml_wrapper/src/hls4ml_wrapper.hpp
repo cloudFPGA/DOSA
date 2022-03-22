@@ -33,7 +33,7 @@ using namespace hls;
 #define CNN_INPUT_FRAME_SIZE (10*10)
 #define CNN_OUTPUT_FRAME_SIZE (5*5)
 #endif
-//LESSON LEARNED: ifdef/else for constants that affect INTERFACES does not work with vivado HLS...it uses the first occurence, apparently...
+//LESSON LEARNED: ifdef/else for constants that affect INTERFACES is dangeorus with vivado HLS
 
 //DOSA_REMOVE_STOP
 //DOSA_ADD_INTERFACE_DEFINES
