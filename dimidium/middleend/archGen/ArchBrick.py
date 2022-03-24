@@ -11,6 +11,8 @@
 #  *
 
 import json
+from types import SimpleNamespace
+
 from tvm.relay import Expr
 
 import dimidium.lib.singleton as dosa_singleton
@@ -72,6 +74,10 @@ class ArchBrick(object):
         self.req_util_mem_engine = 0
         self.req_util_mem_stream = 0
         self.skip_in_roofline = False
+        self.dims = SimpleNamespace()
+        self.dims.inp = 0
+        self.dims.out = 0
+        self.dims.param = 0
 
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.local_brick_id, self.name)
@@ -89,7 +95,7 @@ class ArchBrick(object):
                'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': repr(self.used_dtype),
-               'tvm_node': str(self.tvm_node)[:100], 'req_flops': self.req_flops,
+               'dims': '', 'tvm_node': str(self.tvm_node)[:100], 'req_flops': self.req_flops,
                'req_latency_s': self.req_latency,
                'req_util_comp': self.req_util_comp, 'req_util_mem': self.req_util_mem,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
@@ -102,6 +108,8 @@ class ArchBrick(object):
         for po in self.possible_osgs:
             pos = repr(po)
             res['possible OSGs'].append(pos)
+        self.update_dims()
+        res['dims'] = '(inp: {}, out: {}, params: {})'.format(self.dims.inp, self.dims.out, self.dims.param)
         return res
 
     def __str__(self):
@@ -127,6 +135,7 @@ class ArchBrick(object):
         self.tvm_dtype = dpl_dict['dtype']
         self.used_dtype = convert_tvmDtype_to_DosaDtype(self.tvm_dtype)
         self.flops_conv_factor = get_flops_conv_factor(self.used_dtype)
+        self.update_dims()
 
     def reconstruct_from_op_list(self, op_list):
         self.oid_cnt = 0
@@ -148,6 +157,7 @@ class ArchBrick(object):
         self.oi_stream = total_uinp / total_flops
         self.flops = total_flops
         self.parameter_bytes = total_params
+        self.update_dims()
 
     def set_brick_id(self, brick_id):
         self.local_brick_id = brick_id
@@ -286,6 +296,17 @@ class ArchBrick(object):
         for osg in self.possible_osgs:
             new_possible_hw_types.extend(osg.dosaHwTypes)
         self.possible_hw_types = list(set(new_possible_hw_types))
+
+    def update_dims(self):
+        self.dims = SimpleNamespace()
+        self.dims.inp = None
+        self.dims.out = None
+        self.dims.param = []
+        for lb in self.local_op_iter_gen():
+            if self.dims.inp is None:
+                self.dims.inp = lb.dims.inp
+            self.dims.out = lb.dims.out
+            self.dims.param.append(lb.dims.param)
 
     def update_util_estimation(self, target_hw: DosaBaseHw):
         share_comp, share_mem = target_hw.get_hw_utilization_tuple(self.req_flops, self.parameter_bytes)
