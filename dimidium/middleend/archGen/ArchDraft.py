@@ -707,7 +707,7 @@ class ArchDraft(object):
         for nd in node_ids_to_delete:
             self.delete_node(nd)
         # 7. update OSGs and possible hw targets
-        self.update_possible_osgs()
+        # self.update_possible_osgs()
         self.update_possible_hw_types()
         # 8. decide for hw, if targeted hw is possible, use this one
         #  if not, use other possible hw with largest roof_F
@@ -852,6 +852,7 @@ class ArchDraft(object):
                     brick.input_bw_Bs = brick.input_bytes * (self.target_sps / local_data_par_level)
                     brick.output_bw_Bs = brick.output_bytes * (self.target_sps / local_data_par_level)
                     orig_req_flops = brick.flops * (self.target_sps / local_data_par_level)
+                    brick.req_iter_hz = (self.target_sps / local_data_par_level)
                     brick.req_flops = orig_req_flops * brick.flops_conv_factor
                     # annotate also the latency
                     brick.req_latency = brick.flops / brick.req_flops
@@ -888,6 +889,7 @@ class ArchDraft(object):
                     # brick.req_perf_stream = (brick.oi_stream * brick.input_bytes) / latency_per_brick
                     orig_req_flops = brick.flops / (latency_per_brick * local_data_par_level)
                     brick.req_flops = orig_req_flops * brick.flops_conv_factor
+                    brick.req_iter_hz = brick.req_flops / brick.flops
         else:
             # optimizing towards resource footprint
             if self.target_resources < 0:
@@ -915,6 +917,7 @@ class ArchDraft(object):
                 brick.req_flops = orig_req_flops * brick.flops_conv_factor
                 # annotate also the latency
                 brick.req_latency = brick.flops / brick.req_flops
+                brick.req_iter_hz = brick.req_flops / brick.flops
         return DosaRv.OK
 
     def update_uuids(self, add_backlink=False):
@@ -945,9 +948,9 @@ class ArchDraft(object):
             old_node.out_ranks = first_node.ranks
         return
 
-    def update_possible_osgs(self):
-        for nn in self.node_iter_gen():
-            nn.update_possible_osgs()
+    # def update_possible_osgs(self):
+    #     for nn in self.node_iter_gen():
+    #         nn.update_possible_osgs()
 
     def update_possible_hw_types(self):
         cur_possible_hw_types = []

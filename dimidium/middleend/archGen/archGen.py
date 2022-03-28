@@ -244,10 +244,17 @@ def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [
     draft.add_node(node_0)
 
     # annotate OSGs
-    for bb in draft.brick_iter_gen():
-        for osg in available_osgs:
-            osg.annotate_brick(bb)
-    draft.update_possible_osgs()
+    # for bb in draft.brick_iter_gen():
+    #     for osg in available_osgs:
+    #         osg.annotate_brick(bb)
+    all_dev_list = draft.target_hw_set
+    all_dev_list.extend(draft.fallback_hw_set)
+    for thw in all_dev_list:
+        for bb in draft.brick_iter_gen():
+            for osg in available_osgs:
+                osg.annotate_brick(bb, thw)
+
+    # draft.update_possible_osgs()
     draft.update_possible_hw_types()
 
     # add comm libs

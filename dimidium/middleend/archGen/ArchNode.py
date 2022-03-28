@@ -39,6 +39,7 @@ class ArchNode(object):
         self.ranks = []
         self.inp_ranks = []
         self.out_ranks = []
+        self.req_iter_hz = -1
         self.roofline = None
         self.max_perf_F = -1
         self.used_perf_F = -1
@@ -225,9 +226,9 @@ class ArchNode(object):
             next_uuid += 1
         return next_uuid
 
-    def update_possible_osgs(self):
-        for bb in self.local_brick_iter_gen():
-            bb.update_possible_osgs()
+    # def update_possible_osgs(self):
+    #     for bb in self.local_brick_iter_gen():
+    #         bb.update_possible_osgs()
 
     def update_possible_hw_types(self):
         cur_possible_hw_types = []

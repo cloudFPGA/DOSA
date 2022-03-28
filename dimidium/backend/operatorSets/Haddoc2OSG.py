@@ -15,11 +15,12 @@
 #  *        can be also found under `backend/3rd_party_libs/`.
 #  *
 #  *
-
 import os
 import numpy as np
 import tvm
 import tvm.relay as relay
+import math
+import json
 
 from dimidium.backend.buildTools.BaseBuild import HwBuildTopVhdl
 from dimidium.backend.buildTools.cFBuild1 import cFBuild1
@@ -33,6 +34,14 @@ from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 import dimidium.backend.operatorSets.lib.haddoc2.paramsParsing as paramParsing
 import dimidium.backend.operatorSets.lib.haddoc2.topologyParsing as topologyParsing
 from dimidium.backend.codeGen.WrapperInterfaces import InterfaceAxisFifo, wrapper_default_interface_bitwidth
+from dimidium.middleend.archGen.OperationContract import OperationContract
+from dimidium.backend.operatorSets.lib.util import get_avg_util_dict_bytes_based, get_share_of_FPGA_resources
+import dimidium.lib.units as units
+
+__db_path__ = './osg_impl_db.json'
+_part_conv_ = 0.8
+_part_bias_ = 0.15
+_part_act_ = 0.05
 
 
 class Haddoc2OSG(BaseOSG):
@@ -44,27 +53,74 @@ class Haddoc2OSG(BaseOSG):
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
         self.my_hdl_template_folder = os.path.abspath(me_abs_dir + '/../third_party_libs/haddoc2/lib/hdl/')
         self.existing_layer_names = []
+        self.util_db = {}
+        self.avg_util_dict = {}
+
+    def _init_util_db_(self):
+        with open(__db_path__, 'r') as infile:
+            util_data = json.load(infile)
+        my_util = util_data[self.name]
+        self.util_db = {}
+        compl_list = []
+        for e in my_util:
+            if e['device'] not in self.util_db:
+                self.util_db = [e]
+            else:
+                self.util_db.append(e)
+            compl_list.append(e)
+        self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True)
+
+    def _get_impl_prediction(self, op_str, device, consider_paramB=False):
+        relevant_entries = []
+        # TODO: prefer entries with shorter ops list?
+        for dk in self.util_db:
+            if dk == device.name:
+                for e in self.util_db[dk]:
+                    if op_str in e['ops']:
+                        relevant_entries.append(e)
+        res_dict = {}
+        used_fallback = False
+        if len(relevant_entries) == 0:
+            res_dict = self.avg_util_dict
+            used_fallback = True
+        else:
+            res_dict = get_avg_util_dict_bytes_based(relevant_entries, consider_paramB=consider_paramB)
+        ret_dict = {}
+        ret_dict['LUTLOG'] = res_dict['LUTLOG']
+        ret_dict['LUTMEM'] = res_dict['LUTMEM']
+        ret_dict['Registers'] = res_dict['Registers']
+        ret_dict['BRAM'] = res_dict['BRAM']
+        ret_dict['DSPs'] = res_dict['DSPs']
+        ret_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl']
+        wrapper_dict = {}
+        wrapper_dict['LUTLOG'] = res_dict['wrapper']['LUTLOG']
+        wrapper_dict['LUTMEM'] = res_dict['wrapper']['LUTMEM']
+        wrapper_dict['Registers'] = res_dict['wrapper']['Registers']
+        wrapper_dict['BRAM'] = res_dict['wrapper']['BRAM']
+        wrapper_dict['DSPs'] = res_dict['wrapper']['DSPs']
+        return ret_dict, wrapper_dict, used_fallback
 
     def init(self, dosa_hw_classes_dict, priority_internal):
         self.priority_internal = priority_internal
         self.select_dosa_hw_types(dosa_hw_classes_dict)
+        self._init_util_db_()
         # relay2osg annotation,
         #  based on https://github.com/DreamIP/haddoc2/blob/master/lib/python/parseNetTopology.py
         for e in self.relay2osg['nn']:
             if 'conv2d' in e:
-                self.relay2osg['nn'][e] = self._param_parse_conv
+                self.relay2osg['nn'][e] = self._param_parse_conv, self._predict_conv
             elif 'bias_add' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_biasAdd
+                self.relay2osg['nn'][e] = self._generate_hdl_biasAdd, self._predict_bias
             elif 'pool2d' in e:
-                self.relay2osg['nn'][e] = self._param_parse_pool
+                self.relay2osg['nn'][e] = self._param_parse_pool, self._predict_pool
             elif 'tanh' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_tanh_instance
+                self.relay2osg['nn'][e] = self._generate_hdl_tanh_instance, self._predict_tanh
             elif 'relu' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_relu
+                self.relay2osg['nn'][e] = self._generate_hdl_relu, self._predict_relu
             elif 'flatten' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_flatten_instance
+                self.relay2osg['nn'][e] = self._generate_hdl_flatten_instance, self._predict_flatten_drop
             elif 'dropout' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_dropout_instance
+                self.relay2osg['nn'][e] = self._generate_hdl_dropout_instance, self._predict_flatten_drop
 
     def _copy_hdl_lib(self, target_hdl_dir, block_id):
         os.system("cp -n {}/* {}/".format(self.my_hdl_template_folder, target_hdl_dir))
@@ -314,8 +370,8 @@ class Haddoc2OSG(BaseOSG):
     # def comm_wrap_brick(self, todo):
     #     pass
 
-    def estimate_flops_brick(self, brick_node: ArchBrick):
-        pass
+    # def estimate_flops_brick(self, brick_node: ArchBrick):
+    #     pass
 
     # def _generate_hdl_conv_instance(self, todo):
     #     print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
@@ -327,12 +383,51 @@ class Haddoc2OSG(BaseOSG):
     #           "(i.e. use build_block). IGNORING.")
     #     return
 
+    def _predict_tanh(self, op, target_hw, impl_type):
+        if impl_type != BrickImplTypes.STREAM or \
+                (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
+            return None
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction(op.op_call, target_hw, consider_paramB=False)
+        # using relu as fallback
+        if used_fallback:
+            util_dict, wrapper_dict, _ = self._get_impl_prediction('relu', target_hw, consider_paramB=False)
+        util_dict['LUTLOG'] *= _part_act_
+        util_dict['LUTMEM'] *= _part_act_
+        util_dict['Registers'] *= _part_act_
+        util_dict['BRAM'] *= _part_act_
+        util_dict['DSPs'] *= _part_act_
+        wrapper_dict['LUTLOG'] *= _part_act_
+        wrapper_dict['LUTMEM'] *= _part_act_
+        wrapper_dict['Registers'] *= _part_act_
+        wrapper_dict['BRAM'] *= _part_act_
+        wrapper_dict['DSPs'] *= _part_act_
+        proc_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], util_dict)
+        wrapper_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], wrapper_dict)
+        proc_comp_share = (proc_share['LUTLOG'] + proc_share['DSPs']) / 2
+        # TODO: equal weights (i.e. just /2), makes sense?
+        proc_mem_share = (proc_share['LUTMEM'] + proc_share['Registers'] + proc_share['BRAM']) / 3
+        wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
+        wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
+        latency_ns = math.ceil(util_dict['latency_lim_per_tensor_cycl'] * _part_act_ *
+                               target_hw.get_performance_dict()['fpga_clk_ns'])
+        iter_hz = 1 / (latency_ns * units.gigaU)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
+                                  'basis', wrapper_comp_share, wrapper_mem_share)
+        return offer
+
     def _generate_hdl_tanh_instance(self, todo):
         # is merged with ConvLayer.vhd?
         # but separate TanH exist, so could be added
         print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
               "(i.e. use build_block). IGNORING.")
         return
+
+    def _predict_flatten_drop(self, op, target_hw, impl_type):
+        if impl_type != BrickImplTypes.STREAM or \
+                (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
+            return None
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, float('inf'), 0.0, 0.0, 'basis', 0.0, 0.0)
+        return offer
 
     def _generate_hdl_flatten_instance(self, todo):
         print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
@@ -344,10 +439,68 @@ class Haddoc2OSG(BaseOSG):
               "(i.e. use build_block). IGNORING.")
         return
 
+    def _predict_bias(self, op, target_hw, impl_type):
+        if impl_type != BrickImplTypes.STREAM or \
+                (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
+            return None
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction(op.op_call, target_hw, consider_paramB=False)
+        util_dict['LUTLOG'] *= _part_bias_
+        util_dict['LUTMEM'] *= _part_bias_
+        util_dict['Registers'] *= _part_bias_
+        util_dict['BRAM'] *= _part_bias_
+        util_dict['DSPs'] *= _part_bias_
+        wrapper_dict['LUTLOG'] *= _part_bias_
+        wrapper_dict['LUTMEM'] *= _part_bias_
+        wrapper_dict['Registers'] *= _part_bias_
+        wrapper_dict['BRAM'] *= _part_bias_
+        wrapper_dict['DSPs'] *= _part_bias_
+        proc_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], util_dict)
+        wrapper_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], wrapper_dict)
+        proc_comp_share = (proc_share['LUTLOG'] + proc_share['DSPs']) / 2
+        proc_mem_share = (proc_share['LUTMEM'] + proc_share['Registers'] + proc_share['BRAM']) / 3
+        wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
+        wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
+        latency_ns = util_dict['latency_lim_per_tensor_cycl'] * _part_bias_ * \
+                     target_hw.get_performance_dict()['fpga_clk_ns']
+        iter_hz = 1 / (latency_ns * units.gigaU)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
+                                  'basis', wrapper_comp_share, wrapper_mem_share)
+        return offer
+
     def _generate_hdl_biasAdd(self, todo):
         print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
               "(i.e. use build_block). IGNORING.")
         return
+
+    def _predict_relu(self, op, target_hw, impl_type):
+        if impl_type != BrickImplTypes.STREAM or \
+                (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
+            return None
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction(op.op_call, target_hw, consider_paramB=False)
+        if used_fallback:
+            util_dict, wrapper_dict, _ = self._get_impl_prediction('tanh', target_hw, consider_paramB=False)
+        util_dict['LUTLOG'] *= _part_act_
+        util_dict['LUTMEM'] *= _part_act_
+        util_dict['Registers'] *= _part_act_
+        util_dict['BRAM'] *= _part_act_
+        util_dict['DSPs'] *= _part_act_
+        wrapper_dict['LUTLOG'] *= _part_act_
+        wrapper_dict['LUTMEM'] *= _part_act_
+        wrapper_dict['Registers'] *= _part_act_
+        wrapper_dict['BRAM'] *= _part_act_
+        wrapper_dict['DSPs'] *= _part_act_
+        proc_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], util_dict)
+        wrapper_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], wrapper_dict)
+        proc_comp_share = (proc_share['LUTLOG'] + proc_share['DSPs']) / 2
+        proc_mem_share = (proc_share['LUTMEM'] + proc_share['Registers'] + proc_share['BRAM']) / 3
+        wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
+        wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
+        latency_ns = util_dict['latency_lim_per_tensor_cycl'] * _part_act_ \
+                     * target_hw.get_performance_dict()['fpga_clk_ns']
+        iter_hz = 1 / (latency_ns * units.gigaU)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
+                                  'basis', wrapper_comp_share, wrapper_mem_share)
+        return offer
 
     def _generate_hdl_relu(self, todo):
         print("[DOSA:Build:ERROR] Currently, Haddoc2 operators can only be implemented block-wise " +
@@ -362,6 +515,34 @@ class Haddoc2OSG(BaseOSG):
             name_cnt += 1
         self.existing_layer_names.append(base_str)
         return base_str
+
+    def _predict_conv(self, op, target_hw, impl_type):
+        if impl_type != BrickImplTypes.STREAM or \
+                (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
+            return None
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction(op.op_call, target_hw, consider_paramB=False)
+        util_dict['LUTLOG'] *= _part_conv_
+        util_dict['LUTMEM'] *= _part_conv_
+        util_dict['Registers'] *= _part_conv_
+        util_dict['BRAM'] *= _part_conv_
+        util_dict['DSPs'] *= _part_conv_
+        wrapper_dict['LUTLOG'] *= _part_conv_
+        wrapper_dict['LUTMEM'] *= _part_conv_
+        wrapper_dict['Registers'] *= _part_conv_
+        wrapper_dict['BRAM'] *= _part_conv_
+        wrapper_dict['DSPs'] *= _part_conv_
+        proc_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], util_dict)
+        wrapper_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], wrapper_dict)
+        proc_comp_share = (proc_share['LUTLOG'] + proc_share['DSPs']) / 2
+        proc_mem_share = (proc_share['LUTMEM'] + proc_share['Registers'] + proc_share['BRAM']) / 3
+        wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
+        wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
+        # using complete latency, so that brick latency is correct
+        latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
+        iter_hz = 1 / (latency_ns * units.gigaU)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
+                                  'basis', wrapper_comp_share, wrapper_mem_share)
+        return offer
 
     def _param_parse_conv(self, op, target_fh, layer_name, next_op=None, next_next_op=None):
         consumed_opt_ops = 0
@@ -403,6 +584,23 @@ class Haddoc2OSG(BaseOSG):
         target_fh.write("--------------------------------------------------------\n")
         return op, consumed_opt_ops
 
+    def _predict_pool(self, op, target_hw, impl_type):
+        if impl_type != BrickImplTypes.STREAM or \
+                (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
+            return None
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction(op.op_call, target_hw, consider_paramB=False)
+        proc_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], util_dict)
+        wrapper_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], wrapper_dict)
+        proc_comp_share = (proc_share['LUTLOG'] + proc_share['DSPs']) / 2
+        proc_mem_share = (proc_share['LUTMEM'] + proc_share['Registers'] + proc_share['BRAM']) / 3
+        wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
+        wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
+        latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
+        iter_hz = 1 / (latency_ns * units.gigaU)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
+                                  'basis', wrapper_comp_share, wrapper_mem_share)
+        return offer
+
     def _param_parse_pool(self, op, target_fh, layer_name, next_op=None, next_next_op=None):
         out_channel_num = op.dims.out[1]  # out_size
         assert out_channel_num == op.dims.inp[1]
@@ -433,4 +631,3 @@ class Haddoc2OSG(BaseOSG):
             f.write('  constant OUTPUT_BITWIDTH  : integer := ' + str(output_bitwidth) + ';\n')
             f.write('end bitwidths_b{};\n'.format(block_id))
         return
-

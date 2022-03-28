@@ -22,6 +22,7 @@ from dimidium.lib.util import BrickImplTypes
 from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype
 from dimidium.lib.dtype_converters import get_flops_conv_factor
 from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG, sort_osg_list
+from dimidium.middleend.archGen.BrickContract import BrickContract
 
 
 class ArchBrick(object):
@@ -57,6 +58,7 @@ class ArchBrick(object):
         self.req_exec_time_s = 0
         self.req_flops_engine = -1
         self.req_flops_stream = -1
+        self.req_iter_hz = -1
         self.input_bw_Bs = -1
         self.output_bw_Bs = -1
         self.calc_latency = -1
@@ -66,6 +68,8 @@ class ArchBrick(object):
         self.selected_osg = placeholderOSG
         self.possible_osgs = []
         self.available_osgs = []
+        self.possible_contracts = []
+        self.selected_contract = None
         self.possible_hw_types = []
         self.req_util_comp = 0
         self.req_util_comp_engine = 0
@@ -99,15 +103,19 @@ class ArchBrick(object):
                'req_latency_s': self.req_latency,
                'req_util_comp': self.req_util_comp, 'req_util_mem': self.req_util_mem,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
-               'possible OSGs': [], 'selected OSG': repr(self.selected_osg),
+               # 'possible OSGs': [], 'selected OSG': repr(self.selected_osg),
+               'possible contr': [], 'selected contr': repr(self.selected_contract),
                'selected impl. type:': repr(self.selected_impl_type),
                'ops': {}}
         for oi in self.ops:
             o = self.ops[oi]
             res['ops'][oi] = o.as_dict()
-        for po in self.possible_osgs:
+        # for po in self.possible_osgs:
+        #     pos = repr(po)
+        #     res['possible OSGs'].append(pos)
+        for po in self.possible_contracts:
             pos = repr(po)
-            res['possible OSGs'].append(pos)
+            res['possible contr'].append(pos)
         self.update_dims()
         res['dims'] = '(inp: {}, out: {}, params: {})'.format(self.dims.inp, self.dims.out, self.dims.param)
         return res
@@ -264,37 +272,47 @@ class ArchBrick(object):
     #     delme = self.possible_osgs.index(osg)
     #     del self.possible_osgs[delme]
 
-    def add_available_osg(self, osg: BaseOSG):
-        self.available_osgs.append(osg)
-        self.available_osgs = list(set(self.available_osgs))
+    # def add_available_osg(self, osg: BaseOSG):
+    #     self.available_osgs.append(osg)
+    #     self.available_osgs = list(set(self.available_osgs))
 
-    def update_possible_osgs(self):
-        # find all possible osgs, based on ops
-        cur_possible_osgs = self.available_osgs
-        not_possible_osgs = []
-        for op in self.local_op_iter_gen():
-            op_posg = op.possible_osgs
-            for bpo in cur_possible_osgs:
-                if bpo not in op_posg:
-                    not_possible_osgs.append(bpo)
-        not_possible_osgs = list(set(not_possible_osgs))
-        for npo in not_possible_osgs:
-            del cur_possible_osgs[cur_possible_osgs.index(npo)]
-        # remove osgs based on impl type
-        tmp_osg_list = sort_osg_list(cur_possible_osgs)
-        not_possible_osgs = []
-        if self.selected_impl_type != BrickImplTypes.UNDECIDED:
-            for posg in tmp_osg_list:
-                if self.selected_impl_type not in posg.possible_impl_types:
-                    not_possible_osgs.append(posg)
-        for npo in not_possible_osgs:
-            del tmp_osg_list[tmp_osg_list.index(npo)]
-        self.possible_osgs = sort_osg_list(tmp_osg_list)
+    # def update_possible_osgs(self):
+    #     # find all possible osgs, based on ops
+    #     cur_possible_osgs = self.available_osgs
+    #     not_possible_osgs = []
+    #     for op in self.local_op_iter_gen():
+    #         op_posg = op.possible_osgs
+    #         for bpo in cur_possible_osgs:
+    #             if bpo not in op_posg:
+    #                 not_possible_osgs.append(bpo)
+    #     not_possible_osgs = list(set(not_possible_osgs))
+    #     for npo in not_possible_osgs:
+    #         del cur_possible_osgs[cur_possible_osgs.index(npo)]
+    #     # remove osgs based on impl type
+    #     tmp_osg_list = sort_osg_list(cur_possible_osgs)
+    #     not_possible_osgs = []
+    #     if self.selected_impl_type != BrickImplTypes.UNDECIDED:
+    #         for posg in tmp_osg_list:
+    #             if self.selected_impl_type not in posg.possible_impl_types:
+    #                 not_possible_osgs.append(posg)
+    #     for npo in not_possible_osgs:
+    #         del tmp_osg_list[tmp_osg_list.index(npo)]
+    #     self.possible_osgs = sort_osg_list(tmp_osg_list)
+
+    def add_possible_contract(self, contr: BrickContract):
+        assert contr.brick == self
+        self.possible_contracts.append(contr)
+
+    # def update_possible_hw_types(self):
+    #     new_possible_hw_types = []
+    #     for osg in self.possible_osgs:
+    #         new_possible_hw_types.extend(osg.dosaHwTypes)
+    #     self.possible_hw_types = list(set(new_possible_hw_types))
 
     def update_possible_hw_types(self):
         new_possible_hw_types = []
-        for osg in self.possible_osgs:
-            new_possible_hw_types.extend(osg.dosaHwTypes)
+        for contr in self.possible_contracts:
+            new_possible_hw_types.extend(contr.osg.dosaHwTypes)
         self.possible_hw_types = list(set(new_possible_hw_types))
 
     def update_dims(self):

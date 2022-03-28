@@ -13,7 +13,7 @@
 import os
 import math
 import numpy as np
-
+import json
 import tvm.relay
 
 import dimidium.lib.singleton as dosa_singleton
@@ -30,6 +30,9 @@ from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
 from dimidium.backend.operatorSets.lib.hls4ml.DosaFileReader import OsgDataReader
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
+
+
+__db_path__ = './osg_impl_db.json'
 
 
 def _get_next_unrolling_factor(paral_grade):
@@ -67,6 +70,18 @@ class Hls4mlOSG(BaseOSG):
         self.priority = 92
         self.existing_layer_names = []
         # self.suggested_max_block_length = 1
+        self.util_db = {}
+
+    def _init_util_db_(self):
+        with open(__db_path__, 'r') as infile:
+            util_data = json.load(infile)
+        my_util = util_data[self.name]
+        self.util_db = {}
+        for e in my_util:
+            if e['device'] not in self.util_db:
+                self.util_db = [e]
+            else:
+                self.util_db.append(e)
 
     def init(self, dosa_hw_classes_dict, priority_internal):
         self.priority_internal = priority_internal
@@ -521,8 +536,8 @@ class Hls4mlOSG(BaseOSG):
     # def comm_wrap_brick(self, todo):
     #     pass
 
-    def estimate_flops_brick(self, brick_node: ArchBrick):
-        pass
+    # def estimate_flops_brick(self, brick_node: ArchBrick):
+    #     pass
 
     def _generate_hls_conv1d(self, op, layer_name, next_op=None, next_next_op=None):
         return

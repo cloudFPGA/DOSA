@@ -15,6 +15,7 @@ from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
+from dimidium.middleend.archGen.OperationContract import OperationContract
 
 
 class TvmCpuOsg(BaseOSG):
@@ -31,7 +32,14 @@ class TvmCpuOsg(BaseOSG):
         self.select_dosa_hw_types(dosa_hw_classes_dict)
         # this one will support everything
         # self.relay2osg = {x: self._generate_tvm_module for x in relay_op_list}
-        self.relay2osg = deep_update(self.relay2osg, True)
+        self.relay2osg = deep_update(self.relay2osg, (True, self._get_contr_offer))
+
+    def _get_contr_offer(self, op, target_hw, impl_type):
+        if impl_type != BrickImplTypes.ENGINE:
+            return None
+        placeholder_contr = OperationContract(op, target_hw, self, impl_type, float('inf'), 1.0, 1.0,
+                                              "not-yet-implemented", 0.0, 0.0)
+        return placeholder_contr
 
     def build_block(self, arch_block, build_tool):
         pass
@@ -52,6 +60,6 @@ class TvmCpuOsg(BaseOSG):
     # def comm_wrap_brick(self, todo):
     #     pass
 
-    def estimate_flops_brick(self, brick_node: ArchBrick):
-        pass
+    # def estimate_flops_brick(self, brick_node: ArchBrick):
+    #     pass
 

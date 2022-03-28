@@ -41,7 +41,7 @@ class CfThemisto1(DosaBaseHw):
         freq_fpga_mhz = 156.0
         freq_fpga_ghz = 0.156
         self.freq_fpga = freq_fpga_mhz * megaU  # Hz
-        clk_fpga = 6.4  # ns
+        self.clk_fpga_ns = 6.4  # ns
         us_dsp48_s2_fmax_g = 0.661  # Ghz
         ku060_num_dsp = 2760.0
         # dsp_flop_s = 4.0 * us_dsp48_s2_fmax_g
@@ -122,7 +122,8 @@ class CfThemisto1(DosaBaseHw):
     def get_performance_dict(self):
         self._gen_numbers()
         max_gflops = self.cF_bigRole_dsp48_gflops * self.config_dosa_kappa
-        ret = {'fpga_freq_Hz': self.freq_fpga, 'dsp48_gflops': max_gflops,
+        ret = {'fpga_freq_Hz': self.freq_fpga, 'fpga_clk_ns': self.clk_fpga_ns,
+               'dsp48_gflops': max_gflops,
                'bw_dram_gBs': self.b_s_fpga_ddr_gBs, 'bw_bram_gBs': self.b_s_fpga_bram_gBs,
                'bw_netw_gBs': self.b_s_fpga_eth_gBs, 'bw_lutram_gBs': self.b_s_fpga_lutram_gBs,
                # 'gflops_limit': max_gflops,

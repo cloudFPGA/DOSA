@@ -18,6 +18,7 @@ from dimidium.lib.util import deep_update, BrickImplTypes
 
 # to init relay_ops
 import dimidium.backend.operatorSets.relay_ops as relay_ops
+from dimidium.middleend.archGen.BrickContract import BrickContract
 
 
 class BaseOSG(metaclass=abc.ABCMeta):
@@ -27,11 +28,11 @@ class BaseOSG(metaclass=abc.ABCMeta):
         self.device_classes = device_classes
         self.framework_path = framework_path
         self.possible_impl_types = impl_types
-        self.relay2osg = relay_ops.op
+        # self.relay2osg = relay_ops.op
         # self.relay2osg = {}
         # init with all False
         # self.relay2osg = {x: False for x in relay_ops.op}
-        self.relay2osg = deep_update(relay_ops.get_op_dict_copy(), False)
+        self.relay2osg = deep_update(relay_ops.get_op_dict_copy(), (False, None))
         self.dosaHwTypes = []
         self.priority = -1
         self.priority_internal = -1
@@ -53,52 +54,105 @@ class BaseOSG(metaclass=abc.ABCMeta):
     def init(self, dosa_hw_classes_dict, priority_internal):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
-    def annotate_brick(self, brick_node):
-        supported_once = False
-        for op in brick_node.local_op_iter_gen():
-            op_supported = self.check_op(op.op_call)
-            if op_supported:
-                supported_once = True
-                op.add_possible_osg(self)
-        if supported_once:
-            brick_node.add_available_osg(self)
+    # def annotate_brick(self, brick_node, target_hw):
+    #     supported_once = False
+    #     for op in brick_node.local_op_iter_gen():
+    #         op_supported = self.check_op(op.op_call, target_hw)
+    #         if op_supported:
+    #             supported_once = True
+    #             op.add_possible_osg(self)
+    #     if supported_once:
+    #         brick_node.add_available_osg(self)
 
-    def check_op(self, op_str):
-        """checks if the given relay op is supported by this OSG and returns a boolean"""
+    # def check_op(self, op_str, target_hw):
+    #     """checks if the given relay op is supported by this OSG and returns a boolean"""
+    #     op_str_list = op_str.split('.')
+    #     if len(op_str_list) == 1:
+    #         if op_str_list[0] not in relay_ops.op:
+    #             print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
+    #             return False
+    #         if op_str_list[0] in self.relay2osg:
+    #             if callable(self.relay2osg[op_str_list[0]]):
+    #                 return True
+    #             else:
+    #                 return self.relay2osg[op_str_list[0]]
+    #         return False
+    #     elif len(op_str_list) == 2:
+    #         if op_str_list[0] not in relay_ops.op:
+    #             print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
+    #             return False
+    #         if op_str_list[1] not in relay_ops.op[op_str_list[0]]:
+    #             print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
+    #             return False
+    #         if op_str_list[0] in self.relay2osg:
+    #             if op_str_list[1] in self.relay2osg[op_str_list[0]]:
+    #                 if callable(self.relay2osg[op_str_list[0]][op_str_list[1]]):
+    #                     return True
+    #                 else:
+    #                     return self.relay2osg[op_str_list[0]][op_str_list[1]]
+    #         return False
+    #     else:
+    #         print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
+    #         return False
+
+    def annotate_brick(self, brick_node, target_hw):
+        supported_compl = True
+        contr_list = []
+        for impl_type in self.possible_impl_types:
+            for op in brick_node.local_op_iter_gen():
+                op_c = self.annotate_op(op, target_hw, impl_type)
+                if op_c is not None:
+                    if isinstance(op_c, list):
+                        contr_list.extend(op_c)
+                    else:
+                        contr_list.append(op_c)
+                else:
+                    supported_compl = False
+            if supported_compl:
+                brick_contr = BrickContract(brick_node, target_hw, self, impl_type, contr_list)
+                brick_node.add_possible_contract(brick_contr)
+
+    def annotate_op(self, op, target_hw, impl_type):
+        """checks if the given relay op is supported by this OSG, creates a contract and returns it"""
+        is_supported, op_info = self.get_op_info(op.op_call)
+        if not is_supported:
+            return None
+        osg_func, get_contr_func = op_info
+        if (not callable(osg_func)) and (not isinstance(osg_func, bool) or (not osg_func)):
+            return None
+        list_of_contr = get_contr_func(op, target_hw, impl_type)
+        return list_of_contr
+
+    def get_op_info(self, op_str):
+        """checks if the given relay op is supported by this OSG and returns it's context"""
         op_str_list = op_str.split('.')
         if len(op_str_list) == 1:
             if op_str_list[0] not in relay_ops.op:
                 print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
-                return False
+                return False, None
             if op_str_list[0] in self.relay2osg:
-                if callable(self.relay2osg[op_str_list[0]]):
-                    return True
-                else:
-                    return self.relay2osg[op_str_list[0]]
-            return False
+                return True, self.relay2osg[op_str_list[0]]
+            return False, None
         elif len(op_str_list) == 2:
             if op_str_list[0] not in relay_ops.op:
                 print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
-                return False
+                return False, None
             if op_str_list[1] not in relay_ops.op[op_str_list[0]]:
                 print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
-                return False
+                return False, None
             if op_str_list[0] in self.relay2osg:
                 if op_str_list[1] in self.relay2osg[op_str_list[0]]:
-                    if callable(self.relay2osg[op_str_list[0]][op_str_list[1]]):
-                        return True
-                    else:
-                        return self.relay2osg[op_str_list[0]][op_str_list[1]]
-            return False
+                    return True, self.relay2osg[op_str_list[0]][op_str_list[1]]
+            return False, None
         else:
             print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
-            return False
+            return False, None
 
     def _get_osg_func(self, op_call):
         if 'nn.' in op_call[0:3]:
-            func = self.relay2osg['nn'][op_call[3:]]
+            func, _ = self.relay2osg['nn'][op_call[3:]]
         else:
-            func = self.relay2osg[op_call]
+            func, _ = self.relay2osg[op_call]
         return func
 
     @abc.abstractmethod
@@ -121,9 +175,9 @@ class BaseOSG(metaclass=abc.ABCMeta):
     # def comm_wrap_brick(self, todo):
     #     print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
-    @abc.abstractmethod
-    def estimate_flops_brick(self, brick_node):
-        print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
+    # @abc.abstractmethod
+    # def estimate_flops_brick(self, brick_node):
+    #     print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
 
 class UndecidedOSG(BaseOSG):
@@ -174,4 +228,3 @@ def sort_osg_list(osg_list, use_internal_prio=True):
         # just use any order?
         ret_list.extend(osg_list)
     return ret_list
-

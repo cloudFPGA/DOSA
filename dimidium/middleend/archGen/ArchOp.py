@@ -18,6 +18,7 @@ import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG
 from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype
 from dimidium.lib.dtype_converters import get_flops_conv_factor
+from dimidium.middleend.archGen.OperationContract import OperationContract
 
 
 class ArchOp(object):
@@ -35,6 +36,7 @@ class ArchOp(object):
         self.oi_engine = 0
         self.oi_stream = 0
         self.flops = 0
+        self.req_iter_hz = -1
         self.parameter_bytes = 0
         self.input_bytes = 0
         self.output_bytes = 0
@@ -50,8 +52,10 @@ class ArchOp(object):
         self.tvm_dtype = None
         self.tvm_node = tvm_node
         self.tvm_args = tvm_args
-        self.selected_osg = placeholderOSG
-        self.possible_osgs = []
+        # self.selected_osg = placeholderOSG
+        # self.possible_osgs = []
+        self.possible_contracts = []
+        self.selected_contract = None
         self.original_brick_tvm_handle = None  # for merged bricks: save also the *brick* handle
         if dpl_dict is not None:
             self.from_dpl_dict(dpl_dict)
@@ -116,13 +120,17 @@ class ArchOp(object):
     def get_kernel_uuid(self):
         return self.global_op_id
 
-    def set_osg(self, osg: BaseOSG):
-        self.selected_osg = osg
+    # def set_osg(self, osg: BaseOSG):
+    #     self.selected_osg = osg
 
-    def add_possible_osg(self, osg: BaseOSG):
-        self.possible_osgs.append(osg)
-        self.possible_osgs = list(set(self.possible_osgs))
+    # def add_possible_osg(self, osg: BaseOSG):
+    #     self.possible_osgs.append(osg)
+    #     self.possible_osgs = list(set(self.possible_osgs))
 
-    def remove_possible_osg(self, osg: BaseOSG):
-        delme = self.possible_osgs.index(osg)
-        del self.possible_osgs[delme]
+    # def remove_possible_osg(self, osg: BaseOSG):
+    #     delme = self.possible_osgs.index(osg)
+    #     del self.possible_osgs[delme]
+
+    def add_possible_contract(self, contr: OperationContract):
+        self.possible_contracts.append(contr)
+
