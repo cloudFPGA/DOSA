@@ -22,6 +22,8 @@ from dimidium.backend.codeGen.Hls4mlWrapper import Hls4mlWrapper
 from dimidium.backend.codeGen.WrapperInterfaces import InterfaceAxisFifo, wrapper_default_interface_bitwidth
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
+from dimidium.backend.operatorSets.lib.util import get_avg_util_dict_bytes_based, get_share_of_FPGA_resources
+from dimidium.lib import units
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.lib.util import BrickImplTypes
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
@@ -31,8 +33,9 @@ from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
 from dimidium.backend.operatorSets.lib.hls4ml.DosaFileReader import OsgDataReader
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
 
-
 __db_path__ = './osg_impl_db.json'
+
+from dimidium.middleend.archGen.OperationContract import OperationContract
 
 
 def _get_next_unrolling_factor(paral_grade):
@@ -71,17 +74,95 @@ class Hls4mlOSG(BaseOSG):
         self.existing_layer_names = []
         # self.suggested_max_block_length = 1
         self.util_db = {}
+        self.avg_util_dict = {}
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
             util_data = json.load(infile)
         my_util = util_data[self.name]
         self.util_db = {}
+        compl_list = []
         for e in my_util:
             if e['device'] not in self.util_db:
                 self.util_db = [e]
             else:
                 self.util_db.append(e)
+            compl_list.append(e)
+        self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True)
+
+    def _get_impl_prediction(self, op, target_hw, impl_type, consider_paramB=False, fallback_ops=None):
+        if impl_type != BrickImplTypes.STREAM or \
+                (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
+            return None
+        relevant_entries = []
+        # TODO: prefer entries with shorter ops list?
+        fallback_entries = []
+        for dk in self.util_db:
+            if dk == target_hw.name:
+                for e in self.util_db[dk]:
+                    if op.op_call in e['ops']:
+                        relevant_entries.append(e)
+                    if fallback_ops is not None:
+                        for f in fallback_ops:
+                            if f in e['ops']:
+                                fallback_entries.append(e)
+                                break
+        res_dict = {}
+        used_fallback = False
+        if len(relevant_entries) == 0 and len(fallback_entries) == 0:
+            res_dict = self.avg_util_dict
+            used_fallback = True
+        else:
+            if len(relevant_entries) == 0:
+                relevant_entries = fallback_entries
+                used_fallback = True
+            res_dict = get_avg_util_dict_bytes_based(relevant_entries, consider_paramB=consider_paramB,
+                                                     consider_ops_num=True)
+        bytes_total = op.input_bytes
+        if consider_paramB:
+            bytes_total += op.parameter_bytes
+        util_dict = {}
+        util_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
+        util_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
+        util_dict['Registers'] = res_dict['Registers'] * bytes_total
+        util_dict['BRAM'] = res_dict['BRAM'] * bytes_total
+        util_dict['DSPs'] = res_dict['DSPs'] * bytes_total
+        util_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl']
+        wrapper_dict = {}
+        wrapper_dict['LUTLOG'] = res_dict['wrapper']['LUTLOG'] * bytes_total
+        wrapper_dict['LUTMEM'] = res_dict['wrapper']['LUTMEM'] * bytes_total
+        wrapper_dict['Registers'] = res_dict['wrapper']['Registers'] * bytes_total
+        wrapper_dict['BRAM'] = res_dict['wrapper']['BRAM'] * bytes_total
+        wrapper_dict['DSPs'] = res_dict['wrapper']['DSPs'] * bytes_total
+
+        fpga_utility = target_hw.get_resource_dict()['FPGA_utility']
+        proc_share = get_share_of_FPGA_resources(fpga_utility, util_dict)
+        wrapper_share = get_share_of_FPGA_resources(fpga_utility, wrapper_dict)
+        # proc_comp_share = (proc_share['LUTLOG'] + proc_share['DSPs']) / 2
+        proc_comp_share = proc_share['LUTLOG']  # we know we hardly use DSPs..
+        proc_mem_share = (proc_share['LUTMEM'] + proc_share['Registers'] + proc_share['BRAM']) / 3
+        # wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
+        wrapper_comp_share = wrapper_share['LUTLOG']  # we know we hardly use DSPs...
+        wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
+        latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
+        iter_hz = 1 / (latency_ns * units.gigaU)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
+                                  'default', wrapper_comp_share, wrapper_mem_share, util_dict, wrapper_dict)
+        offer_list = [offer]
+        if not used_fallback:
+            util_dict['LUTLOG'] *= 0.5
+            util_dict['LUTMEM'] *= 0.5
+            util_dict['Registers'] *= 0.5
+            util_dict['BRAM'] *= 0.5
+            util_dict['DSPs'] *= 0.5
+            util_dict['latency_lim_per_tensor_cycl'] *= 2
+            offer_05 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.5, proc_comp_share*0.5,
+                                         proc_mem_share*0.5, 'conf:mult_limit=0.5', wrapper_comp_share, wrapper_mem_share,
+                                         util_dict, wrapper_dict)
+            offer_list.append(offer_05)
+        # TODO: add alternative offers
+        #  e.g. with alternative reuse factor?
+        return offer_list
 
     def init(self, dosa_hw_classes_dict, priority_internal):
         self.priority_internal = priority_internal
@@ -91,47 +172,108 @@ class Hls4mlOSG(BaseOSG):
         #  and https://github.com/fastmachinelearning/hls4ml/tree/master/hls4ml/converters/
         for e in self.relay2osg['nn']:
             if 'conv1d' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_conv1d
+                self.relay2osg['nn'][e] = self._generate_hls_conv1d, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=True,
+                                                                                        fallback_ops=['conv2d',
+                                                                                                      'dense'])
             elif 'conv2d' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_conv2d
+                self.relay2osg['nn'][e] = self._generate_hls_conv2d, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=True,
+                                                                                        fallback_ops=['conv1d',
+                                                                                                      'dense'])
             elif 'global' in e and 'pool1d' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_globalPool1d
+                self.relay2osg['nn'][e] = self._generate_hls_globalPool1d, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=False,
+                                                                                        fallback_ops=['pool2d',
+                                                                                                      'pool1d'])
             elif 'global' in e and 'pool2d' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_globalPool2d
+                self.relay2osg['nn'][e] = self._generate_hls_globalPool2d, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=False,
+                                                                                        fallback_ops=['pool2d',
+                                                                                                      'pool1d'])
             elif 'pool1d' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_pool1d
+                self.relay2osg['nn'][e] = self._generate_hls_pool1d, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=False,
+                                                                                        fallback_ops=['pool2d',
+                                                                                                      'pool1d'])
             elif 'pool2d' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_pool2d
+                self.relay2osg['nn'][e] = self._generate_hls_pool2d, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=False,
+                                                                                        fallback_ops=['pool2d',
+                                                                                                      'pool1d'])
             elif 'prelu' in e:
-                self.relay2osg['nn'][e] = self._generatae_hls_prelu
+                self.relay2osg['nn'][e] = self._generatae_hls_prelu, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=False,
+                                                                                        fallback_ops=['relu', 'softmax'])
             elif 'relu' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_parAct
+                self.relay2osg['nn'][e] = self._generate_hls_parAct, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=False,
+                                                                                        fallback_ops=['prelu', 'softmax'])
             elif 'softmax' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_softmax
+                self.relay2osg['nn'][e] = self._generate_hls_softmax, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=False,
+                                                                                        fallback_ops=['prelu', 'relu'])
             elif 'dense' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_dense
+                self.relay2osg['nn'][e] = self._generate_hls_dense, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=True,
+                                                                                        fallback_ops=['conv1d',
+                                                                                                      'conv2d'])
             elif 'batch_norm' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_batchNorm
+                self.relay2osg['nn'][e] = self._generate_hls_batchNorm, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=True,
+                                                                                        fallback_ops=None)
             elif 'pad' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_padding
+                self.relay2osg['nn'][e] = self._generate_hls_padding, \
+                                          lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
+                                                                                0.0, 'dummy op', 0.0, 0.0)
             elif 'bias_add' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_biasAdd
+                self.relay2osg['nn'][e] = self._generate_hls_biasAdd, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=True,
+                                                                                        fallback_ops=None)
             elif 'flatten' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_flatten
+                self.relay2osg['nn'][e] = self._generate_hls_flatten, \
+                                          lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
+                                                                                0.0, 'dummy op', 0.0, 0.0)
             elif 'dropout' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_dropout
+                self.relay2osg['nn'][e] = self._generate_hls_dropout, \
+                                          lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
+                                                                                0.0, 'dummy op', 0.0, 0.0)
         for e in self.relay2osg:
             if type(e) == dict:
                 continue
             if ('tan' in e or 'sin' in e or 'cos' in e) and 'is' not in e:
-                self.relay2osg[e] = self._generate_hls_act
+                self.relay2osg[e] = self._generate_hls_act, \
+                                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                  consider_paramB=True,
+                                                                                  fallback_ops=['tan', 'sin', 'cos'])
             elif 'add' in e or 'sub' in e or 'mul' in e or 'avg' in e \
                     or 'max' in e or 'min' in e or 'concat' in e or 'sum' in e:
-                self.relay2osg[e] = self._generate_hls_merge
+                self.relay2osg[e] = self._generate_hls_merge, \
+                                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                  consider_paramB=True,
+                                                                                  fallback_ops=['add', 'sub', 'mul',
+                                                                                                'avg', 'max', 'min',
+                                                                                                'concat', 'sum'])
             elif 'transpose' in e:
-                self.relay2osg[e] = self._generate_hls_transpose
+                self.relay2osg[e] = self._generate_hls_transpose, \
+                                    lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
+                                                                          0.0, 'dummy op', 0.0, 0.0)
             elif 'reshape' in e:
-                self.relay2osg[e] = self._generate_hls_reshape
+                self.relay2osg[e] = self._generate_hls_reshape, \
+                                    lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
+                                                                          0.0, 'dummy op', 0.0, 0.0)
         # not covered hls4ml classes:
         #  GarNet, Resize, SeparableConv2D, DepthwiseConv2D
 
@@ -193,8 +335,9 @@ class Hls4mlOSG(BaseOSG):
                 max = nm
         return int(max)
 
-    def build_block(self, arch_block, build_tool):
+    def build_block(self, arch_block, build_tool, selected_contracts):
         assert isinstance(build_tool, HwBuildTopVhdl)
+        assert len(selected_contracts) == len(arch_block.brick_list)
         used_dir_path = build_tool.add_ip_dir(arch_block.block_uuid)
         project_name = 'ArchBlock_{}'.format(arch_block.block_uuid)
         used_dtype = DosaDtype.int32
@@ -216,6 +359,7 @@ class Hls4mlOSG(BaseOSG):
         reuse_factor_engine = 2
         hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_engine,
                                 'Strategy': 'Resource'}}
+
         # TODO: tune hls pragmas...
         if arch_block.block_impl_type == BrickImplTypes.STREAM:
             hls_config['Model']['Strategy'] = 'Latency'
@@ -404,6 +548,7 @@ class Hls4mlOSG(BaseOSG):
         wrapper_last_brick = None
         wrapper_first_op = None
         wrapper_last_op = None
+        contr_i = 0
         for bb in arch_block.brick_list:
             # for op in bb.local_op_iter_gen():
             if wrapper_first_brick is None:
@@ -411,10 +556,22 @@ class Hls4mlOSG(BaseOSG):
             wrapper_last_brick = bb
             bb_speedup_req = bb.req_flops / bb.flops
             skip_i = []
+            cur_brick_contr = selected_contracts[contr_i]
             for op_i in bb.ops.keys():
                 if op_i in skip_i:
                     continue
                 op = bb.ops[op_i]
+                op_c = cur_brick_contr.get_contract_to_op(op)
+                # contract details
+                mult_limit_factor = 1.0
+                # if selected_contract.osg_internal_id == 'default'
+                if op_c.osg_internal_id[0:5] == 'conf:':
+                    conf_str = op_c.osg_internal_id[5:]
+                    conf_list = conf_str.split(';')
+                    for c in conf_list:
+                        if 'mult_limit' in c:
+                            mult_limit_factor = float(c.split('=')[1])
+
                 if wrapper_first_op is None:
                     wrapper_first_op = op
                 wrapper_last_op = op
@@ -449,7 +606,7 @@ class Hls4mlOSG(BaseOSG):
                         tmp_dict['variables'][str(t_cnt)] = e
                         t_cnt += 1
                     mult_limit = self.get_max_num_of_mult(tmp_dict)
-                conf['mult_limit'] = mult_limit
+                conf['mult_limit'] = mult_limit * mult_limit_factor
                 exec_simple_s = op.flops * build_tool.target_device.clock_period_s
                 op_req_flops = op.flops * bb_speedup_req
                 # op_req_latency_s = 1/bb_speedup_req
@@ -469,6 +626,7 @@ class Hls4mlOSG(BaseOSG):
                     skip_i.append(next_next_i)
                 layer_confs.append(conf)
                 last_layer_name = layer_name
+            contr_i += 1
 
         model_arch['config']['layers'].extend(layer_confs)
         model_arch['config']['output_layers'].append([last_layer_name, 0, 0])
@@ -523,7 +681,7 @@ class Hls4mlOSG(BaseOSG):
         build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
         return 0
 
-    def build_container(self, container, build_tool):
+    def build_container(self, container, build_tool, selected_contracts):
         pass
 
     # def generate_brick(self, brick_node: ArchBrick):

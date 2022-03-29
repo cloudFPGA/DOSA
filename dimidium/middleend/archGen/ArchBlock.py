@@ -62,6 +62,7 @@ class ArchBlock(object):
     def build(self, build_tool):
         self.build_tool = build_tool
         assert self.selected_osg != placeholderOSG
+        # TODO: add selected contracts
         self.selected_osg.build_block(self, build_tool)
 
     def add_synth_entry(self, entry_dict):

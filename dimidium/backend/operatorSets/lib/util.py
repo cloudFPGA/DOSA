@@ -12,7 +12,7 @@
 import math
 
 
-def get_avg_util_dict_bytes_based(entries, consider_paramB=False):
+def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_num=False):
     lutlog_total = 0
     lutmem_total = 0
     register_total = 0
@@ -43,16 +43,19 @@ def get_avg_util_dict_bytes_based(entries, consider_paramB=False):
         wrapper_bram_total += e['wrapper']['BRAM']
         wrapper_dsps_total += e['wrapper']['DSPs']
         e_cnt += len(e['ops'])
-    ret_util_dict = {'LUTLOG': lutlog_total / bytes_total, 'LUTMEM': lutmem_total / bytes_total,
-                     'Registers': register_total / bytes_total, 'BRAM': bram_total / bytes_total,
-                     'DSPs': register_total / bytes_total,
+    divider = bytes_total
+    if consider_ops_num:
+        divider *= e_cnt
+    ret_util_dict = {'LUTLOG': lutlog_total / divider, 'LUTMEM': lutmem_total / divider,
+                     'Registers': register_total / divider, 'BRAM': bram_total / divider,
+                     'DSPs': register_total / divider,
                      'latency_lim_per_tensor_cycl': math.ceil(latency_total / e_cnt),
                      'wrapper': {
-                         'LUTLOG': wrapper_lutlog_total / bytes_total,
-                         'LUTMEM': wrapper_lutmem_total / bytes_total,
-                         'Registers': wrapper_register_total / bytes_total,
-                         'BRAM': wrapper_bram_total / bytes_total,
-                         'DSPs': wrapper_dsps_total / bytes_total
+                         'LUTLOG': wrapper_lutlog_total / divider,
+                         'LUTMEM': wrapper_lutmem_total / divider,
+                         'Registers': wrapper_register_total / divider,
+                         'BRAM': wrapper_bram_total / divider,
+                         'DSPs': wrapper_dsps_total / divider
                      }}
     return ret_util_dict
 

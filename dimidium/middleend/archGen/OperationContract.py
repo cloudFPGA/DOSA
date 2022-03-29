@@ -21,7 +21,8 @@ class OperationContract(object):
     # def __init__(self, op: ArchOp, device: DosaBaseHw, osg: BaseOSG, impl_type: BrickImplTypes,
     #              iter_hz: float, comp_util_share: float, mem_util_share: float, internal_id: str):
     def __init__(self, op, device, osg, impl_type, iter_hz: float, comp_util_share: float, mem_util_share: float,
-                 internal_id: str, switching_comp_share: float, switching_mem_share: float):
+                 internal_id: str, switching_comp_share: float, switching_mem_share: float,
+                 detailed_FPGA_res=None, detailed_FPGA_wrapper=None):
         self.op = op
         self.device = device
         self.osg = osg
@@ -32,6 +33,8 @@ class OperationContract(object):
         self.osg_intern_id = internal_id
         self.switching_comp_share = switching_comp_share
         self.switching_mem_share = switching_mem_share
+        self.detailed_FPGA_comp_share = detailed_FPGA_res
+        self.detailed_FPGA_wrapper_share = detailed_FPGA_wrapper
 
     def __repr__(self):
         return "OpContr({} on {} using {}/{}: {}/s, {}c%, {}m%)"\

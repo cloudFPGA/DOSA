@@ -53,3 +53,10 @@ class BrickContract(object):
         return "BrickContr({} on {} using {}/{}: {}/s, {}c%, {}m%, switching {}%c, {}%m)" \
             .format(self.brick.fn_label, self.device.name, self.osg.name, self.impl_type, self.iter_hz,
                     self.comp_util_share, self.mem_util_share, self.switching_comp_share, self.switching_mem_share)
+
+    def get_contract_to_op(self, op):
+        for opc in self.op_contracts:
+            if opc.op == op:
+                return opc
+        return None
+

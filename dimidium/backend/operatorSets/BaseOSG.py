@@ -96,7 +96,7 @@ class BaseOSG(metaclass=abc.ABCMeta):
     #         return False
 
     def annotate_brick(self, brick_node, target_hw):
-        supported_compl = True
+        supported_complete = True
         contr_list = []
         for impl_type in self.possible_impl_types:
             for op in brick_node.local_op_iter_gen():
@@ -107,8 +107,8 @@ class BaseOSG(metaclass=abc.ABCMeta):
                     else:
                         contr_list.append(op_c)
                 else:
-                    supported_compl = False
-            if supported_compl:
+                    supported_complete = False
+            if supported_complete:
                 brick_contr = BrickContract(brick_node, target_hw, self, impl_type, contr_list)
                 brick_node.add_possible_contract(brick_contr)
 
@@ -155,12 +155,19 @@ class BaseOSG(metaclass=abc.ABCMeta):
             func, _ = self.relay2osg[op_call]
         return func
 
+    def _get_contr_func(self, op_call):
+        if 'nn.' in op_call[0:3]:
+            _, func = self.relay2osg['nn'][op_call[3:]]
+        else:
+            _, func = self.relay2osg[op_call]
+        return func
+
     @abc.abstractmethod
-    def build_block(self, arch_block, build_tool):
+    def build_block(self, arch_block, build_tool, selected_contracts):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
     @abc.abstractmethod
-    def build_container(self, container, build_tool):
+    def build_container(self, container, build_tool, selected_contracts):
         print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
 
     # @abc.abstractmethod
@@ -186,23 +193,23 @@ class UndecidedOSG(BaseOSG):
         # should not be initialized
         pass
 
-    def build_block(self, arch_block):
+    def build_block(self, arch_block, build_tool, selected_contracts):
         pass
 
-    def build_container(self, container):
+    def build_container(self, container, build_tool, selected_contracts):
         pass
 
-    def generate_brick(self, brick_node):
-        pass
+    # def generate_brick(self, brick_node):
+    #     pass
 
-    def generate_bricks(self, brick_nodes):
-        pass
+    # def generate_bricks(self, brick_nodes):
+    #     pass
 
-    def comm_wrap_brick(self, todo):
-        pass
+    # def comm_wrap_brick(self, todo):
+    #     pass
 
-    def estimate_flops_brick(self, brick_node):
-        pass
+    # def estimate_flops_brick(self, brick_node):
+    #     pass
 
 
 placeholderOSG = UndecidedOSG('OSG_placholder', [DosaHwClasses.UNDECIDED], "/none/", [])

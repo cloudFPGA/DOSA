@@ -41,10 +41,10 @@ class TvmCpuOsg(BaseOSG):
                                               "not-yet-implemented", 0.0, 0.0)
         return placeholder_contr
 
-    def build_block(self, arch_block, build_tool):
+    def build_block(self, arch_block, build_tool, selected_contracts):
         pass
 
-    def build_container(self, container, build_tool):
+    def build_container(self, container, build_tool, selected_contracts):
         pass
 
     # def generate_brick(self, brick_node: ArchBrick):
