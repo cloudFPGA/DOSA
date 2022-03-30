@@ -95,6 +95,15 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
         for d in arch_fallback_devices:
             do = available_devices.types_dict[d]
             inital_draft.add_possible_fallback_hw(do)
+
+    # annotating OSGs
+    all_dev_list = inital_draft.target_hw_set.copy()
+    all_dev_list.extend(inital_draft.fallback_hw_set.copy())
+    for thw in all_dev_list:
+        for bb in inital_draft.brick_iter_gen():
+            for osg in available_osgs:
+                osg.annotate_brick(bb, thw)
+
     creating_draft_end = time.time()
 
     batch_flatten_ops = ['nn.batch_flatten']
@@ -247,15 +256,9 @@ def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [
     # for bb in draft.brick_iter_gen():
     #     for osg in available_osgs:
     #         osg.annotate_brick(bb)
-    all_dev_list = draft.target_hw_set
-    all_dev_list.extend(draft.fallback_hw_set)
-    for thw in all_dev_list:
-        for bb in draft.brick_iter_gen():
-            for osg in available_osgs:
-                osg.annotate_brick(bb, thw)
 
-    # draft.update_possible_osgs()
-    draft.update_possible_hw_types()
+    # # draft.update_possible_osgs()
+    # draft.update_possible_hw_types()
 
     # add comm libs
     draft.set_possible_comm_libs(available_comm_libs)
@@ -351,39 +354,41 @@ def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE
     if not perf_result:
         return False
     # check if resources are possible
-    draft.update_possible_hw_types()
-    one_possilbe_hw = False
-    for phw in draft.possible_hw_types:
-        if phw in draft.target_hw_set:
-            one_possilbe_hw = True
-    if not one_possilbe_hw:
-        print("[DOSA:archVerify:INFO] Draft {} does not fulfill resource type requirement (target: {} possible: {})."
-              .format(repr(draft), draft.target_hw_set, draft.possible_hw_types))
-        for phw in draft.possible_hw_types:
-            if phw in draft.fallback_hw_set:
-                one_possilbe_hw = True
-        if not one_possilbe_hw:
-            print(("[DOSA:archVerify:ERROR] Draft {} does not fulfill resource or fallback type requirement " +
-                   "(target: {}, fallback: {} possible: {}).").format(repr(draft), draft.target_hw_set,
-                                                                      draft.fallback_hw_set, draft.possible_hw_types))
-            return False
-    print("[DOSA:archVerify:INFO] Draft {} fulfills resource type requirements.".format(repr(draft)))
+    # TODO
+    # draft.update_possible_hw_types()
+    # one_possilbe_hw = False
+    # for phw in draft.possible_hw_types:
+    #     if phw in draft.target_hw_set:
+    #         one_possilbe_hw = True
+    # if not one_possilbe_hw:
+    #     print("[DOSA:archVerify:INFO] Draft {} does not fulfill resource type requirement (target: {} possible: {})."
+    #           .format(repr(draft), draft.target_hw_set, draft.possible_hw_types))
+    #     for phw in draft.possible_hw_types:
+    #         if phw in draft.fallback_hw_set:
+    #             one_possilbe_hw = True
+    #     if not one_possilbe_hw:
+    #         print(("[DOSA:archVerify:ERROR] Draft {} does not fulfill resource or fallback type requirement " +
+    #                "(target: {}, fallback: {} possible: {}).").format(repr(draft), draft.target_hw_set,
+    #                                                                   draft.fallback_hw_set, draft.possible_hw_types))
+    #         return False
+    # print("[DOSA:archVerify:INFO] Draft {} fulfills resource type requirements.".format(repr(draft)))
     # if roofline present, check if all bricks in all nodes are "IN_HOUSE"
-    not_in_house = []
-    for nn in draft.node_iter_gen():
-        if nn.roofline is None:
-            continue
-        for lb in nn.local_brick_iter_gen():
-            oi_selected = lb.get_oi_selected_impl()
-            rr = nn.roofline.get_region_OIPlane(oi_selected, lb.req_flops)
-            if rr != RooflineRegionsOiPlane.IN_HOUSE:
-                msg_str = "({}, {})".format(nn.node_id, lb.brick_uuid)
-                not_in_house.append(msg_str)
-    if len(not_in_house) > 0:
-        print(("[DOSA:archVerify:ERROR] Draft {} does not fulfill roofline requirement. The following bircks " +
-              "(node_id, brick_uuid) are above roofs: {}").format(repr(draft), not_in_house))
-        return False
-    print("[DOSA:archVerify:INFO] Draft {} fulfills roofline requirement.".format(repr(draft)))
+    # TODO
+    # not_in_house = []
+    # for nn in draft.node_iter_gen():
+    #     if nn.roofline is None:
+    #         continue
+    #     for lb in nn.local_brick_iter_gen():
+    #         oi_selected = lb.get_oi_selected_impl()
+    #         rr = nn.roofline.get_region_OIPlane(oi_selected, lb.req_flops)
+    #         if rr != RooflineRegionsOiPlane.IN_HOUSE:
+    #             msg_str = "({}, {})".format(nn.node_id, lb.brick_uuid)
+    #             not_in_house.append(msg_str)
+    # if len(not_in_house) > 0:
+    #     print(("[DOSA:archVerify:ERROR] Draft {} does not fulfill roofline requirement. The following bircks " +
+    #           "(node_id, brick_uuid) are above roofs: {}").format(repr(draft), not_in_house))
+    #     return False
+    # print("[DOSA:archVerify:INFO] Draft {} fulfills roofline requirement.".format(repr(draft)))
     return True
 
 

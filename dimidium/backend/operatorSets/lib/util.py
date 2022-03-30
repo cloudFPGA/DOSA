@@ -11,6 +11,8 @@
 #  *
 import math
 
+import dimidium.lib.singleton as dosa_singleton
+
 
 def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_num=False):
     lutlog_total = 0
@@ -48,7 +50,7 @@ def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_n
         divider *= e_cnt
     ret_util_dict = {'LUTLOG': lutlog_total / divider, 'LUTMEM': lutmem_total / divider,
                      'Registers': register_total / divider, 'BRAM': bram_total / divider,
-                     'DSPs': register_total / divider,
+                     'DSPs': dsps_total / divider,
                      'latency_lim_per_tensor_cycl': math.ceil(latency_total / e_cnt),
                      'wrapper': {
                          'LUTLOG': wrapper_lutlog_total / divider,
@@ -62,11 +64,11 @@ def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_n
 
 def get_share_of_FPGA_resources(res_dict, util_dict):
     share_dict = {}
-    share_dict['LUTLOG'] = util_dict['LUTLOG'] / res_dict['LUTLOG']
-    share_dict['LUTMEM'] = util_dict['LUTMEM'] / res_dict['LUTMEM']
-    share_dict['Registers'] = util_dict['Registers'] / res_dict['Registers']
-    share_dict['BRAM'] = util_dict['BRAM'] / res_dict['BRAM']
-    share_dict['DSPs'] = util_dict['DSPs'] / res_dict['DSPs']
+    share_dict['LUTLOG'] = (util_dict['LUTLOG'] / res_dict['LUTLOG']) * dosa_singleton.config.utilization.dosa_mu_comp
+    share_dict['LUTMEM'] = (util_dict['LUTMEM'] / res_dict['LUTMEM']) * dosa_singleton.config.utilization.dosa_mu_mem
+    share_dict['Registers'] = (util_dict['Registers'] / res_dict['Registers']) * dosa_singleton.config.utilization.dosa_mu_mem
+    share_dict['BRAM'] = (util_dict['BRAM'] / res_dict['BRAM']) * dosa_singleton.config.utilization.dosa_mu_mem
+    share_dict['DSPs'] = (util_dict['DSPs'] / res_dict['DSPs']) * dosa_singleton.config.utilization.dosa_mu_comp
     # highest_share = 0.0
     # for k in share_dict:
     #     e = share_dict[k]

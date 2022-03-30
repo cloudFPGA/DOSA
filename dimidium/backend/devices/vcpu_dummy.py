@@ -68,8 +68,8 @@ class VcpuDummy(DosaBaseHw):
 
     def get_hw_utilization_tuple(self, flops, bake_in_params_bytes):
         self._gen_numbers()
-        share_flops = float(flops/self.total_flops_hw) * dosa_singleton.config.utilization.dosa_mu
-        share_memory = float(bake_in_params_bytes/self.total_bytes_hw) * dosa_singleton.config.utilization.dosa_mu
+        share_flops = float(flops/self.total_flops_hw) * dosa_singleton.config.utilization.dosa_mu_comp
+        share_memory = float(bake_in_params_bytes/self.total_bytes_hw) * dosa_singleton.config.utilization.dosa_mu_mem
         return share_flops, share_memory
 
 

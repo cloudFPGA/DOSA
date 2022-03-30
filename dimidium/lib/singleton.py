@@ -51,7 +51,8 @@ def init_singleton(config_dict):
     config.middleend.engine_saving_threshold = float(config_dict['engine_saving_threshold'])
 
     config.utilization = SimpleNamespace()
-    config.utilization.dosa_mu = float(config_dict['dosa_learning']['mu'])
+    config.utilization.dosa_mu_comp = float(config_dict['dosa_learning']['mu']['compute'])
+    config.utilization.dosa_mu_mem = float(config_dict['dosa_learning']['mu']['memory'])
     config.utilization.xilinx_luts_to_dsp_factor = float(config_dict['utilization']['xilinx_luts_to_dsp_factor'])
     config.utilization.xilinx_lutram_to_bram_factor = float(config_dict['utilization']['xilinx_lutram_to_bram_factor'])
 

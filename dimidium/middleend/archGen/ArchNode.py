@@ -46,6 +46,8 @@ class ArchNode(object):
         self.used_perf_share = 0
         self.used_comp_util_share = 0
         self.used_mem_util_share = 0
+        self.max_iter_hz = -1
+        self.used_iter_hz = -1
         self.possible_hw_types = []
         self.selected_hw_type = placeholderHw
         self.arch_block_list = []
@@ -140,8 +142,8 @@ class ArchNode(object):
         for i in reversed(range(b_id_to_new_node, self.bid_cnt)):
             del self.bricks[i]
         self.bid_cnt = len(self.bricks)
-        self.update_used_perf_util()
-        new_node.update_used_perf_util()
+        self.update_used_perf_util_contr()
+        new_node.update_used_perf_util_contr()
         return new_node  # afterwards draft.add_node/insert_node must be called
 
     def split_vertical(self, factor=2):
@@ -149,7 +151,7 @@ class ArchNode(object):
         self.data_parallelism_level *= factor
         for lb in self.local_brick_iter_gen():
             lb.annotate_parallelization(factor)
-        self.update_used_perf_util()
+        self.update_used_perf_util_contr()
 
     def set_node_id(self, node_id):
         self.node_id = node_id
@@ -186,20 +188,39 @@ class ArchNode(object):
         self.roofline = nrl
         self.max_perf_F = nrl.roof_F
 
-    def update_used_perf_util(self):
-        total_perf_F = 0
+    # def update_used_perf_util(self):
+    #     total_perf_F = 0
+    #     total_comp_per = 0
+    #     total_mem_per = 0
+    #     for lb in self.local_brick_iter_gen():
+    #         total_perf_F += lb.req_flops
+    #         if self.targeted_hw is not None:
+    #             lb.update_util_estimation(self.targeted_hw)
+    #             total_comp_per += lb.req_util_comp
+    #             total_mem_per += lb.req_util_mem
+    #     self.used_perf_F = total_perf_F
+    #     self.used_comp_util_share = total_comp_per
+    #     self.used_mem_util_share = total_mem_per
+    #     self.used_perf_share = self.used_perf_F/self.max_perf_F
+
+    def update_used_perf_util_contr(self, prefer_engine=False, add_switching_costs=False):
+        min_iter_hz = float('inf')
         total_comp_per = 0
         total_mem_per = 0
         for lb in self.local_brick_iter_gen():
-            total_perf_F += lb.req_flops
+            if lb.req_iter_hz < min_iter_hz:
+                min_iter_hz = lb.req_iter_hz
             if self.targeted_hw is not None:
-                lb.update_util_estimation(self.targeted_hw)
+                lb.update_util_estimation_contr(self.targeted_hw, prefer_engine, add_switching_costs)
                 total_comp_per += lb.req_util_comp
                 total_mem_per += lb.req_util_mem
-        self.used_perf_F = total_perf_F
+        max_util = max(total_comp_per, total_mem_per)
+        max_iter = (1.0/max_util) * min_iter_hz
+        self.max_iter_hz = max_iter
+        self.used_iter_hz = min_iter_hz
         self.used_comp_util_share = total_comp_per
         self.used_mem_util_share = total_mem_per
-        self.used_perf_share = self.used_perf_F/self.max_perf_F
+        self.used_perf_share = self.used_iter_hz/self.max_iter_hz
 
     def update_kernel_uuids(self, kuuid_start):
         # TODO: take parallelism into account?

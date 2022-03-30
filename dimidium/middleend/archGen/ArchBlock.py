@@ -27,6 +27,9 @@ class ArchBlock(object):
         self.brick_list = brick_list
         self.block_impl_type = block_impl_type
         self.selected_osg = selected_osg
+        self.selected_contracts = []
+        for bb in brick_list:
+            self.selected_contracts.append(bb.selected_contract)
         self.build_tool = None
         # self.ip_dir = None
         self.synth_func_list = []
@@ -57,13 +60,14 @@ class ArchBlock(object):
             print("[DOSA:ArchBlock:ERROR] trying to add brick with wrong impl_type. Ignoring.")
             return DosaRv.ERROR
         self.brick_list.append(new_brick)
+        self.selected_contracts.append(new_brick.selected_contract)
         return DosaRv.OK
 
     def build(self, build_tool):
         self.build_tool = build_tool
         assert self.selected_osg != placeholderOSG
-        # TODO: add selected contracts
-        self.selected_osg.build_block(self, build_tool)
+        assert len(self.brick_list) == len(self.selected_contracts)
+        self.selected_osg.build_block(self, build_tool, self.selected_contracts)
 
     def add_synth_entry(self, entry_dict):
         assert 'ip_dir' in entry_dict

@@ -22,7 +22,9 @@ from dimidium.lib.util import BrickImplTypes
 from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype
 from dimidium.lib.dtype_converters import get_flops_conv_factor
 from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG, sort_osg_list
-from dimidium.middleend.archGen.BrickContract import BrickContract
+from dimidium.middleend.archGen.BrickContract import BrickContract, filter_brick_contracts_by_impl_type, \
+    sort_brick_contracts_by_iter, sort_brick_contracts_by_util, get_best_contract_of_list
+from dimidium.middleend.archGen.DosaContract import DosaContract
 
 
 class ArchBrick(object):
@@ -68,7 +70,8 @@ class ArchBrick(object):
         self.selected_osg = placeholderOSG
         self.possible_osgs = []
         self.available_osgs = []
-        self.possible_contracts = []
+        self.available_contracts = []
+        self.still_possible_contracts = []
         self.selected_contract = None
         self.possible_hw_types = []
         self.req_util_comp = 0
@@ -113,7 +116,7 @@ class ArchBrick(object):
         # for po in self.possible_osgs:
         #     pos = repr(po)
         #     res['possible OSGs'].append(pos)
-        for po in self.possible_contracts:
+        for po in self.available_contracts:
             pos = repr(po)
             res['possible contr'].append(pos)
         self.update_dims()
@@ -301,7 +304,62 @@ class ArchBrick(object):
 
     def add_possible_contract(self, contr: BrickContract):
         assert contr.brick == self
-        self.possible_contracts.append(contr)
+        self.available_contracts.append(contr)
+
+    def sort_contracts(self, by_utility=False):
+        """sort possible and available contracts by performance (default) or by used utility"""
+        if not by_utility:
+            self.available_contracts = sort_brick_contracts_by_iter(self.available_contracts)
+            self.still_possible_contracts = sort_brick_contracts_by_iter(self.still_possible_contracts)
+        else:
+            self.available_contracts = sort_brick_contracts_by_util(self.available_contracts)
+            self.still_possible_contracts = sort_brick_contracts_by_util(self.still_possible_contracts)
+
+    def get_best_available_contract(self, filter_impl_type=None, filter_osg=None, filter_device=None,
+                                    consider_util=False, skip_entries=0):
+        # assume sorted
+        return get_best_contract_of_list(self.available_contracts, filter_impl_type, filter_osg, filter_device,
+                                         consider_util, skip_entries)
+
+    def get_best_possible_contract(self, filter_impl_type=None, filter_osg=None, filter_device=None, skip_entries=0):
+        # assume sorted
+        return get_best_contract_of_list(self.still_possible_contracts, filter_impl_type, filter_osg, filter_device,
+                                         True, skip_entries)
+
+    def get_best_sufficient_contract_with_least_resources(self):
+        possible_by_util = sort_brick_contracts_by_util(self.still_possible_contracts)
+        # selected_contract = self.get_best_possible_contract()
+        if len(possible_by_util) == 0:
+            return None
+        selected_contract = DosaContract(None, None, None, 0, 10.0, 10.0)
+        for next_poc in possible_by_util:
+            if next_poc.iter_hz >= self.req_iter_hz and \
+                    (next_poc.comp_util_share < selected_contract.comp_util_share and
+                     next_poc.mem_util_share < selected_contract.mem_util_share) and \
+                    next_poc.iter_hz >= selected_contract.iter_hz:
+                selected_contract = next_poc
+        if selected_contract.device is None:
+            # run again with relaxed conditions:
+            for next_poc in possible_by_util:
+                if (next_poc.comp_util_share < selected_contract.comp_util_share and
+                    next_poc.mem_util_share < selected_contract.mem_util_share) and \
+                        next_poc.iter_hz >= selected_contract.iter_hz:
+                    selected_contract = next_poc
+        return selected_contract
+
+    def update_possible_contracts(self):
+        still_possible = []
+        for c in self.available_contracts:
+            if self.selected_impl_type != BrickImplTypes.UNDECIDED and c.impl_type != self.selected_impl_type:
+                continue
+            if c.comp_util_share > 1.0 or c.mem_util_share > 1.0:
+                continue
+            # device is set?
+            # osg not relevant?
+            if not c.ensure_detailed_utility_fits(consider_wrapper=False):
+                continue
+            still_possible.append(c)
+        self.still_possible_contracts = still_possible
 
     # def update_possible_hw_types(self):
     #     new_possible_hw_types = []
@@ -311,7 +369,7 @@ class ArchBrick(object):
 
     def update_possible_hw_types(self):
         new_possible_hw_types = []
-        for contr in self.possible_contracts:
+        for contr in self.available_contracts:
             new_possible_hw_types.extend(contr.osg.dosaHwTypes)
         self.possible_hw_types = list(set(new_possible_hw_types))
 
@@ -328,6 +386,28 @@ class ArchBrick(object):
 
     def update_util_estimation(self, target_hw: DosaBaseHw):
         share_comp, share_mem = target_hw.get_hw_utilization_tuple(self.req_flops, self.parameter_bytes)
+        self.req_util_comp = share_comp
+        self.req_util_mem = share_mem
+        if self.selected_impl_type == BrickImplTypes.STREAM:
+            self.req_util_mem_stream = share_mem
+            self.req_util_comp_stream = share_comp
+        elif self.selected_impl_type == BrickImplTypes.ENGINE:
+            self.req_util_mem_engine = 0  # TODO: ? for engine, always 0!
+            self.req_util_comp_engine = share_comp
+
+    def update_util_estimation_contr(self, target_hw, prefer_engine=False, add_switching_costs=False):
+        self.update_possible_contracts()
+        if not prefer_engine and self.selected_impl_type != BrickImplTypes.STREAM:
+            tmp_best = self.get_best_possible_contract(filter_device=target_hw)
+        else:
+            tmp_best = self.get_best_possible_contract(filter_impl_type=BrickImplTypes.ENGINE, filter_device=target_hw)
+            if tmp_best is None:
+                tmp_best = self.get_best_possible_contract(filter_device=target_hw)
+        share_comp = tmp_best.comp_util_share
+        share_mem = tmp_best.mem_util_share
+        if add_switching_costs:
+            share_comp += tmp_best.switching_comp_share
+            share_mem += tmp_best.switching_mem_share
         self.req_util_comp = share_comp
         self.req_util_mem = share_mem
         if self.selected_impl_type == BrickImplTypes.STREAM:

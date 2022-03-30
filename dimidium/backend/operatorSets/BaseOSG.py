@@ -97,20 +97,28 @@ class BaseOSG(metaclass=abc.ABCMeta):
 
     def annotate_brick(self, brick_node, target_hw):
         supported_complete = True
-        contr_list = []
+        contr_list = [[]]
         for impl_type in self.possible_impl_types:
             for op in brick_node.local_op_iter_gen():
                 op_c = self.annotate_op(op, target_hw, impl_type)
                 if op_c is not None:
                     if isinstance(op_c, list):
-                        contr_list.extend(op_c)
+                        # contr_list.extend(op_c)
+                        for i in range(0, len(op_c)):
+                            if i >= len(contr_list):
+                                contr_list.append([])
+                            contr_list[i].append(op_c[i])
                     else:
-                        contr_list.append(op_c)
+                        contr_list[0].append(op_c)
                 else:
                     supported_complete = False
             if supported_complete:
-                brick_contr = BrickContract(brick_node, target_hw, self, impl_type, contr_list)
-                brick_node.add_possible_contract(brick_contr)
+                all_length = len(contr_list[0])
+                for cl in contr_list:
+                    if len(cl) < all_length:
+                        continue
+                    brick_contr = BrickContract(brick_node, target_hw, self, impl_type, cl)
+                    brick_node.add_possible_contract(brick_contr)
 
     def annotate_op(self, op, target_hw, impl_type):
         """checks if the given relay op is supported by this OSG, creates a contract and returns it"""

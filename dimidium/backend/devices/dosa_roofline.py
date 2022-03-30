@@ -16,6 +16,7 @@ from enum import Enum
 
 from dimidium.lib.util import rf_attainable_performance, BrickImplTypes, rf_calc_sweet_spot
 import dimidium.lib.units as units
+from dimidium.middleend.archGen.DosaContract import DosaContract
 
 config_global_rf_ylim_min = 0.01
 # config_global_rf_ylim_max = 100000
@@ -58,6 +59,8 @@ def get_rightmost_roofline_region(r1: RooflineRegionsOiPlane, r2: RooflineRegion
                 and (r2 == RooflineRegionsOiPlane.ABOVE_DRAM or r2 == RooflineRegionsOiPlane.ABOVE_BRAM):
             return 1
     if r1 == RooflineRegionsOiPlane.ABOVE_BRAM and r2 == RooflineRegionsOiPlane.ABOVE_BRAM:
+        return 1
+    if r1 == RooflineRegionsOiPlane.ABOVE_TOP and r2 == RooflineRegionsOiPlane.ABOVE_TOP:
         return 1
     return 2
 
@@ -113,6 +116,78 @@ class DosaRoofline(object):
         if req_perf_F > ap_net:
             return RooflineRegionsOiPlane.ABOVE_NETWORK
         return RooflineRegionsOiPlane.IN_HOUSE
+
+    def get_region_OIPlane_iter_based(self, oi_iter, req_iter, contracts) -> RooflineRegionsOiPlane:
+        if oi_iter < 0.001 or req_iter < 0.001:
+            return RooflineRegionsOiPlane.IN_HOUSE
+        cl = []
+        if isinstance(contracts, list):
+            cl = contracts
+        elif isinstance(contracts, DosaContract):
+            cl = [contracts]
+        else:
+            print("Can't determine Roofline for this argument {}. STOP".format(contracts))
+            exit(1)
+        min_iter = float('inf')
+        total_comp_share = 0.0
+        total_mem_share = 0.0
+        for contr in cl:
+            if contr.iter_hz < min_iter:
+                min_iter = contr.iter_hz
+            total_comp_share += contr.comp_util_share
+            total_mem_share += contr.mem_util_share
+        max_util = max(total_comp_share, total_mem_share)
+        max_iter = (1.0/max_util) * min_iter
+        # TODO: do not assume DRAM BW is always higher than network BW?
+        if req_iter > max_iter:
+            return RooflineRegionsOiPlane.ABOVE_TOP
+        # if not self._cache_valid_:
+        #     self.update_sweet_spots()
+        ap_net = rf_attainable_performance(oi_iter, max_iter, self.net_bw_B)
+        ap_dram = rf_attainable_performance(oi_iter, max_iter, self.dram_bw_B)
+        if self.bram_bw_B != __deactivated_bw_value__:
+            ap_bram = rf_attainable_performance(oi_iter, max_iter, self.bram_bw_B)
+            if req_iter >= ap_bram:
+                return RooflineRegionsOiPlane.ABOVE_BRAM
+        if req_iter > ap_dram:
+            return RooflineRegionsOiPlane.ABOVE_DRAM
+        if req_iter > ap_net:
+            return RooflineRegionsOiPlane.ABOVE_NETWORK
+        return RooflineRegionsOiPlane.IN_HOUSE
+
+    def get_max_perf_at_oi_iter_based(self, oi_iter, contracts, ignore_net=False, ignore_bram=False):
+        if oi_iter < 0.001:
+            oi_iter = 0.01
+        cl = []
+        if isinstance(contracts, list):
+            cl = contracts
+        elif isinstance(contracts, DosaContract):
+            cl = [contracts]
+        else:
+            print("Can't determine Roofline for this argument {}. STOP".format(contracts))
+            exit(1)
+        min_iter = float('inf')
+        total_comp_share = 0.0
+        total_mem_share = 0.0
+        for contr in cl:
+            if contr.iter_hz < min_iter:
+                min_iter = contr.iter_hz
+            total_comp_share += contr.comp_util_share
+            total_mem_share += contr.mem_util_share
+        max_util = max(total_comp_share, total_mem_share)
+        max_iter = (1.0/max_util) * min_iter
+        ap_net = rf_attainable_performance(oi_iter, max_iter, self.net_bw_B)
+        ap_dram = rf_attainable_performance(oi_iter, max_iter, self.dram_bw_B)
+        if self.bram_bw_B != __deactivated_bw_value__:
+            ap_bram = rf_attainable_performance(oi_iter, max_iter, self.bram_bw_B)
+        else:
+            ap_bram = -1
+            ignore_bram = True
+        if ap_net <= ap_dram and (ap_net <= ap_bram or ignore_bram) and not ignore_net:
+            return ap_net
+        if (ap_dram <= ap_net or ignore_net) and (ap_dram <= ap_bram or ignore_bram):
+            return ap_dram
+        return ap_bram
 
     def get_max_perf_at_oi(self, oi_FB, ignore_net=False, ignore_bram=False):
         if oi_FB < 0.001:
@@ -172,28 +247,28 @@ class DosaRoofline(object):
         self.sp_effic_compute = rf_calc_sweet_spot(self.utt_list, self.utility_total_flops, 1)
         self._cache_valid_ = True
 
-    def get_region_EfficPlane(self, effic_FB, req_perf_F) -> RooflineRegionsEfficPlane:
-        if effic_FB < 0.001 or req_perf_F < 0.001:
-            return RooflineRegionsEfficPlane.IN_HOUSE
-        if req_perf_F >= self.utility_total_flops:
-            return RooflineRegionsEfficPlane.ABOVE_TOP
-        # if not self._cache_valid_:
-        #     self.update_sweet_spots()
-        ap_comp = rf_attainable_performance(effic_FB, self.utility_total_flops, 1)
-        ap_mem = rf_attainable_performance(effic_FB, self.utility_total_bytes, 1)
-        if (req_perf_F > ap_comp) or (req_perf_F > ap_mem):
-            return RooflineRegionsEfficPlane.ABOVE_100
-        return RooflineRegionsEfficPlane.IN_HOUSE
+    # def get_region_EfficPlane(self, effic_FB, req_perf_F) -> RooflineRegionsEfficPlane:
+    #     if effic_FB < 0.001 or req_perf_F < 0.001:
+    #         return RooflineRegionsEfficPlane.IN_HOUSE
+    #     if req_perf_F >= self.utility_total_flops:
+    #         return RooflineRegionsEfficPlane.ABOVE_TOP
+    #     # if not self._cache_valid_:
+    #     #     self.update_sweet_spots()
+    #     ap_comp = rf_attainable_performance(effic_FB, self.utility_total_flops, 1)
+    #     ap_mem = rf_attainable_performance(effic_FB, self.utility_total_bytes, 1)
+    #     if (req_perf_F > ap_comp) or (req_perf_F > ap_mem):
+    #         return RooflineRegionsEfficPlane.ABOVE_100
+    #     return RooflineRegionsEfficPlane.IN_HOUSE
 
-    def get_max_perf_at_effic(self, effic_FB):
-        if effic_FB < 0.001:
-            effic_FB = 0.01
-        ap_comp = rf_attainable_performance(effic_FB, self.utility_total_flops, 1)
-        ap_mem = rf_attainable_performance(effic_FB, self.utility_total_bytes, 1)
-        res_ap = min(ap_mem, ap_comp)
-        return res_ap
+    # def get_max_perf_at_effic(self, effic_FB):
+    #     if effic_FB < 0.001:
+    #         effic_FB = 0.01
+    #     ap_comp = rf_attainable_performance(effic_FB, self.utility_total_flops, 1)
+    #     ap_mem = rf_attainable_performance(effic_FB, self.utility_total_bytes, 1)
+    #     res_ap = min(ap_mem, ap_comp)
+    #     return res_ap
 
-    def get_ap_EfficPlane(self, effic_FB):
-        return self.get_max_perf_at_effic(effic_FB)
+    # def get_ap_EfficPlane(self, effic_FB):
+    #     return self.get_max_perf_at_effic(effic_FB)
 
 

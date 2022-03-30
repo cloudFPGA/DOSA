@@ -32,10 +32,11 @@ from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
 from dimidium.backend.operatorSets.lib.hls4ml.DosaFileReader import OsgDataReader
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
-
-__db_path__ = './osg_impl_db.json'
-
 from dimidium.middleend.archGen.OperationContract import OperationContract
+
+
+__filedir__ = os.path.dirname(os.path.abspath(__file__))
+__db_path__ = __filedir__ + '/osg_impl_db.json'
 
 
 def _get_next_unrolling_factor(paral_grade):
@@ -84,9 +85,9 @@ class Hls4mlOSG(BaseOSG):
         compl_list = []
         for e in my_util:
             if e['device'] not in self.util_db:
-                self.util_db = [e]
+                self.util_db[e['device']] = [e]
             else:
-                self.util_db.append(e)
+                self.util_db[e['device']].append(e)
             compl_list.append(e)
         self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True)
 
@@ -97,10 +98,11 @@ class Hls4mlOSG(BaseOSG):
         relevant_entries = []
         # TODO: prefer entries with shorter ops list?
         fallback_entries = []
+        op_str = op.op_call.split('.')[-1]
         for dk in self.util_db:
-            if dk == target_hw.name:
+            if dk == target_hw.type_str:
                 for e in self.util_db[dk]:
-                    if op.op_call in e['ops']:
+                    if op_str in e['ops']:
                         relevant_entries.append(e)
                     if fallback_ops is not None:
                         for f in fallback_ops:
@@ -145,20 +147,21 @@ class Hls4mlOSG(BaseOSG):
         wrapper_comp_share = wrapper_share['LUTLOG']  # we know we hardly use DSPs...
         wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
         latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
-        iter_hz = 1 / (latency_ns * units.gigaU)
+        iter_hz = 1 / (latency_ns * units.nanoU)
         offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
-                                  'default', wrapper_comp_share, wrapper_mem_share, util_dict, wrapper_dict)
+                                  'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
         offer_list = [offer]
         if not used_fallback:
-            util_dict['LUTLOG'] *= 0.5
-            util_dict['LUTMEM'] *= 0.5
-            util_dict['Registers'] *= 0.5
-            util_dict['BRAM'] *= 0.5
-            util_dict['DSPs'] *= 0.5
-            util_dict['latency_lim_per_tensor_cycl'] *= 2
+            proc_share['LUTLOG'] *= 0.5
+            proc_share['LUTMEM'] *= 0.5
+            proc_share['Registers'] *= 0.5
+            proc_share['BRAM'] *= 0.5
+            proc_share['DSPs'] *= 0.5
+            # util_dict['latency_lim_per_tensor_cycl'] *= 2
+            # wrapper stays
             offer_05 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.5, proc_comp_share*0.5,
                                          proc_mem_share*0.5, 'conf:mult_limit=0.5', wrapper_comp_share, wrapper_mem_share,
-                                         util_dict, wrapper_dict)
+                                         proc_share, wrapper_share)
             offer_list.append(offer_05)
         # TODO: add alternative offers
         #  e.g. with alternative reuse factor?
@@ -167,6 +170,7 @@ class Hls4mlOSG(BaseOSG):
     def init(self, dosa_hw_classes_dict, priority_internal):
         self.priority_internal = priority_internal
         self.select_dosa_hw_types(dosa_hw_classes_dict)
+        self._init_util_db_()
         # relay2osg annotation,
         #  based on https://github.com/fastmachinelearning/hls4ml/blob/master/hls4ml/model/hls_layers.py
         #  and https://github.com/fastmachinelearning/hls4ml/tree/master/hls4ml/converters/
@@ -565,8 +569,8 @@ class Hls4mlOSG(BaseOSG):
                 # contract details
                 mult_limit_factor = 1.0
                 # if selected_contract.osg_internal_id == 'default'
-                if op_c.osg_internal_id[0:5] == 'conf:':
-                    conf_str = op_c.osg_internal_id[5:]
+                if op_c.osg_intern_id[0:5] == 'conf:':
+                    conf_str = op_c.osg_intern_id[5:]
                     conf_list = conf_str.split(';')
                     for c in conf_list:
                         if 'mult_limit' in c:
