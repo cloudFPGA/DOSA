@@ -142,8 +142,8 @@ class ArchNode(object):
         for i in reversed(range(b_id_to_new_node, self.bid_cnt)):
             del self.bricks[i]
         self.bid_cnt = len(self.bricks)
-        self.update_used_perf_util_contr()
-        new_node.update_used_perf_util_contr()
+        self.update_used_perf_util_contr(add_switching_costs=True)
+        new_node.update_used_perf_util_contr(add_switching_costs=True)
         return new_node  # afterwards draft.add_node/insert_node must be called
 
     def split_vertical(self, factor=2):
@@ -207,13 +207,23 @@ class ArchNode(object):
         min_iter_hz = float('inf')
         total_comp_per = 0
         total_mem_per = 0
+        total_switching_comp_share = 0
+        total_switching_mem_share = 0
+        cur_osg = None
         for lb in self.local_brick_iter_gen():
             if lb.req_iter_hz < min_iter_hz:
                 min_iter_hz = lb.req_iter_hz
             if self.targeted_hw is not None:
-                lb.update_util_estimation_contr(self.targeted_hw, prefer_engine, add_switching_costs)
+                lb.update_util_estimation_contr(self.targeted_hw, prefer_engine)
                 total_comp_per += lb.req_util_comp
                 total_mem_per += lb.req_util_mem
+                if lb.tmp_osg != cur_osg:
+                    total_switching_comp_share += lb.switching_comp_share
+                    total_switching_mem_share += lb.switching_mem_share
+                    cur_osg = lb.tmp_osg
+        if add_switching_costs:
+            total_comp_per += total_switching_comp_share
+            total_mem_per += total_switching_mem_share
         max_util = max(total_comp_per, total_mem_per)
         max_iter = (1.0/max_util) * min_iter_hz
         self.max_iter_hz = max_iter

@@ -838,8 +838,10 @@ class ArchDraft(object):
                     lb.sort_contracts(by_utility=True)
                 else:
                     lb.sort_contracts(by_utility=False)
-                best_stream = lb.get_best_available_contract(filter_impl_type=BrickImplTypes.STREAM, consider_util=True)
-                best_engine = lb.get_best_available_contract(filter_impl_type=BrickImplTypes.ENGINE, consider_util=True)
+                best_stream = lb.get_best_available_contract(filter_impl_type=BrickImplTypes.STREAM, consider_util=True,
+                                                             filter_device=nn.targeted_hw)
+                best_engine = lb.get_best_available_contract(filter_impl_type=BrickImplTypes.ENGINE, consider_util=True,
+                                                             filter_device=nn.targeted_hw)
                 if best_engine is None:
                     lb.set_impl_type(BrickImplTypes.STREAM)
                     if verbose:
@@ -876,38 +878,7 @@ class ArchDraft(object):
         # ensure all are decided
         for bb in self.brick_iter_gen():
             assert bb.selected_impl_type != BrickImplTypes.UNDECIDED
-        # 1. split nodes based on selected contracts
-        orig_nodes_handles = []
-        for nn in self.node_iter_gen():
-            orig_nodes_handles.append(nn)
-        for nn in orig_nodes_handles:
-            nn.update_used_perf_util_contr(prefer_engine=False, add_switching_costs=False)
-            all_new_nodes = []
-            cur_node = nn
-            while cur_node.used_comp_util_share > 1:
-                cur_comp_share = 0
-                cur_mem_share = 0
-                for i in range(0, cur_node.bid_cnt):
-                    cur_comp_share += cur_node.bricks[i].req_util_comp
-                    cur_mem_share += cur_node.bricks[i].req_util_mem
-                    if cur_comp_share > 1.0 or cur_mem_share > 1.0:
-                        if i == 0:
-                            i = 1
-                        new_node = cur_node.split_horizontal(i)  # including update_used_perf_util
-                        all_new_nodes.append(new_node)
-                        if verbose:
-                            print("[DOSA:archGen:INFO] Splitting node {} horizontally, ".format(cur_node.node_id) +
-                                  "due to exceeded compute resource budget.")
-                        cur_node = new_node
-                        break
-            if len(all_new_nodes) > 0:
-                new_nid = nn.get_node_id() + 1
-                for new_node in all_new_nodes:
-                    self.insert_node(new_node, new_nid)
-                    new_nid += 1
-        assert len(self.nodes) == self.nid_cnt
-        self.update_required_perf()  # to consider new latencies
-        # 2. select best of possible contracts
+        # 1. select best of possible contracts
         for nn in self.node_iter_gen():
             for lb in nn.local_brick_iter_gen():
                 if self.strategy == OptimizationStrategies.RESOURCES:
@@ -926,6 +897,42 @@ class ArchDraft(object):
         # ensure all are decided
         for bb in self.brick_iter_gen():
             assert bb.selected_contract is not None
+        # 2. split nodes based on selected contracts
+        orig_nodes_handles = []
+        for nn in self.node_iter_gen():
+            orig_nodes_handles.append(nn)
+        for nn in orig_nodes_handles:
+            nn.update_used_perf_util_contr(prefer_engine=False, add_switching_costs=True)
+            all_new_nodes = []
+            cur_node = nn
+            while cur_node.used_comp_util_share > 1:
+                cur_comp_share = 0
+                cur_mem_share = 0
+                cur_osg = None
+                for i in range(0, cur_node.bid_cnt):
+                    cur_comp_share += cur_node.bricks[i].req_util_comp
+                    cur_mem_share += cur_node.bricks[i].req_util_mem
+                    if cur_node.bricks[i].tmp_osg != cur_osg:
+                        cur_comp_share += cur_node.bricks[i].switching_comp_share
+                        cur_mem_share += cur_node.bricks[i].switching_mem_share
+                        cur_osg = cur_node.bricks[i].tmp_osg
+                    if cur_comp_share > 1.0 or cur_mem_share > 1.0:
+                        if i == 0:
+                            i = 1
+                        new_node = cur_node.split_horizontal(i)  # including update_used_perf_util
+                        all_new_nodes.append(new_node)
+                        if verbose:
+                            print("[DOSA:archGen:INFO] Splitting node {} horizontally, ".format(cur_node.node_id) +
+                                  "due to exceeded compute resource budget.")
+                        cur_node = new_node
+                        break
+            if len(all_new_nodes) > 0:
+                new_nid = nn.get_node_id() + 1
+                for new_node in all_new_nodes:
+                    self.insert_node(new_node, new_nid)
+                    new_nid += 1
+        assert len(self.nodes) == self.nid_cnt
+        self.update_required_perf()  # to consider new latencies
         # 3. for each node: turn lone engine impls into streams
         #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
         #  in other words: ensure that all engine sets are bigger or equal 2
@@ -1013,36 +1020,35 @@ class ArchDraft(object):
         for nn in self.node_iter_gen():
             nn.update_used_perf_util_contr(add_switching_costs=True)
         node_ids_to_delete = []
-        # FIXME
-        # for ni in range(0, len(self.nodes)):
-        #     if ni in node_ids_to_delete:
-        #         continue
-        #     n1 = self.nodes[ni]
-        #     if n1.data_parallelism_level > 1:
-        #         continue
-        #     if ni < (len(self.nodes) - 1):
-        #         n2 = self.nodes[ni + 1]
-        #         if n2.data_parallelism_level > 1:
-        #             continue
-        #         if n1.targeted_hw == n2.targeted_hw:
-        #             # TODO: move bricks after each other?
-        #             #  does it make sense? just reduces the resource usage somewhere else?
-        #             # if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
-        #             # BETTER to be cautious...considering mu again
-        #             if (((n1.used_comp_util_share + n2.used_comp_util_share)
-        #                  * dosa_singleton.config.utilization.dosa_mu_comp) < 1) \
-        #                     and (((n1.used_mem_util_share + n2.used_mem_util_share)
-        #                           * dosa_singleton.config.utilization.dosa_mu_comp) < 1):
-        #                 # merge nodes totally
-        #                 if verbose:
-        #                     print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
-        #                           .format(n1.node_id, n2.node_id))
-        #                 node_ids_to_delete.append(ni + 1)
-        #                 for bb in n2.local_brick_iter_gen():
-        #                     n1.add_brick(bb)
-        # node_ids_to_delete.reverse()
-        # for nd in node_ids_to_delete:
-        #     self.delete_node(nd)
+        for ni in range(0, len(self.nodes)):
+            if ni in node_ids_to_delete:
+                continue
+            n1 = self.nodes[ni]
+            if n1.data_parallelism_level > 1:
+                continue
+            if ni < (len(self.nodes) - 1):
+                n2 = self.nodes[ni + 1]
+                if n2.data_parallelism_level > 1:
+                    continue
+                if n1.targeted_hw == n2.targeted_hw:
+                    # TODO: move bricks after each other?
+                    #  does it make sense? just reduces the resource usage somewhere else?
+                    # if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
+                    # BETTER to be cautious...considering mu again
+                    if (((n1.used_comp_util_share + n2.used_comp_util_share)
+                         * dosa_singleton.config.utilization.dosa_mu_comp) < 1) \
+                            and (((n1.used_mem_util_share + n2.used_mem_util_share)
+                                  * dosa_singleton.config.utilization.dosa_mu_comp) < 1):
+                        # merge nodes totally
+                        if verbose:
+                            print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
+                                  .format(n1.node_id, n2.node_id))
+                        node_ids_to_delete.append(ni + 1)
+                        for bb in n2.local_brick_iter_gen():
+                            n1.add_brick(bb)
+        node_ids_to_delete.reverse()
+        for nd in node_ids_to_delete:
+            self.delete_node(nd)
         # 6. update possible hw targets
         self.update_possible_hw_types()
         # 7. decide for hw, if targeted hw is possible, use this one

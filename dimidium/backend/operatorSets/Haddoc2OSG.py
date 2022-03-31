@@ -71,7 +71,7 @@ class Haddoc2OSG(BaseOSG):
             compl_list.append(e)
         self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True)
 
-    def _get_impl_prediction(self, op_str, inpB, paramB, device, consider_paramB=False):
+    def _get_impl_prediction(self, op_str, inpB, paramB, device, consider_paramB=False, custom_byte_factor=1.0):
         relevant_entries = []
         exact_matches = []
         # TODO: prefer entries with shorter ops list?
@@ -101,6 +101,7 @@ class Haddoc2OSG(BaseOSG):
             bytes_total = paramB
         else:
             bytes_total = inpB
+        bytes_total *= custom_byte_factor
         ret_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
         ret_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
         ret_dict['Registers'] = res_dict['Registers'] * bytes_total
@@ -552,7 +553,8 @@ class Haddoc2OSG(BaseOSG):
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
         util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('conv2d', op.input_bytes, op.parameter_bytes,
-                                                                           target_hw, consider_paramB=True)
+                                                                           target_hw, consider_paramB=True,
+                                                                           custom_byte_factor=0.8)
         util_dict['LUTLOG'] *= _part_conv_
         util_dict['LUTMEM'] *= _part_conv_
         util_dict['Registers'] *= _part_conv_

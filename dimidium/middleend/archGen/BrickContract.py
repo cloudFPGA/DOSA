@@ -86,6 +86,18 @@ class BrickContract(DosaContract):
         self._combine_op_contracts()
 
     def _combine_op_contracts(self):
+        self.comp_util_share = 0
+        self.mem_util_share = 0
+        self.switching_comp_share = -1
+        self.switching_mem_share = -1
+        self.total_bytes = 0
+        self.oi_iter = 0
+        self.detailed_FPGA_component_share['LUTLOG']    = 0.0
+        self.detailed_FPGA_component_share['LUTMEM']    = 0.0
+        self.detailed_FPGA_component_share['Registers'] = 0.0
+        self.detailed_FPGA_component_share['BRAM']      = 0.0
+        self.detailed_FPGA_component_share['DSPs']      = 0.0
+        self.detailed_FPGA_wrapper_share = None
         for opc in self.op_contracts:
             if self.impl_type != opc.impl_type or self.device != opc.device or self.osg != opc.osg:
                 print("[DOSA:contracts:ERROR] Trying to combine un-compatible contracts. STOP.")

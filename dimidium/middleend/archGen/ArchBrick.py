@@ -80,6 +80,9 @@ class ArchBrick(object):
         self.req_util_mem = 0
         self.req_util_mem_engine = 0
         self.req_util_mem_stream = 0
+        self.switching_comp_share = 0
+        self.switching_mem_share = 0
+        self.tmp_osg = None
         self.skip_in_roofline = False
         self.dims = SimpleNamespace()
         self.dims.inp = 0
@@ -416,19 +419,21 @@ class ArchBrick(object):
             self.req_util_mem_engine = 0  # TODO: ? for engine, always 0!
             self.req_util_comp_engine = share_comp
 
-    def update_util_estimation_contr(self, target_hw, prefer_engine=False, add_switching_costs=False):
-        self.update_possible_contracts()
-        if not prefer_engine and self.selected_impl_type != BrickImplTypes.STREAM:
-            tmp_best = self.get_best_possible_contract(filter_device=target_hw)
-        else:
-            tmp_best = self.get_best_possible_contract(filter_impl_type=BrickImplTypes.ENGINE, filter_device=target_hw)
-            if tmp_best is None:
+    def update_util_estimation_contr(self, target_hw, prefer_engine=False):
+        if self.selected_contract is None:
+            self.update_possible_contracts()
+            if not prefer_engine and self.selected_impl_type != BrickImplTypes.STREAM:
                 tmp_best = self.get_best_possible_contract(filter_device=target_hw)
+            else:
+                tmp_best = self.get_best_possible_contract(filter_impl_type=BrickImplTypes.ENGINE, filter_device=target_hw)
+                if tmp_best is None:
+                    tmp_best = self.get_best_possible_contract(filter_device=target_hw)
+        else:
+            tmp_best = self.selected_contract
         share_comp = tmp_best.comp_util_share
         share_mem = tmp_best.mem_util_share
-        if add_switching_costs:
-            share_comp += tmp_best.switching_comp_share
-            share_mem += tmp_best.switching_mem_share
+        self.switching_comp_share = tmp_best.switching_comp_share
+        self.switching_mem_share = tmp_best.switching_mem_share
         self.req_util_comp = share_comp
         self.req_util_mem = share_mem
         if self.selected_impl_type == BrickImplTypes.STREAM:
@@ -437,3 +442,6 @@ class ArchBrick(object):
         elif self.selected_impl_type == BrickImplTypes.ENGINE:
             self.req_util_mem_engine = 0  # TODO: ? for engine, always 0!
             self.req_util_comp_engine = share_comp
+        self.tmp_osg = tmp_best.osg
+
+

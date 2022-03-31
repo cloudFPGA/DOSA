@@ -178,7 +178,8 @@ class Hls4mlOSG(BaseOSG):
             offer_05 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.5, proc_comp_share*0.5,
                                          proc_mem_share*0.5, 'conf:mult_limit=0.5', wrapper_comp_share, wrapper_mem_share,
                                          proc_share, wrapper_share)
-            offer_list.append(offer_05)
+            # TODO
+            # offer_list.append(offer_05)
         # TODO: add alternative offers
         #  e.g. with alternative reuse factor?
         return offer_list
@@ -251,7 +252,7 @@ class Hls4mlOSG(BaseOSG):
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
                                                                                         consider_outB=True,
-                                                                                        custom_byte_factor=2.8,
+                                                                                        custom_byte_factor=5,
                                                                                         fallback_ops=['conv1d',
                                                                                                       'conv2d'])
             elif 'batch_norm' in e:
@@ -269,10 +270,11 @@ class Hls4mlOSG(BaseOSG):
                                                                                         consider_paramB=True,
                                                                                         fallback_ops=None,
                                                                                         custom_latency=op.dims.inp[-1])
-            elif 'flatten' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_flatten, \
-                                          lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
-                                                                                0.0, 'dummy op', 0.0, 0.0)
+            # FIXME
+            # elif 'flatten' in e:
+            #     self.relay2osg['nn'][e] = self._generate_hls_flatten, \
+            #                               lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
+            #                                                                     0.0, 'dummy op', 0.0, 0.0)
             elif 'dropout' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_dropout, \
                                           lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
@@ -598,6 +600,7 @@ class Hls4mlOSG(BaseOSG):
                     for c in conf_list:
                         if 'mult_limit' in c:
                             mult_limit_factor = float(c.split('=')[1])
+                            print("[DOSA:OSG:INFO] Using adapted mult_limit_factor {}.".format(mult_limit_factor))
 
                 if wrapper_first_op is None:
                     wrapper_first_op = op
