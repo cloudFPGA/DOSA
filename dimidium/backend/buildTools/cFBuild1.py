@@ -60,8 +60,10 @@ class cFBuild1(HwBuildTopVhdl):
         if not self.build_wide_structure_created:
             self._create_build_wide_structure()
         create_cfp_dir_structure(self.build_dir)
-        # link cFDK
-        os.system('cd {}; ln -s {}/cFDK cFDK'.format(self.build_dir, self.my_global_build_lib_dir))
+        # link cFDK, also relative
+        # my_cfdk_dir = os.path.abspath(self.build_dir + '/cFDK/')
+        global_build_rel = os.path.relpath(self.my_global_build_lib_dir, self.build_dir)
+        os.system('cd {}; ln -s {}/cFDK cFDK'.format(self.build_dir, global_build_rel))
         # copy templates that should be copied only during create
         os.system("cp {0}/cFCreate/templates/gitignore.template {1}/.gitignore".format(my_libs, self.build_dir))
         os.system("cp {0}/cFCreate/templates/cfdk_Makefile {1}/Makefile".format(my_libs, self.build_dir))
