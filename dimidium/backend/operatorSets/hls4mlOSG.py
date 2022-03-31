@@ -92,19 +92,23 @@ class Hls4mlOSG(BaseOSG):
         self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True)
 
     def _get_impl_prediction(self, op, target_hw, impl_type, consider_paramB=False, fallback_ops=None,
-                             consider_outB=False, custom_byte_factor=1.0):
+                             consider_outB=False, custom_byte_factor=1.0, custom_latency=None):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
         relevant_entries = []
         # TODO: prefer entries with shorter ops list?
         fallback_entries = []
+        exact_matches = []
         op_str = op.op_call.split('.')[-1]
         for dk in self.util_db:
             if dk == target_hw.type_str:
                 for e in self.util_db[dk]:
                     if op_str in e['ops']:
                         relevant_entries.append(e)
+                    if op.input_bytes == e['inpB'] and e['latency_lim_per_tensor_cycl'] > 0:
+                        if (consider_paramB and op.parameter_bytes == e['paramB']) or (not consider_paramB):
+                            exact_matches.append(e)
                     if fallback_ops is not None:
                         for f in fallback_ops:
                             if f in e['ops']:
@@ -115,15 +119,19 @@ class Hls4mlOSG(BaseOSG):
         if len(relevant_entries) == 0 and len(fallback_entries) == 0:
             res_dict = self.avg_util_dict
             used_fallback = True
+        elif len(exact_matches) > 0:
+            res_dict = get_avg_util_dict_bytes_based(exact_matches, consider_paramB=consider_paramB,
+                                                     consider_ops_num=False, consider_outB=consider_outB)
         else:
             if len(relevant_entries) == 0:
                 relevant_entries = fallback_entries
                 used_fallback = True
             res_dict = get_avg_util_dict_bytes_based(relevant_entries, consider_paramB=consider_paramB,
                                                      consider_ops_num=False, consider_outB=consider_outB)
-        bytes_total = op.input_bytes
         if consider_paramB:
-            bytes_total += op.parameter_bytes
+            bytes_total = op.parameter_bytes
+        else:
+            bytes_total = op.input_bytes
         if consider_outB:
             bytes_total += op.output_bytes
         bytes_total *= custom_byte_factor
@@ -133,7 +141,7 @@ class Hls4mlOSG(BaseOSG):
         util_dict['Registers'] = res_dict['Registers'] * bytes_total
         util_dict['BRAM'] = res_dict['BRAM'] * bytes_total
         util_dict['DSPs'] = res_dict['DSPs'] * bytes_total
-        util_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl']
+        util_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl'] * op.input_bytes
         wrapper_dict = {}
         wrapper_dict['LUTLOG'] = res_dict['wrapper']['LUTLOG'] * bytes_total
         wrapper_dict['LUTMEM'] = res_dict['wrapper']['LUTMEM'] * bytes_total
@@ -150,8 +158,12 @@ class Hls4mlOSG(BaseOSG):
         # wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
         wrapper_comp_share = wrapper_share['LUTLOG']  # we know we hardly use DSPs...
         wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
-        latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
-        iter_hz = 1 / (latency_ns * units.nanoU)
+        if custom_latency is None:
+            latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
+            iter_hz = 1 / (latency_ns * units.nanoU)
+        else:
+            latency_ns = custom_latency * target_hw.get_performance_dict()['fpga_clk_ns']
+            iter_hz = 1 / (latency_ns * units.nanoU)
         offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
                                   'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
         offer_list = [offer]
@@ -226,17 +238,20 @@ class Hls4mlOSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._generate_hls_parAct, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
-                                                                                        fallback_ops=['prelu', 'softmax'])
+                                                                                        fallback_ops=['prelu', 'softmax'],
+                                                                                        custom_latency=op.dims.inp[-1])
             elif 'softmax' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_softmax, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
-                                                                                        fallback_ops=['prelu', 'relu'])
+                                                                                        fallback_ops=['prelu', 'relu'],
+                                                                                        custom_latency=op.dims.inp[-1])
             elif 'dense' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_dense, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
                                                                                         consider_outB=True,
+                                                                                        custom_byte_factor=2.8,
                                                                                         fallback_ops=['conv1d',
                                                                                                       'conv2d'])
             elif 'batch_norm' in e:
@@ -252,7 +267,8 @@ class Hls4mlOSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._generate_hls_biasAdd, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
-                                                                                        fallback_ops=None)
+                                                                                        fallback_ops=None,
+                                                                                        custom_latency=op.dims.inp[-1])
             elif 'flatten' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_flatten, \
                                           lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,

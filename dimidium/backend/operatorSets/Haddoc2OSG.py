@@ -71,28 +71,42 @@ class Haddoc2OSG(BaseOSG):
             compl_list.append(e)
         self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True)
 
-    def _get_impl_prediction(self, op_str, bytes_total, device, consider_paramB=False):
+    def _get_impl_prediction(self, op_str, inpB, paramB, device, consider_paramB=False):
         relevant_entries = []
+        exact_matches = []
         # TODO: prefer entries with shorter ops list?
         for dk in self.util_db:
             if dk == device.type_str:
                 for e in self.util_db[dk]:
                     if op_str in e['ops']:
                         relevant_entries.append(e)
+                        if e['latency_lim_per_tensor_cycl'] > 0:
+                            if consider_paramB:
+                                if e['inpB'] == inpB and e['paramB'] == paramB:
+                                    exact_matches.append(e)
+                            else:
+                                if e['inpB'] == inpB:
+                                    exact_matches.append(e)
         res_dict = {}
         used_fallback = False
         if len(relevant_entries) == 0:
             res_dict = self.avg_util_dict
             used_fallback = True
+        elif len(exact_matches) > 0:
+            res_dict = get_avg_util_dict_bytes_based(exact_matches, consider_paramB=consider_paramB)
         else:
             res_dict = get_avg_util_dict_bytes_based(relevant_entries, consider_paramB=consider_paramB)
         ret_dict = {}
+        if consider_paramB:
+            bytes_total = paramB
+        else:
+            bytes_total = inpB
         ret_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
         ret_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
         ret_dict['Registers'] = res_dict['Registers'] * bytes_total
         ret_dict['BRAM'] = res_dict['BRAM'] * bytes_total
         ret_dict['DSPs'] = res_dict['DSPs'] * bytes_total
-        ret_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl']
+        ret_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl'] * inpB
         wrapper_dict = {}
         wrapper_dict['LUTLOG'] = res_dict['wrapper']['LUTLOG'] * bytes_total
         wrapper_dict['LUTMEM'] = res_dict['wrapper']['LUTMEM'] * bytes_total
@@ -390,11 +404,11 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('tanh',  op.input_bytes,
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('tanh',  op.input_bytes, 0,
                                                                            target_hw, consider_paramB=False)
         # using relu as fallback
         if used_fallback:
-            util_dict, wrapper_dict, _ = self._get_impl_prediction('relu',  op.input_bytes,
+            util_dict, wrapper_dict, _ = self._get_impl_prediction('relu',  op.input_bytes, 0,
                                                                    target_hw, consider_paramB=False)
         util_dict['LUTLOG'] *= _part_act_
         util_dict['LUTMEM'] *= _part_act_
@@ -415,8 +429,9 @@ class Haddoc2OSG(BaseOSG):
         # wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
         wrapper_comp_share = wrapper_share['LUTLOG']
         wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
-        latency_ns = math.ceil(util_dict['latency_lim_per_tensor_cycl'] * _part_act_ *
-                               target_hw.get_performance_dict()['fpga_clk_ns'])
+        # latency_ns = math.ceil(util_dict['latency_lim_per_tensor_cycl'] * _part_act_ *
+        #                        target_hw.get_performance_dict()['fpga_clk_ns'])
+        latency_ns = 1 * target_hw.get_performance_dict()['fpga_clk_ns']  # more or less for free
         iter_hz = 1 / (latency_ns * units.nanoU)
         offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
                                   'basis', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
@@ -450,7 +465,7 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('bias_add', op.input_bytes+op.parameter_bytes,
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('bias_add', op.input_bytes, op.parameter_bytes,
                                                                            target_hw, consider_paramB=True)
         util_dict['LUTLOG'] *= _part_bias_
         util_dict['LUTMEM'] *= _part_bias_
@@ -470,8 +485,9 @@ class Haddoc2OSG(BaseOSG):
         # wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
         wrapper_comp_share = wrapper_share['LUTLOG']
         wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
-        latency_ns = util_dict['latency_lim_per_tensor_cycl'] * _part_bias_ * \
-                     target_hw.get_performance_dict()['fpga_clk_ns']
+        # latency_ns = util_dict['latency_lim_per_tensor_cycl'] * _part_bias_ * \
+        #              target_hw.get_performance_dict()['fpga_clk_ns']
+        latency_ns = 1 * target_hw.get_performance_dict()['fpga_clk_ns']  # more or less for free
         iter_hz = 1 / (latency_ns * units.nanoU)
         offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
                                   'basis', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
@@ -486,10 +502,10 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('relu', op.input_bytes,
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('relu', op.input_bytes, 0,
                                                                            target_hw, consider_paramB=False)
         if used_fallback:
-            util_dict, wrapper_dict, _ = self._get_impl_prediction('tanh',  op.input_bytes,
+            util_dict, wrapper_dict, _ = self._get_impl_prediction('tanh',  op.input_bytes, 0,
                                                                    target_hw, consider_paramB=False)
         util_dict['LUTLOG'] *= _part_act_
         util_dict['LUTMEM'] *= _part_act_
@@ -509,8 +525,9 @@ class Haddoc2OSG(BaseOSG):
         # wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
         wrapper_comp_share = wrapper_share['LUTLOG']  # we know we hardly use DSPs...
         wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
-        latency_ns = util_dict['latency_lim_per_tensor_cycl'] * _part_act_ \
-                     * target_hw.get_performance_dict()['fpga_clk_ns']
+        # latency_ns = util_dict['latency_lim_per_tensor_cycl'] * _part_act_ \
+        #              * target_hw.get_performance_dict()['fpga_clk_ns']
+        latency_ns = 1 * target_hw.get_performance_dict()['fpga_clk_ns']  # more or less for free
         iter_hz = 1 / (latency_ns * units.nanoU)
         offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
                                   'basis', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
@@ -534,7 +551,7 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('conv2d', 1.2*op.input_bytes+op.parameter_bytes,
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('conv2d', op.input_bytes, op.parameter_bytes,
                                                                            target_hw, consider_paramB=True)
         util_dict['LUTLOG'] *= _part_conv_
         util_dict['LUTMEM'] *= _part_conv_
@@ -605,7 +622,7 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('max_pool2d', op.input_bytes,
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('max_pool2d', op.input_bytes, 0,
                                                                            target_hw, consider_paramB=False)
         proc_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], util_dict)
         wrapper_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], wrapper_dict)

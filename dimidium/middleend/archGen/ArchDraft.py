@@ -1013,35 +1013,36 @@ class ArchDraft(object):
         for nn in self.node_iter_gen():
             nn.update_used_perf_util_contr(add_switching_costs=True)
         node_ids_to_delete = []
-        for ni in range(0, len(self.nodes)):
-            if ni in node_ids_to_delete:
-                continue
-            n1 = self.nodes[ni]
-            if n1.data_parallelism_level > 1:
-                continue
-            if ni < (len(self.nodes) - 1):
-                n2 = self.nodes[ni + 1]
-                if n2.data_parallelism_level > 1:
-                    continue
-                if n1.targeted_hw == n2.targeted_hw:
-                    # TODO: move bricks after each other?
-                    #  does it make sense? just reduces the resource usage somewhere else?
-                    # if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
-                    # BETTER to be cautious...considering mu again
-                    if (((n1.used_comp_util_share + n2.used_comp_util_share)
-                         * dosa_singleton.config.utilization.dosa_mu_comp) < 1) \
-                            and (((n1.used_mem_util_share + n2.used_mem_util_share)
-                                  * dosa_singleton.config.utilization.dosa_mu_comp) < 1):
-                        # merge nodes totally
-                        if verbose:
-                            print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
-                                  .format(n1.node_id, n2.node_id))
-                        node_ids_to_delete.append(ni + 1)
-                        for bb in n2.local_brick_iter_gen():
-                            n1.add_brick(bb)
-        node_ids_to_delete.reverse()
-        for nd in node_ids_to_delete:
-            self.delete_node(nd)
+        # FIXME
+        # for ni in range(0, len(self.nodes)):
+        #     if ni in node_ids_to_delete:
+        #         continue
+        #     n1 = self.nodes[ni]
+        #     if n1.data_parallelism_level > 1:
+        #         continue
+        #     if ni < (len(self.nodes) - 1):
+        #         n2 = self.nodes[ni + 1]
+        #         if n2.data_parallelism_level > 1:
+        #             continue
+        #         if n1.targeted_hw == n2.targeted_hw:
+        #             # TODO: move bricks after each other?
+        #             #  does it make sense? just reduces the resource usage somewhere else?
+        #             # if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
+        #             # BETTER to be cautious...considering mu again
+        #             if (((n1.used_comp_util_share + n2.used_comp_util_share)
+        #                  * dosa_singleton.config.utilization.dosa_mu_comp) < 1) \
+        #                     and (((n1.used_mem_util_share + n2.used_mem_util_share)
+        #                           * dosa_singleton.config.utilization.dosa_mu_comp) < 1):
+        #                 # merge nodes totally
+        #                 if verbose:
+        #                     print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
+        #                           .format(n1.node_id, n2.node_id))
+        #                 node_ids_to_delete.append(ni + 1)
+        #                 for bb in n2.local_brick_iter_gen():
+        #                     n1.add_brick(bb)
+        # node_ids_to_delete.reverse()
+        # for nd in node_ids_to_delete:
+        #     self.delete_node(nd)
         # 6. update possible hw targets
         self.update_possible_hw_types()
         # 7. decide for hw, if targeted hw is possible, use this one

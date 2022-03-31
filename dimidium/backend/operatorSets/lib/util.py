@@ -29,19 +29,22 @@ def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_n
     latency_total = 0
     # e_cnt = 0
     ops_cnt = 0
-    last_latency = 0
+    # last_latency = 0
+    input_bytes_for_latency = 0
     for e in entries:
-        bytes_total += e['inpB']
         if consider_paramB:
             bytes_total += e['paramB']
+        else:
+            bytes_total += e['inpB']
         if consider_outB:
             bytes_total += e['outB']
         if e['latency_lim_per_tensor_cycl'] > 0:
             latency_total += e['latency_lim_per_tensor_cycl']
-            last_latency = e['latency_lim_per_tensor_cycl']
-        else:
-            latency_total += last_latency
-            # e_cnt += len(e['ops'])
+            input_bytes_for_latency += e['inpB']
+            # last_latency = e['latency_lim_per_tensor_cycl']
+        # else:
+        #     latency_total += last_latency
+        #     # e_cnt += len(e['ops'])
         lutlog_total += e['LUTLOG']
         lutmem_total += e['LUTMEM']
         register_total += e['Registers']
@@ -59,7 +62,8 @@ def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_n
     ret_util_dict = {'LUTLOG': lutlog_total / divider, 'LUTMEM': lutmem_total / divider,
                      'Registers': register_total / divider, 'BRAM': bram_total / divider,
                      'DSPs': dsps_total / divider,
-                     'latency_lim_per_tensor_cycl': math.ceil(latency_total / ops_cnt),
+                     # 'latency_lim_per_tensor_cycl': math.ceil(latency_total / ops_cnt),
+                     'latency_lim_per_tensor_cycl': latency_total / input_bytes_for_latency,
                      'wrapper': {
                          'LUTLOG': wrapper_lutlog_total / divider,
                          'LUTMEM': wrapper_lutmem_total / divider,
