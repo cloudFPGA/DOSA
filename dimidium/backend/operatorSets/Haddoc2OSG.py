@@ -534,7 +534,7 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('conv2d', op.input_bytes+op.parameter_bytes,
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('conv2d', 1.2*op.input_bytes+op.parameter_bytes,
                                                                            target_hw, consider_paramB=True)
         util_dict['LUTLOG'] *= _part_conv_
         util_dict['LUTMEM'] *= _part_conv_

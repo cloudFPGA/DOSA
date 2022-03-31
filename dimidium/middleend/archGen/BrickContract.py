@@ -9,6 +9,8 @@
 #  *        Class of implementation contracts offered by OSGs within a Brick
 #  *
 #  *
+import json
+
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.middleend.archGen.DosaContract import DosaContract
 
@@ -73,6 +75,7 @@ class BrickContract(DosaContract):
         self.switching_mem_share = -1
         self.total_bytes = 0
         self.oi_iter = 0
+        # self.osg_intern_id = ''
         self.detailed_FPGA_component_share = {}
         self.detailed_FPGA_component_share['LUTLOG']    = 0.0
         self.detailed_FPGA_component_share['LUTMEM']    = 0.0
@@ -89,6 +92,10 @@ class BrickContract(DosaContract):
                 exit(1)
             if opc.iter_hz < self.iter_hz:
                 self.iter_hz = opc.iter_hz
+            # if self.osg_intern_id == '':
+            #     self.osg_intern_id = opc.osg_intern_id
+            # elif self.osg_intern_id != opc.osg_intern_id:
+            #     self.osg_intern_id = 'multiple'
             if opc.switching_comp_share > self.switching_comp_share \
                     or opc.switching_mem_share > self.switching_mem_share:
                 self.switching_comp_share = opc.switching_comp_share
@@ -106,9 +113,40 @@ class BrickContract(DosaContract):
         self.oi_iter = self.total_bytes / self.iter_hz
 
     def __repr__(self):
-        return "BrickContr({} on {} using {}/{}: {}/s, {}c%, {}m%, switching {}%c, {}%m)" \
+        return "BrickContr({} on {} using {}/{}: {:.2f}/s, {:.2f}c%, {:.2f}m%, switching {:.2f}%c, {:.2f}%m)" \
             .format(self.brick.fn_label, self.device.name, self.osg.name, self.impl_type, self.iter_hz,
-                    self.comp_util_share, self.mem_util_share, self.switching_comp_share, self.switching_mem_share)
+                    self.comp_util_share*100, self.mem_util_share*100, self.switching_comp_share*100,
+                    self.switching_mem_share*100)
+
+    def as_dict(self):
+        res = {'osg': str(self.osg.name), 'impl_type': str(self.impl_type), 'iter_hz': self.iter_hz,
+               'device': self.device.name,
+               'comp_share_%:': self.comp_util_share*100, 'mem_share_%': self.mem_util_share*100,
+               'switching_comp_share_%': self.switching_comp_share*100,
+               'switching_mem_share_%': self.switching_mem_share*100,
+               'oi_iter': self.oi_iter,
+               'component_utility_detail': {},
+               'wrapper_utility_detail': {}}
+        fpga_utility = self.device.get_resource_dict()['FPGA_utility']
+        comp_util_detail = {}
+        comp_util_detail['LUTLOG']     = self.detailed_FPGA_component_share['LUTLOG']    * fpga_utility['LUTLOG']
+        comp_util_detail['LUTMEM']     = self.detailed_FPGA_component_share['LUTMEM']    * fpga_utility['LUTMEM']
+        comp_util_detail['Registers']  = self.detailed_FPGA_component_share['Registers'] * fpga_utility['Registers']
+        comp_util_detail['BRAM']       = self.detailed_FPGA_component_share['BRAM']      * fpga_utility['BRAM']
+        comp_util_detail['DSPs']       = self.detailed_FPGA_component_share['DSPs']      * fpga_utility['DSPs']
+        res['component_utility_detail'] = comp_util_detail
+        wrapper_util_detail = {}
+        wrapper_util_detail['LUTLOG']     = self.detailed_FPGA_wrapper_share['LUTLOG']    * fpga_utility['LUTLOG']
+        wrapper_util_detail['LUTMEM']     = self.detailed_FPGA_wrapper_share['LUTMEM']    * fpga_utility['LUTMEM']
+        wrapper_util_detail['Registers']  = self.detailed_FPGA_wrapper_share['Registers'] * fpga_utility['Registers']
+        wrapper_util_detail['BRAM']       = self.detailed_FPGA_wrapper_share['BRAM']      * fpga_utility['BRAM']
+        wrapper_util_detail['DSPs']       = self.detailed_FPGA_wrapper_share['DSPs']      * fpga_utility['DSPs']
+        res['wrapper_utility_detail'] = wrapper_util_detail
+        return res
+
+    def __str__(self):
+        ret = self.as_dict()
+        return json.dumps(ret, indent=2)
 
     def get_contract_to_op(self, op):
         for opc in self.op_contracts:
@@ -129,5 +167,17 @@ class BrickContract(DosaContract):
                 if self.detailed_FPGA_component_share[utk] > 1.0:
                     return False
         return True
+
+    def add_op_contract(self, opc):
+        self.op_contracts.append(opc)
+        self._combine_op_contracts()
+
+    def del_op_contract(self, opc):
+        try:
+            del_i = self.op_contracts.index(opc)
+            del self.op_contracts[del_i]
+            self._combine_op_contracts()
+        except:
+            return
 
 

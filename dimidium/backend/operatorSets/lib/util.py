@@ -14,7 +14,7 @@ import math
 import dimidium.lib.singleton as dosa_singleton
 
 
-def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_num=False):
+def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_num=False,  consider_outB=False):
     lutlog_total = 0
     lutmem_total = 0
     register_total = 0
@@ -27,13 +27,21 @@ def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_n
     wrapper_dsps_total = 0
     bytes_total = 0
     latency_total = 0
-    e_cnt = 0
+    # e_cnt = 0
+    ops_cnt = 0
+    last_latency = 0
     for e in entries:
         bytes_total += e['inpB']
         if consider_paramB:
             bytes_total += e['paramB']
+        if consider_outB:
+            bytes_total += e['outB']
         if e['latency_lim_per_tensor_cycl'] > 0:
             latency_total += e['latency_lim_per_tensor_cycl']
+            last_latency = e['latency_lim_per_tensor_cycl']
+        else:
+            latency_total += last_latency
+            # e_cnt += len(e['ops'])
         lutlog_total += e['LUTLOG']
         lutmem_total += e['LUTMEM']
         register_total += e['Registers']
@@ -44,14 +52,14 @@ def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_n
         wrapper_register_total += e['wrapper']['Registers']
         wrapper_bram_total += e['wrapper']['BRAM']
         wrapper_dsps_total += e['wrapper']['DSPs']
-        e_cnt += len(e['ops'])
+        ops_cnt += len(e['ops'])
     divider = bytes_total
     if consider_ops_num:
-        divider *= e_cnt
+        divider *= ops_cnt
     ret_util_dict = {'LUTLOG': lutlog_total / divider, 'LUTMEM': lutmem_total / divider,
                      'Registers': register_total / divider, 'BRAM': bram_total / divider,
                      'DSPs': dsps_total / divider,
-                     'latency_lim_per_tensor_cycl': math.ceil(latency_total / e_cnt),
+                     'latency_lim_per_tensor_cycl': math.ceil(latency_total / ops_cnt),
                      'wrapper': {
                          'LUTLOG': wrapper_lutlog_total / divider,
                          'LUTMEM': wrapper_lutmem_total / divider,

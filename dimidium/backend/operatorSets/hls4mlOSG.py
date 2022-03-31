@@ -91,7 +91,8 @@ class Hls4mlOSG(BaseOSG):
             compl_list.append(e)
         self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True)
 
-    def _get_impl_prediction(self, op, target_hw, impl_type, consider_paramB=False, fallback_ops=None):
+    def _get_impl_prediction(self, op, target_hw, impl_type, consider_paramB=False, fallback_ops=None,
+                             consider_outB=False, custom_byte_factor=1.0):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
@@ -119,10 +120,13 @@ class Hls4mlOSG(BaseOSG):
                 relevant_entries = fallback_entries
                 used_fallback = True
             res_dict = get_avg_util_dict_bytes_based(relevant_entries, consider_paramB=consider_paramB,
-                                                     consider_ops_num=True)
+                                                     consider_ops_num=False, consider_outB=consider_outB)
         bytes_total = op.input_bytes
         if consider_paramB:
             bytes_total += op.parameter_bytes
+        if consider_outB:
+            bytes_total += op.output_bytes
+        bytes_total *= custom_byte_factor
         util_dict = {}
         util_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
         util_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
@@ -179,12 +183,14 @@ class Hls4mlOSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._generate_hls_conv1d, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
+                                                                                        consider_outB=True,
                                                                                         fallback_ops=['conv2d',
                                                                                                       'dense'])
             elif 'conv2d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_conv2d, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
+                                                                                        consider_outB=True,
                                                                                         fallback_ops=['conv1d',
                                                                                                       'dense'])
             elif 'global' in e and 'pool1d' in e:
@@ -230,6 +236,7 @@ class Hls4mlOSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._generate_hls_dense, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
+                                                                                        consider_outB=True,
                                                                                         fallback_ops=['conv1d',
                                                                                                       'conv2d'])
             elif 'batch_norm' in e:

@@ -129,6 +129,12 @@ class BaseOSG(metaclass=abc.ABCMeta):
         if (not callable(osg_func)) and (not isinstance(osg_func, bool) or (not osg_func)):
             return None
         list_of_contr = get_contr_func(op, target_hw, impl_type)
+        if list_of_contr is not None:
+            if isinstance(list_of_contr, list):
+                for poc in list_of_contr:
+                    op.add_possible_contract(poc)
+            else:
+                op.add_possible_contract(list_of_contr)
         return list_of_contr
 
     def get_op_info(self, op_str):

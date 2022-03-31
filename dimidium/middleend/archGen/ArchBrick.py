@@ -107,7 +107,7 @@ class ArchBrick(object):
                'req_util_comp': self.req_util_comp, 'req_util_mem': self.req_util_mem,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
                # 'possible OSGs': [], 'selected OSG': repr(self.selected_osg),
-               'possible contr': [], 'selected contr': repr(self.selected_contract),
+               'possible contr': [], 'selected contr': '',
                'selected impl. type:': repr(self.selected_impl_type),
                'ops': {}}
         for oi in self.ops:
@@ -119,6 +119,10 @@ class ArchBrick(object):
         for po in self.available_contracts:
             pos = repr(po)
             res['possible contr'].append(pos)
+        if self.selected_contract is None:
+            res['selected contr'] = 'None'
+        else:
+            res['selected contr'] = self.selected_contract.as_dict()
         self.update_dims()
         res['dims'] = '(inp: {}, out: {}, params: {})'.format(self.dims.inp, self.dims.out, self.dims.param)
         return res
@@ -184,8 +188,23 @@ class ArchBrick(object):
         self.oid_cnt += 1
         op.set_local_op_id(o_id)
         self.ops[o_id] = op
+        already_considered_contr = []
+        for opc in op.possible_contracts:
+            for my_contr in self.available_contracts:
+                # if my_contr.osg_intern_id == opc.osg_intern_id and \
+                #         my_contr.osg == opc.osg and my_contr.impl_type == opc.impl_type and \
+                #         my_contr.device == opc.device:
+                if my_contr.osg == opc.osg and my_contr.impl_type == opc.impl_type and \
+                        my_contr.device == opc.device and \
+                        my_contr not in already_considered_contr:
+                    my_contr.add_op_contract(opc)
+                    already_considered_contr.append(my_contr)
 
     def del_arch_op(self, op_i):
+        op = self.ops[op_i]
+        for bc in self.available_contracts:
+            for opc in op.possible_contracts:
+                bc.del_op_contract(opc)
         del self.ops[op_i]
         for i in range(op_i + 1, self.oid_cnt):
             self.ops[i].local_op_id -= 1
@@ -357,6 +376,8 @@ class ArchBrick(object):
             # device is set?
             # osg not relevant?
             if not c.ensure_detailed_utility_fits(consider_wrapper=False):
+                continue
+            if len(c.op_contracts) != len(self.ops):
                 continue
             still_possible.append(c)
         self.still_possible_contracts = still_possible

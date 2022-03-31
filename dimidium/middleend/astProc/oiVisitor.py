@@ -232,7 +232,11 @@ class OiPipeline:
                     for d in a.checked_type.shape:
                         bw_tmp *= int(d)
                         cur_dims.append(int(d))
-                    if type(a) is tvm.relay.expr.Constant:
+                    if (type(a) is tvm.relay.expr.Constant) or \
+                            ((isinstance(a, tvm.relay.expr.Var) or isinstance(a, tvm.relay.expr.GlobalVar)) and
+                             (not function_call and len(obj.cur_f_args) > 0) and
+                             (type(obj.cur_f_args[0]) is tvm.relay.expr.Constant)
+                            ):
                         # parameters
                         param_dim.append(cur_dims)
                         bw_param_B += bw_tmp
