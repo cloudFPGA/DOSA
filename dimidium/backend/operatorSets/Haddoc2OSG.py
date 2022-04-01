@@ -554,7 +554,7 @@ class Haddoc2OSG(BaseOSG):
             return None
         util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('conv2d', op.input_bytes, op.parameter_bytes,
                                                                            target_hw, consider_paramB=True,
-                                                                           custom_byte_factor=0.8)
+                                                                           custom_byte_factor=1.8)
         util_dict['LUTLOG'] *= _part_conv_
         util_dict['LUTMEM'] *= _part_conv_
         util_dict['Registers'] *= _part_conv_

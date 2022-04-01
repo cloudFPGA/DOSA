@@ -252,7 +252,7 @@ class Hls4mlOSG(BaseOSG):
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
                                                                                         consider_outB=True,
-                                                                                        custom_byte_factor=5,
+                                                                                        custom_byte_factor=4.8,
                                                                                         fallback_ops=['conv1d',
                                                                                                       'conv2d'])
             elif 'batch_norm' in e:
@@ -267,7 +267,7 @@ class Hls4mlOSG(BaseOSG):
             elif 'bias_add' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_biasAdd, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=True,
+                                                                                        consider_paramB=False,
                                                                                         fallback_ops=None,
                                                                                         custom_latency=op.dims.inp[-1])
             # FIXME
@@ -291,7 +291,7 @@ class Hls4mlOSG(BaseOSG):
                     or 'max' in e or 'min' in e or 'concat' in e or 'sum' in e:
                 self.relay2osg[e] = self._generate_hls_merge, \
                                     lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                  consider_paramB=True,
+                                                                                  consider_paramB=False,
                                                                                   fallback_ops=['add', 'sub', 'mul',
                                                                                                 'avg', 'max', 'min',
                                                                                                 'concat', 'sum'])
