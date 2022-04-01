@@ -12,6 +12,7 @@
 
 import json
 
+from dimidium.lib.units import gigaU
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
 from dimidium.backend.devices.dosa_roofline import DosaRoofline
@@ -42,6 +43,7 @@ class ArchNode(object):
         self.req_iter_hz = -1
         self.roofline = None
         self.max_perf_F = -1
+        self.max_perf_iter_based = -1
         self.used_perf_F = -1
         self.used_perf_share = 0
         self.used_comp_util_share = 0
@@ -67,7 +69,10 @@ class ArchNode(object):
                'pred_nodes': [], 'succ_nodes': [], 'possible_hw_types': [],
                'selected_hw_type': repr(self.selected_hw_type),
                'estimations': {'comp_util%': self.used_comp_util_share*100, 'mem_util%': self.used_mem_util_share*100,
-                               'used_perf%': self.used_perf_share*100},
+                               # 'used_perf%': self.used_perf_share*100},
+                               'req_iter_hz': self.req_iter_hz, 'used_iter_hz': self.used_iter_hz,
+                               'impl_Gflop_eqiv': self.used_perf_F / gigaU,
+                               'max_Gflop_based_on_impl_eqiv': self.max_perf_iter_based / gigaU},
                'blocks': [], 'engineContainers': [],
                'bricks': {}}
         # for tn in self.twins:
@@ -204,15 +209,19 @@ class ArchNode(object):
     #     self.used_perf_share = self.used_perf_F/self.max_perf_F
 
     def update_used_perf_util_contr(self, prefer_engine=False, add_switching_costs=False):
-        min_iter_hz = float('inf')
+        # min_iter_hz_req = float('inf')
+        max_iter_hz_req = 0
+        min_iter_hz_impl = float('inf')
         total_comp_per = 0
         total_mem_per = 0
         total_switching_comp_share = 0
         total_switching_mem_share = 0
+        total_flops_tmp = 0
+        all_flops_valid = True
         cur_osg = None
         for lb in self.local_brick_iter_gen():
-            if lb.req_iter_hz < min_iter_hz:
-                min_iter_hz = lb.req_iter_hz
+            if lb.req_iter_hz > max_iter_hz_req:
+                max_iter_hz_req = lb.req_iter_hz
             if self.targeted_hw is not None:
                 lb.update_util_estimation_contr(self.targeted_hw, prefer_engine)
                 total_comp_per += lb.req_util_comp
@@ -221,16 +230,26 @@ class ArchNode(object):
                     total_switching_comp_share += lb.switching_comp_share
                     total_switching_mem_share += lb.switching_mem_share
                     cur_osg = lb.tmp_osg
+                if lb.iter_hz < min_iter_hz_impl:
+                    min_iter_hz_impl = lb.iter_hz
+                if lb.used_flops > 0:
+                    total_flops_tmp += lb.used_flops
+                else:
+                    all_flops_valid = False
         if add_switching_costs:
             total_comp_per += total_switching_comp_share
             total_mem_per += total_switching_mem_share
         max_util = max(total_comp_per, total_mem_per)
-        max_iter = (1.0/max_util) * min_iter_hz
+        max_iter = (1.0/max_util) * min_iter_hz_impl
         self.max_iter_hz = max_iter
-        self.used_iter_hz = min_iter_hz
+        self.req_iter_hz = max_iter_hz_req
+        self.used_iter_hz = min_iter_hz_impl
         self.used_comp_util_share = total_comp_per
         self.used_mem_util_share = total_mem_per
         self.used_perf_share = self.used_iter_hz/self.max_iter_hz
+        if all_flops_valid:
+            self.used_perf_F = total_flops_tmp
+            self.max_perf_iter_based = self.used_perf_F * (max_iter/min_iter_hz_impl)
 
     def update_kernel_uuids(self, kuuid_start):
         # TODO: take parallelism into account?

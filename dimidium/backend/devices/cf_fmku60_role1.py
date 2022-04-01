@@ -134,7 +134,8 @@ class CfThemisto1(DosaBaseHw):
         self._gen_numbers()
         # ret = {'sweet_spot': 0.081}  # old DSP calc
         # ret = {'sweet_spot': 0.1566}  # for BRAM
-        ret = {'sweet_spot': 0.0100}  # for LUTRAM
+        # ret = {'sweet_spot': 0.0100}  # for LUTRAM
+        ret = {'sweet_spot': 0.00199}  # for LUTRAM
         # TODO: calculate dynamically respecting kappa
         return ret
 

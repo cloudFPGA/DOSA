@@ -41,6 +41,9 @@ class ArchBrick(object):
         self.oi_engine = 0
         self.oi_stream = 0
         self.flops = 0
+        self.iter_hz = 0
+        self.oi_iter = 0
+        self.used_flops = -1
         self.parameter_bytes = 0
         self.input_bytes = 0
         self.output_bytes = 0
@@ -73,6 +76,7 @@ class ArchBrick(object):
         self.available_contracts = []
         self.still_possible_contracts = []
         self.selected_contract = None
+        self.max_possible_iter = -1
         self.possible_hw_types = []
         self.req_util_comp = 0
         self.req_util_comp_engine = 0
@@ -106,7 +110,8 @@ class ArchBrick(object):
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': repr(self.used_dtype),
                'dims': '', 'tvm_node': str(self.tvm_node)[:100], 'req_flops': self.req_flops,
-               'req_latency_s': self.req_latency,
+               'req_latency_s': self.req_latency, 'req_iter_hz': self.req_iter_hz, 'iter_hz': self.iter_hz,
+               'oi_iter': self.oi_iter, 'flops_based_on_iters': self.used_flops,
                'req_util_comp': self.req_util_comp, 'req_util_mem': self.req_util_mem,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
                # 'possible OSGs': [], 'selected OSG': repr(self.selected_osg),
@@ -286,8 +291,18 @@ class ArchBrick(object):
     def set_brick_uuid(self, buuid):
         self.brick_uuid = buuid
 
-    def set_osg(self, osg: BaseOSG):
-        self.selected_osg = osg
+    # def set_osg(self, osg: BaseOSG):
+    #     self.selected_osg = osg
+
+    def set_contract(self, contr: BrickContract):
+        assert self.selected_impl_type == contr.impl_type
+        self.selected_contract = contr
+        self.selected_osg = contr.osg
+        self.iter_hz = contr.iter_hz
+        self.oi_iter = contr.oi_iter
+        # self.flops = self.iter_hz * contr.flops_per_iter
+        self.used_flops = self.iter_hz * contr.flops_per_iter
+        self.update_util_estimation_contr(contr.device)
 
     # def add_possible_osg(self, osg: BaseOSG):
     #     self.possible_osgs.append(osg)
@@ -436,6 +451,7 @@ class ArchBrick(object):
         self.switching_mem_share = tmp_best.switching_mem_share
         self.req_util_comp = share_comp
         self.req_util_mem = share_mem
+        self.iter_hz = tmp_best.iter_hz
         if self.selected_impl_type == BrickImplTypes.STREAM:
             self.req_util_mem_stream = share_mem
             self.req_util_comp_stream = share_comp
@@ -443,5 +459,8 @@ class ArchBrick(object):
             self.req_util_mem_engine = 0  # TODO: ? for engine, always 0!
             self.req_util_comp_engine = share_comp
         self.tmp_osg = tmp_best.osg
+        max_util = max(share_comp + self.switching_comp_share, share_mem + self.switching_mem_share)
+        max_iter = (1.0/max_util) * self.iter_hz
+        self.max_possible_iter = max_iter
 
 

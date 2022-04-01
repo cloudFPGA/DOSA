@@ -92,10 +92,18 @@ class Hls4mlOSG(BaseOSG):
         self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True)
 
     def _get_impl_prediction(self, op, target_hw, impl_type, consider_paramB=False, fallback_ops=None,
-                             consider_outB=False, custom_byte_factor=1.0, custom_latency=None):
+                             consider_outB=False, custom_byte_factor=1.0, custom_latency=None, max_param_dim=-1):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
+        if max_param_dim > 0:
+            op_param_dim = 1
+            for d in op.dims.param:
+                op_param_dim *= d
+            if op_param_dim > max_param_dim:
+                print("[DOSA:hls4ml:INFO] Can't offer an implementation for {}, due to exceeded parameter size."
+                      .format(repr(op)))
+                return None
         relevant_entries = []
         # TODO: prefer entries with shorter ops list?
         fallback_entries = []
@@ -198,14 +206,16 @@ class Hls4mlOSG(BaseOSG):
                                                                                         consider_paramB=True,
                                                                                         consider_outB=True,
                                                                                         fallback_ops=['conv2d',
-                                                                                                      'dense'])
+                                                                                                      'dense'],
+                                                                                        max_param_dim=500)
             elif 'conv2d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_conv2d, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
                                                                                         consider_outB=True,
                                                                                         fallback_ops=['conv1d',
-                                                                                                      'dense'])
+                                                                                                      'dense'],
+                                                                                        max_param_dim=500)
             elif 'global' in e and 'pool1d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_globalPool1d, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
@@ -270,11 +280,10 @@ class Hls4mlOSG(BaseOSG):
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=None,
                                                                                         custom_latency=op.dims.inp[-1])
-            # FIXME
-            # elif 'flatten' in e:
-            #     self.relay2osg['nn'][e] = self._generate_hls_flatten, \
-            #                               lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
-            #                                                                     0.0, 'dummy op', 0.0, 0.0)
+            elif 'flatten' in e:
+                self.relay2osg['nn'][e] = self._generate_hls_flatten, \
+                                          lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
+                                                                                0.0, 'dummy op', 0.0, 0.0)
             elif 'dropout' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_dropout, \
                                           lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,

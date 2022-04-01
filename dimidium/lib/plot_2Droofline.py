@@ -19,7 +19,7 @@ import matplotlib as mpl
 import multiprocessing
 
 import dimidium.lib.singleton as dosa_singleton
-from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies, BrickImplTypes
+from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies, BrickImplTypes, rf_calc_sweet_spot
 from dimidium.middleend.archGen.ArchDraft import ArchDraft
 from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.backend.devices.dosa_device import placeholderHw, DosaHwClasses
@@ -68,9 +68,11 @@ def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, 
                      rotation=90)
 
 
-def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8, print_debug=False):
+def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8, print_debug=False, alt_marker=None):
     x = []
     y = []
+    alt_x = []
+    alt_y = []
     for e in oi_list:
         if e['oi'] > x_max or e['oi'] < x_min:
             if print_debug:
@@ -81,18 +83,28 @@ def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8, print_d
                 e['oi'] = x_max
             else:
                 e['oi'] = x_min
-        x.append(e['oi'])
+        if alt_marker is not None and 'IMPL' in e['name']:
+            alt_x.append(e['oi'])
+        else:
+            x.append(e['oi'])
+        ny = e['perf']
         if not (__ylim_min__ < e['perf'] < __ylim_max__):
             if print_debug:
                 print("[DOSA:roofline] Warning: required performance {} of {} out of range, correcting it."
                       .format(e['perf'], e['name']))
             if __ylim_min__ > e['perf']:
-                y.append(__ylim_min__)
+                ny = __ylim_min__
             else:
-                y.append(__ylim_max__)
+                ny = __ylim_max__
+        if alt_marker is not None and 'IMPL' in e['name']:
+            alt_y.append(ny)
         else:
-            y.append(e['perf'])
+            y.append(ny)
     plt.scatter(x=x, y=y, marker=marker, color=color, zorder=z_order)
+    if alt_marker is not None and len(alt_x) > 0:
+        plt.scatter(x=alt_x, y=alt_y, marker=alt_marker, color=color, zorder=z_order+2)
+        return True
+    return False
 
 
 def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
@@ -123,8 +135,11 @@ def convert_oi_list_for_plot(dpl, default_to_ignore=1.0):
 
 
 def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=True, show_ops=False,
-                          selected_only=True, print_debug=False):
+                          selected_only=True, print_debug=False, iter_based=False):
     unit = gigaU
+    if iter_based:
+        selected_only = True
+        unit = kiloU
     target_string = ""
     if arch_draft.strategy == OptimizationStrategies.THROUGHPUT:
         target_string = "{} sps".format(arch_draft.target_sps)
@@ -137,6 +152,7 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
     cmpl_list2 = []
     uinp_list2 = []
     total_flops = 0
+    max_possible_iters = 0
     total_uinp_B = 0
     total_param_B = 0
     for bb in arch_draft.brick_iter_gen():
@@ -145,26 +161,45 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
         fn_name = bb.brick_uuid
         if show_ops:
             fn_name = bb.fn_label
-        cn = {'name': "{}_engine".format(fn_name), 'oi': bb.oi_engine}
-        un = {'name': "{}_stream".format(fn_name), 'oi': bb.oi_stream}
-        if bb.req_flops > 0:
-            req_flop_u_e = bb.req_flops / unit
-            req_flop_u_s = req_flop_u_e
+        if iter_based:
+            cn = {'name': "{}_engine".format(fn_name), 'oi': bb.oi_iter}
+            un = {'name': "{}_stream".format(fn_name), 'oi': bb.oi_iter}
+            cn2 = {'name': "{}_engine_req".format(fn_name), 'oi': bb.oi_iter, 'perf': bb.req_iter_hz / unit}
+            un2 = {'name': "{}_stream_req".format(fn_name), 'oi': bb.oi_iter, 'perf': bb.req_iter_hz / unit}
+            cn3 = {'name': "{}_engine_IMPL".format(fn_name), 'oi': bb.oi_iter, 'perf': bb.iter_hz / unit}
+            un3 = {'name': "{}_stream_IMPL".format(fn_name), 'oi': bb.oi_iter, 'perf': bb.iter_hz / unit}
+            # cn2 = {'name': "{}_engine".format(fn_name), 'oi': bb.oi_iter, 'perf': bb.req_iter_hz}
+            # un2 = {'name': "{}_stream".format(fn_name), 'oi': bb.oi_iter, 'perf': bb.req_iter_hz}
+            # total_flops += (bb.req_iter_hz / unit)
+            # total_flops += bb.iter_hz/unit
+            total_flops += 1
+            if bb.max_possible_iter > max_possible_iters:
+                max_possible_iters = bb.max_possible_iter
         else:
-            req_flop_u_e = bb.req_flops_engine / unit
-            req_flop_u_s = bb.req_flops_stream / unit
-        cn2 = {'name': "{}_engine".format(fn_name), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
-        un2 = {'name': "{}_stream".format(fn_name), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
-        total_flops += bb.flops
+            cn = {'name': "{}_engine".format(fn_name), 'oi': bb.oi_engine}
+            un = {'name': "{}_stream".format(fn_name), 'oi': bb.oi_stream}
+            if bb.req_flops > 0:
+                req_flop_u_e = bb.req_flops / unit
+                req_flop_u_s = req_flop_u_e
+            else:
+                req_flop_u_e = bb.req_flops_engine / unit
+                req_flop_u_s = bb.req_flops_stream / unit
+            cn2 = {'name': "{}_engine".format(fn_name), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
+            un2 = {'name': "{}_stream".format(fn_name), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
+            total_flops += bb.flops
         total_uinp_B += bb.input_bytes
         total_param_B += bb.parameter_bytes
         if selected_only:
             if bb.selected_impl_type == BrickImplTypes.UNDECIDED or bb.selected_impl_type == BrickImplTypes.ENGINE:
                 cmpl_list.append(cn)
                 cmpl_list2.append(cn2)
+                if iter_based:
+                    cmpl_list2.append(cn3)
             if bb.selected_impl_type == BrickImplTypes.UNDECIDED or bb.selected_impl_type == BrickImplTypes.STREAM:
                 uinp_list.append(un)
                 uinp_list2.append(un2)
+                if iter_based:
+                    uinp_list2.append(un3)
         else:
             cmpl_list.append(cn)
             uinp_list.append(un)
@@ -174,29 +209,68 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
     plt_name = "{} (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
                                                             str(arch_draft.strategy).split('.')[-1],
                                                             arch_draft.get_total_nodes_cnt())
-    return draw_roofline(plt_name, arch_draft.batch_size, arch_draft.target_hw_set[0].get_performance_dict(),
-                         arch_draft.target_hw_set[0].get_roofline_dict(), target_string, cmpl_list, uinp_list,
-                         cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug)
+    perf_dict = arch_draft.target_hw_set[0].get_performance_dict()
+    roof_dict = arch_draft.target_hw_set[0].get_roofline_dict()
+    if iter_based:
+        perf_dict['max_iter'] = max_possible_iters / unit
+        roof_dict['upper_limit_for_sweet_spot'] = max_possible_iters
+        af = gigaU / unit
+        perf_dict['bw_dram_gBs'] *= af
+        if 'bw_bram_gBs' in perf_dict:
+            bram_bw_B = perf_dict['bw_bram_gBs'] * gigaU
+            # sp = rf_calc_sweet_spot(self.oi_list, self.roof_F, self.bram_bw_B)
+            roof_dict['bw_for_sweet_spot'] = bram_bw_B * af
+        else:
+            dram_bw_B = perf_dict['bw_dram_gBs'] * gigaU
+            roof_dict['bw_for_sweet_spot'] = dram_bw_B
+        if 'bw_bram_gBs' in perf_dict:
+            perf_dict['bw_bram_gBs'] *= af
+        perf_dict['bw_netw_gBs'] *= af
+        perf_dict['bw_lutram_gBs'] *= af
+        # perf_dict['unit'] = unit
+    return draw_roofline(plt_name, arch_draft.batch_size, perf_dict, roof_dict, target_string, cmpl_list, uinp_list,
+                         cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug, iter_based)
 
 
 def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft, show_splits=True, show_labels=True,
-                                   selected_only=False, print_debug=False):
-        unit = gigaU
-        target_string = ""
-        if parent_draft.strategy == OptimizationStrategies.THROUGHPUT:
-            target_string = "{} sps".format(parent_draft.target_sps)
-        elif parent_draft.strategy == OptimizationStrategies.LATENCY:
-            target_string = "{} s/req".format(parent_draft.target_latency)
+                                   selected_only=False, print_debug=False, iter_based=False):
+    unit = gigaU
+    if iter_based:
+        selected_only = True
+        unit = kiloU
+    target_string = ""
+    if parent_draft.strategy == OptimizationStrategies.THROUGHPUT:
+        target_string = "{} sps".format(parent_draft.target_sps)
+    elif parent_draft.strategy == OptimizationStrategies.LATENCY:
+        target_string = "{} s/req".format(parent_draft.target_latency)
+    else:
+        target_string = "max {} nodes".format(parent_draft.target_resources)
+    cmpl_list = []
+    uinp_list = []
+    cmpl_list2 = []
+    uinp_list2 = []
+    total_flops = 0
+    max_possible_iters = 0
+    total_uinp_B = 0
+    total_param_B = 0
+    for bb in arch_node.local_brick_iter_gen():
+        if iter_based:
+            cn = {'name': "{}_{}_engine".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_iter}
+            un = {'name': "{}_{}_stream".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_iter}
+            cn2 = {'name': "{}_{}_engine_req".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_iter,
+                   'perf': bb.req_iter_hz/unit}
+            un2 = {'name': "{}_{}_stream_req".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_iter,
+                   'perf': bb.req_iter_hz/unit}
+            cn3 = {'name': "{}_{}_engine_IMPL".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_iter,
+                   'perf': bb.iter_hz/unit}
+            un3 = {'name': "{}_{}_stream_IMPL".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_iter,
+                   'perf': bb.iter_hz/unit}
+            # total_flops += (bb.req_iter_hz / unit)
+            # total_flops += bb.iter_hz/unit
+            total_flops += 1
+            if bb.max_possible_iter > max_possible_iters:
+                max_possible_iters = bb.max_possible_iter
         else:
-            target_string = "max {} nodes".format(parent_draft.target_resources)
-        cmpl_list = []
-        uinp_list = []
-        cmpl_list2 = []
-        uinp_list2 = []
-        total_flops = 0
-        total_uinp_B = 0
-        total_param_B = 0
-        for bb in arch_node.local_brick_iter_gen():
             cn = {'name': "{}_{}_engine".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_engine}
             un = {'name': "{}_{}_stream".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_stream}
             if bb.req_flops > 0:
@@ -208,32 +282,53 @@ def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft,
             cn2 = {'name': "{}_{}_engine".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_engine, 'perf': req_flop_u_e}
             un2 = {'name': "{}_{}_stream".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_stream, 'perf': req_flop_u_s}
             total_flops += bb.flops
-            total_uinp_B += bb.input_bytes
-            total_param_B += bb.parameter_bytes
-            if selected_only:
-                if bb.selected_impl_type == BrickImplTypes.ENGINE:
-                    cmpl_list.append(cn)
-                    cmpl_list2.append(cn2)
-                elif bb.selected_impl_type == BrickImplTypes.STREAM:
-                    uinp_list.append(un)
-                    uinp_list2.append(un2)
-            else:
+        total_uinp_B += bb.input_bytes
+        total_param_B += bb.parameter_bytes
+        if selected_only:
+            if bb.selected_impl_type == BrickImplTypes.ENGINE:
                 cmpl_list.append(cn)
-                uinp_list.append(un)
                 cmpl_list2.append(cn2)
+                if iter_based:
+                    cmpl_list2.append(cn3)
+            elif bb.selected_impl_type == BrickImplTypes.STREAM:
+                uinp_list.append(un)
                 uinp_list2.append(un2)
-        total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
-        plt_name = "{} (draft: {}, node: {}, dpl: {}, opt: {})".format(parent_draft.name, parent_draft.version,
-                                                              arch_node.get_node_id(), arch_node.data_parallelism_level,
-                                                              str(parent_draft.strategy).split('.')[-1])
-        perf_dict = arch_node.targeted_hw.get_performance_dict()
-        rl_dict = arch_node.targeted_hw.get_roofline_dict()
-        if arch_node.selected_hw_type != placeholderHw:
-            perf_dict = arch_node.selected_hw_type.get_performance_dict()
-            rl_dict = arch_node.selected_hw_type.get_roofline_dict()
-        return draw_roofline(plt_name, parent_draft.batch_size, perf_dict,
-                             rl_dict, target_string, cmpl_list, uinp_list,
-                             cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug)
+                if iter_based:
+                    uinp_list2.append(un3)
+        else:
+            cmpl_list.append(cn)
+            uinp_list.append(un)
+            cmpl_list2.append(cn2)
+            uinp_list2.append(un2)
+    total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
+    plt_name = "{} (draft: {}, node: {}, dpl: {}, opt: {})".format(parent_draft.name, parent_draft.version,
+                                                          arch_node.get_node_id(), arch_node.data_parallelism_level,
+                                                          str(parent_draft.strategy).split('.')[-1])
+    perf_dict = arch_node.targeted_hw.get_performance_dict()
+    roof_dict = arch_node.targeted_hw.get_roofline_dict()
+    if arch_node.selected_hw_type != placeholderHw:
+        perf_dict = arch_node.selected_hw_type.get_performance_dict()
+        rl_dict = arch_node.selected_hw_type.get_roofline_dict()
+    if iter_based:
+        perf_dict['max_iter'] = max_possible_iters / unit
+        roof_dict['upper_limit_for_sweet_spot'] = max_possible_iters
+        af = gigaU / unit
+        perf_dict['bw_dram_gBs'] *= af
+        if 'bw_bram_gBs' in perf_dict:
+            bram_bw_B = perf_dict['bw_bram_gBs'] * gigaU
+            # sp = rf_calc_sweet_spot(self.oi_list, self.roof_F, self.bram_bw_B)
+            roof_dict['bw_for_sweet_spot'] = bram_bw_B * af
+        else:
+            dram_bw_B = perf_dict['bw_dram_gBs'] * gigaU
+            roof_dict['bw_for_sweet_spot'] = dram_bw_B
+        if 'bw_bram_gBs' in perf_dict:
+            perf_dict['bw_bram_gBs'] *= af
+        perf_dict['bw_netw_gBs'] *= af
+        perf_dict['bw_lutram_gBs'] *= af
+        # perf_dict['unit'] = unit
+    return draw_roofline(plt_name, parent_draft.batch_size, perf_dict,
+                         roof_dict, target_string, cmpl_list, uinp_list,
+                         cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug, iter_based)
 
 
 def generate_roofline_plt_old(detailed_analysis, target_sps, used_batch, used_name, perf_dict, roofline_dict,
@@ -245,13 +340,24 @@ def generate_roofline_plt_old(detailed_analysis, target_sps, used_batch, used_na
 
 
 def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string, cmpl_list, uinp_list, cmpl_list2, uinp_list2,
-                  total, show_splits=True, show_labels=True, print_debug=False):
+                  total, show_splits=True, show_labels=True, print_debug=False, iter_based=False):
     # Arithmetic intensity vector
-    ai_list_very_small = np.arange(0.001, 0.01, 0.001)
-    ai_list_small = np.arange(0.01, 1, 0.01)
-    ai_list_middle = np.arange(1, 1500, 0.1)
-    ai_list_big = np.arange(1501, 10100, 1)
-    ai_list = np.concatenate((ai_list_very_small, ai_list_small, ai_list_middle, ai_list_big))
+    if iter_based:
+        ai_list_very_very_very_small = np.arange(0.00001, 0.0001, 0.00001)
+        ai_list_very_very_small = np.arange(0.0001, 0.001, 0.0001)
+        ai_list_very_small = np.arange(0.001, 0.01, 0.001)
+        ai_list_small = np.arange(0.01, 1, 0.01)
+        # ai_list_middle = np.arange(1, 1500, 0.1)
+        ai_list_middle = np.arange(1, 5, 0.1)
+        # ai_list_big = np.arange(1501, 100, 1)
+        ai_list = np.concatenate((ai_list_very_very_very_small, ai_list_very_very_small, ai_list_very_small,
+                                  ai_list_small, ai_list_middle))
+    else:
+        ai_list_very_small = np.arange(0.001, 0.01, 0.001)
+        ai_list_small = np.arange(0.01, 1, 0.01)
+        ai_list_middle = np.arange(1, 1500, 0.1)
+        ai_list_big = np.arange(1501, 10100, 1)
+        ai_list = np.concatenate((ai_list_very_small, ai_list_small, ai_list_middle, ai_list_big))
 
     # plots
     # fig, ax1 = plt.subplots()
@@ -260,6 +366,12 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     MY_WIDTH = 1.6
     # line_style = 'dotted'
     line_style = 'solid'
+    if iter_based:
+        ylim_min = 0.1
+        ylim_max = 1000000
+    else:
+        ylim_min = __ylim_min__
+        ylim_max = __ylim_max__
 
     plt.figure()
 
@@ -268,6 +380,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     if perf_dict['type'] in [str(DosaHwClasses.FPGA_xilinx), str(DosaHwClasses.FPGA_generic)]:
         is_fpga = True
         upper_limit = perf_dict['dsp48_gflops']
+        if iter_based:
+            upper_limit = perf_dict['max_iter']
         p_fpga_ddr_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_dram_gBs']) for x in ai_list]
         p_fpga_bram_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_bram_gBs']) for x in ai_list]
         p_fpga_network_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_netw_gBs']) for x in ai_list]
@@ -307,17 +421,34 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         #                 color='tomato', alpha=alpha, rasterized=True, zorder=2)
 
         sweet_spot = roofline_dict['sweet_spot']
+        if 'bw_for_sweet_spot' in roofline_dict:
+            if 'upper_limit_for_sweet_spot' in roofline_dict:
+                t_up = roofline_dict['upper_limit_for_sweet_spot']
+            else:
+                t_up = upper_limit
+            sweet_spot = rf_calc_sweet_spot(ai_list, t_up, roofline_dict['bw_for_sweet_spot'])
+            # print('calculated sweet spot: {}'.format(sweet_spot))
         color = 'darkmagenta'
         line_style = 'solid'  # otherwise we see the memory lines...
         plt.hlines(y=upper_limit, xmin=sweet_spot, xmax=ai_list[-1], colors=color, linestyles=line_style, linewidth=MY_WIDTH*1.2, zorder=3)
         # text = "{0:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE, {})".format(upper_limit)
         text = "{:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE, {})"\
             .format(upper_limit, dosa_singleton.config.dtype.dosa_flops_explanation_str)
+        if iter_based:
+            text = "{:.2f} Kiter/s theoretical ROLE peak performance (application specific)" \
+                .format(upper_limit)
         # text_space = 100
         text_space = 10
-        plt.text(x=sweet_spot, y=upper_limit+text_space, s=text, color=color, fontsize=MY_SIZE_SMALL)
+        xpos = sweet_spot
+        if xpos < 0.01:
+            xpos = 0.01
+            if iter_based:
+                xpos = 0.001
+        plt.text(x=xpos, y=upper_limit+text_space, s=text, color=color, fontsize=MY_SIZE_SMALL)
     elif perf_dict['type'] in [str(DosaHwClasses.CPU_x86), str(DosaHwClasses.CPU_generic)]:
         upper_limit = perf_dict['cpu_gflops']
+        if iter_based:
+            upper_limit = perf_dict['max_iter']
         p_cpu_dram_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_dram_gBs']) for x in ai_list]
         p_cpu_network_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_netw_gBs']) for x in ai_list]
 
@@ -325,11 +456,16 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         plt.plot(ai_list, p_cpu_network_max, color='tab:green', linewidth=MY_WIDTH, label='current CPU network bandwidth', linestyle=line_style, zorder=1)
 
         sweet_spot = roofline_dict['sweet_spot']
+        if 'bw_for_sweet_spot' in roofline_dict:
+            sweet_spot = rf_calc_sweet_spot(ai_list, upper_limit, roofline_dict['bw_for_sweet_spot'])
         color = 'darkmagenta'
         line_style = 'solid'  # otherwise we see the memory lines...
         plt.hlines(y=upper_limit, xmin=sweet_spot, xmax=ai_list[-1], colors=color, linestyles=line_style, linewidth=MY_WIDTH*1.2, zorder=3)
         # text = "{0:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE, {})".format(upper_limit)
         text = "{:.2f} GFLOPS/s theoretical CPU peak performance".format(upper_limit)
+        if iter_based:
+            text = "{:.2f} kiter/s theoretical CPU peak performance (application specific)" \
+                .format(upper_limit)
         # text_space = 100
         text_space = 10
         plt.text(x=sweet_spot, y=upper_limit+text_space, s=text, color=color, fontsize=MY_SIZE_SMALL)
@@ -344,6 +480,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     font_factor = 0.8
     marker1 = 'P'
     marker2 = 'D'
+    # alt_marker = '*'
+    alt_marker = 'x'
 
     # marker_line = 65
     # oai = 0.17
@@ -376,19 +514,27 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # text = 'Particle Methods'
     # plt.text(x=oai*1.1, y=marker_line-55, s=text, color=color, fontsize=MY_SIZE*font_factor, ha='left', va='top')
 
-    draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, __ylim_max__, cmpl_list,
+    draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, ylim_max, cmpl_list,
                  ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug)
-    draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, __ylim_max__, uinp_list,
+    draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, ylim_max, uinp_list,
                  ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug)
 
-    draw_oi_marker(plt, color, marker1, cmpl_list2, ai_list[0], ai_list[-1], print_debug=print_debug)
-    draw_oi_marker(plt, color2, marker2, uinp_list2, ai_list[0], ai_list[-1], print_debug=print_debug)
+    used_alt_1 = draw_oi_marker(plt, color, marker1, cmpl_list2, ai_list[0], ai_list[-1], print_debug=print_debug,
+                                alt_marker=alt_marker)
+    used_alt_2 = draw_oi_marker(plt, color2, marker2, uinp_list2, ai_list[0], ai_list[-1], print_debug=print_debug,
+                                alt_marker=alt_marker)
     marker1_text = 'req. perf. f. Engine arch. (w/ {}, batch {})'.format(target_string, used_batch)
     marker1_legend = mpl.lines.Line2D([], [], color=color, marker=marker1, linestyle='None', markersize=10,
                                       label=marker1_text)
     marker2_text = 'req. perf. f. Stream arch. (w/ {}, batch {})'.format(target_string, used_batch)
     marker2_legend = mpl.lines.Line2D([], [], color=color2, marker=marker2, linestyle='None', markersize=10,
                                       label=marker2_text)
+    if used_alt_2 or used_alt_1:
+        marker3_text = 'implemented performance'
+        marker3_legend = mpl.lines.Line2D([], [], color='black', marker=alt_marker, linestyle='None', markersize=10,
+                                      label=marker3_text)
+    else:
+        marker3_legend = None
 
     # color3 = 'orchid'
     color3 = 'aqua'
@@ -444,15 +590,24 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     plt.xscale('log', base=10)
     plt.yscale('log', base=10)
     # plt.ylim(0.01, 100000)
-    plt.ylim(__ylim_min__, __ylim_max__)
     plt.xlim(ai_list[0], ai_list[-1])
+    plt.ylim(ylim_min, ylim_max)
 
-    plt.xlabel('operational intensity (OI) [FLOPS/Byte]', fontsize=MY_SIZE)
-    plt.ylabel('attainable performance [GFLOPS/s]', fontsize=MY_SIZE)
+    if iter_based:
+        plt.xlabel('operational intensity (OI) [iter/Byte]', fontsize=MY_SIZE)
+        plt.ylabel('attainable performance [Kiter/s]', fontsize=MY_SIZE)
+    else:
+        plt.xlabel('operational intensity (OI) [FLOPS/Byte]', fontsize=MY_SIZE)
+        plt.ylabel('attainable performance [GFLOPS/s]', fontsize=MY_SIZE)
+
+    # unit_char = 'G'
+    # if 'unit' in perf_dict:
 
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(marker1_legend)
     handles.append(marker2_legend)
+    if marker3_legend is not None:
+        handles.append(marker3_legend)
     title = "DOSA Roofline for {}".format(used_name)
     legend = plt.legend(handles=handles, ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)
     plt.grid(True, which="major", ls="-", color='0.89')

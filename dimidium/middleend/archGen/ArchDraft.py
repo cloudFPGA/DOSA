@@ -892,8 +892,9 @@ class ArchDraft(object):
                 if selected_contract is None:
                     print("[DOSA:archGen:ERROR] couldn't find any valid OSG for brick {}. STOP.".format(lb.brick_uuid))
                     exit(1)
-                lb.set_osg(selected_contract.osg)
-                lb.selected_contract = selected_contract
+                # lb.set_osg(selected_contract.osg)
+                # lb.selected_contract = selected_contract
+                lb.set_contract(selected_contract)
         # ensure all are decided
         for bb in self.brick_iter_gen():
             assert bb.selected_contract is not None
@@ -964,8 +965,9 @@ class ArchDraft(object):
                           "available.".format(bb.brick_uuid))
                     bb.set_impl_type(BrickImplTypes.ENGINE)
                 else:
-                    bb.set_osg(selected_contract.osg)
-                    bb.selected_contract = selected_contract
+                    # bb.set_osg(selected_contract.osg)
+                    # bb.selected_contract = selected_contract
+                    bb.set_contract(selected_contract)
                     if verbose:
                         print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.brick_uuid) +
                               " since it is an engine with only one operation.")

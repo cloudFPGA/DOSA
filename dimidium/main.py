@@ -134,6 +134,9 @@ if __name__ == '__main__':
                                                      show_ops=True, selected_only=False, print_debug=False)
         plt22 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
                                                      show_ops=True, selected_only=True, print_debug=False)
+        plt23 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
+                                                      show_ops=True, selected_only=True, print_debug=False,
+                                                      iter_based=True)
         plt8 = plot_3Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
                                                      print_debug=False)
         plt_nodes = []
@@ -143,6 +146,9 @@ if __name__ == '__main__':
             new_plt = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
                                                                      show_splits=True, show_labels=True, selected_only=True,
                                                                      print_debug=False)
+            new_plt1 = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
+                                                                     show_splits=True, show_labels=True, selected_only=True,
+                                                                     print_debug=False, iter_based=True)
             new_plt2 = plot_3Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
                                                                      show_splits=False, show_labels=True, selected_only=True,
                                                                      print_debug=False)

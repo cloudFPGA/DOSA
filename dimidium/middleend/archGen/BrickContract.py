@@ -12,6 +12,8 @@
 import json
 
 from dimidium.backend.devices.dosa_device import DosaHwClasses
+from dimidium.lib.units import kiloU
+from dimidium.lib.util import BrickImplTypes
 from dimidium.middleend.archGen.DosaContract import DosaContract
 
 
@@ -91,6 +93,7 @@ class BrickContract(DosaContract):
         self.switching_comp_share = -1
         self.switching_mem_share = -1
         self.total_bytes = 0
+        first_total_bytes = None
         self.oi_iter = 0
         self.detailed_FPGA_component_share['LUTLOG']    = 0.0
         self.detailed_FPGA_component_share['LUTMEM']    = 0.0
@@ -115,14 +118,23 @@ class BrickContract(DosaContract):
                 self.detailed_FPGA_wrapper_share = opc.detailed_FPGA_wrapper_share
             self.comp_util_share += opc.comp_util_share
             self.mem_util_share += opc.mem_util_share
-            self.total_bytes += opc.total_bytes  # all are engine or stream -> so is correct
+            # self.total_bytes += opc.total_bytes  # all are engine or stream -> so is correct
+            # -> NO...would calc internal output/input
+            if first_total_bytes is None:
+                first_total_bytes = opc.total_bytes
+                self.total_bytes += opc.op.input_bytes
+            if self.impl_type == BrickImplTypes.ENGINE:
+                self.total_bytes += opc.op.parameter_bytes
             if opc.detailed_FPGA_component_share is not None:
                 self.detailed_FPGA_component_share['LUTLOG']          += opc.detailed_FPGA_component_share['LUTLOG']
                 self.detailed_FPGA_component_share['LUTMEM']          += opc.detailed_FPGA_component_share['LUTMEM']
                 self.detailed_FPGA_component_share['Registers']       += opc.detailed_FPGA_component_share['Registers']
                 self.detailed_FPGA_component_share['BRAM']            += opc.detailed_FPGA_component_share['BRAM']
                 self.detailed_FPGA_component_share['DSPs']            += opc.detailed_FPGA_component_share['DSPs']
-        self.oi_iter = self.total_bytes / self.iter_hz
+        # self.oi_iter = self.iter_hz / self.total_bytes
+        # self.oi_iter = kiloU / self.total_bytes
+        self.oi_iter = 1 / self.total_bytes
+        # self.oi_iter = self.iter_hz / first_total_bytes
 
     def __repr__(self):
         return "BrickContr({} on {} using {}/{}: {:.2f}/s, {:.2f}c%, {:.2f}m%, switching {:.2f}%c, {:.2f}%m)" \
