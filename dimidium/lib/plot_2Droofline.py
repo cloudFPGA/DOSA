@@ -349,7 +349,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         ai_list_small = np.arange(0.01, 1, 0.01)
         # ai_list_middle = np.arange(1, 1500, 0.1)
         ai_list_middle = np.arange(1, 5, 0.1)
-        # ai_list_big = np.arange(1501, 100, 1)
+        # ai_list_big = np.arange(1501, 10100, 10)
         ai_list = np.concatenate((ai_list_very_very_very_small, ai_list_very_very_small, ai_list_very_small,
                                   ai_list_small, ai_list_middle))
     else:

@@ -134,6 +134,7 @@ class BrickContract(DosaContract):
         # self.oi_iter = self.iter_hz / self.total_bytes
         # self.oi_iter = kiloU / self.total_bytes
         self.oi_iter = 1 / self.total_bytes
+        # self.oi_iter = self.total_bytes
         # self.oi_iter = self.iter_hz / first_total_bytes
 
     def __repr__(self):

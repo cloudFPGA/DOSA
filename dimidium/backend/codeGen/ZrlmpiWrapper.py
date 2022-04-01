@@ -338,7 +338,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
     def get_add_constr_lines(self):
         add_constr_lines = '# necessary to avoid un-usable network due to timing failures...\n' + \
                            'create_pblock pblock_MPE\n' + \
-                           'resize_pblock [get_pblocks pblock_MPE] -add {CLOCKREGION_X1Y3:CLOCKREGION_X2Y3 ' \
-                           'CLOCKREGION_X1Y2}\n' + \
+                           'resize_pblock [get_pblocks pblock_MPE] -add {CLOCKREGION_X1Y3:CLOCKREGION_X2Y3 ' + \
+                           '}\n' + \
                            'add_cells_to_pblock [get_pblocks pblock_MPE] [get_cells ROLE/MPE]\n'
+                            # 'CLOCKREGION_X1Y2'  --> as additon, makes it worse!
         return add_constr_lines
