@@ -137,6 +137,11 @@ class Haddoc2OSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._generate_hdl_flatten_instance, self._predict_flatten_drop
             elif 'dropout' in e:
                 self.relay2osg['nn'][e] = self._generate_hdl_dropout_instance, self._predict_flatten_drop
+        for e in self.relay2osg:
+            if type(e) == dict:
+                continue
+            elif 'tanh' in e:
+                self.relay2osg[e] = self._generate_hdl_tanh_instance, self._predict_tanh
 
     def _copy_hdl_lib(self, target_hdl_dir, block_id):
         os.system("cp -n {}/* {}/".format(self.my_hdl_template_folder, target_hdl_dir))
@@ -602,7 +607,7 @@ class Haddoc2OSG(BaseOSG):
         if next_next_op is not None and next_next_op.op_call == 'nn.relu':
             op.haddoc_activation = 'relu'
             consumed_opt_ops += 1
-        elif next_next_op is not None and next_next_op.op_call == 'nn.tanh':
+        elif next_next_op is not None and (next_next_op.op_call == 'nn.tanh' or next_next_op.op_call == 'tanh'):
             op.haddoc_activation = 'tanh'
             consumed_opt_ops += 1
         else:

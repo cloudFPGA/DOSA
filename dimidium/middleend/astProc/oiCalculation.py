@@ -116,6 +116,29 @@ class OiCalculator(object):
         oi_uinp = float(flop_total) / float(input_B)
         return oi_cmpl, oi_uinp, flop_total
 
+    def calc_tanh(self, op_name, data_dim, param_dim, out_dim, attrs, size_b):
+        layout_in = data_dim[0]
+        layout_out = out_dim[0]
+        batch_n = layout_in[0]
+        in_channel = layout_in[1]
+        out_channel = layout_out[1]
+        cc_per_batch = 4  # 4 FLOPs per element?
+        for d in layout_in[1:]:
+            cc_per_batch *= d
+        flop_per_cc = 1
+        flop_total = cc_per_batch * flop_per_cc * batch_n
+        # calculate bw requirements
+        param_B = 0
+        input_B = size_b
+        for e in layout_in:
+            input_B *= e
+        # calculate oi complete (input + params)
+        data_cmpl = param_B + input_B
+        oi_cmpl = float(flop_total) / float(data_cmpl)
+        # calculate oi only "user" input
+        oi_uinp = float(flop_total) / float(input_B)
+        return oi_cmpl, oi_uinp, flop_total
+
     def calc_relu(self, op_name, data_dim, param_dim, out_dim, attrs, size_b):
         # one compare per element
         layout_in = data_dim[0]

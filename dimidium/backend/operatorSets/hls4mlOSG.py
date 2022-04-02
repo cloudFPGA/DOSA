@@ -929,6 +929,10 @@ class Hls4mlOSG(BaseOSG):
             layer_config['activity_regularizer'] = None
             layer_config['activation'] = 'softmax'
             consumed_opt_ops += 1
+        elif next_next_op is not None and (next_next_op.op_call == 'nn.tanh' or next_next_op.op_call == 'tanh'):
+            layer_config['activity_regularizer'] = None
+            layer_config['activation'] = 'tanh'
+            consumed_opt_ops += 1
         else:
             layer_config['activity_regularizer'] = None
             # conv_config['activation'] = None  # don't put the key in
