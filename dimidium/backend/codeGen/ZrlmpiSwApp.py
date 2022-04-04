@@ -45,17 +45,8 @@ class ZrlmpiSwApp:
         repetitions = 1 + dosa_singleton.config.backend.comm_message_interleaving
         # TODO: empty pipeline store at the end...
         comm_plan_one_iteration_length = 2 * repetitions
-        # 3. copy dosa_infer.hpp
-        with open(os.path.join(self.templ_dir_path, 'dosa_infer.hpp'), 'r') as in_file, \
-                open(os.path.join(self.out_dir_path, 'dosa_infer.hpp'), 'w') as out_file:
-            for line in in_file.readlines():
-                if 'DOSA_ADD_APP_NODE_DEFINES' in line:
-                    tmpl = '#define DOSA_WRAPPER_PROG_LENGTH {total_l}\n#define DOSA_MINIMAL_PROG_LENGTH {min_l}\n'
-                    outline = tmpl.format(total_l=comm_plan_len, min_l=comm_plan_one_iteration_length)
-                else:
-                    outline = line
-                out_file.write(outline)
-        # 4. generate dosa_infer.cpp
+        all_iterations = 0
+        # 3. generate dosa_infer.cpp
         with open(os.path.join(self.templ_dir_path, 'dosa_infer.cpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'dosa_infer.cpp'), 'w') as out_file:
             for line in in_file.readlines():
@@ -85,6 +76,19 @@ class ZrlmpiSwApp:
                         #                        c0=c0, r0=ie0['rank'], l0=l0, t0=repetitions)
                         outline += tmpl.format(i=i, i1=i+1, c1=c1, r1=ie1['rank'], l1=l1, t1=ie1['repeat'],
                                                c0=c0, r0=ie0['rank'], l0=l0, t0=ie0['repeat'])
+                        if all_iterations == 0:
+                            # first pair
+                            all_iterations = ie1['repeat'] + ie0['repeat']
+                else:
+                    outline = line
+                out_file.write(outline)
+        # 4. copy dosa_infer.hpp
+        with open(os.path.join(self.templ_dir_path, 'dosa_infer.hpp'), 'r') as in_file, \
+                open(os.path.join(self.out_dir_path, 'dosa_infer.hpp'), 'w') as out_file:
+            for line in in_file.readlines():
+                if 'DOSA_ADD_APP_NODE_DEFINES' in line:
+                    tmpl = '#define DOSA_WRAPPER_PROG_LENGTH {total_l}\n#define DOSA_MINIMAL_PROG_LENGTH {min_l}\n'
+                    outline = tmpl.format(total_l=comm_plan_len, min_l=all_iterations)
                 else:
                     outline = line
                 out_file.write(outline)
