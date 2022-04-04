@@ -48,7 +48,8 @@ class ZrlmpiCommLib(BaseCommLib):
             build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
             if isinstance(build_tool, cFBuild1):
                 add_constr_lines = comm_wrapper.get_add_constr_lines()
-                build_tool.add_additional_constraint_lines(add_constr_lines)
+                if add_constr_lines is not None:
+                    build_tool.add_additional_constraint_lines(add_constr_lines)
         elif isinstance(build_tool, BaseSwBuild):
             if comm_plan.node.node_id == 0:
                 # SW app

@@ -386,10 +386,9 @@ class ArchBrick(object):
 
     def update_possible_contracts(self):
         still_possible = []
+        within_util_exception = []
         for c in self.available_contracts:
             if self.selected_impl_type != BrickImplTypes.UNDECIDED and c.impl_type != self.selected_impl_type:
-                continue
-            if c.comp_util_share > 1.0 or c.mem_util_share > 1.0:
                 continue
             # device is set?
             # osg not relevant?
@@ -397,8 +396,21 @@ class ArchBrick(object):
                 continue
             if len(c.op_contracts) != len(self.ops):
                 continue
+            if c.comp_util_share > dosa_singleton.config.utilization.dosa_xi or \
+                    c.mem_util_share > dosa_singleton.config.utilization.dosa_xi:
+                if c.comp_util_share > dosa_singleton.config.utilization.dosa_xi_exception or \
+                        c.mem_util_share > dosa_singleton.config.utilization.dosa_xi_exception:
+                    # to big in all cases
+                    continue
+                else:
+                    within_util_exception.append(c)
             still_possible.append(c)
-        self.still_possible_contracts = still_possible
+        if len(still_possible) == 0 and len(within_util_exception) > 0:
+            print('[DOSA:ContrMngt:INFO] Brick {}: Using contract above utilization target, but within exception, '
+                  'because no other contract is available.'.format(self.brick_uuid))
+            self.still_possible_contracts = within_util_exception
+        else:
+            self.still_possible_contracts = still_possible
 
     # def update_possible_hw_types(self):
     #     new_possible_hw_types = []

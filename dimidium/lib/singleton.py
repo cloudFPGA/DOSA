@@ -55,6 +55,9 @@ def init_singleton(config_dict):
     config.utilization.dosa_mu_mem = float(config_dict['dosa_learning']['mu']['memory'])
     config.utilization.xilinx_luts_to_dsp_factor = float(config_dict['utilization']['xilinx_luts_to_dsp_factor'])
     config.utilization.xilinx_lutram_to_bram_factor = float(config_dict['utilization']['xilinx_lutram_to_bram_factor'])
+    config.utilization.dosa_xi = float(config_dict['utilization']['max_utilization_fpgas'])
+    config.utilization.dosa_xi_exception = float(config_dict['utilization']['max_utilization_fpgas']) + \
+                                           float(config_dict['utilization']['utilization_exception'])
 
     is_initiated = True
     return 0

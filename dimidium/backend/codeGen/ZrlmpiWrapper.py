@@ -342,4 +342,5 @@ class ZrlmpiWrapper(CommunicationWrapper):
                            '}\n' + \
                            'add_cells_to_pblock [get_pblocks pblock_MPE] [get_cells ROLE/MPE]\n'
                             # 'CLOCKREGION_X1Y2'  --> as additon, makes it worse!
-        return add_constr_lines
+        # return add_constr_lines
+        return None

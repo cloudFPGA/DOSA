@@ -917,7 +917,9 @@ class ArchDraft(object):
                         cur_comp_share += cur_node.bricks[i].switching_comp_share
                         cur_mem_share += cur_node.bricks[i].switching_mem_share
                         cur_osg = cur_node.bricks[i].tmp_osg
-                    if cur_comp_share > 1.0 or cur_mem_share > 1.0:
+                    # if cur_comp_share > 1.0 or cur_mem_share > 1.0:
+                    if cur_comp_share > dosa_singleton.config.utilization.dosa_xi or \
+                            cur_mem_share > dosa_singleton.config.utilization.dosa_xi:
                         if i == 0:
                             i = 1
                         new_node = cur_node.split_horizontal(i)  # including update_used_perf_util

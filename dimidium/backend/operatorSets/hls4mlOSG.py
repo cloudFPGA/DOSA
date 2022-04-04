@@ -207,6 +207,7 @@ class Hls4mlOSG(BaseOSG):
                                                                                         consider_outB=True,
                                                                                         fallback_ops=['conv2d',
                                                                                                       'dense'],
+                                                                                        custom_byte_factor=1.8,
                                                                                         max_param_dim=500)
             elif 'conv2d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_conv2d, \
@@ -215,6 +216,7 @@ class Hls4mlOSG(BaseOSG):
                                                                                         consider_outB=True,
                                                                                         fallback_ops=['conv1d',
                                                                                                       'dense'],
+                                                                                        custom_byte_factor=1.8,
                                                                                         max_param_dim=500)
             elif 'global' in e and 'pool1d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_globalPool1d, \
@@ -262,7 +264,7 @@ class Hls4mlOSG(BaseOSG):
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
                                                                                         consider_outB=True,
-                                                                                        custom_byte_factor=4.8,
+                                                                                        custom_byte_factor=2.3,
                                                                                         fallback_ops=['conv1d',
                                                                                                       'conv2d'])
             elif 'batch_norm' in e:

@@ -42,6 +42,49 @@ class CfThemisto1(DosaBaseHw):
         freq_fpga_ghz = 0.156
         self.freq_fpga = freq_fpga_mhz * megaU  # Hz
         self.clk_fpga_ns = 6.4  # ns
+
+
+        # PR Position 8
+        cur_role_lutlog    = 122400  # LUT CLB == LUT as LOGIC (if unused)
+        cur_role_registers = 244800
+        cur_role_lutmem    = 61920
+        cur_role_brams     = 396
+        cur_role_dsps      = 1200
+
+        # MPE, DNA & DBG Cores
+        dbg_lutlog    = 7374
+        dbg_registers = 12074
+        dbg_lutmem    = 1999
+        dbg_bram      = 82.5
+        dbg_dsp       = 0
+        mpe_lutlog    = 5408
+        mpe_registers = 5723
+        mpe_lutmem    = 110
+        mpe_bram      = 14
+        mpe_dsp       = 3
+        dna_lutlog    = 1269
+        dna_registers = 1392
+        dna_lutmem    = 86
+        dna_bram      = 8
+        dna_dsp       = 0
+        taf_lutlog    = 508
+        taf_registers = 855
+        taf_lutmem    = 24
+        taf_bram      = 1.5
+        taf_dsp       = 0
+
+        overhead_lutlog = dbg_lutlog + mpe_lutlog + dna_lutlog + taf_lutlog
+        overhead_registers = dbg_registers + mpe_registers + dna_registers + taf_registers
+        overhead_lutmem = dbg_lutmem + mpe_lutmem + dna_lutmem + taf_lutmem
+        overhead_bram = dbg_bram + mpe_bram + dna_bram + taf_bram
+        overhead_dsp = dbg_dsp + mpe_dsp + dna_dsp + taf_dsp
+
+        role8_luts_available = cur_role_lutlog - overhead_lutlog
+        role8_ff_available = cur_role_registers - overhead_registers
+        role8_lutram_available = cur_role_lutmem - overhead_lutmem
+        role8_brams = cur_role_brams - overhead_bram
+        role8_dsps = cur_role_dsps - overhead_dsp
+
         us_dsp48_s2_fmax_g = 0.661  # Ghz
         ku060_num_dsp = 2760.0
         # dsp_flop_s = 4.0 * us_dsp48_s2_fmax_g
@@ -55,7 +98,6 @@ class CfThemisto1(DosaBaseHw):
         # cF_bigRole_dsp48_gflops = 1028.0 * 4.0 * freq_fpga_ghz
         big_role_dsps = 1028.0
         # role6_dsps = 1106
-        role8_dsps = 1200  # POSITION 8
         self.dsps = role8_dsps
         self.cF_bigRole_dsp48_gflops = role8_dsps * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
 
@@ -71,7 +113,6 @@ class CfThemisto1(DosaBaseHw):
         fpga_brams = 1080
         # big_role_brams = 351
         # role6_brams = 348
-        role8_brams = 396  # POSITION 8
         self.bram = role8_brams
         b_s_fpga_bram_Bs = (role8_brams * 72 / 8) / (
                 1 / self.freq_fpga)  # 1080 BRAMs with 72 bit write per cycle each, Bytes/s
@@ -85,7 +126,6 @@ class CfThemisto1(DosaBaseHw):
         # big_role_lutram_available_B = 52640.0
         # small_role_lutram_available_B = 47040.0
         # role6_lutram_available = 53400
-        role8_lutram_available = 61920  # POSITION 8
         self.lutmem = role8_lutram_available
         role_lutram_available_inBytes = role8_lutram_available * 8
         b_s_fpga_lutram_Bs = role_lutram_available_inBytes / (1 / self.freq_fpga)  # Bytes/s
@@ -94,7 +134,6 @@ class CfThemisto1(DosaBaseHw):
         # TODO: flip flops?
         #  --> but are rather used internally?
         # role6_ff_available = 203200
-        role8_ff_available = 244800  # POSITION 8
         self.registers = role8_ff_available
 
         # b_s_mantle_lutram_gBs = (small_role_lutram_available_B / (1/freq_fpga)) / gigaU
@@ -106,7 +145,6 @@ class CfThemisto1(DosaBaseHw):
         # utilization
         total_flops_dsps = self.cF_bigRole_dsp48_gflops * gigaU * self.config_dosa_kappa
         # role6_luts_available = 101600
-        role8_luts_available = 122400  # POSITION 8
         self.lutlog = role8_luts_available
         self.total_flops_luts = (role8_luts_available / dosa_singleton.config.utilization.xilinx_luts_to_dsp_factor) \
                            * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz * self.config_dosa_kappa
