@@ -37,6 +37,7 @@ class BaseOSG(metaclass=abc.ABCMeta):
         self.priority = -1
         self.priority_internal = -1
         self.suggested_max_block_length = 10
+        self.pipeline_tensor_store = 0
 
     def __repr__(self):
         return "OSG({}, for {})".format(self.name, self.device_classes)

@@ -1372,7 +1372,26 @@ class ArchDraft(object):
         # update node_id if necessary
         if dosa_singleton.config.backend.create_rank_0_for_io:
             self._add_node_0()
-        # then, populate
+        # calculate pipeline effects
+        draft_total_pipeline_store = 0
         for nn in self.node_iter_gen():
-            nn.generate_communication(self.selected_comm_lib)
+            draft_total_pipeline_store += nn.total_pipeline_store
+        if dosa_singleton.config.backend.comm_message_interleaving < (draft_total_pipeline_store + 1):
+            print("[DOSA:CommGen:INFO] Setting message interleaving to {}, due to higher pipeline storage within node."
+                  .format(draft_total_pipeline_store + 1))
+            dosa_singleton.config.backend.comm_message_interleaving = draft_total_pipeline_store + 1
+        # if dosa_singleton.config.backend.create_rank_0_for_io:
+        #    # so that CPU receives the right amount
+        #    self.nodes[0].total_pipeline_store = total_pipeline_store
+        # then, populate
+        pipeline_store_until_now = 0
+        for nn in self.node_iter_gen():
+            if nn.node_id == 0 and dosa_singleton.config.backend.create_rank_0_for_io:
+                # FIXME: find more elegant way...
+                nn.total_pipeline_store = -1 * draft_total_pipeline_store
+                nn.generate_communication(self.selected_comm_lib, draft_total_pipeline_store)
+                nn.total_pipeline_store = 0
+            else:
+                nn.generate_communication(self.selected_comm_lib, pipeline_store_until_now)
+                pipeline_store_until_now += nn.total_pipeline_store
 

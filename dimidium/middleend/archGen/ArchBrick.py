@@ -92,6 +92,7 @@ class ArchBrick(object):
         self.dims.inp = 0
         self.dims.out = 0
         self.dims.param = 0
+        self.local_pipeline_store = 0
 
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.local_brick_id, self.name)
@@ -457,6 +458,10 @@ class ArchBrick(object):
                     tmp_best = self.get_best_possible_contract(filter_device=target_hw)
         else:
             tmp_best = self.selected_contract
+        if tmp_best is None:
+            print(('[DOSA:Contr:ERROR] No valid contracts left for Brick {}. Current available contracts are: {}.\n' +
+                  'STOP.').format(self.brick_uuid, self.available_contracts))
+            exit(1)
         share_comp = tmp_best.comp_util_share
         share_mem = tmp_best.mem_util_share
         self.switching_comp_share = tmp_best.switching_comp_share
@@ -474,5 +479,6 @@ class ArchBrick(object):
         max_util = max(share_comp + self.switching_comp_share, share_mem + self.switching_mem_share)
         max_iter = (1.0/max_util) * self.iter_hz
         self.max_possible_iter = max_iter
+        self.local_pipeline_store = tmp_best.osg.pipeline_tensor_store
 
 

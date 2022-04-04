@@ -43,6 +43,7 @@ class ZrlmpiSwApp:
         assert comm_plan_len % 2 == 0
         assert len(self.comm_plan.get_comm_instr_sorted().keys()) == 1
         repetitions = 1 + dosa_singleton.config.backend.comm_message_interleaving
+        # TODO: empty pipeline store at the end...
         comm_plan_one_iteration_length = 2 * repetitions
         # 3. copy dosa_infer.hpp
         with open(os.path.join(self.templ_dir_path, 'dosa_infer.hpp'), 'r') as in_file, \
@@ -80,8 +81,10 @@ class ZrlmpiSwApp:
                         l1 = int((ie1['count'] + 3)/4)
                         # outline = tmpl.format(r0=comm_instr[i+1]['rank'], sl=comm_instr[i+1]['count'],
                         #                       r1=comm_instr[i+0]['rank'], rl=comm_instr[i+0]['count'])
-                        outline += tmpl.format(i=i, i1=i+1, c1=c1, r1=ie1['rank'], l1=l1, t1=repetitions,
-                                               c0=c0, r0=ie0['rank'], l0=l0, t0=repetitions)
+                        # outline += tmpl.format(i=i, i1=i+1, c1=c1, r1=ie1['rank'], l1=l1, t1=repetitions,
+                        #                        c0=c0, r0=ie0['rank'], l0=l0, t0=repetitions)
+                        outline += tmpl.format(i=i, i1=i+1, c1=c1, r1=ie1['rank'], l1=l1, t1=ie1['repeat'],
+                                               c0=c0, r0=ie0['rank'], l0=l0, t0=ie0['repeat'])
                 else:
                     outline = line
                 out_file.write(outline)

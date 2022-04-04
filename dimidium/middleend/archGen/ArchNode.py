@@ -58,6 +58,7 @@ class ArchNode(object):
         self.comm_plan = None
         self.used_comm_lib = None
         self.skip_in_roofline = False
+        self.total_pipeline_store = 0
 
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.targeted_hw)
@@ -219,6 +220,7 @@ class ArchNode(object):
         total_flops_tmp = 0
         all_flops_valid = True
         cur_osg = None
+        total_tensor_store = 0
         for lb in self.local_brick_iter_gen():
             if lb.req_iter_hz > max_iter_hz_req:
                 max_iter_hz_req = lb.req_iter_hz
@@ -234,6 +236,7 @@ class ArchNode(object):
                     min_iter_hz_impl = lb.iter_hz
                 if lb.used_flops > 0:
                     total_flops_tmp += lb.used_flops
+                    total_tensor_store += lb.local_pipeline_store
                 else:
                     all_flops_valid = False
         if add_switching_costs:
@@ -250,6 +253,7 @@ class ArchNode(object):
         if all_flops_valid:
             self.used_perf_F = total_flops_tmp
             self.max_perf_iter_based = self.used_perf_F * (max_iter/min_iter_hz_impl)
+            self.total_pipeline_store = total_tensor_store
 
     def update_kernel_uuids(self, kuuid_start):
         # TODO: take parallelism into account?
@@ -347,6 +351,6 @@ class ArchNode(object):
     #     for ab in self.arch_block_list:
     #         ab.synth()
 
-    def generate_communication(self, comm_lib):
+    def generate_communication(self, comm_lib, pipeline_store_until_now):
         self.used_comm_lib = comm_lib
-        self.comm_plan = CommPlan(self)
+        self.comm_plan = CommPlan(self, pipeline_store_until_now)

@@ -16,9 +16,10 @@ from dimidium.lib.util import my_lcm
 
 class CommPlan:
 
-    def __init__(self, for_node):
+    def __init__(self, for_node, pipeline_store_until_now):
         self.node = for_node
         self.comm_instr = []
+        self.pipeline_store_until_now = pipeline_store_until_now
         self.update()
 
     def update(self):
@@ -76,10 +77,10 @@ class CommPlan:
         else:
             # use least common mutliple
             lcm = my_lcm(len(outgoing_ranks), len(incomming_ranks))
-            ef_1 = int(lcm/len(incomming_ranks))
+            ef_1 = int(lcm / len(incomming_ranks))
             incomming_ranks *= ef_1
             in_cmd_rank_list *= ef_1
-            ef_2 = int(lcm/len(outgoing_ranks))
+            ef_2 = int(lcm / len(outgoing_ranks))
             outgoing_ranks *= ef_2
             out_cmd_rank_list *= ef_2
         assert len(incomming_ranks) == len(outgoing_ranks)
@@ -91,8 +92,13 @@ class CommPlan:
 
         in_msg_cnt = first_brick.input_bytes
         out_msg_cnt = last_brick.output_bytes
-        in_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving
-        out_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving
+        # in_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving
+        in_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving - self.pipeline_store_until_now
+        # out_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving
+        out_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving - \
+                         (self.pipeline_store_until_now + self.node.total_pipeline_store)
+        assert in_repetition > 0
+        assert out_repetition > 0
         for i in range(len(incomming_ranks)):
             # here, we assume strict streaming...so one message in, one out (with repetition)
             new_msg_in_dict = {'instr': 'recv', 'rank': incomming_ranks[i], 'count': in_msg_cnt,
