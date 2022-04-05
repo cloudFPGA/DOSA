@@ -43,13 +43,19 @@ class CfThemisto1(DosaBaseHw):
         self.freq_fpga = freq_fpga_mhz * megaU  # Hz
         self.clk_fpga_ns = 6.4  # ns
 
+        # # PR Position 8
+        # cur_role_lutlog    = 122400  # LUT CLB == LUT as LOGIC (if unused)
+        # cur_role_registers = 244800
+        # cur_role_lutmem    = 61920
+        # cur_role_brams     = 396
+        # cur_role_dsps      = 1200
 
-        # PR Position 8
-        cur_role_lutlog    = 122400  # LUT CLB == LUT as LOGIC (if unused)
-        cur_role_registers = 244800
-        cur_role_lutmem    = 61920
-        cur_role_brams     = 396
-        cur_role_dsps      = 1200
+        # PR Position 9
+        cur_role_lutlog    = 111360   # LUT CLB == LUT as LOGIC (if unused)
+        cur_role_registers = 222720
+        cur_role_lutmem    = 56160
+        cur_role_brams     = 360
+        cur_role_dsps      = 1080
 
         # MPE, DNA & DBG Cores
         dbg_lutlog    = 7374
@@ -73,11 +79,17 @@ class CfThemisto1(DosaBaseHw):
         taf_bram      = 1.5
         taf_dsp       = 0
 
-        overhead_lutlog = dbg_lutlog + mpe_lutlog + dna_lutlog + taf_lutlog
-        overhead_registers = dbg_registers + mpe_registers + dna_registers + taf_registers
-        overhead_lutmem = dbg_lutmem + mpe_lutmem + dna_lutmem + taf_lutmem
-        overhead_bram = dbg_bram + mpe_bram + dna_bram + taf_bram
-        overhead_dsp = dbg_dsp + mpe_dsp + dna_dsp + taf_dsp
+        overhead_lutlog = mpe_lutlog + dna_lutlog + taf_lutlog
+        overhead_registers = mpe_registers + dna_registers + taf_registers
+        overhead_lutmem = mpe_lutmem + dna_lutmem + taf_lutmem
+        overhead_bram = mpe_bram + dna_bram + taf_bram
+        overhead_dsp = mpe_dsp + dna_dsp + taf_dsp
+        if dosa_singleton.config.backend.insert_debug_cores:
+            overhead_lutlog += dbg_lutlog
+            overhead_registers += dbg_registers
+            overhead_lutmem += dbg_lutmem
+            overhead_bram += dbg_bram
+            overhead_dsp += dbg_dsp
 
         role8_luts_available = cur_role_lutlog - overhead_lutlog
         role8_ff_available = cur_role_registers - overhead_registers

@@ -1357,7 +1357,7 @@ class ArchDraft(object):
                     cur_parallel_build += 1
                     if cur_parallel_build >= dosa_singleton.config.backend.tmux_parallel_build:
                         cur_parallel_build = 0
-                        cur_sleep_cnt += 3
+                        cur_sleep_cnt += 2
             script_file.write('\n\n')
         os.system('chmod +x {}/dosa_build.sh'.format(dosa_singleton.config.global_build_dir))
 
