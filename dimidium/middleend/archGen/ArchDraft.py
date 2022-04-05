@@ -1359,6 +1359,7 @@ class ArchDraft(object):
                         cur_parallel_build = 0
                         cur_sleep_cnt += 3
             script_file.write('\n\n')
+        os.system('chmod +x {}/dosa_build.sh'.format(dosa_singleton.config.global_build_dir))
 
     def _add_node_0(self):
         node_0 = ArchNode(0, target_hw=vCPU_x86)
