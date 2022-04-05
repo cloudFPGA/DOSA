@@ -1,9 +1,14 @@
 {
   "input_latency": 0,
   "output_latency": 0,
-  "create_rank_0_for_io": true,
-  "comm_message_interleaving": 5,
-  "engine_saving_threshold": 1.5,
+  "build" : {
+    "create_rank_0_for_io": true,
+    "comm_message_interleaving": 5,
+    "engine_saving_threshold": 1.5,
+    "insert_debug_cores": true,
+    "generate_testbenchs": 1,
+    "parallel_builds_tmux": 3
+  },
   "dtypes" : {
     "default_flops_conv_factor": 1.0,
     "flops_base_type": "float32",
@@ -27,7 +32,6 @@
       "memory": 1.3
     }
   },
-  "generate_testbenchs": 1,
   "utilization": {
     "xilinx_luts_to_dsp_factor": 578,
     "xilinx_lutram_to_bram_factor": 593750,

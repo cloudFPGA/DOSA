@@ -29,8 +29,10 @@ from dimidium.backend.commLibs.commlibs import builtin_comm_libs
 from dimidium.backend.commLibs.BaseCommLib import sort_commLib_list
 
 
-__mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_learning', 'engine_saving_threshold',
-                             'generate_testbenchs', 'utilization', 'comm_message_interleaving', 'create_rank_0_for_io']
+__mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_learning', 'build',
+                             # 'engine_saving_threshold', 'generate_testbenchs', 'comm_message_interleaving',
+                             # 'create_rank_0_for_io', 'insert_debug_cores'
+                             'utilization']
 
 
 def print_usage(sys_argv):

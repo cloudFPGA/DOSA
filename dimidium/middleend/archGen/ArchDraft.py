@@ -10,6 +10,7 @@
 #  *
 #  *
 
+import os
 import math
 import json
 
@@ -19,11 +20,14 @@ from dimidium.lib.util import OptimizationStrategies, BrickImplTypes, DosaRv
 from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.middleend.archGen.ArchOp import ArchOp
-from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
+from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw, DosaHwClasses
 from dimidium.backend.devices.builtin import vCPU_x86
 from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane, get_rightmost_roofline_region
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 from dimidium.backend.commLibs.BaseCommLib import placeholderCommLib
+
+
+__filedir__ = os.path.dirname(os.path.abspath(__file__))
 
 
 class ArchDraft(object):
@@ -1288,6 +1292,8 @@ class ArchDraft(object):
         # add to global cluster setup info
         self._generate_cluster_description()
         self._generate_extended_cluster_description()
+        if dosa_singleton.config.backend.tmux_parallel_build > 0:
+            self._generate_tmux_build_script()
 
     # def synth(self):
     #     for nn in self.node_iter_gen():
@@ -1330,6 +1336,29 @@ class ArchDraft(object):
         out_file = '{}/draft_info.json'.format(dosa_singleton.config.global_build_dir)
         with open(out_file, 'w') as of:
             json.dump(cluster_dict, of, indent=4)
+
+    def _generate_tmux_build_script(self):
+        os.system('cp {}/../../backend/buildTools/templates/cFBuild1/dosa_build.sh {}/'
+                  .format(__filedir__, dosa_singleton.config.global_build_dir))
+        tmux_tmpl = 'tmux new-window -t dimidium:{w} -n "{name}"\ntmux send-keys -t dimidium:{w} "{cmd}" C-m\n'
+        cur_wi = 1
+        cur_sleep_cnt = 0
+        cmd_tmpl = 'cd {}; sleep {}h; ./sra build pr'
+        cur_parallel_build = 0
+        with open(os.path.abspath(dosa_singleton.config.global_build_dir + '/dosa_build.sh'), 'a') as script_file:
+            for nn in self.node_iter_gen():
+                if nn.targeted_hw.hw_class in [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx]:
+                    nn_f = nn.build_tool.node_folder_name
+                    nn_n = 'node_{:02d}'.format(nn.node_id)
+                    cmd = cmd_tmpl.format(nn_f, cur_sleep_cnt)
+                    tmux_s = tmux_tmpl.format(w=cur_wi, cmd=cmd, name=nn_n)
+                    script_file.write(tmux_s)
+                    cur_wi += 1
+                    cur_parallel_build += 1
+                    if cur_parallel_build >= dosa_singleton.config.backend.tmux_parallel_build:
+                        cur_parallel_build = 0
+                        cur_sleep_cnt += 3
+            script_file.write('\n\n')
 
     def _add_node_0(self):
         node_0 = ArchNode(0, target_hw=vCPU_x86)

@@ -26,9 +26,11 @@ def init_singleton(config_dict):
     config.backend = SimpleNamespace()
     config.backend.input_latency = config_dict['input_latency']
     config.backend.output_latency = config_dict['output_latency']
-    config.backend.create_rank_0_for_io = bool(config_dict['create_rank_0_for_io'])
-    config.backend.comm_message_interleaving = int(config_dict['comm_message_interleaving'])
-    config.backend.generate_testbenchs = config_dict['generate_testbenchs']
+    config.backend.create_rank_0_for_io = bool(config_dict['build']['create_rank_0_for_io'])
+    config.backend.comm_message_interleaving = int(config_dict['build']['comm_message_interleaving'])
+    config.backend.generate_testbenchs = config_dict['build']['generate_testbenchs']
+    config.backend.insert_debug_cores = bool(config_dict['build']['insert_debug_cores'])
+    config.backend.tmux_parallel_build = int(config_dict['build']['parallel_builds_tmux'])
 
     config.dtype = SimpleNamespace()
     config.dtype.default_dosa_flops_conv_factor = float(config_dict['dtypes']['default_flops_conv_factor'])
@@ -48,7 +50,7 @@ def init_singleton(config_dict):
             config.dtype.dosa_lambda[convert_tvmDtype_to_DosaDtype(k)] = float(config_dict['dosa_learning']['lambda'][k])
 
     config.middleend = SimpleNamespace()
-    config.middleend.engine_saving_threshold = float(config_dict['engine_saving_threshold'])
+    config.middleend.engine_saving_threshold = float(config_dict['build']['engine_saving_threshold'])
 
     config.utilization = SimpleNamespace()
     config.utilization.dosa_mu_comp = float(config_dict['dosa_learning']['mu']['compute'])
