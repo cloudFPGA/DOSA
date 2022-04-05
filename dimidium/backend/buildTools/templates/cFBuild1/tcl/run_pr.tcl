@@ -19,17 +19,17 @@
 # *-----------------------------------------------------------------------------
 # * Created : Mar 03 2018
 # * Authors : Francois Abel
-# * 
+# *
 # * Description : A Tcl script that creates the TOP level project in so-called
 # *   "Project Mode" of the Vivado design flow.
-# * 
+# *
 # * Synopsis : vivado -mode batch -source <this_file> [-notrace]
 # *                               [-log     <log_file_name>]
 # *                               [-tclargs [script_arguments]]
 # *
 # * Reference documents:
 # *  - UG939 / Lab3 / Scripting the Project Mode.
-# *  - UG835 / All  / Vivado Design Suite Tcl Guide. 
+# *  - UG835 / All  / Vivado Design Suite Tcl Guide.
 # ******************************************************************************
 
 package require cmdline
@@ -79,9 +79,9 @@ if { $argc > 0 } {
         { force    "Continue, even if an old project will be deleted."}
     }
     set usage "\nUSAGE: Vivado -mode batch -source ${argv0} -notrace -tclargs \[OPTIONS] \nOPTIONS:"
-    
+
     array set kvList [ cmdline::getoptions argv ${options} ${usage} ]
-    
+
     # Process the arguments
     foreach { key value } [ array get kvList ] {
         my_dbg_trace "KEY = ${key} | VALUE = ${value}" ${dbgLvl_2}
@@ -89,7 +89,7 @@ if { $argc > 0 } {
             puts "${usage} \n";
             return ${::OK}
         }
-        if { ${key} eq "force" && ${value} eq 1 } { 
+        if { ${key} eq "force" && ${value} eq 1 } {
           set force 1
           my_dbg_trace "Setting force to \'1\' " ${dbgLvl_1}
         }
@@ -175,7 +175,7 @@ if { [ string equal [ get_filesets -quiet sources_1 ] "" ] } {
 }
 
 # Set 'sources_1' fileset object an add *ALL* the HDL Source Files from the HLD
-#  Directory (Recursively) 
+#  Directory (Recursively)
 #-------------------------------------------------------------------------------
 set obj   [ get_filesets sources_1 ]
 
@@ -185,19 +185,8 @@ set obj   [ get_filesets sources_1 ]
 #add_files -fileset ${obj} ${files}
 #my_dbg_trace "HDL files: ${files} " ${dbgLvl_2}
 
-# Add HDL Source Files for the ROLE and turn VHDL-2008 mode on
-#---------------------------------------------------------------------------
-add_files  ${hdlDir}
-set roleVhdlList [ glob -nocomplain ${hdlDir}/*.vhd* ]
-if { $roleVhdlList ne "" } {
-  set_property file_type {VHDL 2008} [ get_files [ file normalize ${hdlDir}/*.vhd* ] ]
-}
-update_compile_order -fileset sources_1
 
-my_dbg_trace "Done with adding HDL files..." ${dbgLvl_1}
-
-
-# Add *ALL* the User-based IPs (i.e. VIVADO- as well HLS-based) needed for the ROLE. 
+# Add *ALL* the User-based IPs (i.e. VIVADO- as well HLS-based) needed for the ROLE.
 #---------------------------------------------------------------------------
 set ipList [ glob -nocomplain ${ipDir}/ip_user_files/ip/* ]
 if { $ipList ne "" } {
@@ -211,14 +200,15 @@ if { $ipList ne "" } {
 update_ip_catalog
 my_dbg_trace "Done with update_ip_catalog for the ROLE" ${dbgLvl_1}
 
+# Add HDL Source Files for the ROLE and turn VHDL-2008 mode on
+#---------------------------------------------------------------------------
+add_files  ${hdlDir}
+set roleVhdlList [ glob -nocomplain ${hdlDir}/*.vhd* ]
+if { $roleVhdlList ne "" } {
+  set_property file_type {VHDL 2008} [ get_files [ file normalize ${hdlDir}/*.vhd* ] ]
+}
 
-
-
-# Set 'sources_1' fileset properties
-#-------------------------------------------------------------------------------
-set obj [ get_filesets sources_1 ]
-set_property -name "top"      -value ${topName}           -objects ${obj} -verbose
-set_property -name "top_file" -value ${hdlDir}/${topFile} -objects ${obj} -verbose
+my_dbg_trace "Done with adding HDL files..." ${dbgLvl_1}
 
 
 # Create 'constrs_1' fileset (if not found)
@@ -228,15 +218,27 @@ if { [ string equal [ get_filesets -quiet constrs_1 ] "" ] } {
 }
 
 
+# Set 'sources_1' fileset properties
+#-------------------------------------------------------------------------------
+# update compile order after adding ALL sources, but before setting top level,
+# to avoid [filemgmt 20-742] error.
+# also, disable automatic source_mgmt_mode...
+update_compile_order -fileset sources_1
+set_property source_mgmt_mode None [current_project]
+
+set obj [ get_filesets sources_1 ]
+set_property -name "top"      -value ${topName}           -objects ${obj} -verbose
+set_property -name "top_file" -value ${hdlDir}/${topFile} -objects ${obj} -verbose
+
+
 ## set the current synth run
 #current_run -synthesis [get_runs synth_1]
-
-
 
 my_puts "################################################################################"
 my_puts "##  DONE WITH PROJECT CREATION "
 my_puts "################################################################################"
 my_puts "End at: [clock format [clock seconds] -format {%T %a %b %d %Y}] \n"
+
 
 my_puts "################################################################################"
 my_puts "##"
@@ -245,22 +247,31 @@ my_puts "##"
 my_puts "################################################################################"
 my_puts "Start at: [clock format [clock seconds] -format {%T %a %b %d %Y}] \n"
 
-#launch_runs synth_1
+# Normal synth_1 run is not possible, because wrong dbg_hub will be synthesized
+#launch_runs synth_1 -jobs 4
 #wait_on_run synth_1
+#open_run synth_1
 
-#synth ip cores
+## synth ip cores
 set ipList [ glob -nocomplain ${ipDir}/ip_user_files/ip/* ]
-        if { $ipList ne "" } {
-            foreach ip $ipList {
-                set ipName [file tail ${ip} ]
-                synth_ip [get_files ${ipDir}/${ipName}/${ipName}.xci] -force
-                my_dbg_trace "Done with SYNTHESIS of IP Core: ${ipDir}/${ipName}/${ipName}.xci" 2
-            }
-        }
+#set run_list [list]
+if { $ipList ne "" } {
+    foreach ip $ipList {
+        set ipName [file tail ${ip} ]
+        #synth_ip [get_files ${ipDir}/${ipName}/${ipName}.xci] -force
+        synth_ip [get_files ${ipDir}/${ipName}/${ipName}.xci]
+        my_dbg_trace "Done with SYNTHESIS of IP Core: ${ipDir}/${ipName}/${ipName}.xci" 2
+	#create_ip_run [get_files -of_objects [get_fileset sources_1] ${ipDir}/${ipName}/${ipName}.xci]
+	#append $run_list ${ipName}_synth_1
+	#set last_run ${ipName}_synth_1
+    }
+}
+
+#launch_runs -jobs 4 ${run_list}
+#wait_on run ${last_runt}
 
 synth_design -mode out_of_context -top $topName -part ${xilPartName}
 
-#-jobs 8
 
 my_puts "################################################################################"
 my_puts "##  DONE WITH SYNTHESIS RUN; WRITE FILES TO .dcp"
