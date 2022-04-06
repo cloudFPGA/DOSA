@@ -7,7 +7,8 @@
     "engine_saving_threshold": 1.5,
     "insert_debug_cores": true,
     "generate_testbenchs": 1,
-    "parallel_builds_tmux": 3
+    "parallel_builds_tmux": 3,
+    "start_from_clean_build": false
   },
   "dtypes" : {
     "default_flops_conv_factor": 1.0,
@@ -35,7 +36,7 @@
   "utilization": {
     "xilinx_luts_to_dsp_factor": 578,
     "xilinx_lutram_to_bram_factor": 593750,
-    "max_utilization_fpgas": 0.7,
-    "utilization_exception": 0.2
+    "max_utilization_fpgas": 0.5,
+    "utilization_exception": 0.4
   }
 }

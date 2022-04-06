@@ -910,7 +910,10 @@ class ArchDraft(object):
             nn.update_used_perf_util_contr(prefer_engine=False, add_switching_costs=True)
             all_new_nodes = []
             cur_node = nn
-            while cur_node.used_comp_util_share > 1:
+            # while cur_node.used_comp_util_share > 1:
+            while cur_node.over_utilized_node \
+                    or cur_node.used_comp_util_share > dosa_singleton.config.utilization.dosa_xi \
+                    or cur_node.used_mem_util_share > dosa_singleton.config.utilization.dosa_xi:
                 cur_comp_share = 0
                 cur_mem_share = 0
                 cur_osg = None
@@ -1044,9 +1047,11 @@ class ArchDraft(object):
                     # if (n1.used_perf_F + n2.used_perf_F) <= n1.max_perf_F:
                     # BETTER to be cautious...considering mu again
                     if (((n1.used_comp_util_share + n2.used_comp_util_share)
-                         * dosa_singleton.config.utilization.dosa_mu_comp) < 1) \
-                            and (((n1.used_mem_util_share + n2.used_mem_util_share)
-                                  * dosa_singleton.config.utilization.dosa_mu_comp) < 1):
+                         * dosa_singleton.config.utilization.dosa_mu_comp)
+                        < dosa_singleton.config.utilization.dosa_xi) \
+                         and (((n1.used_mem_util_share + n2.used_mem_util_share)
+                               * dosa_singleton.config.utilization.dosa_mu_comp)
+                              < dosa_singleton.config.utilization.dosa_xi):
                         # merge nodes totally
                         if verbose:
                             print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
@@ -1343,21 +1348,39 @@ class ArchDraft(object):
         tmux_tmpl = 'tmux new-window -t dimidium:{w} -n "{name}"\ntmux send-keys -t dimidium:{w} "{cmd}" C-m\n'
         cur_wi = 1
         cur_sleep_cnt = 0
+        # TODO: make dynamic
         cmd_tmpl = 'cd {}; sleep {}h; ./sra build pr'
+        cmd_tmpl_mono = 'cd {}; sleep {}h; ./sra build monolithic'
         cur_parallel_build = 0
+        first_over_utilized = True
+        first_mono_sleep_cnt = 0
+        over_utilized_cnt = 0
+        sleep_factor = 2
         with open(os.path.abspath(dosa_singleton.config.global_build_dir + '/dosa_build.sh'), 'a') as script_file:
             for nn in self.node_iter_gen():
                 if nn.targeted_hw.hw_class in [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx]:
                     nn_f = nn.build_tool.node_folder_name
                     nn_n = 'node_{:02d}'.format(nn.node_id)
-                    cmd = cmd_tmpl.format(nn_f, cur_sleep_cnt)
+                    if nn.over_utilized_node:
+                        if first_over_utilized:
+                            cmd = cmd_tmpl_mono.format(nn_f, cur_sleep_cnt)
+                            first_over_utilized = False
+                            first_mono_sleep_cnt = cur_sleep_cnt
+                        else:
+                            if first_mono_sleep_cnt == cur_sleep_cnt:
+                                cmd = cmd_tmpl_mono.format(nn_f, cur_sleep_cnt + sleep_factor)
+                            else:
+                                cmd = cmd_tmpl_mono.format(nn_f, cur_sleep_cnt)
+                        over_utilized_cnt += 1
+                    else:
+                        cmd = cmd_tmpl.format(nn_f, cur_sleep_cnt)
                     tmux_s = tmux_tmpl.format(w=cur_wi, cmd=cmd, name=nn_n)
                     script_file.write(tmux_s)
                     cur_wi += 1
                     cur_parallel_build += 1
                     if cur_parallel_build >= dosa_singleton.config.backend.tmux_parallel_build:
                         cur_parallel_build = 0
-                        cur_sleep_cnt += 2
+                        cur_sleep_cnt += sleep_factor
             script_file.write('\n\n')
         os.system('chmod +x {}/dosa_build.sh'.format(dosa_singleton.config.global_build_dir))
 

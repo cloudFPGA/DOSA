@@ -31,6 +31,7 @@ def init_singleton(config_dict):
     config.backend.generate_testbenchs = config_dict['build']['generate_testbenchs']
     config.backend.insert_debug_cores = bool(config_dict['build']['insert_debug_cores'])
     config.backend.tmux_parallel_build = int(config_dict['build']['parallel_builds_tmux'])
+    config.backend.clean_build = bool(config_dict['build']['start_from_clean_build'])
 
     config.dtype = SimpleNamespace()
     config.dtype.default_dosa_flops_conv_factor = float(config_dict['dtypes']['default_flops_conv_factor'])
@@ -67,7 +68,10 @@ def init_singleton(config_dict):
 
 def add_global_build_dir(abs_path):
     global config
-    os.system("rm -rf {}".format(abs_path))
+    if config.backend.clean_build:
+        os.system("rm -rf {}".format(abs_path))
+    else:
+        print('[DOSA:build:INFO] Not deleting existing content in output dir.')
     os.system("mkdir -p {}".format(abs_path))
     config.global_build_dir = abs_path
     config.global_report_dir = os.path.abspath('{}/tmp_rpt_dir'.format(abs_path))

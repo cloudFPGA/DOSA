@@ -37,6 +37,14 @@ class cFBuild1(HwBuildTopVhdl):
         self.constr_lines = []
 
     def _create_basic_structure(self):
+        if not self.build_wide_structure_created:
+            self._create_build_wide_structure()
+        if not dosa_singleton.config.backend.clean_build:
+            # we should delete hdl content and all bitfiles
+            # and ip_guards
+            os.system('rm -rf {gvhdl}/* {mb}/dcps/ {mb}/ROLE/.ip_*'.format(gvhdl=self.global_vhdl_dir, mb=self.build_dir))
+            # and additional constraints
+            os.system('rm -rf {}/ROLE/xdc'.format(self.build_dir))
         os.system("mkdir -p {0}/ROLE/hdl {0}/ROLE/hls {0}/ROLE/tcl".format(self.build_dir))
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
         my_templates = os.path.abspath(me_abs_dir + '/templates/cFBuild1/')
@@ -57,8 +65,6 @@ class cFBuild1(HwBuildTopVhdl):
         global_venv_dir = '{}/{}'.format(self.my_global_build_lib_dir, __cfenv_small_name__)
         self.my_global_venv = global_venv_dir
         self.my_global_dcps = '{}/global_dcps/'.format(self.my_global_build_lib_dir)
-        if not self.build_wide_structure_created:
-            self._create_build_wide_structure()
         create_cfp_dir_structure(self.build_dir)
         # link cFDK, also relative
         # my_cfdk_dir = os.path.abspath(self.build_dir + '/cFDK/')
@@ -99,25 +105,30 @@ class cFBuild1(HwBuildTopVhdl):
         my_libs = os.path.abspath(me_abs_dir + '/lib/cFBuild1/')
         self.my_libs = my_libs
         my_templates = os.path.abspath(me_abs_dir + '/templates/cFBuild1/')
-        os.system('mkdir -p {}/cFDK'.format(self.my_global_build_lib_dir))
-        os.system('cp -R {}/cFDK/* {}/cFDK/'.format(my_libs, self.my_global_build_lib_dir))
+        if dosa_singleton.config.backend.clean_build or \
+                not os.path.isdir('{}/cFDK'.format(self.my_global_build_lib_dir)):
+            os.system('mkdir -p {}/cFDK'.format(self.my_global_build_lib_dir))
+            os.system('cp -R {}/cFDK/* {}/cFDK/'.format(my_libs, self.my_global_build_lib_dir))
         self.my_global_dcps = '{}/global_dcps/'.format(self.my_global_build_lib_dir)
         os.system('mkdir -p {}'.format(self.my_global_dcps))
         if __dosa_config_env_dcps__ not in os.environ:
-            print("[DOSA:cFBuild1:ERROR] Can't locate 3_static dcp to be used...build will most likely fail. Trying "
-                  "to continue.\n")
+            # print("[DOSA:cFBuild1:ERROR] Can't locate 3_static dcp to be used...build will most likely fail. Trying "
+            #       "to continue.\n")
+            print("[DOSA:cFBuild1:ERROR] Can't locate 3_static dcp to be used...build will most likely fail. STOP.")
+            exit(1)
         else:
             used_dcps_dir = os.path.abspath(os.environ[__dosa_config_env_dcps__])
             os.system('cp {}/3_* {}/'.format(used_dcps_dir, self.my_global_dcps))
         global_venv_dir = '{}/{}'.format(self.my_global_build_lib_dir, __cfenv_small_name__)
         self.my_global_venv = global_venv_dir
-        os.system('mkdir -p {}'.format(global_venv_dir))
-        cfenv_dir = os.path.abspath(global_venv_dir)
-        sys_py_bin = get_sys_python_env()
-        # print("[INFO] the python virutalenv for this project on this machine is missing, installing it...")
-        os.system('cd {}; virtualenv -p {} {}'
-                  .format(os.path.abspath(cfenv_dir + '/../'), sys_py_bin, __cfenv_small_name__))
-        os.system('/bin/bash -c "source {}/bin/activate; pip install {}"'.format(cfenv_dir, __cfenv_req_packages__))
+        if dosa_singleton.config.backend.clean_build or not os.path.isdir(global_venv_dir):
+            os.system('mkdir -p {}'.format(global_venv_dir))
+            cfenv_dir = os.path.abspath(global_venv_dir)
+            sys_py_bin = get_sys_python_env()
+            # print("[INFO] the python virutalenv for this project on this machine is missing, installing it...")
+            os.system('cd {}; virtualenv -p {} {}'
+                      .format(os.path.abspath(cfenv_dir + '/../'), sys_py_bin, __cfenv_small_name__))
+            os.system('/bin/bash -c "source {}/bin/activate; pip install {}"'.format(cfenv_dir, __cfenv_req_packages__))
         # copy deploy script
         os.system('cp {}/dosa_deploy.py {}/'.format(my_templates, dosa_singleton.config.global_build_dir))
         cFBuild1.build_wide_structure_created = True

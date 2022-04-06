@@ -12,6 +12,7 @@
 
 import json
 
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.lib.units import gigaU
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw
@@ -59,6 +60,7 @@ class ArchNode(object):
         self.used_comm_lib = None
         self.skip_in_roofline = False
         self.total_pipeline_store = 0
+        self.over_utilized_node = False
 
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.targeted_hw)
@@ -74,6 +76,7 @@ class ArchNode(object):
                                'req_iter_hz': self.req_iter_hz, 'used_iter_hz': self.used_iter_hz,
                                'impl_Gflop_eqiv': self.used_perf_F / gigaU,
                                'max_Gflop_based_on_impl_eqiv': self.max_perf_iter_based / gigaU},
+               'over_utilized_node': self.over_utilized_node,
                'blocks': [], 'engineContainers': [],
                'bricks': {}}
         # for tn in self.twins:
@@ -254,6 +257,10 @@ class ArchNode(object):
             self.used_perf_F = total_flops_tmp
             self.max_perf_iter_based = self.used_perf_F * (max_iter/min_iter_hz_impl)
             self.total_pipeline_store = total_tensor_store
+        if max_util > dosa_singleton.config.utilization.dosa_xi:
+            self.over_utilized_node = True
+        else:
+            self.over_utilized_node = False
 
     def update_kernel_uuids(self, kuuid_start):
         # TODO: take parallelism into account?

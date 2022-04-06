@@ -399,12 +399,11 @@ class ArchBrick(object):
                 continue
             if c.comp_util_share > dosa_singleton.config.utilization.dosa_xi or \
                     c.mem_util_share > dosa_singleton.config.utilization.dosa_xi:
-                if c.comp_util_share > dosa_singleton.config.utilization.dosa_xi_exception or \
-                        c.mem_util_share > dosa_singleton.config.utilization.dosa_xi_exception:
-                    # to big in all cases
-                    continue
-                else:
+                if not (c.comp_util_share > dosa_singleton.config.utilization.dosa_xi_exception or
+                        c.mem_util_share > dosa_singleton.config.utilization.dosa_xi_exception):
                     within_util_exception.append(c)
+                # to big in all cases
+                continue
             still_possible.append(c)
         if len(still_possible) == 0 and len(within_util_exception) > 0:
             print('[DOSA:ContrMngt:INFO] Brick {}: Using contract above utilization target, but within exception, '
