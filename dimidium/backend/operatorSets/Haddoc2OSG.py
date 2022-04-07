@@ -56,7 +56,7 @@ class Haddoc2OSG(BaseOSG):
         self.existing_layer_names = []
         self.util_db = {}
         self.avg_util_dict = {}
-        self.pipeline_tensor_store = 1
+        self.pipeline_tensor_store = 2
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
