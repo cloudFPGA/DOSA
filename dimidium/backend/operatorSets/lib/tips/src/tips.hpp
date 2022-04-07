@@ -29,12 +29,22 @@ using namespace hls;
 #ifdef TIPS_TEST
 #define DOSA_WRAPPER_INPUT_IF_BITWIDTH 64
 #define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH 64
+#define DOSA_TIPS_LONGEST_INPUT 9  // 3x3
+#define DOSA_TIPS_LONGEST_OP0 12   // 3x4
+#define DOSA_TIPS_LONGEST_OP1 12
+#define DOSA_TIPS_LONGEST_OUTPUT 12
+#define DOSA_TIPS_PROGRAM_LENGTH 10
+#define DOSA_TIPS_ADDR_SPACE_LENGTH 100
+typedef int8_t usedDtype;
+#define DOSA_TIPS_ALU_PARALLEL_SLOT 3  //but only one per operation
+//TODO: define ALU ops dynamically based on what is needed?
 #endif
 
 //DOSA_REMOVE_STOP
 //DOSA_ADD_INTERFACE_DEFINES
 
 //derived defines
+#define TIPS_ACCUM_LENGTH = 3 * DOSA_TIPS_LONGEST_OUTPUT
 
 //as constants for HLS pragmas
 const uint32_t cnn_input_frame_size = (CNN_INPUT_FRAME_SIZE);
@@ -43,6 +53,48 @@ const uint32_t cnn_output_frame_size = (CNN_OUTPUT_FRAME_SIZE);
 
 //independent defines
 enum twoStatesFSM {RESET = 0, FORWARD};
+
+typedef uint8_t TipsOpcode;
+typedef uint8_t AluOpcode;
+typedef uint32_t TipsAddr;
+typedef uint16_t TipsLength;
+//pseudo addresses
+#define NETWORK_ALIAS_ADDRESS  0x10001  //network in/out
+#define ACCUM_ALIAS_ADDRESS    0x10002  //to store in ALU accum?
+
+struct TipsOp {
+  TipsOpcode opcode;
+  TipsAddr in_addr;
+  TipsLength in_length;
+  TipsAddr op0_addr;
+  TipsLength op0_length;
+  TipsAddr op1_addr;
+  TipsLength op1_length;
+  TipsAddr out_addr;
+  TipsLength out_length;
+  //bool out_forward; //re-use within execute?
+};
+
+struct TipsNetworkInstr {
+  TipsLength length;
+};
+
+struct TipsLoadInstr {
+  TipsAddr addr_0;
+  TipsLength length_0;
+  TipsAddr addr_1;
+  TipsLength length_1;
+};
+
+struct TipsAluInstr {
+  TipsAluInstr operation;
+  TipsAddr in_addr;
+  TipsLength in_length;
+  TipsLength op0_length;
+  TipsLength op1_length;
+  TipsAddr out_addr;
+  TipsLength out_length;
+}
 
 
 

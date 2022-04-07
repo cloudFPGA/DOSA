@@ -42,7 +42,8 @@ stream<MPI_Feedback>  siMPIFeB ("siMPIFeB");
 stream<Axis<64> >   soMPI_data ("soMPI_data");
 stream<Axis<64> >   siMPI_data ("siMPI_data");
 // ----- DEBUG IO ------
-ap_uint<32> debug_out = 0;
+ap_uint<80> debug_out = 0;
+ap_uint<32> debug_out_ignore = 0;
 
 
 //------------------------------------------------------
@@ -60,9 +61,9 @@ void stepDut() {
     zrlmpi_wrapper(&role_rank_arg, &cluster_size_arg,
         siData, soData, soMPIif, siMPIFeB,
         soMPI_data, siMPI_data,
-        &debug_out);
+        &debug_out, &debug_out_ignore);
     simCnt++;
-    printf("[%4.4d] STEP DUT \n", simCnt);
+    printf("[%4.4d] STEP DUT\n", simCnt);
 }
 
 

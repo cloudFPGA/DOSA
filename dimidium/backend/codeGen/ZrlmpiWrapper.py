@@ -155,7 +155,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
         # decl += ('-- thanks to the fantastic and incredible Vivado HLS...we need vectors with (0 downto 0)\n' +
         #          'signal s{ip_mod_name}_siData_tlast_as_vector    : std_ulogic_vector(0 downto 0);\n' +
         #          'signal s{ip_mod_name}_soData_tlast_as_vector    : std_ulogic_vector(0 downto 0);\n')
-        # decl += '\n'
+        decl += 'signal sZRLMPI_Wrapper_Debug  : std_logic_vector(79 downto 0);'
+        decl += '\n'
         decl += ('component {ip_mod_name} is\n' +
                  '   port (\n' +
                  '       piFMC_to_ROLE_rank_V : IN STD_LOGIC_VECTOR (31 downto 0);\n' +
@@ -192,7 +193,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
                  '       siMPI_data_V_dout : IN STD_LOGIC_VECTOR (72 downto 0);\n' +
                  '       siMPI_data_V_empty_n : IN STD_LOGIC;\n' +
                  '       siMPI_data_V_read : OUT STD_LOGIC;\n' +
-                 # '       debug_out_V : IN STD_LOGIC_VECTOR (31 downto 0);\n' +
+                 '       debug_out_V : OUT STD_LOGIC_VECTOR (79 downto 0);\n' +
+                 # '       debug_out_ignore_V : OUT STD_LOGIC_VECTOR (31 downto 0)\n' +
                  '       ap_clk : IN STD_LOGIC;\n' +
                  '       ap_rst : IN STD_LOGIC );\n' +
                  '   end component {ip_mod_name};\n')
@@ -245,7 +247,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
                  '    siMPI_data_V_dout            => sFifo_APP_MPIdata_dout    ,\n' +
                  '    siMPI_data_V_empty_n         => sFifo_APP_MPIdata_empty_n ,\n' +
                  '    siMPI_data_V_read            => sFifo_APP_MPIdata_read    ,\n' +
-                 # '    debug_out_V =>  open,\n' +
+                 '    debug_out_V =>  sZRLMPI_Wrapper_Debug,\n' +
+                 # '    debug_out_ignore_V =>  open,\n' +
                  '    ap_clk =>  [clk],\n' +
                  '    ap_rst =>  [rst]\n' +  # no comma
                  ');\n')
@@ -310,11 +313,12 @@ class ZrlmpiWrapper(CommunicationWrapper):
             'sMPE_Fifo_MPIFeB_full_n',
             'sMPE_Fifo_MPIFeB_full',
             'sMPE_Fifo_MPIFeB_write',
-            'sMPE_Debug'
+            'sMPE_Debug',
+            'sZRLMPI_Wrapper_Debug'
         ]
         width_lines = [64, 8, 1, 1, 1, 64, 1, 1, 8, 1, 64, 8, 1, 1, 1, 64, 1, 1, 8, 1,
                        72, 1, 1, 1, 73, 1, 1, 1, 73, 1, 1, 1, 72, 1, 1, 1, 73, 1, 1, 1, 73, 1, 1, 1,
-                       8, 1, 1, 1, 8, 1, 1, 1, 64]
+                       8, 1, 1, 1, 8, 1, 1, 1, 64, 80]
         assert len(signal_lines) == len(width_lines)
         tcl_tmpl_lines = []
         decl_tmpl_lines = []

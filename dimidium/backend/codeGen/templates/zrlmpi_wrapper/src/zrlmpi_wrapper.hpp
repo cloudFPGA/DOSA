@@ -44,13 +44,14 @@ using namespace hls;
 //DOSA_ADD_INTERFACE_DEFINES
 
 const uint32_t buffer_fifo_depth = DOSA_WRAPPER_BUFFER_FIFO_DEPTH_LINES;
-enum controlFsmStates {RESET = 0, WRITE_PROGRAM, ISSUE_COMMAND, WAIT_DATA, PROC_SEND, WAIT_SEND, PROC_RECEIVE, WAIT_RECEIVE};
+enum controlFsmStates {RESET = 0, WRITE_PROGRAM, LOAD_COMMAND, LOAD_COMMAND2, ISSUE_COMMAND, WAIT_DATA, PROC_SEND, WAIT_SEND, PROC_RECEIVE, WAIT_RECEIVE};
 enum deqBufferCmd {FORWARD_0 = 0, DRAIN_0, FORWARD_1, DRAIN_1};
 enum sendBufferCmd {SEND_0 = 0, SEND_1};
 enum recvEnqStates {RESET0 = 0, RECV_WAIT, RECV_BUF_0, RECV_BUF_1, WAIT_CONFIRMATION};
 enum DeqStates {RESET1 = 0, WAIT_CMD, DEQ_FW_0, DEQ_FW_1, DEQ_DRAIN_0, DEQ_DRAIN_1};
 enum sendEnqStates {RESET2 = 0, SEND_WAIT, SEND_BUF_0_INIT, SEND_BUF_0, SEND_BUF_1_INIT, SEND_BUF_1};
-enum SendDeqStates {RESET3 = 0, WAIT_START, SEND_DEQ_0, SEND_CC_0, SEND_CC_1, SEND_DEQ_1, WAIT_OK, WAIT_DRAIN};
+//enum SendDeqStates {RESET3 = 0, WAIT_START, SEND_DEQ_0, SEND_CC_0, SEND_CC_1, SEND_DEQ_1, WAIT_OK, WAIT_DRAIN};
+enum SendDeqStates {RESET3 = 0, WAIT_START, SEND_DEQ_0, SEND_CC_0, SEND_CC_1, SEND_DEQ_1, WAIT_OK, DRAIN_CC_0, DRAIN_CC_1};
 
 
 void zrlmpi_wrapper(
@@ -65,8 +66,9 @@ void zrlmpi_wrapper(
     stream<MPI_Feedback>      &siMPIFeB,
     stream<Axis<64> >         &soMPI_data,
     stream<Axis<64> >         &siMPI_data,
-    // ----- DEBUG IO ------
-    ap_uint<32> *debug_out
+    // ----- DEBUG out ------
+    ap_uint<80> *debug_out,
+    ap_uint<32> *debug_out_ignore
 );
 
 #endif

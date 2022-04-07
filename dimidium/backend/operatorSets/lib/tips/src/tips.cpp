@@ -22,6 +22,58 @@
 using namespace hls;
 
 
+void pLoadNetwork(
+    )
+{
+}
+
+
+void pSendNetwork(
+    )
+{
+}
+
+
+void pTipsControl(
+    )
+{
+}
+
+
+void pLoadOpDual(
+    )
+{
+  //use reset as init, no explicit init
+}
+
+
+void pALU(
+    )
+{
+  //with internal accum
+  //superscalar architecture: can schedule different alu operations in paralell
+}
+
+
+void pMergeDebug(
+  uint16_t *debug0,
+  uint16_t *debug1,
+  uint16_t *debug2,
+  uint16_t *debug3,
+    ap_uint<64> *debug_out
+    )
+{
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+
+  *debug_out = (uint64_t) *debug0;
+  *debug_out |= ((uint64_t) *debug1) << 16;
+  *debug_out |= ((uint64_t) *debug2) << 32;
+  *debug_out |= ((uint64_t) *debug3) << 48;
+
+}
 
 
 //DOSA_ADD_ip_name_BELOW
@@ -47,17 +99,23 @@ void tips_test(
 #pragma HLS DATAFLOW
 
 #ifndef __SYNTHESIS__
-  assert(HLS4ML_INPUT_FRAME_BIT_CNT % 8 == 0); //currently, only byte-aligned FRAMES are supported
-  assert(HLS4ML_OUTPUT_FRAME_BIT_CNT % 8 == 0); //currently, only byte-aligned FRAMES are supported
+  assert(DOSA_TIPS_ADDR_SPACE_LENGTH < 0xFFFF);
 #endif
 
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
 
   //-- STATIC DATAFLOW VARIABLES ------------------------------------------
+  
+  //-- LOCAL VARIABLES ------------------------------------------------------------
+  uint16_t debug0 = 0;
+  uint16_t debug1 = 0;
+  uint16_t debug2 = 0;
+  uint16_t debug3 = 0;
 
   //-- DATAFLOW PROCESS ---------------------------------------------------
 
 
+  pMergeDebug(&debug0, &debug1, &debug2, &debug3, debug_out);
 }
 
 

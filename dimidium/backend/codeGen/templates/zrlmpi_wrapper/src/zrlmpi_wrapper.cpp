@@ -34,7 +34,8 @@ void pStateControl(
     stream<bool>            &sSendReset,
     stream<bool>            &sReceiveDone,
     stream<bool>            &sSendDone,
-    ap_uint<32> *debug_out
+    uint16_t* debug,
+    ap_uint<32> *debug_out_ignore
   )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -57,9 +58,13 @@ void pStateControl(
 #pragma HLS reset variable=curRep
   //-- STATIC VARIABLES ------------------------------------------------------
   static uint8_t mpiCommands[DOSA_WRAPPER_PROG_LENGTH];
+  #pragma HLS ARRAY_PARTITION variable=mpiCommands complete
   static uint8_t mpiRanks[DOSA_WRAPPER_PROG_LENGTH];
+  #pragma HLS ARRAY_PARTITION variable=mpiRanks complete
   static uint32_t mpiCounts[DOSA_WRAPPER_PROG_LENGTH];
+  #pragma HLS ARRAY_PARTITION variable=mpiCounts complete
   static uint8_t commandRepetitions[DOSA_WRAPPER_PROG_LENGTH];
+  #pragma HLS ARRAY_PARTITION variable=commandRepetitions complete
 
   //-- LOCAL VARIABLES ------------------------------------------------------
   bool not_empty = false;
@@ -125,54 +130,61 @@ void pStateControl(
 #else
       //DOSA_ADD_mpi_commands
 #endif
-      controlFSM = ISSUE_COMMAND;
+      controlFSM = LOAD_COMMAND;
       break;
+
+    case LOAD_COMMAND:
+      if(curIterationCnt >= curRep)
+      {//read new command
+        curCmnd = mpiCommands[nextCommandPtr];
+        curRank = mpiRanks[nextCommandPtr];
+        curCount = mpiCounts[nextCommandPtr];
+        curRep = commandRepetitions[nextCommandPtr];
+        nextCommandPtr++;
+        if(nextCommandPtr >= DOSA_WRAPPER_PROG_LENGTH)
+        {
+          nextCommandPtr = 0x0;
+        }
+        curIterationCnt = 1;
+      } else { //issue same again
+        curIterationCnt++;
+      }
+      controlFSM = LOAD_COMMAND2;
+      break;
+
+    case LOAD_COMMAND2:
+      // just here to get II=1 working
+      if(curCmnd != MPI_INSTR_NOP && curRep > 0 && curCount > 0)
+      {
+        controlFSM = ISSUE_COMMAND;
+      } else {
+        //else, read next
+        controlFSM = LOAD_COMMAND;
+      }
+      break;
+
     case ISSUE_COMMAND:
       if( !soMPIif.full() && !sReceiveLength.full() && !sSendLength.full()
           && !sReceiveReset.full()
           && !sSendReset.full()
         )
       {
-        if(curIterationCnt >= curRep)
-        {//read new command
-          curCmnd = mpiCommands[nextCommandPtr];
-          curRank = mpiRanks[nextCommandPtr];
-          curCount = mpiCounts[nextCommandPtr];
-          curRep = commandRepetitions[nextCommandPtr];
-          nextCommandPtr++;
-          if(nextCommandPtr >= DOSA_WRAPPER_PROG_LENGTH)
-          {
-            nextCommandPtr = 0x0;
-          }
-          curIterationCnt = 1;
-        } else { //issue same again
-          curIterationCnt++;
-        }
-
-        if(curCmnd != MPI_INSTR_NOP && curRep > 0 && curCount > 0)
-        {
           MPI_Interface info = MPI_Interface();
+          //curCount is WORD length
+          uint32_t byte_length = (curCount*4) - 3; //since it would be friction WITHIN a line -> should work
           if(curCmnd == MPI_INSTR_SEND)
           {
-            //curCount is WORD length
-            //sSendLength.write(curCount*4);
-            sSendLength.write((curCount*4)-3); //since it would be friction WITHIN a line -> should work
-            //info.mpi_call = MPI_SEND_INT;
-            //controlFSM = PROC_SEND;
+            sSendLength.write(byte_length);
             controlFSM = WAIT_DATA;
           } else {
             info.mpi_call = MPI_RECV_INT;
-            //curCount is WORD length
-            //sReceiveLength.write(curCount*4);
-            sReceiveLength.write((curCount*4)-3); //since it would be friction WITHIN a line -> should work
-            controlFSM = PROC_RECEIVE;
             info.rank = (uint32_t) curRank;
             info.count = (uint32_t) curCount;
             soMPIif.write(info);
             printf("[pStateControl] Issuing %d command, rank %d, count %d.\n", (uint8_t) info.mpi_call, (uint8_t) info.rank, (uint32_t) info.count);
+            sReceiveLength.write(byte_length);
+            controlFSM = PROC_RECEIVE;
           }
-        }
-        //else, stay here, read next
       }
       break;
 
@@ -183,7 +195,8 @@ void pStateControl(
         MPI_Interface info = MPI_Interface();
         info.mpi_call = MPI_SEND_INT;
         //curCount is WORD length
-        sSendLength.write(curCount*4);
+        uint32_t byte_length = (curCount*4) - 3; //since it would be friction WITHIN a line -> should work
+        sSendLength.write(byte_length);
         controlFSM = PROC_SEND;
         info.rank = (uint32_t) curRank;
         info.count = (uint32_t) curCount;
@@ -217,7 +230,7 @@ void pStateControl(
       {
         ignore_me = sSendDone.read();
         printf("[pStateControl] Send done.\n");
-        controlFSM = ISSUE_COMMAND;
+        controlFSM = LOAD_COMMAND;
       }
       break;
 
@@ -247,13 +260,14 @@ void pStateControl(
       {
         ignore_me = sReceiveDone.read();
         printf("[pStateControl] Receive done.\n");
-        controlFSM = ISSUE_COMMAND;
+        controlFSM = LOAD_COMMAND;
       }
       break;
   }
 
   //to always "use" piFMC_to_ROLE_rank
-  *debug_out = *role_rank_arg;
+  *debug_out_ignore = *role_rank_arg;
+  *debug = controlFSM;
 }
 
 
@@ -264,7 +278,8 @@ void pRecvEnq(
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >   &sRecvBuff_0,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >   &sRecvBuff_1,
     stream<deqBufferCmd>    &sRecvBufferCmds,
-    stream<bool>            &sReceiveDone
+    stream<bool>            &sReceiveDone,
+    uint16_t* debug
   )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -437,6 +452,8 @@ void pRecvEnq(
       }
       break;
   }
+
+  *debug = recvEnqFsm;
 }
 
 
@@ -444,7 +461,8 @@ void pRecvDeq(
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >   &sRecvBuff_0,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >   &sRecvBuff_1,
     stream<deqBufferCmd>    &sRecvBufferCmds,
-    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >   &soData
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >   &soData,
+    uint16_t* debug
   )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -552,6 +570,8 @@ void pRecvDeq(
       }
       break;
   }
+
+  *debug = recvDeqFsm;
 }
 
 
@@ -562,7 +582,8 @@ void pSendEnq(
     stream<bool>            &sDataArrived,
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &sSendBuff_0,
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &sSendBuff_1,
-    stream<sendBufferCmd>    &sSendBufferCmds
+    stream<sendBufferCmd>    &sSendBufferCmds,
+    uint16_t* debug
   )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -703,6 +724,8 @@ void pSendEnq(
       }
       break;
   }
+
+  *debug = sendEnqFsm;
 }
 
 
@@ -712,7 +735,8 @@ void pSendDeq(
     stream<sendBufferCmd>    &sSendBufferCmds,
     stream<bool>             &sSendReset,
     stream<bool>             &sSendDone,
-    stream<Axis<64> >        &soMPI_data
+    stream<Axis<64> >        &soMPI_data,
+    uint16_t* debug
   )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -725,10 +749,10 @@ void pSendDeq(
 #pragma HLS reset variable=lastBuffer
   static uint8_t nextCC = 0;
 #pragma HLS reset variable=nextCC
-  static bool drain_cc_0 = false;
-#pragma HLS reset variable=drain_cc_0
-  static bool drain_cc_1 = false;
-#pragma HLS reset variable=drain_cc_1
+//  static bool drain_cc_0 = false;
+//#pragma HLS reset variable=drain_cc_0
+//  static bool drain_cc_1 = false;
+//#pragma HLS reset variable=drain_cc_1
 //  static bool back_to_other_cc = false;
 //#pragma HLS reset variable=back_to_other_cc
   //-- STATIC VARIABLES ------------------------------------------------------
@@ -747,8 +771,8 @@ void pSendDeq(
     default:
     case RESET3:
       lastBuffer = 0;
-      drain_cc_0 = false;
-      drain_cc_1 = false;
+      //drain_cc_0 = false;
+      //drain_cc_1 = false;
       nextCC = 0;
       //back_to_other_cc = false;
       if( !sSendBuff_0.empty() )
@@ -1008,54 +1032,107 @@ void pSendDeq(
         } else {
           //success
           sSendDone.write(true);
-          sendDeqFsm = WAIT_DRAIN;
+          //sendDeqFsm = WAIT_DRAIN;
           if( nextCC == 0 )
           {
-            drain_cc_0 = true;
+            //drain_cc_0 = true;
+            sendDeqFsm = DRAIN_CC_0;
             nextCC = 1;
           } else {
-            drain_cc_1 = true;
+            //drain_cc_1 = true;
+            sendDeqFsm = DRAIN_CC_1;
             nextCC = 0;
           }
         }
       }
       break;
 
-    case WAIT_DRAIN:
-      if(drain_cc_0)
+    case DRAIN_CC_0:
+      if( !sCopyContainer_0.empty() )
       {
-        if( !sCopyContainer_0.empty() )
+        tmp_read = sCopyContainer_0.read();
+        if( tmp_read.getTLast() == 1)
         {
-          tmp_read = sCopyContainer_0.read();
-          if( tmp_read.getTLast() == 1)
-          {
-            drain_cc_0 = false;
-          }
-        } else {
-          drain_cc_0 = false;
+          sendDeqFsm = WAIT_START;
         }
-      }
-      if(drain_cc_1)
-      {
-        if( !sCopyContainer_1.empty() )
-        {
-          tmp_read = sCopyContainer_1.read();
-          if( tmp_read.getTLast() == 1)
-          {
-            drain_cc_1 = false;
-          }
-        } else {
-          drain_cc_1 = false;
-        }
-      }
-      if( !drain_cc_0 && !drain_cc_1)
-      {
-        sendDeqFsm = WAIT_START;
+      } else {
+          sendDeqFsm = WAIT_START;
       }
       break;
+
+    case DRAIN_CC_1:
+      if( !sCopyContainer_1.empty() )
+      {
+        tmp_read = sCopyContainer_1.read();
+        if( tmp_read.getTLast() == 1)
+        {
+          sendDeqFsm = WAIT_START;
+        }
+      } else {
+          sendDeqFsm = WAIT_START;
+      }
+      break;
+
+    //case WAIT_DRAIN:
+    //  if(drain_cc_0)
+    //  {
+    //    if( !sCopyContainer_0.empty() )
+    //    {
+    //      tmp_read = sCopyContainer_0.read();
+    //      if( tmp_read.getTLast() == 1)
+    //      {
+    //        drain_cc_0 = false;
+    //      }
+    //    } else {
+    //      drain_cc_0 = false;
+    //    }
+    //  }
+    //  if(drain_cc_1)
+    //  {
+    //    if( !sCopyContainer_1.empty() )
+    //    {
+    //      tmp_read = sCopyContainer_1.read();
+    //      if( tmp_read.getTLast() == 1)
+    //      {
+    //        drain_cc_1 = false;
+    //      }
+    //    } else {
+    //      drain_cc_1 = false;
+    //    }
+    //  }
+    //  if( !drain_cc_0 && !drain_cc_1)
+    //  {
+    //    sendDeqFsm = WAIT_START;
+    //  }
+    //  break;
   }
 
+  *debug = sendDeqFsm;
 }
+
+
+void pMergeDebug(
+  uint16_t *debug0,
+  uint16_t *debug1,
+  uint16_t *debug2,
+  uint16_t *debug3,
+  uint16_t *debug4,
+    ap_uint<80> *debug_out
+    )
+{
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+
+  *debug_out =   (ap_uint<80>) *debug0;
+  *debug_out |= ((ap_uint<80>) *debug1) << 16;
+  *debug_out |= ((ap_uint<80>) *debug2) << 32;
+  *debug_out |= ((ap_uint<80>) *debug3) << 48;
+  *debug_out |= ((ap_uint<80>) *debug4) << 64;
+
+}
+
 
 
 void zrlmpi_wrapper(
@@ -1070,8 +1147,9 @@ void zrlmpi_wrapper(
     stream<MPI_Feedback>    &siMPIFeB,
     stream<Axis<64> >       &soMPI_data,
     stream<Axis<64> >       &siMPI_data,
-    // ----- DEBUG IO ------
-    ap_uint<32> *debug_out
+    // ----- DEBUG out ------
+    ap_uint<80> *debug_out,
+    ap_uint<32> *debug_out_ignore
     )
 {
   //-- DIRECTIVES FOR THE BLOCK ---------------------------------------------
@@ -1085,6 +1163,7 @@ void zrlmpi_wrapper(
 #pragma HLS INTERFACE ap_fifo port=soData
 
 #pragma HLS INTERFACE ap_ovld register port=debug_out
+#pragma HLS INTERFACE ap_ovld register port=debug_out_ignore
 
 #pragma HLS INTERFACE ap_fifo port=soMPIif
 #pragma HLS DATA_PACK     variable=soMPIif
@@ -1140,25 +1219,33 @@ void zrlmpi_wrapper(
   static stream<deqBufferCmd> sRecvBufferCmds ("sRecvBufferCmds");
   #pragma HLS STREAM variable=sRecvBufferCmds depth=2
 
+  //-- LOCAL VARIABLES ------------------------------------------------------------
+  uint16_t debug0 = 0;
+  uint16_t debug1 = 0;
+  uint16_t debug2 = 0;
+  uint16_t debug3 = 0;
+  uint16_t debug4 = 0;
+
 
   //-- PROCESS INSTANTIATION ------------------------------------------------------
 
+  pStateControl(role_rank_arg, cluster_size_arg, soMPIif, siMPIFeB, sReceiveLength, sSendLength,
+      sDataArrived, sReceiveReset, sSendReset,
+                sReceiveDone, sSendDone, &debug0, debug_out_ignore);
+
   pRecvEnq(siMPI_data, sReceiveLength,
       sReceiveReset,
-      sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, sReceiveDone);
+      sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, sReceiveDone, &debug1);
 
-  pRecvDeq(sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, soData);
+  pRecvDeq(sRecvBuff_0, sRecvBuff_1, sRecvBufferCmds, soData, &debug2);
 
-  pSendEnq(siData, sSendLength, sDataArrived, sSendBuff_0, sSendBuff_1, sSendBufferCmds);
+  pSendEnq(siData, sSendLength, sDataArrived, sSendBuff_0, sSendBuff_1, sSendBufferCmds, &debug3);
 
   pSendDeq(sSendBuff_0, sSendBuff_1, sSendBufferCmds,
       sSendReset,
-      sSendDone, soMPI_data);
+      sSendDone, soMPI_data, &debug4);
 
-  //process with highest II last
-  pStateControl(role_rank_arg, cluster_size_arg, soMPIif, siMPIFeB, sReceiveLength, sSendLength,
-      sDataArrived, sReceiveReset, sSendReset,
-                sReceiveDone, sSendDone, debug_out);
+  pMergeDebug(&debug0, &debug1, &debug2, &debug3, &debug4, debug_out);
 
 }
 
