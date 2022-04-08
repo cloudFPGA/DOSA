@@ -33,22 +33,22 @@ using namespace hls;
 #define DOSA_TIPS_LONGEST_OP0 12   // 3x4
 #define DOSA_TIPS_LONGEST_OP1 12
 #define DOSA_TIPS_LONGEST_OUTPUT 12
-#define DOSA_TIPS_PROGRAM_LENGTH 10
-#define DOSA_TIPS_ADDR_SPACE_LENGTH 100
+#define DOSA_TIPS_PROGRAM_LENGTH 2
+#define DOSA_TIPS_ADDR_SPACE_LENGTH 30
 typedef int8_t usedDtype;
-#define DOSA_TIPS_ALU_PARALLEL_SLOT 3  //but only one per operation
-//TODO: define ALU ops dynamically based on what is needed?
 #endif
 
 //DOSA_REMOVE_STOP
 //DOSA_ADD_INTERFACE_DEFINES
 
+//TODO: define ALU ops dynamically based on what is needed?
+//#define DOSA_TIPS_ALU_PARALLEL_SLOT 3  //but only one per operation
+
 //derived defines
 #define TIPS_ACCUM_LENGTH = 3 * DOSA_TIPS_LONGEST_OUTPUT
 
 //as constants for HLS pragmas
-const uint32_t cnn_input_frame_size = (CNN_INPUT_FRAME_SIZE);
-const uint32_t cnn_output_frame_size = (CNN_OUTPUT_FRAME_SIZE);
+//const uint32_t cnn_input_frame_size = (CNN_INPUT_FRAME_SIZE);
 
 
 //independent defines
@@ -58,9 +58,20 @@ typedef uint8_t TipsOpcode;
 typedef uint8_t AluOpcode;
 typedef uint32_t TipsAddr;
 typedef uint16_t TipsLength;
+//typedef uint8_t TipsExecId;
 //pseudo addresses
 #define NETWORK_ALIAS_ADDRESS  0x10001  //network in/out
 #define ACCUM_ALIAS_ADDRESS    0x10002  //to store in ALU accum?
+#define ZERO_ALIAS_ADDRESS     0x10003
+#define NO_ADDRESS_ALIAS       0x10004
+
+//define TipsOpcode
+#define TIPS_NOP    0
+#define DENSE_BIAS  1
+#define DENSE       2
+#define RELU        3
+#define TANH        4
+
 
 struct TipsOp {
   TipsOpcode opcode;
@@ -87,6 +98,7 @@ struct TipsLoadInstr {
 };
 
 struct TipsAluInstr {
+  //TipsExecId id;
   TipsAluInstr operation;
   TipsAddr in_addr;
   TipsLength in_length;
