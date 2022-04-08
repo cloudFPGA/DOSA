@@ -255,7 +255,7 @@ class ArchNode(object):
         self.used_perf_share = self.used_iter_hz/self.max_iter_hz
         if all_flops_valid:
             self.used_perf_F = total_flops_tmp
-            self.max_perf_iter_based = self.used_perf_F * (max_iter/min_iter_hz_impl)
+            self.max_perf_iter_based = total_flops_tmp * (max_iter/min_iter_hz_impl)
             self.total_pipeline_store = total_tensor_store
         if max_util > dosa_singleton.config.utilization.dosa_xi:
             self.over_utilized_node = True

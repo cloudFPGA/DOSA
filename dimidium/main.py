@@ -149,7 +149,7 @@ if __name__ == '__main__':
                                                                      show_splits=True, show_labels=True, selected_only=True,
                                                                      print_debug=False)
             new_plt1 = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
-                                                                     show_splits=True, show_labels=True, selected_only=True,
+                                                                     show_splits=False, show_labels=True, selected_only=True,
                                                                      print_debug=False, iter_based=True)
             new_plt2 = plot_3Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
                                                                      show_splits=False, show_labels=True, selected_only=True,
