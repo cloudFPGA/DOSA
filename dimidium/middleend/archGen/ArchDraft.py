@@ -26,7 +26,6 @@ from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane, get_r
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 from dimidium.backend.commLibs.BaseCommLib import placeholderCommLib
 
-
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -63,6 +62,8 @@ class ArchDraft(object):
         self.possible_comm_libs = []
         self.selected_comm_lib = placeholderCommLib
         self.substract_node_0 = False
+        self.total_perf_F = -1
+        self.max_perf_iter_based = -1
 
     def __repr__(self):
         return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
@@ -71,6 +72,7 @@ class ArchDraft(object):
         res = {'name': self.name, 'version': self.version, 'strategy': str(self.strategy),
                'batch_size': self.batch_size, 'target_sps': self.target_sps, 'target_latency': self.target_latency,
                'target_resources': self.target_resources,
+               'total_implemented_perf_F': self.total_perf_F,
                'input': str(self.input_layer), 'output': str(self.output_layer),
                'main_tvm_mod': str(self.main_tvm_mod)[:100], 'main_tvm_params': str(self.main_tvm_params)[:100],
                'possible_hw_types': [], 'target_hw_set': [], 'fallback_hw_set': [],
@@ -122,8 +124,8 @@ class ArchDraft(object):
         del self.nodes[id_to_delete]
         self.nid_cnt -= 1
         for i in range(id_to_delete, self.nid_cnt):
-            self.nodes[i] = self.nodes[i+1]
-            del self.nodes[i+1]
+            self.nodes[i] = self.nodes[i + 1]
+            del self.nodes[i + 1]
             self.nodes[i].set_node_id(i)
 
     # def update_node_links(self):
@@ -925,10 +927,35 @@ class ArchDraft(object):
                         cur_mem_share += cur_node.bricks[i].switching_mem_share
                         cur_osg = cur_node.bricks[i].tmp_osg
                     # if cur_comp_share > 1.0 or cur_mem_share > 1.0:
+                    # to use monolithic nodes as best as possible
+                    # if (cur_node.over_utilized_node and i < 3 and (
+                    #         cur_comp_share > (dosa_singleton.config.utilization.dosa_xi
+                    #                           + dosa_singleton.config.utilization.dosa_xi_exception) or
+                    #         cur_mem_share > (dosa_singleton.config.utilization.dosa_xi
+                    #                          + dosa_singleton.config.utilization.dosa_xi_exception))) \
+                    #         or \
+                    #         ((not cur_node.over_utilized_node or i >= 3) and (
+                    #                 cur_comp_share > dosa_singleton.config.utilization.dosa_xi or
+                    #                 cur_mem_share > dosa_singleton.config.utilization.dosa_xi)):
                     if cur_comp_share > dosa_singleton.config.utilization.dosa_xi or \
                             cur_mem_share > dosa_singleton.config.utilization.dosa_xi:
                         if i == 0:
                             i = 1
+                            # to use monolithic nodes as best as possible, more than one op if possible
+                            for j in range(1, cur_node.bid_cnt):
+                                cur_comp_share += cur_node.bricks[j].req_util_comp
+                                cur_mem_share += cur_node.bricks[j].req_util_mem
+                                if cur_node.bricks[j].tmp_osg != cur_osg:
+                                    # only same OSG, TODO
+                                    break
+                                if cur_comp_share < (dosa_singleton.config.utilization.dosa_xi
+                                                     + dosa_singleton.config.utilization.dosa_xi_exception) \
+                                        and cur_mem_share < (dosa_singleton.config.utilization.dosa_xi
+                                                             + dosa_singleton.config.utilization.dosa_xi_exception):
+                                    # so would fit
+                                    i = j
+                                else:
+                                    break
                         new_node = cur_node.split_horizontal(i)  # including update_used_perf_util
                         all_new_nodes.append(new_node)
                         if verbose:
@@ -1000,7 +1027,8 @@ class ArchDraft(object):
                         reasons_txt.append('exceeded compute budget')
                         split_factor = nsf
                 if rr != RooflineRegionsOiPlane.IN_HOUSE:
-                    ap_contr_iter = nn.roofline.get_max_perf_at_oi_iter_based(lb.selected_contract.oi_iter, lb.selected_contract)
+                    ap_contr_iter = nn.roofline.get_max_perf_at_oi_iter_based(lb.selected_contract.oi_iter,
+                                                                              lb.selected_contract)
                     ap_stream = nn.roofline.get_max_perf_at_oi(lb.oi_stream)
                     if rr == RooflineRegionsOiPlane.ABOVE_NETWORK \
                             and lb.selected_impl_type == BrickImplTypes.ENGINE \
@@ -1049,9 +1077,9 @@ class ArchDraft(object):
                     if (((n1.used_comp_util_share + n2.used_comp_util_share)
                          * dosa_singleton.config.utilization.dosa_mu_comp)
                         < dosa_singleton.config.utilization.dosa_xi) \
-                         and (((n1.used_mem_util_share + n2.used_mem_util_share)
-                               * dosa_singleton.config.utilization.dosa_mu_comp)
-                              < dosa_singleton.config.utilization.dosa_xi):
+                            and (((n1.used_mem_util_share + n2.used_mem_util_share)
+                                  * dosa_singleton.config.utilization.dosa_mu_comp)
+                                 < dosa_singleton.config.utilization.dosa_xi):
                         # merge nodes totally
                         if verbose:
                             print("[DOSA:archGen:INFO] merging sequential, non-parallel nodes {} and {} totally."
@@ -1130,9 +1158,15 @@ class ArchDraft(object):
         # 10. update kernel uuids & req. perf
         # self.update_uuids()
         self.update_required_perf()
+        self.total_perf_F = 0
+        self.max_perf_iter_based = float('inf')
         for nn in self.node_iter_gen():
             # nn.update_used_perf_util()
             nn.update_used_perf_util_contr(add_switching_costs=True)
+            self.total_perf_F += nn.used_perf_F
+            n_iter_based = nn.data_parallelism_level * nn.max_perf_iter_based
+            if n_iter_based < self.max_perf_iter_based:
+                self.max_perf_iter_based = n_iter_based
             # assert nn.used_comp_util_share < 1.1
             # TODO
             if nn.used_comp_util_share > 1:
@@ -1147,7 +1181,7 @@ class ArchDraft(object):
                 print(
                     "[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint \
                     target_sps ({}). Stop."
-                    .format(self.strategy, self.target_sps))
+                        .format(self.strategy, self.target_sps))
                 return DosaRv.ERROR
             # optimizing towards throughput
             target_throughput = self.target_sps * self.sample_size_B
@@ -1176,7 +1210,7 @@ class ArchDraft(object):
                 print(
                     "[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint \
                      target_latency ({}). Stop."
-                    .format(self.strategy, self.target_latency))
+                        .format(self.strategy, self.target_latency))
                 return DosaRv.ERROR
             # first, try with 1/N distribution
             # consider communication latency
@@ -1211,7 +1245,7 @@ class ArchDraft(object):
                 print(
                     "[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint \
                     target_resources ({}). Stop."
-                    .format(self.strategy, self.target_resources))
+                        .format(self.strategy, self.target_resources))
                 return DosaRv.ERROR
             # find max resources in flops
             max_resources = 0
@@ -1401,9 +1435,9 @@ class ArchDraft(object):
         self.substract_node_0 = True
         # add also with "inverted" successor/predecessor
         node_0.add_succ_node(self.nodes[1])
-        node_0.add_pred_node(self.nodes[self.nid_cnt-1])
+        node_0.add_pred_node(self.nodes[self.nid_cnt - 1])
         self.nodes[1].add_pred_node(node_0)
-        self.nodes[self.nid_cnt-1].add_succ_node(node_0)
+        self.nodes[self.nid_cnt - 1].add_succ_node(node_0)
         self.update_uuids(add_backlink=True)
 
     def generate_communication(self):
@@ -1447,4 +1481,3 @@ class ArchDraft(object):
             else:
                 nn.generate_communication(self.selected_comm_lib, pipeline_store_until_now)
                 pipeline_store_until_now += nn.total_pipeline_store
-

@@ -23,6 +23,10 @@ using namespace hls;
 
 
 void pLoadNetwork(
+    stream<TipsNetworkInstr>  &sNetworkLoadCmd,
+    stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
+    stream<ap_uint<DOSA_TIPS_LONGEST_INPUT> >  &sNetworkInput,
+    uint16_t *debug
     )
 {
 }
@@ -35,8 +39,67 @@ void pSendNetwork(
 
 
 void pTipsControl(
+    stream<TipsNetworkInstr>  &sNetworkLoadCmd,
+    stream<TipsLoadInstr>     &sOpLoadCmd,
+    stream<TipsAluInstr>      &sAluInstr,
+    uint16_t *debug
     )
 {
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  static uint16_t next_command_pointer = 0;
+#pragma HLS reset varialbe=next_command_pointer
+  static TipsOp program[] = {
+    [0] = { .opcode = DENSE_BIAS, .in_addr = NETWORK_ALIAS_ADDRESS, .in_length = 9,
+            .op0_addr = 0, .op0_length = 12, .op1_addr = 12, .op1_length = 12,
+            .out_addr = ACCUM_ALIAS_ADDRESS, .out_length = 12
+          },
+    [1] = { .opcode = TANH, .in_addr = ACCUM_ALIAS_ADDRESS, .in_length = 12,
+            .op0_addr = NO_ADDRESS_ALIAS, .op0_length = 0,
+            .op1_addr = NO_ADDRESS_ALIAS, .op1_length = 0,
+            .out_addr = ACCUM_ALIAS_ADDRESS, .out_length = 12
+          }
+  };
+//#pragma HLS reset varialbe=program
+
+  //-- LOCAL VARIABLES ------------------------------------------------------
+  TipsOp cur_op = program[next_command_pointer];
+
+
+  if( !sNetworkLoadCmd.full() && !sOpLoadCmd.full() && !sAluInstr.full() )
+  {
+    if(cur_op.opcode == TIPS_NOP)
+    {
+      if(cur_op.in_addr == NETWORK_ALIAS_ADDRESS)
+      {
+        sNetworkLoadCmd.write({ .length = cur_op.in_length });
+      } else {
+        sNetworkLoadCmd.write({ .length = 0x0 });
+      }
+      TipsLoadInstr new_op_load = { .addr_0 = cur_op.op0_addr, .length_0 = cur_op.op0_length,
+        .addr_1 = cur_op.op1_addr, .length_1 = cur_op.op1_length
+      };
+      sOpLoadCmd.write(new_op_load);
+
+      TipsAluInstr new_alu_cmd = { .operation = cur_op.opcode, .in_addr = cur_op.in_addr,
+        .in_length = cur_op.in_length, .op0_length = cur_op.op0_length,
+        .op1_length = cur_op.op1_length, .out_addr = cur_op.out_addr,
+        .out_length = cur_op.out_length
+      };
+      sAluInstr.write(new_alu_cmd);
+    }
+
+    next_command_pointer++;
+    if(next_command_pointer >= DOSA_TIPS_PROGRAM_LENGTH)
+    {
+      next_command_pointer = 0x0;
+    }
+  }
+
+  *debug = (uint8_t) next_command_pointer;
+  *debug |= ((uint16_t) cur_op.opcode) << 8;
 }
 
 
@@ -44,6 +107,7 @@ void pLoadOpDual(
     )
 {
   //use reset as init, no explicit init
+  //also forward alu instr --> for feedback to control unit
 }
 
 
@@ -51,7 +115,7 @@ void pALU(
     )
 {
   //with internal accum
-  //superscalar architecture: can schedule different alu operations in paralell
+  //superscalar architecture: can schedule different alu operations in paralell --> later
 }
 
 
@@ -66,7 +130,6 @@ void pMergeDebug(
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
-  //-- STATIC VARIABLES (with RESET) ------------------------------------------
 
   *debug_out = (uint64_t) *debug0;
   *debug_out |= ((uint64_t) *debug1) << 16;
@@ -105,7 +168,13 @@ void tips_test(
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
 
   //-- STATIC DATAFLOW VARIABLES ------------------------------------------
-  
+  static stream<TipsNetworkInstr> sNetworkLoadCmd ("sNetworkLoadCmd");
+  //depth = 1!
+  static stream<TipsLoadInstr> sOpLoadCmd ("sOpLoadCmd");
+  //depth = 1!
+  static stream<TipsAluInstr> sAluInstr ("sAluInstr");
+  //depth = 1!
+
   //-- LOCAL VARIABLES ------------------------------------------------------------
   uint16_t debug0 = 0;
   uint16_t debug1 = 0;
@@ -114,6 +183,7 @@ void tips_test(
 
   //-- DATAFLOW PROCESS ---------------------------------------------------
 
+  pTipsControl(sNetworkLoadCmd, sOpLoadCmd, sAluInstr, &debug0);
 
   pMergeDebug(&debug0, &debug1, &debug2, &debug3, debug_out);
 }

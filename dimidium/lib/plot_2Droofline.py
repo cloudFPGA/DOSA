@@ -44,9 +44,11 @@ def set_size(w, h, ax=None):
 
 
 def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, x_min, x_max, z_order=5, y_min=0.1,
-                 show_labels=True, print_debug=False):
-    # text_height_values = [65, 120, 55, 100, 180]
-    text_height_values = [0.65, 1.20, 0.55, 1.00, 1.80]
+                 show_labels=True, print_debug=False, iter_based=False):
+    if iter_based:
+        text_height_values = [6.5, 12.0, 5.5, 10.0, 18.0]
+    else:
+        text_height_values = [0.65, 1.20, 0.55, 1.00, 1.80]
     th = itertools.cycle(text_height_values)
     for e in oi_list:
         if e['oi'] > x_max or e['oi'] < x_min:
@@ -209,6 +211,9 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
     plt_name = "{} (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
                                                             str(arch_draft.strategy).split('.')[-1],
                                                             arch_draft.get_total_nodes_cnt())
+    subtitle = None
+    if iter_based:
+        subtitle = '(total impl. {:.2F} GFLOPS)'.format(arch_draft.total_perf_F / gigaU)
     perf_dict = arch_draft.target_hw_set[0].get_performance_dict()
     roof_dict = arch_draft.target_hw_set[0].get_roofline_dict()
     if iter_based:
@@ -229,7 +234,7 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
         perf_dict['bw_lutram_gBs'] *= af
         # perf_dict['unit'] = unit
     return draw_roofline(plt_name, arch_draft.batch_size, perf_dict, roof_dict, target_string, cmpl_list, uinp_list,
-                         cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug, iter_based)
+                         cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug, iter_based, subtitle)
 
 
 def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft, show_splits=True, show_labels=True,
@@ -304,6 +309,10 @@ def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft,
     plt_name = "{} (draft: {}, node: {}, dpl: {}, opt: {})".format(parent_draft.name, parent_draft.version,
                                                           arch_node.get_node_id(), arch_node.data_parallelism_level,
                                                           str(parent_draft.strategy).split('.')[-1])
+    subtitle = None
+    if iter_based:
+        subtitle = '(impl. {:.2f} GFLOPS,\ntheor. max.: {:.2f})'\
+            .format(arch_node.used_perf_F / gigaU, arch_node.max_perf_iter_based / gigaU)
     perf_dict = arch_node.targeted_hw.get_performance_dict()
     roof_dict = arch_node.targeted_hw.get_roofline_dict()
     if arch_node.selected_hw_type != placeholderHw:
@@ -328,7 +337,7 @@ def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft,
         # perf_dict['unit'] = unit
     return draw_roofline(plt_name, parent_draft.batch_size, perf_dict,
                          roof_dict, target_string, cmpl_list, uinp_list,
-                         cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug, iter_based)
+                         cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug, iter_based, subtitle)
 
 
 def generate_roofline_plt_old(detailed_analysis, target_sps, used_batch, used_name, perf_dict, roofline_dict,
@@ -340,7 +349,7 @@ def generate_roofline_plt_old(detailed_analysis, target_sps, used_batch, used_na
 
 
 def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string, cmpl_list, uinp_list, cmpl_list2, uinp_list2,
-                  total, show_splits=True, show_labels=True, print_debug=False, iter_based=False):
+                  total, show_splits=True, show_labels=True, print_debug=False, iter_based=False, subtitle=None):
     # Arithmetic intensity vector
     if iter_based:
         ai_list_very_very_very_small = np.arange(0.00001, 0.0001, 0.00001)
@@ -515,9 +524,11 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # plt.text(x=oai*1.1, y=marker_line-55, s=text, color=color, fontsize=MY_SIZE*font_factor, ha='left', va='top')
 
     draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, ylim_max, cmpl_list,
-                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug)
+                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug,
+                 iter_based=iter_based)
     draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, ylim_max, uinp_list,
-                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug)
+                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug,
+                 iter_based=iter_based)
 
     used_alt_1 = draw_oi_marker(plt, color, marker1, cmpl_list2, ai_list[0], ai_list[-1], print_debug=print_debug,
                                 alt_marker=alt_marker)
@@ -538,11 +549,14 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
 
     # color3 = 'orchid'
     color3 = 'aqua'
+    text_y = 1
+    if iter_based:
+        text_y = 10
     oai_avg = total['flops'] / (total['uinp_B'] + total['para_B'])
     plt.vlines(x=oai_avg, ymin=-0.1, ymax=upper_limit, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
                zorder=8)
     text = 'Engine avg.'
-    plt.text(x=oai_avg*1.02, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
+    plt.text(x=oai_avg*1.02, y=text_y, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
              rotation=90, zorder=8)
     if print_debug:
         print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg, used_name))
@@ -550,7 +564,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     plt.vlines(x=oai_avg2, ymin=-0.1, ymax=upper_limit, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
                zorder=8)
     text = 'Stream avg.'
-    plt.text(x=oai_avg2*1.02, y=1, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
+    plt.text(x=oai_avg2*1.02, y=text_y, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
              rotation=90, zorder=8)
     if print_debug:
         print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg2, used_name))
@@ -606,8 +620,14 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(marker1_legend)
     handles.append(marker2_legend)
+
     if marker3_legend is not None:
         handles.append(marker3_legend)
+    if subtitle is not None:
+        # plt.plot([], [], ' ', label=subtitle)
+        subtitle_legend = mpl.lines.Line2D([], [], marker=9, linestyle='None', color='white', label=subtitle)
+        handles.append(subtitle_legend)
+
     title = "DOSA Roofline for {}".format(used_name)
     legend = plt.legend(handles=handles, ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)
     plt.grid(True, which="major", ls="-", color='0.89')
