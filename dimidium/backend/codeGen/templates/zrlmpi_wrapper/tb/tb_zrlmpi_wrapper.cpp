@@ -64,6 +64,7 @@ void stepDut() {
         &debug_out, &debug_out_ignore);
     simCnt++;
     printf("[%4.4d] STEP DUT\n", simCnt);
+    printf("        debug_out: %4.4llX%16.16llX\n", (uint16_t) (debug_out >> 64), (uint64_t) debug_out);
 }
 
 

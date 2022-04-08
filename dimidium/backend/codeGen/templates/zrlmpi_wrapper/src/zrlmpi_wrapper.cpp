@@ -194,9 +194,6 @@ void pStateControl(
         ignore_me = sDataArrived.read();
         MPI_Interface info = MPI_Interface();
         info.mpi_call = MPI_SEND_INT;
-        //curCount is WORD length
-        uint32_t byte_length = (curCount*4) - 3; //since it would be friction WITHIN a line -> should work
-        sSendLength.write(byte_length);
         controlFSM = PROC_SEND;
         info.rank = (uint32_t) curRank;
         info.count = (uint32_t) curCount;
@@ -430,7 +427,7 @@ void pRecvEnq(
         bool result = sReceiveReset.read();
         if(result)
         {//failed
-          //"poison pill" is already into the fifo
+          //"poison pill" is already in the fifo
           if(nextBuffer == 0)
           {
             sRecvBufferCmds.write(DRAIN_1);
