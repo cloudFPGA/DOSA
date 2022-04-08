@@ -42,7 +42,7 @@ class cFBuild1(HwBuildTopVhdl):
         if not dosa_singleton.config.backend.clean_build:
             # we should delete hdl content and all bitfiles
             # and ip_guards
-            os.system('rm -rf {gvhdl}/* {mb}/dcps/ {mb}/ROLE/.ip_*'.format(gvhdl=self.global_vhdl_dir, mb=self.build_dir))
+            os.system('rm -rf {gvhdl}/* {mb}/dcps/ {mb}/ROLE/.ip_* {mb}/ROLE/hls/*'.format(gvhdl=self.global_vhdl_dir, mb=self.build_dir))
             # and additional constraints
             os.system('rm -rf {}/ROLE/xdc'.format(self.build_dir))
         os.system("mkdir -p {0}/ROLE/hdl {0}/ROLE/hls {0}/ROLE/tcl".format(self.build_dir))
