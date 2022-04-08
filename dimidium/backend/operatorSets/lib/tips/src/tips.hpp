@@ -36,6 +36,9 @@ using namespace hls;
 #define DOSA_TIPS_PROGRAM_LENGTH 2
 #define DOSA_TIPS_ADDR_SPACE_LENGTH 30
 typedef int8_t usedDtype;
+#define DOSA_TIPS_USED_BITWIDTH 8
+#define DOSA_TIPS_USED_BITWIDTH_TKEEP 1
+#define DOSA_TIPS_USED_BITWIDTH_TKEEP_WIDTH 1
 #endif
 
 //DOSA_REMOVE_STOP
@@ -53,6 +56,7 @@ typedef int8_t usedDtype;
 
 //independent defines
 enum twoStatesFSM {RESET = 0, FORWARD};
+enum LoadNetworkStates {RESET1 = 0, READ_INSTR, READ_NETWORK};
 
 typedef uint8_t TipsOpcode;
 typedef uint8_t AluOpcode;

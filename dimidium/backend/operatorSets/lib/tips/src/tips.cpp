@@ -15,6 +15,7 @@
 #include "ap_int.h"
 #include "ap_utils.h"
 #include <hls_stream.h>
+#include <hls_math.h>
 #include <cassert>
 
 #include "tips.hpp"
@@ -29,12 +30,87 @@ void pLoadNetwork(
     uint16_t *debug
     )
 {
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  static LoadNetworkStates loadNetFSM = RESET1;
+#pragma HLS reset variable=loadNetFSM
+  static TipsLength cur_length = 0;
+#pragma HLS reset variable=cur_length
+  static TipsLength req_input_length = 0;
+#pragma HLS reset variable=req_input_length
+  static TipsLength hangover_valid_bytes = 0x0;
+#pragma HLS reset variable=hangover_valid_bytes
+  //-- STATIC VARIABLES -----------------------------------------------------
+  static ap_uint<DOSA_TIPS_LONGEST_INPUT> cur_input;
+  static ap_uint<DOSA_TIPS_LONGEST_INPUT> hangover_store;
+  //-- LOCAL VARIABLES ------------------------------------------------------
+
+  switch(loadNetFSM)
+  {
+    default:
+    case RESET1:
+      //necessary?
+      cur_length = 0;
+      hangover_valid_bytes = 0;
+      cur_input = 0;
+      hangover_store = 0;
+      req_input_length = 0;
+      loadNetFSM = READ_INSTR;
+      break;
+
+    case READ_INSTR:
+      if( !sNetworkLoadCmd.empty() && !sNetworkInput.full() )
+      {
+        req_input_length = sNetworkLoadCmd.read().length;
+        if(req_input_length == 0)
+        {
+          sNetworkInput.write(0x0);
+          //stay here
+        } else {
+          if(hangover_valid_bytes >= req_input_length)
+          {
+            ap_uint<DOSA_TIPS_LONGEST_INPUT> mask = exp2(req_input_length*8)-1;
+            cur_input = hangover_store & mask;
+            sNetworkInput.write(cur_input);
+            hangover_valid_bytes -= req_input_length;
+            hangover_store =>> req_input_length * 8;
+            //stay here
+          } else {
+            cur_length = hangover_valid_bytes;
+            cur_input = hangover_store;
+            hangover_store = 0;
+            hangover_valid_bytes = 0;
+            loadNetFSM = READ_NETWORK;
+          }
+        }
+      }
+      break;
+
+    case READ_NETWORK:
+      if( !siData.empty() && sNetworkInput.full() )
+      {
+        NetworkWord in_word = siData.read();
+      }
+      break;
+  }
+
+
+
 }
 
 
 void pSendNetwork(
     )
 {
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  //-- STATIC VARIABLES -----------------------------------------------------
+  //-- LOCAL VARIABLES ------------------------------------------------------
+
 }
 
 
@@ -51,7 +127,8 @@ void pTipsControl(
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   static uint16_t next_command_pointer = 0;
 #pragma HLS reset varialbe=next_command_pointer
-  static TipsOp program[] = {
+  //-- STATIC VARIABLES -----------------------------------------------------
+  const TipsOp program[] = {
     [0] = { .opcode = DENSE_BIAS, .in_addr = NETWORK_ALIAS_ADDRESS, .in_length = 9,
             .op0_addr = 0, .op0_length = 12, .op1_addr = 12, .op1_length = 12,
             .out_addr = ACCUM_ALIAS_ADDRESS, .out_length = 12
@@ -106,16 +183,32 @@ void pTipsControl(
 void pLoadOpDual(
     )
 {
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  //-- STATIC VARIABLES -----------------------------------------------------
+  //-- LOCAL VARIABLES ------------------------------------------------------
+
   //use reset as init, no explicit init
   //also forward alu instr --> for feedback to control unit
+
 }
 
 
 void pALU(
     )
 {
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  //-- STATIC VARIABLES -----------------------------------------------------
+  //-- LOCAL VARIABLES ------------------------------------------------------
+
   //with internal accum
   //superscalar architecture: can schedule different alu operations in paralell --> later
+
 }
 
 
@@ -163,6 +256,7 @@ void tips_test(
 
 #ifndef __SYNTHESIS__
   assert(DOSA_TIPS_ADDR_SPACE_LENGTH < 0xFFFF);
+  assert(DOSA_TIPS_USED_BITWIDTH % 8 == 0); //only byte aligned for now
 #endif
 
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
