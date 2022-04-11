@@ -56,6 +56,10 @@ void pStateControl(
 #pragma HLS reset variable=curCount
   static uint8_t curRep = 0;
 #pragma HLS reset variable=curRep
+  static bool reuse_prev_data = false;
+#pragma HLS reset variable=reuse_prev_data
+  static bool save_cur_data = false;
+#pragma HLS reset variable=save_cur_data
   //-- STATIC VARIABLES ------------------------------------------------------
   static uint8_t mpiCommands[DOSA_WRAPPER_PROG_LENGTH];
   #pragma HLS ARRAY_PARTITION variable=mpiCommands complete
@@ -65,6 +69,8 @@ void pStateControl(
   #pragma HLS ARRAY_PARTITION variable=mpiCounts complete
   static uint8_t commandRepetitions[DOSA_WRAPPER_PROG_LENGTH];
   #pragma HLS ARRAY_PARTITION variable=commandRepetitions complete
+  static bool saveCurData[DOSA_WRAPPER_PROG_LENGTH];
+  #pragma HLS ARRAY_PARTITION variable=saveCurData complete
 
   //-- LOCAL VARIABLES ------------------------------------------------------
   bool not_empty = false;
@@ -84,6 +90,7 @@ void pStateControl(
         mpiRanks[i] = MPI_NO_RANK;
         mpiCounts[i] = 0;
         commandRepetitions[i] = 0;
+        saveCurData[i] = false;
       }
       if( !siMPIFeB.empty() )
       {
@@ -108,6 +115,8 @@ void pStateControl(
       curCmnd = MPI_INSTR_NOP;
       curRep = 0;
       curRank = MPI_NO_RANK;
+      reuse_prev_data = false;
+      save_cur_data = false;
       if( !not_empty && *cluster_size_arg != 0)
       {
         controlFSM = WRITE_PROGRAM;
@@ -122,10 +131,12 @@ void pStateControl(
         mpiRanks[0]             = 0;
         mpiCounts[0]            = 6; // 22/4;  //MUST be wordsize!
         commandRepetitions[0]   = 1;
+        saveCurData[0]          = false;
         mpiCommands[1]          = MPI_INSTR_SEND;
         mpiRanks[1]             = 0;
         mpiCounts[1]            = 6; // 22/4; //MUST be wordsize!
         commandRepetitions[1]   = 1;
+        saveCurData[1]          = false;
       }
 #else
       //DOSA_ADD_mpi_commands
@@ -140,6 +151,8 @@ void pStateControl(
         curRank = mpiRanks[nextCommandPtr];
         curCount = mpiCounts[nextCommandPtr];
         curRep = commandRepetitions[nextCommandPtr];
+        //relevant for send only
+        save_cur_data = saveCurData[nextCommandPtr];
         nextCommandPtr++;
         if(nextCommandPtr >= DOSA_WRAPPER_PROG_LENGTH)
         {
@@ -174,8 +187,19 @@ void pStateControl(
           uint32_t byte_length = (curCount*4) - 3; //since it would be friction WITHIN a line -> should work
           if(curCmnd == MPI_INSTR_SEND)
           {
-            sSendLength.write(byte_length);
-            controlFSM = WAIT_DATA;
+            if(!reuse_prev_data)
+            {
+              sSendLength.write(byte_length);
+              controlFSM = WAIT_DATA;
+            } else {
+              MPI_Interface info = MPI_Interface();
+              info.mpi_call = MPI_SEND_INT;
+              info.rank = (uint32_t) curRank;
+              info.count = (uint32_t) curCount;
+              soMPIif.write(info);
+              printf("[pStateControl] Issuing %d command, rank %d, count %d (as repeat).\n", (uint8_t) info.mpi_call, (uint8_t) info.rank, (uint32_t) info.count);
+              controlFSM = PROC_SEND;
+            }
           } else {
             info.mpi_call = MPI_RECV_INT;
             info.rank = (uint32_t) curRank;
@@ -194,11 +218,11 @@ void pStateControl(
         ignore_me = sDataArrived.read();
         MPI_Interface info = MPI_Interface();
         info.mpi_call = MPI_SEND_INT;
-        controlFSM = PROC_SEND;
         info.rank = (uint32_t) curRank;
         info.count = (uint32_t) curCount;
         soMPIif.write(info);
         printf("[pStateControl] Issuing %d command, rank %d, count %d.\n", (uint8_t) info.mpi_call, (uint8_t) info.rank, (uint32_t) info.count);
+        controlFSM = PROC_SEND;
       }
       break;
 
@@ -210,9 +234,17 @@ void pStateControl(
         fedb = siMPIFeB.read();
         if( fedb == ZRLMPI_FEEDBACK_OK )
         {
-          controlFSM = WAIT_SEND;
-          sSendReset.write(false);
-          printf("[pStateControl] Issue send ok.\n");
+          if(save_cur_data)
+          {
+            printf("[pStateControl] Send succesfull, reuse data.\n");
+            reuse_prev_data = true;
+            controlFSM = LOAD_COMMAND;
+          } else {
+            reuse_prev_data = false;
+            controlFSM = WAIT_SEND;
+            sSendReset.write(false);
+            printf("[pStateControl] Issue send ok.\n");
+          }
         } else {
           //Timeout occured
           sSendReset.write(true);
@@ -257,6 +289,7 @@ void pStateControl(
       {
         ignore_me = sReceiveDone.read();
         printf("[pStateControl] Receive done.\n");
+        reuse_prev_data = false; //just to be sure
         controlFSM = LOAD_COMMAND;
       }
       break;

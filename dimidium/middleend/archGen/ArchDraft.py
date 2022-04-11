@@ -13,6 +13,7 @@
 import os
 import math
 import json
+import numpy as np
 
 import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.commLibs.BaseCommLib import BaseCommLib
@@ -886,12 +887,14 @@ class ArchDraft(object):
             assert bb.selected_impl_type != BrickImplTypes.UNDECIDED
         # 1. select best of possible contracts
         for nn in self.node_iter_gen():
+            # last_osg = None
             for lb in nn.local_brick_iter_gen():
                 if self.strategy == OptimizationStrategies.RESOURCES:
                     lb.sort_contracts(by_utility=True)
                 else:
                     lb.sort_contracts(by_utility=False)
-                lb.update_possible_contracts()
+                # lb.update_possible_contracts(consider_switching=True, assume_osg=last_osg)
+                lb.update_possible_contracts(consider_switching=True)
                 # consider req_iter_hz per Brick to select contract
                 #  choosing contract that is above requirement with least resources
                 selected_contract = lb.get_best_sufficient_contract_with_least_resources()
@@ -901,12 +904,10 @@ class ArchDraft(object):
                 # lb.set_osg(selected_contract.osg)
                 # lb.selected_contract = selected_contract
                 lb.set_contract(selected_contract)
+                # last_osg = selected_contract.osg
         # ensure all are decided
         for bb in self.brick_iter_gen():
             assert bb.selected_contract is not None
-        # TODO: do compute paralleization
-        #  or later, if nodes are already sorted?
-        #  pseudo contracts should be the selected contracts...so no "over utilized" node should exist?
         # 2. split nodes based on selected contracts
         orig_nodes_handles = []
         for nn in self.node_iter_gen():
@@ -951,10 +952,8 @@ class ArchDraft(object):
                                 if cur_node.bricks[j].tmp_osg != cur_osg:
                                     # only same OSG, TODO
                                     break
-                                if cur_comp_share < (dosa_singleton.config.utilization.dosa_xi
-                                                     + dosa_singleton.config.utilization.dosa_xi_exception) \
-                                        and cur_mem_share < (dosa_singleton.config.utilization.dosa_xi
-                                                             + dosa_singleton.config.utilization.dosa_xi_exception):
+                                if cur_comp_share < dosa_singleton.config.utilization.dosa_xi_exception \
+                                        and cur_mem_share < dosa_singleton.config.utilization.dosa_xi_exception:
                                     # so would fit
                                     i = j
                                 else:
@@ -995,7 +994,7 @@ class ArchDraft(object):
             for bi in turn_engine_to_stream_list:
                 bb = nn.bricks[bi]
                 bb.set_impl_type(BrickImplTypes.STREAM)
-                bb.update_possible_contracts()
+                bb.update_possible_contracts(consider_switching=True)
                 # consider req_iter_hz per Brick to select contract
                 #  choosing contract that is above requirement with least resources
                 selected_contract = bb.get_best_sufficient_contract_with_least_resources()
@@ -1010,8 +1009,7 @@ class ArchDraft(object):
                     if verbose:
                         print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.brick_uuid) +
                               " since it is an engine with only one operation.")
-        # 4. compute parallelization if necessary
-        #  update: compute parallelization (i.e. blocking of compute ops) is difficult, hence also round robin here
+        # 4. data parallelization if necessary
         # TODO: different strategy for resource optimization
         assert self.strategy != OptimizationStrategies.RESOURCES
         for nn in self.node_iter_gen():
@@ -1055,9 +1053,82 @@ class ArchDraft(object):
                 if verbose:
                     print("[DOSA:archGen:INFO] Splitting node {} vertically, due to ({})."
                           .format(nn.node_id, reasons_txt))
-        # update uuids
+        # TODO: do compute paralleization
+        #  or later, if nodes are already sorted?
+        #  pseudo contracts should be the selected contracts...so no "over utilized" node should exist?
+        # 5. compute parallelization if necessary
+        orig_nodes_handles = []
+        for nn in self.node_iter_gen():
+            orig_nodes_handles.append(nn)
+        for nn in orig_nodes_handles:
+            needs_compute_utilization = False
+            max_factor = 0
+            for lb in nn.local_brick_iter_gen():
+                if lb.needs_compute_parallelization:
+                    needs_compute_utilization = True
+                    if lb.compute_parallelization_factor > max_factor:
+                        max_factor = lb.compute_parallelization_factor
+            if needs_compute_utilization:
+                nn.needs_compute_parallelization = True
+                nn.compute_parallelization_factor = max_factor
+                # check if all are possible
+                prev_lb = None
+                for lb in nn.local_brick_iter_gen():
+                    if not lb.needs_compute_parallelization \
+                            or lb.compute_parallelization_factor != max_factor \
+                            or lb.local_brick_id != 0:
+                        # TODO: allow also already splitted brick in the middle of a node?
+                        assert prev_lb is not None
+                        # TODO: (reactive check later, now it will stop if not possible)
+                        lb.parallelize([lb.selected_contract], max_factor, with_inputs=True)
+                    prev_lb = lb
+                my_new_bricks = {}
+                new_nodes = {}
+                for i in range(0, nn.bid_cnt):
+                    for j in range(0, max_factor):
+                        p_brick = nn.bricks[i].parallelized_bricks[j]
+                        p_brick.available_contracts = []
+                        nn.bricks[i].selected_contract.osg.annotate_brick(p_brick,
+                                                                          nn.bricks[i].selected_contract.device,
+                                                                          filter_impl_types=nn.bricks[i].selected_impl_type)
+                        p_brick.update_possible_contracts(consider_switching=True)
+                        selected_contract = p_brick.get_best_sufficient_contract_with_least_resources()
+                        if selected_contract is None:
+                            print("[DOSA:archGen:ERROR] couldn't find any valid OSG for PARTIAL brick {}. STOP."
+                                  .format(p_brick.brick_uuid))
+                            exit(1)
+                        p_brick.set_contract(selected_contract)
+                        if j == 0:
+                            my_new_bricks[i] = p_brick
+                        elif j in new_nodes.keys():
+                            new_nodes[j].add_brick(p_brick)
+                        else:
+                            new_node = ArchNode(target_hw=nn.targeted_hw)
+                            new_node.max_perf_F = nn.max_perf_F
+                            new_node.roofline = nn.roofline
+                            new_node.data_parallelism_level = nn.data_parallelism_level
+                            new_node.predecessors = nn.predecessors
+                            new_node.successors = nn.successors
+                            new_node.needs_compute_parallelization = True
+                            new_node.compute_parallelization_factor = max_factor
+                            new_node.add_brick(p_brick)
+                            new_nodes[j] = new_node
+                nn.bid_cnt = len(my_new_bricks)
+                nn.bricks = my_new_bricks
+                # add pointers to all other companion nodes to all nodes
+                # all_parallel_nodes = [nn]
+                # all_parallel_nodes.extend(list(new_nodes))
+                new_nodes[0] = nn
+                for nni in new_nodes.keys():
+                    nnn = new_nodes[nni]
+                    nnn.parallel_nodes = new_nodes
+                    nnn.parallel_nodes_index = nni
+                # TODO: insert new nodes after current node in draft
+                for j in range(1, max_factor):
+                    self.insert_node(new_nodes[j], nn.node_id + j)
+        # two different types of ranks: data-parallelism, compute parallelism --> in update uuids
         self.update_uuids()
-        # 5. merge sequential nodes (no data par, no twins, same targeted_hw) if possible, based on used_perf,
+        # 6. merge sequential nodes (no data par, no twins, same targeted_hw) if possible, based on used_perf,
         #  (i.e move bricks after each other)
         for nn in self.node_iter_gen():
             nn.update_used_perf_util_contr(add_switching_costs=True)
@@ -1066,11 +1137,11 @@ class ArchDraft(object):
             if ni in node_ids_to_delete:
                 continue
             n1 = self.nodes[ni]
-            if n1.data_parallelism_level > 1:
+            if n1.data_parallelism_level > 1 or n1.compute_parallelization_factor > 1:
                 continue
             if ni < (len(self.nodes) - 1):
                 n2 = self.nodes[ni + 1]
-                if n2.data_parallelism_level > 1:
+                if n2.data_parallelism_level > 1 or n2.compute_parallelization_factor > 1:
                     continue
                 if n1.targeted_hw == n2.targeted_hw:
                     # TODO: move bricks after each other?
@@ -1093,9 +1164,9 @@ class ArchDraft(object):
         node_ids_to_delete.reverse()
         for nd in node_ids_to_delete:
             self.delete_node(nd)
-        # 6. update possible hw targets
+        # 7. update possible hw targets
         self.update_possible_hw_types()
-        # 7. decide for hw, if targeted hw is possible, use this one
+        # 8. decide for hw, if targeted hw is possible, use this one
         #  if not, use other possible hw with largest roof_F
         #  if only smaller roof_F are available, use fallback hw
         #  (optimizing hw --> not part of legalizing)
@@ -1141,11 +1212,11 @@ class ArchDraft(object):
             if nn.selected_hw_type not in selected_hw_types:
                 selected_hw_types.append(nn.selected_hw_type)
         self.all_selected_hw_types = selected_hw_types
-        # 8. create blocks
+        # 9. create blocks
         self.update_uuids()
         for nn in self.node_iter_gen():
             nn.update_block_list()
-        # 9. check for engine threshold
+        # 10. check for engine threshold
         # TODO
         # for nn in self.node_iter_gen():
         #     for ce in nn.engine_container_refs:
@@ -1158,7 +1229,7 @@ class ArchDraft(object):
         # update blocks again
         # for nn in self.node_iter_gen():
         #     nn.update_block_list()
-        # 10. update kernel uuids & req. perf
+        # 11. update kernel uuids & req. perf
         # self.update_uuids()
         self.update_required_perf()
         self.total_perf_F = 0
@@ -1242,6 +1313,7 @@ class ArchDraft(object):
                     brick.req_flops = orig_req_flops * brick.flops_conv_factor
                     # brick.req_iter_hz = brick.req_flops / brick.flops
                     brick.req_iter_hz = 1 / (latency_per_brick * local_data_par_level)
+                    # TODO: calculate also input_bw_Bs and output_bw_Bs
         else:
             # optimizing towards resource footprint
             if self.target_resources < 0:
@@ -1277,8 +1349,10 @@ class ArchDraft(object):
         next_buuid = 0
         next_bluuid = 0
         cur_rank = 0
-        old_node = None
-        first_node = None
+        prev_nodes = []
+        first_nodes = []
+        first_nodes_done = False
+        cur_nodes = []
         for nn in self.node_iter_gen():
             next_kuuid = nn.update_kernel_uuids(next_kuuid)
             next_buuid = nn.update_brick_uuids(next_buuid)
@@ -1289,15 +1363,58 @@ class ArchDraft(object):
                 new_ranks.append(cur_rank)
                 cur_rank += 1
             nn.ranks = new_ranks
-            if first_node is None:
-                first_node = nn
-            if old_node is not None:
-                nn.inp_ranks = old_node.ranks
-                old_node.out_ranks = new_ranks
-            old_node = nn
+            if len(first_nodes) == 0:
+                first_nodes.append(nn)
+            elif nn.needs_compute_parallelization and not first_nodes_done:
+                for fnn in first_nodes:
+                    if fnn in nn.parallel_nodes.values():
+                        first_nodes.append(nn)
+                        break
+            nn.inp_ranks = []
+            nn.out_ranks = []
+            nn.parallel_ranks = []
+            appended = False
+            if nn.needs_compute_parallelization:
+                if len(cur_nodes) == 0:
+                    cur_nodes = [nn]
+                    appended = True
+                else:
+                    for cn in cur_nodes:
+                        if cn in nn.parallel_nodes.values():
+                            cur_nodes.append(nn)
+                            appended = True
+                            break
+            if not nn.needs_compute_parallelization or not appended:
+                # all_parallel_ranks = []
+                for cn in cur_nodes:
+                    # all_parallel_ranks.extend(pn.ranks)
+                    # all_parallel_ranks.append(pn.ranks)  # list of list
+                    for cnn in cur_nodes:
+                        if cnn == cn:
+                            continue
+                        cn.parallel_ranks.append(cnn.ranks)  # list of list
+                # for pn in prev_nodes:
+                #     pn.parallel_ranks = all_parallel_ranks
+                first_nodes_done = True
+                prev_nodes = cur_nodes
+                cur_nodes = [nn]
+            for pn in prev_nodes:
+                # nn.inp_ranks.extend(pn.ranks)
+                # pn.out_ranks.extend(new_ranks)
+                nn.inp_ranks.append(pn.ranks)
+                pn.out_ranks.append(new_ranks)
         if add_backlink:
-            first_node.inp_ranks = old_node.ranks
-            old_node.out_ranks = first_node.ranks
+            for cn in cur_nodes:
+                for fn in first_nodes:
+                    cn.out_ranks.append(fn.ranks)
+            for fn in first_nodes:
+                for cn in cur_nodes:
+                    fn.inp_ranks.append(cn.ranks)
+        # transpose ranks
+        for nn in self.node_iter_gen():
+            nn.inp_ranks = np.array(nn.inp_ranks).T.tolist()
+            nn.out_ranks = np.array(nn.out_ranks).T.tolist()
+            nn.parallel_ranks = np.array(nn.parallel_ranks).T.tolist()
         return
 
     # def update_possible_osgs(self):
@@ -1464,8 +1581,12 @@ class ArchDraft(object):
             self._add_node_0()
         # calculate pipeline effects
         draft_total_pipeline_store = 0
+        prev_node = None
         for nn in self.node_iter_gen():
-            draft_total_pipeline_store += nn.total_pipeline_store
+            # don't add up parallel nodes
+            if prev_node not in nn.parallel_nodes.values():
+                draft_total_pipeline_store += nn.total_pipeline_store
+                prev_node = nn
         if dosa_singleton.config.backend.comm_message_interleaving < (draft_total_pipeline_store + 1):
             print("[DOSA:CommGen:INFO] Setting message interleaving to {}, due to higher pipeline storage within node."
                   .format(draft_total_pipeline_store + 1))
@@ -1475,6 +1596,7 @@ class ArchDraft(object):
         #    self.nodes[0].total_pipeline_store = total_pipeline_store
         # then, populate
         pipeline_store_until_now = 0
+        prev_node = None
         for nn in self.node_iter_gen():
             if nn.node_id == 0 and dosa_singleton.config.backend.create_rank_0_for_io:
                 # FIXME: find more elegant way...
@@ -1483,4 +1605,8 @@ class ArchDraft(object):
                 nn.total_pipeline_store = 0
             else:
                 nn.generate_communication(self.selected_comm_lib, pipeline_store_until_now)
-                pipeline_store_until_now += nn.total_pipeline_store
+                # don't add up parallel nodes
+                if prev_node not in nn.parallel_nodes.values():
+                    pipeline_store_until_now += nn.total_pipeline_store
+                    prev_node = nn
+

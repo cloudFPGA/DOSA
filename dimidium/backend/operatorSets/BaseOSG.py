@@ -96,11 +96,13 @@ class BaseOSG(metaclass=abc.ABCMeta):
     #         print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
     #         return False
 
-    def annotate_brick(self, brick_node, target_hw):
+    def annotate_brick(self, brick_node, target_hw, filter_impl_types=None):
         supported_complete = True
         contr_list = [[]]
         if target_hw.hw_class in self.device_classes:
             for impl_type in self.possible_impl_types:
+                if filter_impl_types is not None and impl_type != filter_impl_types:
+                    continue
                 for op in brick_node.local_op_iter_gen():
                     op_c = self.annotate_op(op, target_hw, impl_type)
                     if op_c is not None:

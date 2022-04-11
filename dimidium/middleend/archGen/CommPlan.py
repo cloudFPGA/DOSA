@@ -101,12 +101,43 @@ class CommPlan:
         assert out_repetition > 0
         for i in range(len(incomming_ranks)):
             # here, we assume strict streaming...so one message in, one out (with repetition)
-            new_msg_in_dict = {'instr': 'recv', 'rank': incomming_ranks[i], 'count': in_msg_cnt,
-                               'repeat': in_repetition, 'cond': in_cmd_rank_list[i]}
-            self.comm_instr.append(new_msg_in_dict)
-            new_msg_out_dict = {'instr': 'send', 'rank': outgoing_ranks[i], 'count': out_msg_cnt,
-                                'repeat': out_repetition, 'cond': out_cmd_rank_list[i]}
-            self.comm_instr.append(new_msg_out_dict)
+            if len(incomming_ranks[i]) == 1:
+                new_msg_in_dict = {'instr': 'recv', 'rank': incomming_ranks[i][0], 'count': in_msg_cnt,
+                                   'repeat': in_repetition, 'cond': in_cmd_rank_list[i], 'combine': None}
+                self.comm_instr.append(new_msg_in_dict)
+            else:
+                # make repetition explicit
+                combine_comp_parallel = []
+                for j in range(len(incomming_ranks[i])):
+                    combine_str = 'continue'
+                    if j == 0:
+                        combine_str = 'start'
+                    elif j == len(incomming_ranks[i]) - 1:
+                        combine_str = 'finish'
+                    new_msg_in_dict = {'instr': 'recv', 'rank': incomming_ranks[i][j], 'count': in_msg_cnt,
+                                       'repeat': 1, 'cond': in_cmd_rank_list[i], 'combine': combine_str}
+                    combine_comp_parallel.append(new_msg_in_dict)
+                for r in range(0, in_repetition):
+                    self.comm_instr.extend(combine_comp_parallel)
+            if len(outgoing_ranks[i]) == 1:
+                new_msg_out_dict = {'instr': 'send', 'rank': outgoing_ranks[i][0], 'count': out_msg_cnt,
+                                    'repeat': out_repetition, 'cond': out_cmd_rank_list[i], 'combine': None}
+                self.comm_instr.append(new_msg_out_dict)
+            else:
+                # make repetition explicit
+                combine_comp_parallel = []
+                for j in range(len(outgoing_ranks[i])):
+                    combine_str = 'continue'
+                    if j == 0:
+                        combine_str = 'start'
+                    elif j == len(outgoing_ranks[i]) - 1:
+                        combine_str = 'finish'
+                    new_msg_out_dict = {'instr': 'send', 'rank': outgoing_ranks[i][j], 'count': out_msg_cnt,
+                                        'repeat': 1, 'cond': out_cmd_rank_list[i], 'combine': combine_str}
+                    combine_comp_parallel.append(new_msg_out_dict)
+                for r in range(0, out_repetition):
+                    self.comm_instr.extend(combine_comp_parallel)
+
 
         # in_nodes = self.node.predecessors
         # out_nodes = self.node.successors

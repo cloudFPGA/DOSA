@@ -39,8 +39,9 @@ class ArchNode(object):
         self.predecessors = []
         self.successors = []
         self.ranks = []
-        self.inp_ranks = []
-        self.out_ranks = []
+        self.inp_ranks = [[]]
+        self.out_ranks = [[]]
+        self.parallel_ranks = [[]]  # list of list, to preserve dpl information
         self.req_iter_hz = -1
         self.roofline = None
         self.max_perf_F = -1
@@ -61,14 +62,19 @@ class ArchNode(object):
         self.skip_in_roofline = False
         self.total_pipeline_store = 0
         self.over_utilized_node = False
+        self.needs_compute_parallelization = False
+        self.compute_parallelization_factor = 1
+        self.parallel_nodes = {}
+        self.parallel_nodes_index = -1
 
     def __repr__(self):
         return "ArchNode({}, {})".format(self.node_id, self.targeted_hw)
 
     def as_dict(self):
         res = {'node_id': self.node_id, 'targeted_hw': str(self.targeted_hw),
-               'data_paral_level': self.data_parallelism_level,  # 'twin_nodes': [],
+               'data_parall_level': self.data_parallelism_level,  # 'twin_nodes': [],
                'ranks': self.ranks, 'inp_ranks': self.inp_ranks, 'out_ranks': self.out_ranks,
+               'compute_parall. factor': self.compute_parallelization_factor, 'parallel_ranks': self.parallel_ranks,
                'pred_nodes': [], 'succ_nodes': [], 'possible_hw_types': [],
                'selected_hw_type': repr(self.selected_hw_type),
                'estimations': {'comp_util%': self.used_comp_util_share*100, 'mem_util%': self.used_mem_util_share*100,

@@ -65,6 +65,9 @@ class ZrlmpiSwApp:
                         if ie1['instr'] == 'recv':
                             c1 = 'MPI_INSTR_RECV'
                         c0 = 'MPI_INSTR_SEND'
+                        # TODO: allow compute parallelization
+                        assert ie0['combine'] is None
+                        assert ie1['combine'] is None
                         if ie0['instr'] == 'recv':
                             c0 = 'MPI_INSTR_RECV'
                         # counts must be in byte4 size!

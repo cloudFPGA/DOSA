@@ -95,7 +95,6 @@ class ArchBrick(object):
         self.dims.param = 0
         self.local_pipeline_store = 0
         self.needs_compute_parallelization = False
-        # TODO: if true, nodes need to be parallelized with new bricks, this brick object is then only refferenced by orig_brick_object
         self.parallelized_bricks = None
         self.compute_parallelization_factor = 1
 
@@ -264,9 +263,10 @@ class ArchBrick(object):
         self.reconstruct_from_op_list(op_list_staying)
         new_brick.reconstruct_from_op_list(op_list_new)
 
-    def parallelize(self, contracts_to_consider, factor):
-        self.still_possible_contracts = []
-        used_factor, new_ops_dict = parallelize_brick(self, factor * self.compute_parallelization_factor)
+    def parallelize(self, contracts_to_consider, factor, with_inputs=False):
+        # self.still_possible_contracts = []
+        used_factor, new_ops_dict = parallelize_brick(self, factor * self.compute_parallelization_factor,
+                                                      with_inputs=with_inputs)
         if used_factor < 0:
             print("[DOSA:ArchBrick:ERROR] Brick {} is forced to parallelize but can't. STOP.".format(self.brick_uuid))
             exit(1)
@@ -289,6 +289,12 @@ class ArchBrick(object):
             new_brick.orig_brick_object = self
             new_brick.selected_impl_type = self.selected_impl_type
             new_brick.available_contracts = []
+            new_brick.input_bw_Bs = self.input_bw_Bs  # stays the same
+            if with_inputs:
+                new_brick.input_bw_Bs = self.input_bw_Bs / factor
+            new_brick.output_bw_Bs = self.output_bw_Bs / factor
+            new_brick.req_iter_hz = self.req_iter_hz
+            new_brick.req_latency = self.req_latency
             new_brick_list.append(new_brick)
         self.parallelized_bricks = new_brick_list
         considered_osgs = []
@@ -297,8 +303,9 @@ class ArchBrick(object):
             if cc.osg not in considered_osgs and cc.device not in considered_devices:
                 considered_osgs.append(cc.osg)
                 considered_devices.append(cc.device)
-                for nb in self.parallelized_bricks:
-                    cc.osg.annotate_brick(nb, cc.device)
+                # later
+                # for nb in self.parallelized_bricks:
+                #     cc.osg.annotate_brick(nb, cc.device)
                 # add fake contract
                 pseudo_contract = BrickContract(self, cc.device, cc.osg, cc.impl_type, [])
                 pseudo_contract.flops_per_iter = cc.flops_per_iter / used_factor
@@ -423,6 +430,9 @@ class ArchBrick(object):
         # selected_contract = self.get_best_possible_contract()
         if len(possible_by_util) == 0:
             return None
+        if len(possible_by_util) == 1:
+            # only one possible --> already decided
+            return possible_by_util[0]
         selected_contract = DosaContract(None, None, None, 0, 10.0, 10.0)
         for next_poc in possible_by_util:
             if next_poc.iter_hz >= self.req_iter_hz and \
@@ -439,7 +449,7 @@ class ArchBrick(object):
                     selected_contract = next_poc
         return selected_contract
 
-    def update_possible_contracts(self):
+    def update_possible_contracts(self, consider_switching=False, assume_osg=None):
         still_possible = []
         within_util_exception = []
         fitting_type = []
@@ -451,12 +461,21 @@ class ArchBrick(object):
             # device is set?
             # osg not relevant?
             fitting_type.append(c)
-            if not c.ensure_detailed_utility_fits(consider_wrapper=False):
+            consider_wrapper = consider_switching
+            if consider_switching:
+                if c.osg == assume_osg:
+                    consider_wrapper = False
+            if not c.ensure_detailed_utility_fits(consider_wrapper=consider_wrapper):
                 continue
-            if c.comp_util_share > dosa_singleton.config.utilization.dosa_xi or \
-                    c.mem_util_share > dosa_singleton.config.utilization.dosa_xi:
-                if not (c.comp_util_share > dosa_singleton.config.utilization.dosa_xi_exception or
-                        c.mem_util_share > dosa_singleton.config.utilization.dosa_xi_exception):
+            total_comp_share = c.comp_util_share
+            total_mem_share = c.mem_util_share
+            if consider_wrapper:
+                total_comp_share +=c.switching_comp_share
+                total_mem_share += c.switching_mem_share
+            if total_comp_share > dosa_singleton.config.utilization.dosa_xi or \
+                    total_mem_share > dosa_singleton.config.utilization.dosa_xi:
+                if not (total_comp_share > dosa_singleton.config.utilization.dosa_xi_exception or
+                        total_mem_share > dosa_singleton.config.utilization.dosa_xi_exception):
                     within_util_exception.append(c)
                 # to big in all cases
                 continue
@@ -470,8 +489,8 @@ class ArchBrick(object):
                   'bounds.'.format(self.brick_uuid))
             least_split_factor = float('inf')
             for c in fitting_type:
-                cf = max(c.comp_util_share + c.switching_comp_share, c.mem_util_share + c.switching_mem_share) \
-                     / dosa_singleton.config.utilization.dosa_xi
+                cf = max(c.comp_util_share, c.mem_util_share) \
+                     / (dosa_singleton.config.utilization.dosa_xi - max(c.switching_comp_share, c.switching_mem_share))
                 if cf < least_split_factor:
                     least_split_factor = cf
             self.parallelize(fitting_type, least_split_factor)
