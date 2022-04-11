@@ -904,6 +904,9 @@ class ArchDraft(object):
         # ensure all are decided
         for bb in self.brick_iter_gen():
             assert bb.selected_contract is not None
+        # TODO: do compute paralleization
+        #  or later, if nodes are already sorted?
+        #  pseudo contracts should be the selected contracts...so no "over utilized" node should exist?
         # 2. split nodes based on selected contracts
         orig_nodes_handles = []
         for nn in self.node_iter_gen():

@@ -72,8 +72,8 @@ void pLoadNetwork(
           if(hangover_valid_bytes >= req_input_length)
           {
             ap_uint<DOSA_TIPS_LONGEST_INPUT> mask = exp2(req_input_length*8)-1;
-            cur_input = hangover_store & mask;
-            sNetworkInput.write(cur_input);
+            ap_uint<DOSA_TIPS_LONGEST_INPUT> out_vector = hangover_store & mask;
+            sNetworkInput.write(out_vector);
             hangover_valid_bytes -= req_input_length;
             hangover_store =>> req_input_length * 8;
             //stay here
@@ -89,9 +89,24 @@ void pLoadNetwork(
       break;
 
     case READ_NETWORK:
-      if( !siData.empty() && sNetworkInput.full() )
+      if( !siData.empty() && !sNetworkInput.full() )
       {
         NetworkWord in_word = siData.read();
+        TipsLength byte_read = extractByteCnt(in_word);
+        cur_input |= ((ap_uint<DOSA_TIPS_LONGEST_INPUT>) in_word.getTData()) << cur_length*8;
+        cur_length += byte_read;
+        //ignore tlast?
+        if(cur_length >= req_input_length)
+        {
+            ap_uint<DOSA_TIPS_LONGEST_INPUT> mask = exp2(req_input_length*8)-1;
+            ap_uint<DOSA_TIPS_LONGEST_INPUT> out_vector = cur_input & mask;
+            sNetworkInput.write(out_vector);
+            hangover_valid_bytes = cur_length - req_input_length;
+            hangover_store = (cur_input >> req_input_length * 8);
+            cur_input = 0;
+            cur_length = 0;
+            loadNetFSM = READ_INSTR;
+        }
       }
       break;
   }

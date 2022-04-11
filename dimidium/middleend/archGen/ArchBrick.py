@@ -25,6 +25,7 @@ from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG, sort_
 from dimidium.middleend.archGen.BrickContract import BrickContract, filter_brick_contracts_by_impl_type, \
     sort_brick_contracts_by_iter, sort_brick_contracts_by_util, get_best_contract_of_list
 from dimidium.middleend.archGen.DosaContract import DosaContract
+from dimidium.middleend.archGen.parallelizeBrick import parallelize_brick
 
 
 class ArchBrick(object):
@@ -47,7 +48,7 @@ class ArchBrick(object):
         self.parameter_bytes = 0
         self.input_bytes = 0
         self.output_bytes = 0
-        self.fn_label = 0
+        self.fn_label = ''
         # self.parent_fn = None
         # self.op_call = None
         self.used_dtype = DosaDtype.UNKNOWN
@@ -93,6 +94,10 @@ class ArchBrick(object):
         self.dims.out = 0
         self.dims.param = 0
         self.local_pipeline_store = 0
+        self.needs_compute_parallelization = False
+        # TODO: if true, nodes need to be parallelized with new bricks, this brick object is then only refferenced by orig_brick_object
+        self.parallelized_bricks = None
+        self.compute_parallelization_factor = 1
 
     def __repr__(self):
         return "ArchBrick({}, {})".format(self.local_brick_id, self.name)
@@ -163,7 +168,7 @@ class ArchBrick(object):
 
     def reconstruct_from_op_list(self, op_list):
         self.oid_cnt = 0
-        self.ops = []
+        self.ops = {}
         total_flops = 0
         total_uinp = 0
         total_params = 0
@@ -258,6 +263,55 @@ class ArchBrick(object):
                 op_list_staying.append(op)
         self.reconstruct_from_op_list(op_list_staying)
         new_brick.reconstruct_from_op_list(op_list_new)
+
+    def parallelize(self, contracts_to_consider, factor):
+        self.still_possible_contracts = []
+        used_factor, new_ops_dict = parallelize_brick(self, factor * self.compute_parallelization_factor)
+        if used_factor < 0:
+            print("[DOSA:ArchBrick:ERROR] Brick {} is forced to parallelize but can't. STOP.".format(self.brick_uuid))
+            exit(1)
+        self.compute_parallelization_factor = used_factor  # to progress on recursion
+        new_brick_list = []
+        for i in range(0, used_factor):
+            new_brick = ArchBrick()
+            new_brick.name = self.name + '_split_{}/{}'.format(i+1, used_factor)
+            new_brick.fn_label = self.fn_label + '_split_{}/{}'.format(i+1, used_factor)
+            new_brick.tvm_dtype = self.tvm_dtype
+            new_brick.used_dtype = self.used_dtype
+            new_brick.flops_conv_factor = self.flops_conv_factor
+            new_brick.available_osgs = self.available_osgs
+            new_brick.possible_osgs = self.possible_osgs
+            new_brick.possible_hw_types = self.possible_hw_types
+            op_list_new_brick = []
+            for oid in self.ops:
+                op_list_new_brick.append(new_ops_dict[oid][i])
+            new_brick.reconstruct_from_op_list(op_list_new_brick)
+            new_brick.orig_brick_object = self
+            new_brick.selected_impl_type = self.selected_impl_type
+            new_brick.available_contracts = []
+            new_brick_list.append(new_brick)
+        self.parallelized_bricks = new_brick_list
+        considered_osgs = []
+        considered_devices = []
+        for cc in contracts_to_consider:
+            if cc.osg not in considered_osgs and cc.device not in considered_devices:
+                considered_osgs.append(cc.osg)
+                considered_devices.append(cc.device)
+                for nb in self.parallelized_bricks:
+                    cc.osg.annotate_brick(nb, cc.device)
+                # add fake contract
+                pseudo_contract = BrickContract(self, cc.device, cc.osg, cc.impl_type, [])
+                pseudo_contract.flops_per_iter = cc.flops_per_iter / used_factor
+                pseudo_contract.comp_util_share = cc.comp_util_share / used_factor
+                pseudo_contract.mem_util_share = cc.mem_util_share / used_factor
+                pseudo_contract.switching_comp_share = cc.switching_comp_share  # switching cost's don't change?
+                pseudo_contract.switching_mem_share = cc.switching_mem_share
+                pseudo_contract.total_bytes = cc.total_bytes / used_factor
+                pseudo_contract.oi_iter = 1 / pseudo_contract.total_bytes
+                pseudo_contract.op_contracts = [None] * self.oid_cnt
+                pseudo_contract.is_pseudo_contract = True
+                self.add_possible_contract(pseudo_contract)
+        self.needs_compute_parallelization = True
 
     def set_impl_type(self, it: BrickImplTypes):
         self.selected_impl_type = it
@@ -388,14 +442,16 @@ class ArchBrick(object):
     def update_possible_contracts(self):
         still_possible = []
         within_util_exception = []
+        fitting_type = []
         for c in self.available_contracts:
             if self.selected_impl_type != BrickImplTypes.UNDECIDED and c.impl_type != self.selected_impl_type:
                 continue
+            if len(c.op_contracts) != len(self.ops):
+                continue
             # device is set?
             # osg not relevant?
+            fitting_type.append(c)
             if not c.ensure_detailed_utility_fits(consider_wrapper=False):
-                continue
-            if len(c.op_contracts) != len(self.ops):
                 continue
             if c.comp_util_share > dosa_singleton.config.utilization.dosa_xi or \
                     c.mem_util_share > dosa_singleton.config.utilization.dosa_xi:
@@ -409,6 +465,17 @@ class ArchBrick(object):
             print('[DOSA:ContrMngt:INFO] Brick {}: Using contract above utilization target, but within exception, '
                   'because no other contract is available.'.format(self.brick_uuid))
             self.still_possible_contracts = within_util_exception
+        elif len(still_possible) == 0 and len(within_util_exception) == 0 and len(fitting_type) > 0:
+            print('[DOSA:ContrMngt:INFO] Brick {}: Need to parallelize, due to no available contract withing utilization '
+                  'bounds.'.format(self.brick_uuid))
+            least_split_factor = float('inf')
+            for c in fitting_type:
+                cf = max(c.comp_util_share + c.switching_comp_share, c.mem_util_share + c.switching_mem_share) \
+                     / dosa_singleton.config.utilization.dosa_xi
+                if cf < least_split_factor:
+                    least_split_factor = cf
+            self.parallelize(fitting_type, least_split_factor)
+            self.update_possible_contracts()
         else:
             self.still_possible_contracts = still_possible
 

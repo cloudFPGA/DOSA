@@ -84,7 +84,13 @@ class BrickContract(DosaContract):
         self.detailed_FPGA_component_share['Registers'] = 0.0
         self.detailed_FPGA_component_share['BRAM']      = 0.0
         self.detailed_FPGA_component_share['DSPs']      = 0.0
-        self.detailed_FPGA_wrapper_share = None
+        self.detailed_FPGA_wrapper_share = {}
+        self.detailed_FPGA_wrapper_share['LUTLOG']    = 0.0
+        self.detailed_FPGA_wrapper_share['LUTMEM']    = 0.0
+        self.detailed_FPGA_wrapper_share['Registers'] = 0.0
+        self.detailed_FPGA_wrapper_share['BRAM']      = 0.0
+        self.detailed_FPGA_wrapper_share['DSPs']      = 0.0
+        self.is_pseudo_contract = False
         self._combine_op_contracts()
 
     def _combine_op_contracts(self):
@@ -133,9 +139,10 @@ class BrickContract(DosaContract):
                 self.detailed_FPGA_component_share['DSPs']            += opc.detailed_FPGA_component_share['DSPs']
         # self.oi_iter = self.iter_hz / self.total_bytes
         # self.oi_iter = kiloU / self.total_bytes
-        self.oi_iter = 1 / self.total_bytes
         # self.oi_iter = self.total_bytes
         # self.oi_iter = self.iter_hz / first_total_bytes
+        if self.total_bytes > 0:
+            self.oi_iter = 1 / self.total_bytes
 
     def __repr__(self):
         return "BrickContr({} on {} using {}/{}: {:.2f}/s, {:.2f}c%, {:.2f}m%, switching {:.2f}%c, {:.2f}%m)" \
