@@ -1,3 +1,16 @@
+//  *
+//  *                       cloudFPGA
+//  *     Copyright IBM Research, All Rights Reserved
+//  *    =============================================
+//  *     Created: Feb 2022
+//  *     Authors: NGL
+//  *
+//  *     Description:
+//  *        C++ module to wrap ZRLMPI communication library
+//  *
+//  *
+
+
 #ifndef _DOSA_INFER_H_
 #define _DOSA_INFER_H_
 
@@ -16,6 +29,9 @@
 #ifdef WRAPPER_TEST
 #define DOSA_WRAPPER_PROG_LENGTH 2
 #define DOSA_MINIMAL_PROG_LENGTH 2
+#define DOSA_PIPELINE_STORE_DETPH 1
+#define DOSA_MINIMAL_INPUT_NUM 1
+#define DOSA_MINIMAL_OUTPUT_NUM 1
 #else
 //DOSA_ADD_APP_NODE_DEFINES
 #endif
@@ -27,10 +43,21 @@
 extern "C" void init(int argc, char **argv);
 
 //DOCSTRING...
-extern "C" void reset_state();
+extern "C" void reset_state(void);
 
 //DOCSTRING...
-extern "C" int infer(int *input, uint32_t input_length, int *output, uint32_t output_length);
+extern "C" uint32_t get_pipeline_store_depth(void);
+
+//DOCSTRING...
+extern "C" uint32_t get_batch_input_size(void);
+
+//DOCSTRING...
+extern "C" uint32_t get_batch_output_size(void);
+
+//DOCSTRING...
+//extern "C" int infer(int *input, uint32_t input_length, int *output, uint32_t output_length);
+//TODO: also allow single frame inference?
+extern "C" int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num);
 
 
 #endif
