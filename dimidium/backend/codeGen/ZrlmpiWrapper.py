@@ -344,12 +344,17 @@ class ZrlmpiWrapper(CommunicationWrapper):
         return tcl_tmpl_lines, decl_tmpl_lines, inst_tmpl_lines
 
     def get_add_constr_lines(self):
+        # add_constr_lines = '# necessary to avoid un-usable network due to timing failures...\n' + \
+        #                    'create_pblock pblock_MPE\n' + \
+        #                    'resize_pblock [get_pblocks pblock_MPE] -add {CLOCKREGION_X1Y3:CLOCKREGION_X2Y3 ' + \
+        #                    '}\n' + \
+        #                    'add_cells_to_pblock [get_pblocks pblock_MPE] [get_cells ROLE/MPE]\n'
+        #                     # 'CLOCKREGION_X1Y2'  --> as additon, makes it worse!
         add_constr_lines = '# necessary to avoid un-usable network due to timing failures...\n' + \
                            'create_pblock pblock_MPE\n' + \
-                           'resize_pblock [get_pblocks pblock_MPE] -add {CLOCKREGION_X1Y3:CLOCKREGION_X2Y3 ' + \
-                           '}\n' + \
+                           'resize_pblock [get_pblocks pblock_MPE] -add { CLOCKREGION_X1Y1:CLOCKREGION_X1Y2 }\n' + \
                            'add_cells_to_pblock [get_pblocks pblock_MPE] [get_cells ROLE/MPE]\n'
-                            # 'CLOCKREGION_X1Y2'  --> as additon, makes it worse!
-        # return add_constr_lines
+        add_constr_lines += 'set_max_delay -to [get_cells {*/MPE/*/pEnqTcpIn_*/*_reg*[*]*}] 6.4\n'
+        return add_constr_lines
         # TODO
-        return None
+        # return None

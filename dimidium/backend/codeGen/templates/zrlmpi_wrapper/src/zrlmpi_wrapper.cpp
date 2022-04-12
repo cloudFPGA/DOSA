@@ -239,7 +239,7 @@ void pStateControl(
             printf("[pStateControl] Send succesfull, reuse data.\n");
             reuse_prev_data = true;
             controlFSM = LOAD_COMMAND;
-            //reuse reset as fake
+            //"mis"use reset to re-use the data
             sSendReset.write(true);
           } else {
             reuse_prev_data = false;
