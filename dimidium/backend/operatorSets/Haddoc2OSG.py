@@ -546,7 +546,8 @@ class Haddoc2OSG(BaseOSG):
         return
 
     def _create_unique_layer_name(self, op_name):
-        base_str = op_name.replace('.', '_')
+        base_str = op_name.replace('.', '_').replace('/', 'of').replace(' ', '')\
+            .replace(',', '_').replace('-', '__')
         name_cnt = 1
         while base_str in self.existing_layer_names:
             base_str += "_{}".format(name_cnt)
