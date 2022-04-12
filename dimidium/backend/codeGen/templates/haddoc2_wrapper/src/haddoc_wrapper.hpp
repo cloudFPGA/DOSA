@@ -67,6 +67,7 @@ const uint32_t wrapper_output_if_haddoc_words_cnt_ceil = (WRAPPER_OUTPUT_IF_HADD
 
 //independent defines
 enum twoStatesFSM {RESET = 0, FORWARD};
+enum threeStatesFSM {RESET3 = 0, FORWARD3, BACKLOG3};
 //enum FromHaddocDeqStates {RESET1 = 0, WAIT_FRAME, READ_FRAME};
 
 

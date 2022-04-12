@@ -156,8 +156,9 @@ class Haddoc2Wrapper:
                         outline += ' && !sToHaddocBuffer_chan{}.empty()'.format(b)
                     outline += '\n'
                 elif 'DOSA_ADD_deq_flatten' in line:
-                    fsm_tmpl = '        tmp_read_0 = sToHaddocBuffer_chan{b}.read();\n        cur_line_bit_cnt[{b}] = ' + \
-                               'flattenAxisBuffer(tmp_read_0, combined_input[{b}], hangover_bits[{b}], ' + \
+                    fsm_tmpl = '        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_{b} = ' + \
+                               'sToHaddocBuffer_chan{b}.read();\n        cur_line_bit_cnt[{b}] = ' + \
+                               'flattenAxisBuffer(tmp_read_{b}, combined_input[{b}], hangover_bits[{b}], ' + \
                                'hangover_bits_valid_bits[{b}]);\n'
                     outline = ''
                     for b in range(0, self.in_dims[1]):
