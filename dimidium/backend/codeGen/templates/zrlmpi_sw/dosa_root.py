@@ -211,8 +211,8 @@ class DosaRoot:
         batch_rounds = (batch_size + added_zero_tensors) / self.minimum_input_batch_size
 
         input_num = len(batch_input)
-        # add one "line" to avoid SEGFAULT
-        np.vstack([batch_input, za])
+        # add one "line" to avoid SEGFAULT (just in case)
+        np.vstack([batch_input, [za]])
         output_total_length = int(self.minimum_output_batch_size * batch_rounds)
         expected_num_output = 1
         single_output_shape = output_shape
@@ -227,7 +227,8 @@ class DosaRoot:
 
         # output_placeholder = bytearray(single_output_length)
         # output_array = self.ctype * single_output_length
-        output_placeholder = bytearray(output_total_length + 4)  # +4 to avoid SEGFAULT
+        # +4 to avoid SEGFAULT (just in case not 4-byte words are used)
+        output_placeholder = bytearray(output_total_length + 4)
         output_array = self.ctype * (output_total_length + 4)
         c_input = batch_input.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
         c_input_num = ctypes.c_uint32(input_num)
