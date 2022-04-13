@@ -21,6 +21,8 @@
 
 #include "../../lib/axi_utils.hpp"
 //#include "../../lib/interface_utils.hpp"
+#include "alu.hpp"
+
 
 using namespace hls;
 
@@ -47,8 +49,12 @@ typedef int8_t usedDtype;
 //TODO: define ALU ops dynamically based on what is needed?
 //#define DOSA_TIPS_ALU_PARALLEL_SLOT 3  //but only one per operation
 
+//#define MIN(a,b) (((a)<(b))?(a):(b))
+//#define MAX(a,b) (((a)>(b))?(a):(b))
+
 //derived defines
 #define TIPS_ACCUM_LENGTH = 3 * DOSA_TIPS_LONGEST_OUTPUT
+//#define TIPS_OP_LOOP_MAX MAX(DOSA_TIPS_LONGEST_OP0, DOSA_TIPS_LONGEST_OP1)
 
 //as constants for HLS pragmas
 //const uint32_t cnn_input_frame_size = (CNN_INPUT_FRAME_SIZE);
@@ -56,11 +62,13 @@ typedef int8_t usedDtype;
 
 //independent defines
 enum twoStatesFSM {RESET = 0, FORWARD};
+enum aluFSM {INIT = 0, ALU};
 enum LoadNetworkStates {RESET1 = 0, READ_INSTR, READ_NETWORK};
 
 typedef uint8_t TipsOpcode;
 typedef uint8_t AluOpcode;
 typedef uint32_t TipsAddr;
+#define TIPS_MAX_ADDRESS       0x0FFFF
 typedef uint16_t TipsLength;
 //typedef uint8_t TipsExecId;
 //pseudo addresses

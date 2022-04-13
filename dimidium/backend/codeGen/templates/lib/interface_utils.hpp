@@ -58,6 +58,16 @@ inline uint8_t byteCntToTKeep(uint8_t byte_cnt)
 #pragma HLS INLINE
 
   uint8_t ret = 0;
+  const uint8_t byte2keep[9] = {
+  [0] = 0b00000000,
+  [1] = 0b00000001,
+  [2] = 0b00000011,
+  [3] = 0b00000111,
+  [4] = 0b00001111,
+  [5] = 0b00011111,
+  [6] = 0b00111111,
+  [7] = 0b01111111,
+  [8] = 0b11111111};
 
 //  switch (byte_cnt) {
 //    case 8:
@@ -92,16 +102,16 @@ inline uint8_t byteCntToTKeep(uint8_t byte_cnt)
     return 0xFF;
   }
 
-  uint8_t byte2keep[9];
-  byte2keep[8] =  0b11111111;
-  byte2keep[7] =  0b01111111;
-  byte2keep[6] =  0b00111111;
-  byte2keep[5] =  0b00011111;
-  byte2keep[4] =  0b00001111;
-  byte2keep[3] =  0b00000111;
-  byte2keep[2] =  0b00000011;
-  byte2keep[1] =  0b00000001;
-  byte2keep[0] =  0b00000000;
+  //uint8_t byte2keep[9];
+  //byte2keep[8] =  0b11111111;
+  //byte2keep[7] =  0b01111111;
+  //byte2keep[6] =  0b00111111;
+  //byte2keep[5] =  0b00011111;
+  //byte2keep[4] =  0b00001111;
+  //byte2keep[3] =  0b00000111;
+  //byte2keep[2] =  0b00000011;
+  //byte2keep[1] =  0b00000001;
+  //byte2keep[0] =  0b00000000;
 
   ret = byte2keep[byte_cnt];
   //printf("\tgetting tkeep for %d bytes is %X\n", byte_cnt, ret);

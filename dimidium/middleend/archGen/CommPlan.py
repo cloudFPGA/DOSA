@@ -9,6 +9,7 @@
 #  *        Class for the creation of communication plans
 #  *
 #  *
+import math
 
 import dimidium.lib.singleton as dosa_singleton
 from dimidium.lib.util import my_lcm
@@ -108,13 +109,20 @@ class CommPlan:
             else:
                 # make repetition explicit
                 combine_comp_parallel = []
-                for j in range(len(incomming_ranks[i])):
+                if self.node.node_id % 2 == 0:
+                    # I'm even, wait for even first
+                    cur_parallel_ranks = sorted(incomming_ranks[i], key=lambda x: (x % 2, x))
+                else:
+                    # I'm odd, wait for odd first
+                    cur_parallel_ranks = sorted(incomming_ranks[i], key=lambda x: (not (x % 2), x))
+                partial_msg_cnt = math.ceil(in_msg_cnt/len(cur_parallel_ranks))
+                for j in range(len(cur_parallel_ranks)):
                     combine_str = 'continue'
                     if j == 0:
                         combine_str = 'start'
-                    elif j == len(incomming_ranks[i]) - 1:
+                    elif j == len(cur_parallel_ranks) - 1:
                         combine_str = 'finish'
-                    new_msg_in_dict = {'instr': 'recv', 'rank': incomming_ranks[i][j], 'count': in_msg_cnt,
+                    new_msg_in_dict = {'instr': 'recv', 'rank': cur_parallel_ranks[j], 'count': partial_msg_cnt,
                                        'repeat': 1, 'cond': in_cmd_rank_list[i], 'combine': combine_str}
                     combine_comp_parallel.append(new_msg_in_dict)
                 for r in range(0, in_repetition):
@@ -126,13 +134,20 @@ class CommPlan:
             else:
                 # make repetition explicit
                 combine_comp_parallel = []
-                for j in range(len(outgoing_ranks[i])):
+                if self.node.node_id % 2 == 0:
+                    # I'm even, send to even first
+                    cur_parallel_ranks = sorted(outgoing_ranks[i], key=lambda x: (x % 2, x))
+                else:
+                    # I'm odd, send to odd first
+                    cur_parallel_ranks = sorted(outgoing_ranks[i], key=lambda x: (not (x % 2), x))
+                # out_msg_cnt doesn't change
+                for j in range(len(cur_parallel_ranks)):
                     combine_str = 'continue'
                     if j == 0:
                         combine_str = 'start'
-                    elif j == len(outgoing_ranks[i]) - 1:
+                    elif j == len(cur_parallel_ranks) - 1:
                         combine_str = 'finish'
-                    new_msg_out_dict = {'instr': 'send', 'rank': outgoing_ranks[i][j], 'count': out_msg_cnt,
+                    new_msg_out_dict = {'instr': 'send', 'rank': cur_parallel_ranks[j], 'count': out_msg_cnt,
                                         'repeat': 1, 'cond': out_cmd_rank_list[i], 'combine': combine_str}
                     combine_comp_parallel.append(new_msg_out_dict)
                 for r in range(0, out_repetition):

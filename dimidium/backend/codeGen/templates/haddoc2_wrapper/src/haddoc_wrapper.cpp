@@ -81,21 +81,32 @@ void flattenAxisInput(
 }
 
 
-ap_uint<WRAPPER_INPUT_IF_BYTES> createTReady(ap_uint<64> valid_bit_cnt)
+ap_uint<WRAPPER_INPUT_IF_BYTES> createTKeep(ap_uint<64> valid_bit_cnt)
 {
 #pragma HLS INLINE
-  ap_uint<WRAPPER_INPUT_IF_BYTES> tready = 0x0;
+  ap_uint<WRAPPER_INPUT_IF_BYTES> tkeep = 0x0;
   for(int i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)
   {
 #pragma HLS unroll
     if(i < valid_bit_cnt)
     {
-      tready |= ((ap_uint<WRAPPER_INPUT_IF_BYTES>) 0x1) << i;
+      tkeep |= ((ap_uint<WRAPPER_INPUT_IF_BYTES>) 0x1) << i;
     }
     //TODO: not byte aligned?
   }
-  return tready;
+  return tkeep;
 }
+
+const uint8_t byte2keep[9] = {
+  [0] = 0b00000000,
+  [1] = 0b00000001,
+  [2] = 0b00000011,
+  [3] = 0b00000111,
+  [4] = 0b00001111,
+  [5] = 0b00011111,
+  [6] = 0b00111111,
+  [7] = 0b01111111,
+  [8] = 0b11111111};
 
 bool genericEnqState(
   stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
@@ -126,11 +137,14 @@ bool genericEnqState(
     //read axis, determine byte count, fill in buffer
     Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();
     flattenAxisInput(tmp_read_0, combined_input, cur_line_bit_cnt);
-    //TODO: what about siData.tlast?
+    //TODO: what about siData.tlast? --> ignore, we know what we need
+    //ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_input = tmp_read_0.getTData();
+    //combined_input |= tmp_input << cur_line_bit_cnt;
+    //cur_line_bit_cnt += extractByteCnt(tmp_read_0)*8;
   }
   //printf("enq: read 0x%16.16llx %16.16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
 
-  ap_uint<64> to_axis_cnt = cur_line_bit_cnt;
+  ap_uint<8> to_axis_cnt = cur_line_bit_cnt;
   if( to_axis_cnt > DOSA_WRAPPER_INPUT_IF_BITWIDTH )
   {
     //printf("hangover necessary\n");
@@ -159,8 +173,12 @@ bool genericEnqState(
     go_to_next_state = false;
   }
   //printf("enq: sorted %16.16llx, to_axis_cnt: %d\n", (uint64_t) combined_input, (uint32_t) to_axis_cnt);
-  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) combined_input,
-      createTReady(to_axis_cnt), to_axis_tlast);
+  //Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_0 =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) combined_input, createTKeep(to_axis_cnt), to_axis_tlast);
+  //ap_uint<8> tkeep = byte2keep[(uint8_t) ((to_axis_cnt+7)/8)];
+  //ap_uint<8> tkeep = byte2keep[(uint8_t) (to_axis_cnt/8)];
+  //ap_uint<8> tkeep = to_axis_cnt; //FIXME
+  ap_uint<8> tkeep = createTKeep(to_axis_cnt);
+  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_0 =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) combined_input, tkeep, to_axis_tlast);
   cur_buffer.write(tmp_write_0);
 
   return go_to_next_state;
@@ -204,6 +222,25 @@ ap_uint<64> flattenAxisBuffer(
   combined_input |= tmp_input << hangover_bits_valid_bits;
   ap_uint<64> cur_line_bit_cnt = extractByteCnt(in_read)*8 + hangover_bits_valid_bits;
 
+  //ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_input = 0x0;
+  //for(int i = 0; i < DOSA_WRAPPER_INPUT_IF_BITWIDTH; i++)
+  //{
+//  #pragma HLS unroll
+  //  if(i > in_read.getTKeep())
+  //  {
+  //    printf("flatten buffer: skipped due to tkeep\n");
+  //    continue;
+  //  }
+  //  //TODO: what if input is not byte aligned?
+  //  ap_uint<1> current_byte = (ap_uint<1>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> i);
+  //  //combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_line_bit_cnt;
+  //  tmp_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << i;
+  //  //printf("flatten buffer: read 0x%16llx %16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
+  //  //cur_line_bit_cnt += 8;
+  //}
+  //combined_input |= tmp_input << hangover_bits_valid_bits;
+  //ap_uint<64> cur_line_bit_cnt = in_read.getTKeep() + hangover_bits_valid_bits;
+
   //printf("flatten buffer: read 0x%16llx %16llx, ret bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
   return cur_line_bit_cnt;
 }
@@ -223,7 +260,7 @@ void pToHaddocEnq(
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
 #pragma HLS INLINE off
-#pragma HLS pipeline II=1
+#pragma HLS pipeline II=2
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   static ToHaddocEnqStates enqueueFSM = RESET0;
 #pragma HLS reset variable=enqueueFSM

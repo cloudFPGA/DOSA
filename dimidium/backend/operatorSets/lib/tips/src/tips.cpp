@@ -45,6 +45,7 @@ void pLoadNetwork(
   //-- STATIC VARIABLES -----------------------------------------------------
   static ap_uint<DOSA_TIPS_LONGEST_INPUT> cur_input;
   static ap_uint<DOSA_TIPS_LONGEST_INPUT> hangover_store;
+  static ap_uint<DOSA_TIPS_LONGEST_INPUT> mask;
   //-- LOCAL VARIABLES ------------------------------------------------------
 
   switch(loadNetFSM)
@@ -69,9 +70,10 @@ void pLoadNetwork(
           sNetworkInput.write(0x0);
           //stay here
         } else {
+          mask = exp2(req_input_length*8)-1;
+
           if(hangover_valid_bytes >= req_input_length)
           {
-            ap_uint<DOSA_TIPS_LONGEST_INPUT> mask = exp2(req_input_length*8)-1;
             ap_uint<DOSA_TIPS_LONGEST_INPUT> out_vector = hangover_store & mask;
             sNetworkInput.write(out_vector);
             hangover_valid_bytes -= req_input_length;
@@ -98,7 +100,7 @@ void pLoadNetwork(
         //ignore tlast?
         if(cur_length >= req_input_length)
         {
-            ap_uint<DOSA_TIPS_LONGEST_INPUT> mask = exp2(req_input_length*8)-1;
+            //ap_uint<DOSA_TIPS_LONGEST_INPUT> mask = exp2(req_input_length*8)-1;
             ap_uint<DOSA_TIPS_LONGEST_INPUT> out_vector = cur_input & mask;
             sNetworkInput.write(out_vector);
             hangover_valid_bytes = cur_length - req_input_length;
@@ -111,7 +113,8 @@ void pLoadNetwork(
       break;
   }
 
-
+  *debug = (uint8_t) loadNetFSM;
+  *debug |= ((uint16_t) cur_length) << 8;
 
 }
 
@@ -196,6 +199,12 @@ void pTipsControl(
 
 
 void pLoadOpDual(
+    stream<TipsLoadInstr>     &sOpLoadCmd,
+    stream<TipsAluInstr>      &sAluInstr_in,
+    stream<TipsAluInstr>      &sAluInstr_out,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OP0> >  &sOp0,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OP1> >  &sOp1,
+    uint16_t *debug
     )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -203,26 +212,96 @@ void pLoadOpDual(
 #pragma HLS pipeline II=1
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   //-- STATIC VARIABLES -----------------------------------------------------
+  const usedDtype opStore[DOSA_TIPS_ADDR_SPACE_LENGTH] = {
+    10,10,10,11,11,11,12,12,12,13,13,13, //op0
+    1,1,1,1,1,1,1,1,1,1,1,1, //op1
+    0,0,0,0,0,0 //fill-to-end
+  };
+#pragma HLS ARRAY_PARTITION variable=opStore complete //TODO: to in-efficient?
+  //for debugging
+  static TipsLoadInstr last_instr;
   //-- LOCAL VARIABLES ------------------------------------------------------
 
   //use reset as init, no explicit init
   //also forward alu instr --> for feedback to control unit
 
+  if( !sOpLoadCmd.empty() && !sAluInstr_in.empty()
+      && !sAluInstr_out.full() && !sOp0.full() && !sOp1.full()
+    )
+  {
+    TipsLoadInstr cur_instr = sOpLoadCmd.read();
+    TipsAluInstr alu_instr_fw = sAluInstr_in.read();
+    ap_uint<DOSA_TIPS_LONGEST_OP0> new_op0 = 0x0;
+    //if(cur_instr.addr_0 < TIPS_MAX_ADDRESS)
+    if(cur_instr.addr_0 < DOSA_TIPS_ADDR_SPACE_LENGTH)
+    {
+      for(int i = 0; i < DOSA_TIPS_LONGEST_OP0; i++)
+      {
+        if(i >= cur_instr.length_0)
+        {
+          continue;
+        }
+        //new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
+        //0 at end?
+        new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (DOSA_TIPS_LONGEST_OP0 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
+      }
+    }
+    ap_uint<DOSA_TIPS_LONGEST_OP1> new_op1 = 0x0;
+    //if(cur_instr.addr_1 < TIPS_MAX_ADDRESS)
+    if(cur_instr.addr_1 < DOSA_TIPS_ADDR_SPACE_LENGTH)
+    {
+      for(int i = 0; i < DOSA_TIPS_LONGEST_OP1; i++)
+      {
+        if(i >= cur_instr.length_1)
+        {
+          continue;
+        }
+        //new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
+        //0 at end?
+        new_op1 |= ((ap_uint<DOSA_TIPS_LONGEST_OP1>) opStore[cur_instr.addr_1 + i]) << (DOSA_TIPS_LONGEST_OP1 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
+      }
+    }
+
+    sAluInstr_out.write(alu_instr_fw);
+    sOp0.write(new_op0);
+    sOp0.write(new_op1);
+    last_instr = cur_instr;
+  }
+
+  *debug = (uint16_t) last_instr;
+
 }
 
 
 void pALU(
+    stream<TipsAluInstr>      &sAluInstr,
+    stream<ap_uint<DOSA_TIPS_LONGEST_INPUT> >  &sNetworkInput,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OP0> >  &sOp0,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OP1> >  &sOp1,
+    stream<TipsNetworkInstr>  &sNetworkStoreCmnd,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OUTPUT> >  &sNetworkOutput,
+    uint16_t *debug
     )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
 #pragma HLS INLINE off
-#pragma HLS pipeline II=1
+#pragma HLS pipeline
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  static aluFSM aluState = INIT;
+#pragma HLS reset variable=aluState
+  static ap_uint<TIPS_ACCUM_LENGTH> accum = 0x0;
+#pragma HLS reset variable=accum
   //-- STATIC VARIABLES -----------------------------------------------------
   //-- LOCAL VARIABLES ------------------------------------------------------
 
   //with internal accum
   //superscalar architecture: can schedule different alu operations in paralell --> later
+
+  if(aluFSM == INIT)
+  {
+
+  } else {
+  }
 
 }
 
@@ -277,12 +356,14 @@ void tips_test(
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
 
   //-- STATIC DATAFLOW VARIABLES ------------------------------------------
+  //streams with depth 1
   static stream<TipsNetworkInstr> sNetworkLoadCmd ("sNetworkLoadCmd");
-  //depth = 1!
   static stream<TipsLoadInstr> sOpLoadCmd ("sOpLoadCmd");
-  //depth = 1!
   static stream<TipsAluInstr> sAluInstr ("sAluInstr");
-  //depth = 1!
+  static stream<ap_uint<DOSA_TIPS_LONGEST_INPUT> > sNetworkInput ("sNetworkInput");
+  static stream<TipsAluInstr> sAluInstr_from_op_load ("sAluInstr_from_op_load");
+  static stream<ap_uint<DOSA_TIPS_LONGEST_OP0> >  sOp0 ("sOp0");
+  static stream<ap_uint<DOSA_TIPS_LONGEST_OP1> >  sOp1 ("sOp1");
 
   //-- LOCAL VARIABLES ------------------------------------------------------------
   uint16_t debug0 = 0;
@@ -293,6 +374,10 @@ void tips_test(
   //-- DATAFLOW PROCESS ---------------------------------------------------
 
   pTipsControl(sNetworkLoadCmd, sOpLoadCmd, sAluInstr, &debug0);
+
+  pLoadNetwork(sNetworkLoadCmd, siData, sNetworkInput, &debug1);
+
+  pLoadOpDual(sOpLoadCmd, sAluInstr, sAluInstr_from_op_load, sOp0, sOp1, &debug2);
 
   pMergeDebug(&debug0, &debug1, &debug2, &debug3, debug_out);
 }
