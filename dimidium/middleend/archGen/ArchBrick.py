@@ -25,7 +25,7 @@ from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG, sort_
 from dimidium.middleend.archGen.BrickContract import BrickContract, filter_brick_contracts_by_impl_type, \
     sort_brick_contracts_by_iter, sort_brick_contracts_by_util, get_best_contract_of_list
 from dimidium.middleend.archGen.DosaContract import DosaContract
-from dimidium.middleend.archGen.parallelizeBrick import parallelize_brick
+from dimidium.middleend.archGen.parallelizeBrick import parallelize_ops_of_brick
 
 
 class ArchBrick(object):
@@ -265,8 +265,8 @@ class ArchBrick(object):
 
     def parallelize(self, contracts_to_consider, factor, with_inputs=False):
         # self.still_possible_contracts = []
-        used_factor, new_ops_dict = parallelize_brick(self, factor * self.compute_parallelization_factor,
-                                                      with_inputs=with_inputs)
+        used_factor, new_ops_dict = parallelize_ops_of_brick(self, factor * self.compute_parallelization_factor,
+                                                             with_inputs=with_inputs)
         if used_factor < 0:
             print("[DOSA:ArchBrick:ERROR] Brick {} is forced to parallelize but can't. STOP.".format(self.brick_uuid))
             exit(1)
@@ -274,8 +274,8 @@ class ArchBrick(object):
         new_brick_list = []
         for i in range(0, used_factor):
             new_brick = ArchBrick()
-            new_brick.name = self.name + '_split_{}/{}'.format(i+1, used_factor)
-            new_brick.fn_label = self.fn_label + '_split_{}/{}'.format(i+1, used_factor)
+            new_brick.name = self.name + '_split_{}of{}'.format(i+1, used_factor)
+            new_brick.fn_label = self.fn_label + '_split_{}of{}'.format(i+1, used_factor)
             new_brick.tvm_dtype = self.tvm_dtype
             new_brick.used_dtype = self.used_dtype
             new_brick.flops_conv_factor = self.flops_conv_factor

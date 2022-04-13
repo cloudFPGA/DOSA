@@ -21,7 +21,7 @@ __ops_possible_to_paralleize__ = ['nn.conv2d', 'nn.bias_add', 'tanh', 'relu', 'n
 __min_factor__ = 2
 
 
-def parallelize_brick(orig_brick, factor, with_inputs=False):
+def parallelize_ops_of_brick(orig_brick, factor, with_inputs=False):
     if factor < __min_factor__:
         factor = __min_factor__
     factor = 2 * round(factor/2)  # TODO: necessary?
@@ -97,7 +97,7 @@ class ParallelizeOpClass(object):
         new_ops_list = []
         for i in range(0, factor):
             new_op = ArchOp()
-            new_op.name = orig_op.name + '_split_{}/{}'.format(i+1, factor)
+            new_op.name = orig_op.name + '_split_{}of{}'.format(i+1, factor)
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
@@ -170,7 +170,7 @@ class ParallelizeOpClass(object):
         new_ops_list = []
         for i in range(0, factor):
             new_op = ArchOp()
-            new_op.name = orig_op.name + '_split_{}/{}'.format(i+1, factor)
+            new_op.name = orig_op.name + '_split_{}of{}'.format(i+1, factor)
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
@@ -236,7 +236,7 @@ class ParallelizeOpClass(object):
         new_ops_list = []
         for i in range(0, factor):
             new_op = ArchOp()
-            new_op.name = orig_op.name + '_split_{}/{}'.format(i+1, factor)
+            new_op.name = orig_op.name + '_split_{}of{}'.format(i+1, factor)
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
@@ -288,7 +288,7 @@ class ParallelizeOpClass(object):
         new_ops_list = []
         for i in range(0, factor):
             new_op = ArchOp()
-            new_op.name = orig_op.name + '_split_{}/{}'.format(i+1, factor)
+            new_op.name = orig_op.name + '_split_{}of{}'.format(i+1, factor)
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
@@ -340,7 +340,7 @@ class ParallelizeOpClass(object):
         new_ops_list = []
         for i in range(0, factor):
             new_op = ArchOp()
-            new_op.name = orig_op.name + '_split_{}/{}'.format(i+1, factor)
+            new_op.name = orig_op.name + '_split_{}of{}'.format(i+1, factor)
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
@@ -395,7 +395,7 @@ class ParallelizeOpClass(object):
         new_ops_list = []
         for i in range(0, factor):
             new_op = ArchOp()
-            new_op.name = orig_op.name + '_split_{}/{}'.format(i+1, factor)
+            new_op.name = orig_op.name + '_split_{}of{}'.format(i+1, factor)
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn

@@ -1596,6 +1596,7 @@ class ArchDraft(object):
         #    self.nodes[0].total_pipeline_store = total_pipeline_store
         # then, populate
         pipeline_store_until_now = 0
+        last_pipeline_store = 0
         prev_node = None
         for nn in self.node_iter_gen():
             if nn.node_id == 0 and dosa_singleton.config.backend.create_rank_0_for_io:
@@ -1604,9 +1605,11 @@ class ArchDraft(object):
                 nn.generate_communication(self.selected_comm_lib, draft_total_pipeline_store)
                 nn.total_pipeline_store = 0
             else:
-                nn.generate_communication(self.selected_comm_lib, pipeline_store_until_now)
                 # don't add up parallel nodes
                 if prev_node not in nn.parallel_nodes.values():
-                    pipeline_store_until_now += nn.total_pipeline_store
+                    # pipeline_store_until_now += nn.total_pipeline_store
+                    pipeline_store_until_now += last_pipeline_store
                     prev_node = nn
+                nn.generate_communication(self.selected_comm_lib, pipeline_store_until_now)
+                last_pipeline_store = nn.total_pipeline_store
 

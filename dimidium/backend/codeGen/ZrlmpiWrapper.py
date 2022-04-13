@@ -105,7 +105,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
                             assert counts < 0xFFFF  # max message size is uint16
                             repeat = ie['repeat']
                             save_cur_data = 'false'
-                            if ie['combine'] is not None and ie['combine'] != 'finish':
+                            # if ie['combine'] is not None and ie['combine'] != 'finish':
+                            if ie['instr'] == 'send' and (ie['combine'] is not None and ie['combine'] != 'finish'):
                                 save_cur_data = 'true'
                             outline += indent + f'      mpiCommands[{instr_num}]          = {cmnd_macro};\n'
                             outline += indent + f'      mpiRanks[{instr_num}]             = {rank};\n'
