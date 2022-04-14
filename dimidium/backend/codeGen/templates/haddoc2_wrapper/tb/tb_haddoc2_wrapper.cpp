@@ -183,6 +183,7 @@ int main() {
           if(bytes_written_this_frame < TB_PER_FRAME_FILTER_CNT)
           {
             sGoldenOut.write(cur_word);
+            //printf("write golden: %2.2X\n", (uint32_t) cur_word);
             golden_bytes_written++;
             bytes_written_this_frame++;
             //filter_out_value_cnt = 0;
@@ -203,6 +204,7 @@ int main() {
           if(bytes_written_this_frame < TB_PER_FRAME_FILTER_CNT)
           {
             sGoldenOut.write(0xBB);
+            //printf("write golden: %2.2X\n", (uint32_t) 0xBB);
             golden_bytes_written++;
             bytes_written_this_frame++;
           }
