@@ -299,7 +299,9 @@ void pStateControl(
 
   //to always "use" piFMC_to_ROLE_rank
   *debug_out_ignore = *role_rank_arg;
-  *debug = controlFSM;
+  *debug = ((uint8_t) controlFSM) & 0xF;
+  *debug |= (((uint16_t) curRep) << 4) & 0xF0;
+  *debug |= ((uint16_t) nextCommandPtr) << 8;
 }
 
 
@@ -485,7 +487,7 @@ void pRecvEnq(
       break;
   }
 
-  *debug = recvEnqFsm;
+  *debug = (uint16_t) recvEnqFsm;
 }
 
 
@@ -603,7 +605,7 @@ void pRecvDeq(
       break;
   }
 
-  *debug = recvDeqFsm;
+  *debug = (uint16_t) recvDeqFsm;
 }
 
 
@@ -757,7 +759,7 @@ void pSendEnq(
       break;
   }
 
-  *debug = sendEnqFsm;
+  *debug = (uint16_t) sendEnqFsm;
 }
 
 
@@ -970,7 +972,7 @@ void pSendDeq(
         sCopyContainer_1.write(tmp_read);
         if( tmp_read.getTLast() == 1 )
         {
-          nextCC = 0;
+          nextCC = 1;
           //back_to_other_cc = false;
           sendDeqFsm = WAIT_OK;
         }
@@ -1019,7 +1021,7 @@ void pSendDeq(
         sCopyContainer_0.write(tmp_read);
         if( tmp_read.getTLast() == 1 )
         {
-          nextCC = 1;
+          nextCC = 0;
           //back_to_other_cc = false;
           sendDeqFsm = WAIT_OK;
         }
@@ -1058,8 +1060,10 @@ void pSendDeq(
           if( nextCC == 0 )
           {
             sendDeqFsm = SEND_CC_0;
+            nextCC = 1;
           } else {
             sendDeqFsm = SEND_CC_1;
+            nextCC = 0;
           }
         } else {
           //success
@@ -1139,7 +1143,7 @@ void pSendDeq(
     //  break;
   }
 
-  *debug = sendDeqFsm;
+  *debug = (uint16_t) sendDeqFsm;
 }
 
 

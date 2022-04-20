@@ -258,6 +258,7 @@ architecture DosaNode of Role_Themisto is
   --============================================================================
 
   signal sResetApps_n : std_logic;
+  signal sFMC_debug_out : std_logic_vector(15 downto 0) := x"0000";
 
   -- The fantastic Vivado HLS again...
   signal sMetaOutTlastAsVector_Tcp : std_logic_vector(0 downto 0);
@@ -355,7 +356,9 @@ architecture DosaNode of Role_Themisto is
 begin
 
   -- to be use as ROLE VERSION IDENTIFICATION --
-  poSHL_Mmio_RdReg <= x"D05A";
+  --poSHL_Mmio_RdReg <= x"D05A";
+  poSHL_Mmio_RdReg <= sFMC_debug_out when unsigned(sFMC_debug_out) > 0 else
+                      x"D05A";
 
   sResetApps_n <= (not piMMIO_Ly7_Rst) and (piMMIO_Ly7_En);
 

@@ -109,12 +109,13 @@ class CommPlan:
             else:
                 # make repetition explicit
                 combine_comp_parallel = []
-                if self.node.node_id % 2 == 0:
-                    # I'm even, wait for even first
-                    cur_parallel_ranks = sorted(incomming_ranks[i], key=lambda x: (x % 2, x))
-                else:
-                    # I'm odd, wait for odd first
-                    cur_parallel_ranks = sorted(incomming_ranks[i], key=lambda x: (not (x % 2), x))
+                # if self.node.node_id % 2 == 0:
+                #     # I'm even, wait for even first
+                #     cur_parallel_ranks = sorted(incomming_ranks[i], key=lambda x: (x % 2, x))
+                # else:
+                #     # I'm odd, wait for odd first
+                #     cur_parallel_ranks = sorted(incomming_ranks[i], key=lambda x: (not (x % 2), x))
+                cur_parallel_ranks = incomming_ranks[i]
                 partial_msg_cnt = math.ceil(in_msg_cnt/len(cur_parallel_ranks))
                 for j in range(len(cur_parallel_ranks)):
                     combine_str = 'continue'
@@ -134,12 +135,13 @@ class CommPlan:
             else:
                 # make repetition explicit
                 combine_comp_parallel = []
-                if self.node.node_id % 2 == 0:
-                    # I'm even, send to even first
-                    cur_parallel_ranks = sorted(outgoing_ranks[i], key=lambda x: (x % 2, x))
-                else:
-                    # I'm odd, send to odd first
-                    cur_parallel_ranks = sorted(outgoing_ranks[i], key=lambda x: (not (x % 2), x))
+                # if self.node.node_id % 2 == 0:
+                #     # I'm even, send to even first
+                #     cur_parallel_ranks = sorted(outgoing_ranks[i], key=lambda x: (x % 2, x))
+                # else:
+                #     # I'm odd, send to odd first
+                #     cur_parallel_ranks = sorted(outgoing_ranks[i], key=lambda x: (not (x % 2), x))
+                cur_parallel_ranks = outgoing_ranks[i]
                 # out_msg_cnt doesn't change
                 for j in range(len(cur_parallel_ranks)):
                     combine_str = 'continue'

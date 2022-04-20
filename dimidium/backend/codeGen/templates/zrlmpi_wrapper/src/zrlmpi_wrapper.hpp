@@ -45,6 +45,7 @@ using namespace hls;
 
 const uint32_t buffer_fifo_depth = DOSA_WRAPPER_BUFFER_FIFO_DEPTH_LINES;
 enum controlFsmStates {RESET = 0, WRITE_PROGRAM, LOAD_COMMAND, LOAD_COMMAND2, ISSUE_COMMAND, WAIT_DATA, PROC_SEND, WAIT_SEND, PROC_RECEIVE, WAIT_RECEIVE};
+//                          0        1                2             3               4           5          6          7           8            9
 enum deqBufferCmd {FORWARD_0 = 0, DRAIN_0, FORWARD_1, DRAIN_1};
 enum sendBufferCmd {SEND_0 = 0, SEND_1};
 enum recvEnqStates {RESET0 = 0, RECV_WAIT, RECV_BUF_0, RECV_BUF_1, WAIT_CONFIRMATION};
