@@ -95,16 +95,16 @@ class ZrlmpiSwApp:
                     #     # if all_iterations == 0:
                     #     #     # first pair
                     #     #     all_iterations = ie1['repeat'] + ie0['repeat']
-                    tmpl = '  mpiCommands[{i}]          = {instr};\n' +\
-                           '  mpiRanks[{i}]             = {rank};\n' +\
-                           '  mpiCounts[{i}]            = {count};\n' +\
-                           '  commandRepetitions[{i}]   = {repeat};\n' +\
+                    tmpl = '  mpiCommands[{i}]          = {instr};\n' + \
+                           '  mpiRanks[{i}]             = {rank};\n' + \
+                           '  mpiCounts[{i}]            = {count};\n' + \
+                           '  commandRepetitions[{i}]   = {repeat};\n' + \
                            '  saveCurData[{i}]          = {save_cur_data};\n'
                     prog_i = 0
                     for si in send_cmds:
                         instr = 'MPI_INSTR_SEND'
                         rank = si['rank']
-                        word_count = int((si['count'] + 3)/4)
+                        word_count = int((si['count'] + 3) / 4)
                         repeat = si['repeat']
                         save_cur_data = 'false'
                         if si['combine'] is not None and si['combine'] != 'finish':
@@ -116,7 +116,7 @@ class ZrlmpiSwApp:
                     for ri in recv_cmds:
                         instr = 'MPI_INSTR_RECV'
                         rank = ri['rank']
-                        word_count = int((ri['count'] + 3)/4)
+                        word_count = int((ri['count'] + 3) / 4)
                         repeat = ri['repeat']
                         save_cur_data = 'false'  # always for recv
                         outline += tmpl.format(i=prog_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
@@ -130,14 +130,15 @@ class ZrlmpiSwApp:
                 open(os.path.join(self.out_dir_path, 'dosa_infer.hpp'), 'w') as out_file:
             for line in in_file.readlines():
                 if 'DOSA_ADD_APP_NODE_DEFINES' in line:
-                    tmpl = '#define DOSA_WRAPPER_PROG_LENGTH {total_l}\n' +\
-                           '#define DOSA_MINIMAL_PROG_LENGTH {min_l}\n' +\
-                           '#define DOSA_PIPELINE_STORE_DETPH {pip_store}\n' +\
-                           '#define DOSA_MINIMAL_INPUT_NUM {min_in}\n' +\
-                           '#define DOSA_MINIMAL_OUTPUT_NUM {min_out}\n'
+                    tmpl = ('#define DOSA_WRAPPER_PROG_LENGTH {total_l}\n' +
+                            # '#define DOSA_MINIMAL_PROG_LENGTH {min_l}\n' +
+                            '#define DOSA_PIPELINE_STORE_DETPH {pip_store}\n' +
+                            '#define DOSA_MINIMAL_INPUT_NUM {min_in}\n' +
+                            '#define DOSA_MINIMAL_OUTPUT_NUM {min_out}\n')
                     # outline = tmpl.format(total_l=comm_plan_len, min_l=all_iterations)
-                    outline = tmpl.format(total_l=comm_plan_len, min_l=comm_plan_len, pip_store=pipeline_store,
+                    outline = tmpl.format(total_l=comm_plan_len, pip_store=pipeline_store,
                                           min_in=total_send_repeat, min_out=total_recv_repeat)
+                                            # min_l=comm_plan_len
                     outline += '// ATTENTION: currently, only batch-wise inference is supported\n'
                 else:
                     outline = line
@@ -145,4 +146,3 @@ class ZrlmpiSwApp:
         # 5. build shared lib
         os.system('cd {}; make lib'.format(self.out_dir_path))
         return 0
-

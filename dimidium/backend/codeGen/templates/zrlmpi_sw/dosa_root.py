@@ -211,29 +211,32 @@ class DosaRoot:
         batch_rounds = (batch_size + added_zero_tensors) / self.minimum_input_batch_size
 
         input_num = len(batch_input)
-        # add one "line" to avoid SEGFAULT (just in case)
+        # add one "line" to avoid SEGFAULT
         np.vstack([batch_input, [za]])
-        output_total_length = int(self.minimum_output_batch_size * batch_rounds)
+        output_batch_num = int(self.minimum_output_batch_size * batch_rounds)
         expected_num_output = 1
         single_output_shape = output_shape
         if len(output_shape) > 1:
             expected_num_output = output_shape[0]
             single_output_shape = output_shape[1:]
-        output_overhead_length = output_total_length - expected_num_output
-        total_output_shape = [output_total_length]
+        output_overhead_length = output_batch_num - expected_num_output
+        total_output_shape = [output_batch_num]
+        output_total_length = output_batch_num
         for d in single_output_shape:
             total_output_shape.append(d)
-        infer_start = time.time()
+            output_total_length *= d
 
         # output_placeholder = bytearray(single_output_length)
         # output_array = self.ctype * single_output_length
-        # +4 to avoid SEGFAULT (just in case not 4-byte words are used)
+        # +4 to avoid SEGFAULT
         output_placeholder = bytearray(output_total_length + 4)
         output_array = self.ctype * (output_total_length + 4)
         c_input = batch_input.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
         c_input_num = ctypes.c_uint32(input_num)
         c_output = output_array.from_buffer(output_placeholder)
-        c_output_num = ctypes.c_uint32(output_total_length)
+        c_output_num = ctypes.c_uint32(output_batch_num)
+
+        infer_start = time.time()
 
         # int infer(int *input, uint32_t input_length, int *output, uint32_t output_length);
         # rc = self.c_lib.infer(input_data.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
@@ -243,13 +246,19 @@ class DosaRoot:
         # extern "C" int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num);
         rc = self.c_lib.infer_batch(c_input, c_input_num, c_output, c_output_num)
 
-        output_deserialized = np.frombuffer(output_placeholder, dtype=self.ndtype)
-        output = np.reshape(output_deserialized, newshape=total_output_shape)
-
         infer_stop = time.time()
         infer_time = infer_stop - infer_start
         if debug:
             print(f'DOSA inference run returned {rc} after {infer_time}s.')
+
+        output_deserialized = np.frombuffer(output_placeholder, dtype=self.ndtype)
+        try:
+            output = np.reshape(output_deserialized[:-4], newshape=total_output_shape)
+        except Exception as e:
+            print('[DOSA:runtime:ERROR] {}.\n'.format(e))
+            print(output_deserialized)
+            output = output_deserialized[:-4]
+
         expected_output = output[0:expected_num_output]
         return expected_output
 

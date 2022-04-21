@@ -103,6 +103,7 @@ int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num
   }
   if(input_num/DOSA_MINIMAL_INPUT_NUM != output_num/DOSA_MINIMAL_OUTPUT_NUM)
   {
+    //printf("%d %d  ", input_num, output_num);
     fprintf(stderr, "[DOSA:ERROR] input_num and output_num must be the same multiple of each minmum size (for this cluster: %d for input and %d for output).\n", DOSA_MINIMAL_INPUT_NUM, DOSA_MINIMAL_OUTPUT_NUM);
     return 1;
   }
@@ -145,46 +146,46 @@ int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num
   timestamp_t t0 = get_timestamp();
 
   //output is same multiple, checked above
-  while(total_input_processed < input_num)
+  while( (total_input_processed < input_num) || (total_output_processed < output_num) )
   {
-    for(uint32_t i = 0; i < DOSA_MINIMAL_PROG_LENGTH; i++)
-    {
-      if(curIterationCnt >= curRep)
-      {//read new command
-        curCmnd = mpiCommands[nextCommandPtr];
-        curRank = mpiRanks[nextCommandPtr];
-        curCount = mpiCounts[nextCommandPtr];
-        curRep = commandRepetitions[nextCommandPtr];
-        save_cur_data = saveCurData[nextCommandPtr];
-        nextCommandPtr++;
-        if(nextCommandPtr >= DOSA_WRAPPER_PROG_LENGTH)
-        {
-          nextCommandPtr = 0x0;
-        }
-        curIterationCnt = 1;
-        printf("[DOSA:INFO] Performing %d inference(s), each with length %d (words)...\n", curRep, curCount);
-      } else { //issue same again
-        curIterationCnt++;
-      }
-
-      if(curCmnd != MPI_INSTR_NOP && curRep > 0 && curCount > 0)
+    //for(uint32_t i = 0; i < DOSA_MINIMAL_PROG_LENGTH; i++)
+    //{
+    if(curIterationCnt >= curRep)
+    {//read new command
+      curCmnd = mpiCommands[nextCommandPtr];
+      curRank = mpiRanks[nextCommandPtr];
+      curCount = mpiCounts[nextCommandPtr];
+      curRep = commandRepetitions[nextCommandPtr];
+      save_cur_data = saveCurData[nextCommandPtr];
+      nextCommandPtr++;
+      if(nextCommandPtr >= DOSA_WRAPPER_PROG_LENGTH)
       {
-        if(curCmnd == MPI_INSTR_SEND)
-        {
-          //send data to infer
-          MPI_Send(input + (total_input_processed*curCount*(4/sizeof(int))), curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD);
-          if(!save_cur_data)
-          {
-            total_input_processed++;
-          }
-        } else {
-          //receive result
-          MPI_Recv(output + (total_output_processed*curCount*(4/sizeof(int))), curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD, &status);
-          total_output_processed++;
-        }
+        nextCommandPtr = 0x0;
       }
-
+      curIterationCnt = 1;
+      printf("[DOSA:INFO] Performing %d inference(s), each with length %d (words)...\n", curRep, curCount);
+    } else { //issue same again
+      curIterationCnt++;
     }
+
+    if(curCmnd != MPI_INSTR_NOP && curRep > 0 && curCount > 0)
+    {
+      if(curCmnd == MPI_INSTR_SEND)
+      {
+        //send data to infer
+        MPI_Send(input + (total_input_processed*curCount*(4/sizeof(int))), curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD);
+        if(!save_cur_data)
+        {
+          total_input_processed++;
+        }
+      } else {
+        //receive result
+        MPI_Recv(output + (total_output_processed*curCount*(4/sizeof(int))), curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD, &status);
+        total_output_processed++;
+      }
+    }
+
+    //}
   }
 
   timestamp_t t1 = get_timestamp();
