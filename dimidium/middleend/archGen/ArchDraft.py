@@ -1587,10 +1587,10 @@ class ArchDraft(object):
             if prev_node not in nn.parallel_nodes.values():
                 draft_total_pipeline_store += nn.total_pipeline_store
                 prev_node = nn
-        if dosa_singleton.config.backend.comm_message_interleaving < (draft_total_pipeline_store + 1):
+        if dosa_singleton.config.backend.comm_message_pipeline_store < (draft_total_pipeline_store + 1):
             print("[DOSA:CommGen:INFO] Setting message interleaving to {}, due to higher pipeline storage within node."
                   .format(draft_total_pipeline_store + 1))
-            dosa_singleton.config.backend.comm_message_interleaving = draft_total_pipeline_store + 1
+            dosa_singleton.config.backend.comm_message_pipeline_store = draft_total_pipeline_store + 1
         # if dosa_singleton.config.backend.create_rank_0_for_io:
         #    # so that CPU receives the right amount
         #    self.nodes[0].total_pipeline_store = total_pipeline_store

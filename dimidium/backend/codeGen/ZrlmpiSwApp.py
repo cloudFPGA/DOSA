@@ -42,24 +42,50 @@ class ZrlmpiSwApp:
         comm_plan_len = len(comm_instr)
         # assert comm_plan_len % 2 == 0
         assert len(self.comm_plan.get_comm_instr_sorted().keys()) == 1
-        # repetitions = 1 + dosa_singleton.config.backend.comm_message_interleaving
+        # repetitions = 1 + dosa_singleton.config.backend.comm_message_pipeline_store
         # comm_plan_one_iteration_length = 2 * repetitions
         # all_iterations = 0
-        # TODO as SW node, it always needs to do all sending first...?
-        send_cmds = []
-        recv_cmds = []
+        cur_send_cmds = []
+        cur_recv_cmds = []
+        all_send_cmds = []
+        all_recv_cmds = []
         total_send_repeat = 0
         total_recv_repeat = 0
+        last_instr = 'none'
         for ci in comm_instr:
             if ci['instr'] == 'send':
-                send_cmds.append(ci)
+                if last_instr == 'send':
+                    cur_send_cmds.append(ci)
+                else:
+                    if len(cur_recv_cmds) > 0:
+                        all_recv_cmds.append(cur_recv_cmds)
+                        cur_recv_cmds = []
+                    cur_send_cmds = [ci]
+                    last_instr = 'send'
                 if ci['combine'] is None or ci['combine'] == 'start':
                     total_send_repeat += ci['repeat']
             else:
-                recv_cmds.append(ci)
+                # recv_cmds.append(ci)
+                if last_instr == 'recv':
+                    cur_recv_cmds.append(ci)
+                else:
+                    if len(cur_send_cmds) > 0:
+                        all_send_cmds.append(cur_send_cmds)
+                        cur_send_cmds = []
+                    cur_recv_cmds = [ci]
+                    last_instr = 'recv'
                 if ci['combine'] is None or ci['combine'] == 'start':
                     total_recv_repeat += ci['repeat']
+        if len(cur_send_cmds) > 0:
+            all_send_cmds.append(cur_send_cmds)
+        if len(cur_recv_cmds) > 0:
+            all_recv_cmds.append(cur_recv_cmds)
         pipeline_store = total_send_repeat - total_recv_repeat
+        node_0_instr = []
+        assert len(all_send_cmds) == len(all_recv_cmds)
+        for i in range(len(all_send_cmds)):
+            node_0_instr.extend(all_send_cmds[i])
+            node_0_instr.extend(all_recv_cmds[i])
         # empty pipeline store at the end...done by dosa_root
         # 3. generate dosa_infer.cpp
         with open(os.path.join(self.templ_dir_path, 'dosa_infer.cpp'), 'r') as in_file, \
@@ -101,27 +127,43 @@ class ZrlmpiSwApp:
                            '  commandRepetitions[{i}]   = {repeat};\n' + \
                            '  saveCurData[{i}]          = {save_cur_data};\n'
                     prog_i = 0
-                    for si in send_cmds:
+                    # for si in send_cmds:
+                    #     instr = 'MPI_INSTR_SEND'
+                    #     rank = si['rank']
+                    #     word_count = int((si['count'] + 3) / 4)
+                    #     repeat = si['repeat']
+                    #     save_cur_data = 'false'
+                    #     if si['combine'] is not None and si['combine'] != 'finish':
+                    #         save_cur_data = 'true'
+                    #     outline += tmpl.format(i=prog_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
+                    #                            save_cur_data=save_cur_data)
+                    #     prog_i += 1
+                    # # prog_i continues...
+                    # for ri in recv_cmds:
+                    #     instr = 'MPI_INSTR_RECV'
+                    #     rank = ri['rank']
+                    #     word_count = int((ri['count'] + 3) / 4)
+                    #     repeat = ri['repeat']
+                    #     save_cur_data = 'false'  # always for recv
+                    #     outline += tmpl.format(i=prog_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
+                    #                            save_cur_data=save_cur_data)
+                    #     prog_i += 1
+                    outline += '  //pipeline-FILL part\n'
+                    for mi in node_0_instr:
                         instr = 'MPI_INSTR_SEND'
-                        rank = si['rank']
-                        word_count = int((si['count'] + 3) / 4)
-                        repeat = si['repeat']
+                        if mi['instr'] == 'recv':
+                            instr = 'MPI_INSTR_RECV'
+                        rank = mi['rank']
+                        word_count = int((mi['count'] + 3) / 4)
+                        repeat = mi['repeat']
                         save_cur_data = 'false'
-                        if si['combine'] is not None and si['combine'] != 'finish':
+                        if instr == 'send' and mi['combine'] is not None and mi['combine'] != 'finish':
                             save_cur_data = 'true'
                         outline += tmpl.format(i=prog_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
                                                save_cur_data=save_cur_data)
                         prog_i += 1
-                    # prog_i continues...
-                    for ri in recv_cmds:
-                        instr = 'MPI_INSTR_RECV'
-                        rank = ri['rank']
-                        word_count = int((ri['count'] + 3) / 4)
-                        repeat = ri['repeat']
-                        save_cur_data = 'false'  # always for recv
-                        outline += tmpl.format(i=prog_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
-                                               save_cur_data=save_cur_data)
-                        prog_i += 1
+                        if prog_i == self.comm_plan.after_pipeline_full_instr_start:
+                            outline += '  //pipeline-FULL part\n'
                 else:
                     outline = line
                 out_file.write(outline)
@@ -134,10 +176,14 @@ class ZrlmpiSwApp:
                             # '#define DOSA_MINIMAL_PROG_LENGTH {min_l}\n' +
                             '#define DOSA_PIPELINE_STORE_DETPH {pip_store}\n' +
                             '#define DOSA_MINIMAL_INPUT_NUM {min_in}\n' +
-                            '#define DOSA_MINIMAL_OUTPUT_NUM {min_out}\n')
+                            '#define DOSA_MINIMAL_OUTPUT_NUM {min_out}\n' +
+                            '#define DOSA_COMM_PLAN_AFTER_FILL_JUMP {jump}\n' +
+                            '#define DOSA_PIPELINE_FULL_BATCH_SIZE {full_pip}\n')
                     # outline = tmpl.format(total_l=comm_plan_len, min_l=all_iterations)
                     outline = tmpl.format(total_l=comm_plan_len, pip_store=pipeline_store,
-                                          min_in=total_send_repeat, min_out=total_recv_repeat)
+                                          min_in=total_send_repeat, min_out=total_recv_repeat,
+                                          jump=self.comm_plan.after_pipeline_full_instr_start,
+                                          full_pip=(1 + dosa_singleton.config.backend.comm_message_interleaving))
                                             # min_l=comm_plan_len
                     outline += '// ATTENTION: currently, only batch-wise inference is supported\n'
                 else:

@@ -37,6 +37,7 @@ using namespace hls;
 #define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH 64
 #define DOSA_WRAPPER_BUFFER_FIFO_DEPTH_LINES 1500
 #define DOSA_WRAPPER_PROG_LENGTH 2
+#define DOSA_COMM_PLAN_AFTER_FILL_JUMP 0
 #endif
 //LESSON LEARNED: ifdef/else for constants that affect INTERFACES does not work with vivado HLS...it uses the first occurence, apparently...
 

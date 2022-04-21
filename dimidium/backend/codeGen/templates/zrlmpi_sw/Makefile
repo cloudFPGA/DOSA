@@ -34,7 +34,7 @@ SOURCES += $(ZRLMPI_PATH)/ZRLMPI.cpp $(ZRLMPI_PATH)/zrlmpi_common.cpp
 OBJS    = $(SOURCES:%.cpp=%.o)
 HAEADS  += $(SOURCES:%.cpp=%.hpp)
 
-CFLAGS +=-DDEBUG -DZRLMPI_SW_ONLY
+#CFLAGS +=-DDEBUG -DZRLMPI_SW_ONLY
 # ------------------------------------------
 #$(PROG): MPI.hpp zrlmpi_common.hpp zrlmpi_int.hpp test.hpp
 #MPI.o: MPI.cpp test.hpp zrlmpi_common.hpp MPI.hpp

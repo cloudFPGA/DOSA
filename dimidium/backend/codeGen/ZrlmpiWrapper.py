@@ -64,6 +64,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
                     outline += '#define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH {}\n'.format(self.if_bitwidth)
                     outline += '#define DOSA_WRAPPER_BUFFER_FIFO_DEPTH_LINES {}\n'.format(int(longest_msg_lines))
                     outline += '#define DOSA_WRAPPER_PROG_LENGTH {}\n'.format(comm_plan_length)
+                    outline += '#define DOSA_COMM_PLAN_AFTER_FILL_JUMP {}\n'\
+                        .format(self.comm_plan.after_pipeline_full_instr_start)
                 else:
                     outline = line
                 out_file.write(outline)
@@ -95,6 +97,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                         indent = '  '
                         # else:
                         #     indent = ''
+                        outline += indent + '      //pipeline-FILL part\n'
                         for ie in sorted_instr[self_id]:
                             cmnd_macro = 'MPI_INSTR_RECV'
                             if ie['instr'] == 'send':
@@ -114,6 +117,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
                             outline += indent + f'      commandRepetitions[{instr_num}]   = {repeat};\n'
                             outline += indent + f'      saveCurData[{instr_num}]          = {save_cur_data};\n'
                             instr_num += 1
+                            if instr_num == self.comm_plan.after_pipeline_full_instr_start:
+                                outline += indent + '      //pipeline-FULL part\n'
                         # if len(sorted_instr.keys()) > 1:
                         outline += '      }\n'
                     assert instr_num == comm_plan_length

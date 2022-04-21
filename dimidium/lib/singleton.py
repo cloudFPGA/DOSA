@@ -27,6 +27,7 @@ def init_singleton(config_dict):
     config.backend.input_latency = config_dict['input_latency']
     config.backend.output_latency = config_dict['output_latency']
     config.backend.create_rank_0_for_io = bool(config_dict['build']['create_rank_0_for_io'])
+    config.backend.comm_message_pipeline_store = int(config_dict['build']['comm_message_interleaving'])  # to be updated during runtime
     config.backend.comm_message_interleaving = int(config_dict['build']['comm_message_interleaving'])
     config.backend.generate_testbenchs = config_dict['build']['generate_testbenchs']
     config.backend.insert_debug_cores = bool(config_dict['build']['insert_debug_cores'])

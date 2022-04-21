@@ -21,6 +21,7 @@ class CommPlan:
         self.node = for_node
         self.comm_instr = []
         self.pipeline_store_until_now = pipeline_store_until_now
+        self.after_pipeline_full_instr_start = -1
         self.update()
 
     def update(self):
@@ -93,11 +94,72 @@ class CommPlan:
 
         in_msg_cnt = first_brick.input_bytes
         out_msg_cnt = last_brick.output_bytes
-        # in_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving
-        in_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving - self.pipeline_store_until_now
-        # out_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving
-        out_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving - \
+        # Pipeline fill part
+        # in_repetition = 1 + dosa_singleton.config.backend.comm_message_pipeline_store
+        in_repetition = 1 + dosa_singleton.config.backend.comm_message_pipeline_store - self.pipeline_store_until_now
+        # out_repetition = 1 + dosa_singleton.config.backend.comm_message_pipeline_store
+        out_repetition = 1 + dosa_singleton.config.backend.comm_message_pipeline_store - \
                          (self.pipeline_store_until_now + self.node.total_pipeline_store)
+        assert in_repetition > 0
+        assert out_repetition > 0
+        for i in range(len(incomming_ranks)):
+            # here, we assume strict streaming...so one message in, one out (with repetition)
+            if len(incomming_ranks[i]) == 1:
+                new_msg_in_dict = {'instr': 'recv', 'rank': incomming_ranks[i][0], 'count': in_msg_cnt,
+                                   'repeat': in_repetition, 'cond': in_cmd_rank_list[i], 'combine': None}
+                self.comm_instr.append(new_msg_in_dict)
+            else:
+                # make repetition explicit
+                combine_comp_parallel = []
+                # if self.node.node_id % 2 == 0:
+                #     # I'm even, wait for even first
+                #     cur_parallel_ranks = sorted(incomming_ranks[i], key=lambda x: (x % 2, x))
+                # else:
+                #     # I'm odd, wait for odd first
+                #     cur_parallel_ranks = sorted(incomming_ranks[i], key=lambda x: (not (x % 2), x))
+                cur_parallel_ranks = incomming_ranks[i]
+                partial_msg_cnt = math.ceil(in_msg_cnt/len(cur_parallel_ranks))
+                for j in range(len(cur_parallel_ranks)):
+                    combine_str = 'continue'
+                    if j == 0:
+                        combine_str = 'start'
+                    elif j == len(cur_parallel_ranks) - 1:
+                        combine_str = 'finish'
+                    new_msg_in_dict = {'instr': 'recv', 'rank': cur_parallel_ranks[j], 'count': partial_msg_cnt,
+                                       'repeat': 1, 'cond': in_cmd_rank_list[i], 'combine': combine_str}
+                    combine_comp_parallel.append(new_msg_in_dict)
+                for r in range(0, in_repetition):
+                    self.comm_instr.extend(combine_comp_parallel)
+            if len(outgoing_ranks[i]) == 1:
+                new_msg_out_dict = {'instr': 'send', 'rank': outgoing_ranks[i][0], 'count': out_msg_cnt,
+                                    'repeat': out_repetition, 'cond': out_cmd_rank_list[i], 'combine': None}
+                self.comm_instr.append(new_msg_out_dict)
+            else:
+                # make repetition explicit
+                combine_comp_parallel = []
+                # if self.node.node_id % 2 == 0:
+                #     # I'm even, send to even first
+                #     cur_parallel_ranks = sorted(outgoing_ranks[i], key=lambda x: (x % 2, x))
+                # else:
+                #     # I'm odd, send to odd first
+                #     cur_parallel_ranks = sorted(outgoing_ranks[i], key=lambda x: (not (x % 2), x))
+                cur_parallel_ranks = outgoing_ranks[i]
+                # out_msg_cnt doesn't change
+                for j in range(len(cur_parallel_ranks)):
+                    combine_str = 'continue'
+                    if j == 0:
+                        combine_str = 'start'
+                    elif j == len(cur_parallel_ranks) - 1:
+                        combine_str = 'finish'
+                    new_msg_out_dict = {'instr': 'send', 'rank': cur_parallel_ranks[j], 'count': out_msg_cnt,
+                                        'repeat': 1, 'cond': out_cmd_rank_list[i], 'combine': combine_str}
+                    combine_comp_parallel.append(new_msg_out_dict)
+                for r in range(0, out_repetition):
+                    self.comm_instr.extend(combine_comp_parallel)
+        # Pipeline full part
+        self.after_pipeline_full_instr_start = len(self.comm_instr)
+        in_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving
+        out_repetition = 1 + dosa_singleton.config.backend.comm_message_interleaving
         assert in_repetition > 0
         assert out_repetition > 0
         for i in range(len(incomming_ranks)):

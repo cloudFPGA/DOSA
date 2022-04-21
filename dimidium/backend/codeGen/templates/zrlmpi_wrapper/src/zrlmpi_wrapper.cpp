@@ -156,7 +156,7 @@ void pStateControl(
         nextCommandPtr++;
         if(nextCommandPtr >= DOSA_WRAPPER_PROG_LENGTH)
         {
-          nextCommandPtr = 0x0;
+          nextCommandPtr = DOSA_COMM_PLAN_AFTER_FILL_JUMP;
         }
         curIterationCnt = 1;
       } else { //issue same again

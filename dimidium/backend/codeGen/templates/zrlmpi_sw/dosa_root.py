@@ -80,6 +80,7 @@ def restart_app(cluster_id, user_dict):
         # something went horrible wrong
         return errorReqExit("PATCH cluster restart", r1.status_code)
 
+    print("...done.")
     return
 
 
@@ -94,6 +95,8 @@ class DosaRoot:
         self.c_lib.get_pipeline_store_depth.restype = ctypes.c_uint32
         self.c_lib.get_batch_input_size.restype = ctypes.c_uint32
         self.c_lib.get_batch_output_size.restype = ctypes.c_uint32
+        self.c_lib.get_pipeline_full_batch_size.restype = ctypes.c_uint32
+        self.c_lib.are_processing_pipelines_filled.restype = ctypes.c_bool
         self.nbits = used_bitwidth
         self.n_bytes = int((used_bitwidth + 7) / 8)
         if used_bitwidth == 8:
@@ -123,6 +126,7 @@ class DosaRoot:
         self.pipeline_store_depth = -1
         self.minimum_input_batch_size = -1
         self.minimum_output_batch_size = -1
+        self.pipeline_full_batch_size = -1
 
     # def _prepare_data(self, tmp_array):
     #     bin_str = ''
@@ -151,8 +155,9 @@ class DosaRoot:
         self.pipeline_store_depth = self.c_lib.get_pipeline_store_depth()
         self.minimum_input_batch_size = self.c_lib.get_batch_input_size()
         self.minimum_output_batch_size = self.c_lib.get_batch_output_size()
-        # print("cluster properties: {} {} {}".format(self.pipeline_store_depth, self.minimum_input_batch_size,
-        #                                             self.minimum_output_batch_size))
+        self.pipeline_full_batch_size = self.c_lib.get_pipeline_full_batch_size()
+        # print("cluster properties: {} {} {} {}".format(self.pipeline_store_depth, self.minimum_input_batch_size,
+        #                                             self.minimum_output_batch_size, self.pipeline_full_batch_size))
 
     def init_from_cluster(self, cluster_id, host_address, json_file='./user.json'):
         _, user_dict = load_user_credentials(json_file)
@@ -191,33 +196,48 @@ class DosaRoot:
         if len(x.shape) < 2:
             print("[DOSA:infer_batch:ERROR] input array must be an array of arrays (i.e. [[1,2], [3,4]]).")
             return -1
+        processing_pipelines_filled = bool(self.c_lib.are_processing_pipelines_filled())
+        if debug:
+            print("[DOSA:runtime:INFO] processing pipeline of DOSA is filled: {}".format(processing_pipelines_filled))
+        za = np.zeros(x[0].shape, self.ndtype)
         batch_size = len(x)
         input_data = x.astype(self.ndtype)
-        single_input_length = int(self.n_bytes * input_data[0].size)
-        single_output_length = int(self.n_bytes)
-        for d in output_shape:
-            single_output_length *= d
-        # now, adapt to minimum length requirements
-        added_zero_tensors = 0
-        batch_input = input_data
-        za = np.zeros(x[0].shape, self.ndtype)
-        if batch_size % self.minimum_input_batch_size != 0:
-            added_zero_tensors = self.minimum_input_batch_size - (batch_size % self.minimum_input_batch_size)
+        if not processing_pipelines_filled:
+            single_input_length = int(self.n_bytes * input_data[0].size)
+            single_output_length = int(self.n_bytes)
+            for d in output_shape:
+                single_output_length *= d
+            # now, adapt to minimum length requirements
+            # added_zero_tensors = 0
+            # batch_input = input_data
+            added_zero_tensors = self.pipeline_store_depth
             batch_input = np.vstack([input_data, [za]*added_zero_tensors])
-        if added_zero_tensors < self.pipeline_store_depth:
-            # add another batch to get results back
-            added_zero_tensors += self.minimum_input_batch_size
-            batch_input = np.vstack([batch_input, [za]*self.minimum_input_batch_size])
-        batch_rounds = (batch_size + added_zero_tensors) / self.minimum_input_batch_size
+            # if batch_size % self.minimum_input_batch_size != 0:
+            #     # added_zero_tensors = self.minimum_input_batch_size - (batch_size % self.minimum_input_batch_size)
+            #     batch_input = np.vstack([input_data, [za]*added_zero_tensors])
+            # if added_zero_tensors < self.pipeline_store_depth:
+            #     # add another batch to get results back
+            #     added_zero_tensors += self.minimum_input_batch_size
+            #     batch_input = np.vstack([batch_input, [za]*self.minimum_input_batch_size])
+            # batch_rounds = (batch_size + added_zero_tensors) / self.minimum_input_batch_size
+        else:
+            if batch_size < self.pipeline_full_batch_size:
+                added_zero_tensors = self.pipeline_full_batch_size - batch_size
+                batch_input = np.vstack([input_data, [za]*added_zero_tensors])
+            else:
+                added_zero_tensors = 0
+                batch_input = input_data
 
         input_num = len(batch_input)
         # add one "line" to avoid SEGFAULT
         np.vstack([batch_input, [za]])
-        output_batch_num = int(self.minimum_output_batch_size * batch_rounds)
-        expected_num_output = 1
+        # output_batch_num = int(self.minimum_output_batch_size * batch_rounds)
+        output_batch_num = int(batch_size + added_zero_tensors)
+        expected_num_output = batch_size
         single_output_shape = output_shape
         if len(output_shape) > 1:
-            expected_num_output = output_shape[0]
+            # expected_num_output = output_shape[0]
+            assert output_shape[0] == batch_size
             single_output_shape = output_shape[1:]
         output_overhead_length = output_batch_num - expected_num_output
         total_output_shape = [output_batch_num]

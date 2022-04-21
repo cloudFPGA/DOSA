@@ -32,11 +32,13 @@
 #define DOSA_PIPELINE_STORE_DETPH 1
 #define DOSA_MINIMAL_INPUT_NUM 1
 #define DOSA_MINIMAL_OUTPUT_NUM 1
+#define DOSA_COMM_PLAN_AFTER_FILL_JUMP 0
+#define DOSA_PIPELINE_FULL_BATCH_SIZE 1
 #else
 //DOSA_ADD_APP_NODE_DEFINES
 #endif
 
-#define DEBUG
+//#define DEBUG
 //#define DEBUG2
 
 //DOCSTRING...
@@ -53,6 +55,12 @@ extern "C" uint32_t get_batch_input_size(void);
 
 //DOCSTRING...
 extern "C" uint32_t get_batch_output_size(void);
+
+//DOCSTRING...
+extern "C" uint32_t get_pipeline_full_batch_size(void);
+
+//DOCSTRING...
+extern "C" bool are_processing_pipelines_filled(void);
 
 //DOCSTRING...
 //extern "C" int infer(int *input, uint32_t input_length, int *output, uint32_t output_length);

@@ -36,6 +36,7 @@ static uint8_t curRank = MPI_NO_RANK;
 static uint32_t curCount = 0;
 static uint8_t curRep = 0;
 static bool save_cur_data = false;
+static bool processing_pipeline_filled = false;
 
 
 typedef unsigned long long timestamp_t;
@@ -66,6 +67,7 @@ void reset_state(void)
   curRep = 0;
   curRank = MPI_NO_RANK;
   save_cur_data = false;
+  processing_pipeline_filled = false;
 }
 
 
@@ -87,36 +89,73 @@ uint32_t get_batch_output_size(void)
 }
 
 
+uint32_t get_pipeline_full_batch_size(void)
+{
+  return DOSA_PIPELINE_FULL_BATCH_SIZE;
+}
+
+
+bool are_processing_pipelines_filled(void)
+{
+  return processing_pipeline_filled;
+}
+
+
 //TODO: also allow single frame inference?
 //int infer(int *input, uint32_t input_length, int *output, uint32_t output_length)
 int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num)
 {
-  if(input_num % DOSA_MINIMAL_INPUT_NUM != 0)
-  {
-    fprintf(stderr, "[DOSA:ERROR] Invalid input_num. It must be a multiple of %d (c.f. get_batch_input_size).\n", DOSA_MINIMAL_INPUT_NUM);
-    return 1;
-  }
-  if(output_num % DOSA_MINIMAL_OUTPUT_NUM != 0)
-  {
-    fprintf(stderr, "[DOSA:ERROR] Invalid output_num. It must be a multiple of %d (c.f. get_batch_output_size).\n", DOSA_MINIMAL_OUTPUT_NUM);
-    return 1;
-  }
-  if(input_num/DOSA_MINIMAL_INPUT_NUM != output_num/DOSA_MINIMAL_OUTPUT_NUM)
-  {
-    //printf("%d %d  ", input_num, output_num);
-    fprintf(stderr, "[DOSA:ERROR] input_num and output_num must be the same multiple of each minmum size (for this cluster: %d for input and %d for output).\n", DOSA_MINIMAL_INPUT_NUM, DOSA_MINIMAL_OUTPUT_NUM);
-    return 1;
-  }
-  //if(input_num%4 != 0)
+  //if(input_num % DOSA_MINIMAL_INPUT_NUM != 0)
   //{
-  //  fprintf(stderr, "[DOSA:ERROR] input_num must have a 'word-aligned' (4 bytes) length.\n");
+  //  fprintf(stderr, "[DOSA:ERROR] Invalid input_num. It must be a multiple of %d (c.f. get_batch_input_size).\n", DOSA_MINIMAL_INPUT_NUM);
   //  return 1;
   //}
-  //if(output_num%4 != 0)
+  //if(output_num % DOSA_MINIMAL_OUTPUT_NUM != 0)
   //{
-  //  fprintf(stderr, "[DOSA:ERROR] output_nu must have a 'word-aligned' (4 bytes) length.\n");
+  //  fprintf(stderr, "[DOSA:ERROR] Invalid output_num. It must be a multiple of %d (c.f. get_batch_output_size).\n", DOSA_MINIMAL_OUTPUT_NUM);
   //  return 1;
   //}
+  //if(input_num/DOSA_MINIMAL_INPUT_NUM != output_num/DOSA_MINIMAL_OUTPUT_NUM)
+  //{
+  //  //printf("%d %d  ", input_num, output_num);
+  //  fprintf(stderr, "[DOSA:ERROR] input_num and output_num must be the same multiple of each minmum size (for this cluster: %d for input and %d for output).\n", DOSA_MINIMAL_INPUT_NUM, DOSA_MINIMAL_OUTPUT_NUM);
+  //  return 1;
+  //}
+  if(!processing_pipeline_filled)
+  {
+    if(input_num < DOSA_MINIMAL_INPUT_NUM)
+    {
+      fprintf(stderr, "[DOSA:ERROR]  processing pipeline not yet filled: Invalid input_num. It must be a at least %d (c.f. get_batch_input_size).\n", DOSA_MINIMAL_INPUT_NUM);
+      return 1;
+    }
+    if(output_num < DOSA_MINIMAL_OUTPUT_NUM != 0)
+    {
+      fprintf(stderr, "[DOSA:ERROR]  processing pipeline not yet filled: Invalid output_num. It must be at least %d (c.f. get_batch_output_size).\n", DOSA_MINIMAL_OUTPUT_NUM);
+      return 1;
+    }
+    if(input_num - output_num != DOSA_PIPELINE_STORE_DETPH)
+    {
+      //printf("%d %d  ", input_num, output_num);
+      fprintf(stderr, "[DOSA:ERROR] processing pipeline not yet filled: input_num must be exactly %d larger than output_num.\n", DOSA_PIPELINE_STORE_DETPH);
+      return 1;
+    }
+  } else {
+    if(input_num % DOSA_PIPELINE_FULL_BATCH_SIZE != 0)
+    {
+      fprintf(stderr, "[DOSA:ERROR] Invalid input_num. With filled processing pipelines, it must be a multiple of %d (c.f. get_pipeline_full_batch_size).\n", DOSA_PIPELINE_FULL_BATCH_SIZE);
+      return 1;
+    }
+    if(output_num % DOSA_PIPELINE_FULL_BATCH_SIZE != 0)
+    {
+      fprintf(stderr, "[DOSA:ERROR] Invalid output_num. With filled processing pipelines, it must be a multiple of %d (c.f. get_pipeline_full_batch_size).\n", DOSA_PIPELINE_FULL_BATCH_SIZE);
+      return 1;
+    }
+    if(input_num != output_num)
+    {
+      fprintf(stderr, "[DOSA:ERROR] input_num and output_num must be euqal, since processing pipelines are filled (c.f. are_processing_pipelines_filled).\n");
+      return 1;
+    }
+  }
 
 
   int rank;
@@ -160,7 +199,11 @@ int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num
       nextCommandPtr++;
       if(nextCommandPtr >= DOSA_WRAPPER_PROG_LENGTH)
       {
-        nextCommandPtr = 0x0;
+        nextCommandPtr = DOSA_COMM_PLAN_AFTER_FILL_JUMP;
+      }
+      if(nextCommandPtr >= DOSA_COMM_PLAN_AFTER_FILL_JUMP)
+      {
+        processing_pipeline_filled = true;
       }
       curIterationCnt = 1;
       printf("[DOSA:INFO] Performing %d inference(s), each with length %d (words)...\n", curRep, curCount);
