@@ -90,6 +90,7 @@ class DosaRoot:
         libname = os.path.abspath(__filedir__ + '/' + __so_lib_name__)
         self.c_lib = ctypes.CDLL(libname)
         # self.c_lib.infer.restype = ctypes.c_int
+        # self.c_lib.malloc.restype = ctypes.c_void_p
         self.c_lib.infer_batch.restype = ctypes.c_int
         self.c_lib.reset_state.restype = ctypes.c_void_p
         self.c_lib.get_pipeline_store_depth.restype = ctypes.c_uint32
@@ -150,7 +151,7 @@ class DosaRoot:
         for a in arglist:
             blist.append(bytes(a, 'ascii'))
         cargs = (ctypes.c_char_p * len(blist))(*blist)
-        #self.c_lib.init(ctypes.c_int(argc), ctypes.c_char_p(bytes(argv, 'ascii')))
+        # self.c_lib.init(ctypes.c_int(argc), ctypes.c_char_p(bytes(argv, 'ascii')))
         self.c_lib.init(ctypes.c_int(argc), cargs)
         self.pipeline_store_depth = self.c_lib.get_pipeline_store_depth()
         self.minimum_input_batch_size = self.c_lib.get_batch_input_size()
@@ -202,16 +203,23 @@ class DosaRoot:
         za = np.zeros(x[0].shape, self.ndtype)
         batch_size = len(x)
         input_data = x.astype(self.ndtype)
+        single_input_length = int(self.n_bytes * input_data[0].size)
+        single_output_length = int(self.n_bytes)
+        for d in output_shape:
+            single_output_length *= d
         if not processing_pipelines_filled:
-            single_input_length = int(self.n_bytes * input_data[0].size)
-            single_output_length = int(self.n_bytes)
-            for d in output_shape:
-                single_output_length *= d
             # now, adapt to minimum length requirements
             # added_zero_tensors = 0
             # batch_input = input_data
             added_zero_tensors = self.pipeline_store_depth
             batch_input = np.vstack([input_data, [za]*added_zero_tensors])
+            if (batch_size + added_zero_tensors - self.minimum_input_batch_size) % self.pipeline_full_batch_size != 0:
+                add_zt = self.pipeline_full_batch_size - ((batch_size + added_zero_tensors
+                                                           - self.minimum_input_batch_size)
+                                                          % self.pipeline_full_batch_size)
+                batch_input = np.vstack([batch_input, [za]*add_zt])
+                added_zero_tensors += add_zt
+            output_batch_num = len(batch_input) - self.pipeline_store_depth
             # if batch_size % self.minimum_input_batch_size != 0:
             #     # added_zero_tensors = self.minimum_input_batch_size - (batch_size % self.minimum_input_batch_size)
             #     batch_input = np.vstack([input_data, [za]*added_zero_tensors])
@@ -221,18 +229,19 @@ class DosaRoot:
             #     batch_input = np.vstack([batch_input, [za]*self.minimum_input_batch_size])
             # batch_rounds = (batch_size + added_zero_tensors) / self.minimum_input_batch_size
         else:
-            if batch_size < self.pipeline_full_batch_size:
-                added_zero_tensors = self.pipeline_full_batch_size - batch_size
+            # if batch_size < self.pipeline_full_batch_size:
+            if batch_size % self.pipeline_full_batch_size != 0:
+                added_zero_tensors = self.pipeline_full_batch_size - (batch_size % self.pipeline_full_batch_size)
                 batch_input = np.vstack([input_data, [za]*added_zero_tensors])
             else:
                 added_zero_tensors = 0
                 batch_input = input_data
+            output_batch_num = int(batch_size + added_zero_tensors)
 
         input_num = len(batch_input)
         # add one "line" to avoid SEGFAULT
         np.vstack([batch_input, [za]])
         # output_batch_num = int(self.minimum_output_batch_size * batch_rounds)
-        output_batch_num = int(batch_size + added_zero_tensors)
         expected_num_output = batch_size
         single_output_shape = output_shape
         if len(output_shape) > 1:
@@ -248,13 +257,17 @@ class DosaRoot:
 
         # output_placeholder = bytearray(single_output_length)
         # output_array = self.ctype * single_output_length
+        c_input = batch_input.ctypes.data_as(ctypes.POINTER(ctypes.c_char))
+        c_input_num = ctypes.c_uint32(input_num)
         # +4 to avoid SEGFAULT
         output_placeholder = bytearray(output_total_length + 4)
         output_array = self.ctype * (output_total_length + 4)
-        c_input = batch_input.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
-        c_input_num = ctypes.c_uint32(input_num)
         c_output = output_array.from_buffer(output_placeholder)
+        # output_placeholder = self.c_lib.malloc((output_total_length + 4) * ctypes.sizeof(self.ctype))
+        c_output = ctypes.cast(c_output, ctypes.POINTER(ctypes.c_char))
         c_output_num = ctypes.c_uint32(output_batch_num)
+        if debug:
+            print("[DOSA:DEBUG] c_input size {}; c_input_num: {}; c_output size {}; c_output_num {};".format(len(batch_input)*single_input_length, input_num, output_total_length + 4, output_batch_num))
 
         infer_start = time.time()
 
@@ -285,5 +298,8 @@ class DosaRoot:
     def reset(self):
         self.c_lib.reset_state()
         restart_app(self.cluster_id, self.user_dict)
+
+    def cleanup(self):
+        self.c_lib.cleanup()
 
 

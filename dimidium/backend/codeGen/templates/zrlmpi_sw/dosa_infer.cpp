@@ -128,7 +128,7 @@ int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num
       fprintf(stderr, "[DOSA:ERROR]  processing pipeline not yet filled: Invalid input_num. It must be a at least %d (c.f. get_batch_input_size).\n", DOSA_MINIMAL_INPUT_NUM);
       return 1;
     }
-    if(output_num < DOSA_MINIMAL_OUTPUT_NUM != 0)
+    if(output_num < DOSA_MINIMAL_OUTPUT_NUM)
     {
       fprintf(stderr, "[DOSA:ERROR]  processing pipeline not yet filled: Invalid output_num. It must be at least %d (c.f. get_batch_output_size).\n", DOSA_MINIMAL_OUTPUT_NUM);
       return 1;
