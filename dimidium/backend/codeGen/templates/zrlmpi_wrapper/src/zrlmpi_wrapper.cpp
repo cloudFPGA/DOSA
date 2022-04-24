@@ -632,12 +632,19 @@ void pSendEnq(
 #pragma HLS reset variable=curCnt
   static uint8_t nextBuffer = 0;
 #pragma HLS reset variable=nextBuffer
+  static uint32_t hangover_byte_cnt = 0x0;
+#pragma HLS reset variable=hangover_byte_cnt
   //-- STATIC VARIABLES ------------------------------------------------------
+  static ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> hangover_tdata;
   //-- LOCAL VARIABLES ------------------------------------------------------
   bool not_empty = false;
   Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read;
-  //uint32_t this_cnt = 0;
+  uint32_t tmp_cnt = 0;
   bool ignore_me;
+  ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_tdata;
+  ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> new_tdata;
+  ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> tmp_tkeep;
+  ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> new_tkeep;
 
 
   switch(sendEnqFsm)
@@ -647,6 +654,8 @@ void pSendEnq(
       curLength = 0;
       curCnt = 0;
       nextBuffer = 0;
+      hangover_tdata = 0x0;
+      hangover_byte_cnt = 0x0;
       if( !sSendLength.empty() )
       {
         sSendLength.read();
@@ -668,6 +677,8 @@ void pSendEnq(
       {
         curLength = sSendLength.read();
         curCnt = 0;
+        hangover_byte_cnt = 0x0;
+        hangover_tdata = 0x0;
         if(nextBuffer == 0)
         {
           sendEnqFsm = SEND_BUF_0_INIT;
@@ -685,17 +696,25 @@ void pSendEnq(
       if( !siData.empty() && !sSendBuff_0.full() && !sDataArrived.full() )
       {
         tmp_read = siData.read();
-        curCnt += extractByteCnt(tmp_read);
-        //we know the length, so we don't trust the incoming tlast
-        if(curCnt >= curLength)
+        tmp_cnt = extractByteCnt(tmp_read);
+        if(tmp_read.getTKeep() >= 0xFF || tmp_read.getTLast() == 0b1)
         {
-          tmp_read.setTLast(1);
-          sendEnqFsm = SEND_WAIT;
-          nextBuffer = 1;
+          //curCnt += extractByteCnt(tmp_read);
+          curCnt += tmp_cnt;
+          //we know the length, so we don't trust the incoming tlast
+          if(curCnt >= curLength)
+          {
+            tmp_read.setTLast(1);
+            sendEnqFsm = SEND_WAIT;
+            nextBuffer = 1;
+          } else {
+            tmp_read.setTLast(0);
+          }
+          sSendBuff_0.write(tmp_read);
         } else {
-          tmp_read.setTLast(0);
+          hangover_tdata = tmp_read.getTData();
+          hangover_byte_cnt = tmp_cnt;
         }
-        sSendBuff_0.write(tmp_read);
         sDataArrived.write(true);
         sendEnqFsm = SEND_BUF_0;
       }
@@ -705,18 +724,50 @@ void pSendEnq(
       if( !siData.empty() && !sSendBuff_0.full() )
       {
         tmp_read = siData.read();
-        curCnt += extractByteCnt(tmp_read);
-        //printf("curCnt: %d\n", curCnt);
-        //we know the length, so we don't trust the incoming tlast
-        if(curCnt >= curLength)
+        //curCnt += extractByteCnt(tmp_read);
+        tmp_cnt = extractByteCnt(tmp_read);
+        if(tmp_read.getTKeep() < 0xFF && (curCnt + tmp_cnt < curLength))
         {
-          tmp_read.setTLast(1);
-          sendEnqFsm = SEND_WAIT;
-          nextBuffer = 1;
+          //if two after each other --> we'll lose data...ok for now TODO
+          hangover_tdata = tmp_read.getTData();
+          hangover_byte_cnt = tmp_cnt;
         } else {
-          tmp_read.setTLast(0);
+          if(hangover_byte_cnt > 0)
+          {
+            tmp_tdata = tmp_read.getTData();
+            tmp_tkeep = tmp_read.getTKeep();
+            new_tdata = hangover_tdata;
+            new_tdata |= tmp_tdata << (hangover_byte_cnt*8);
+            //TODO make dynamic
+            //TODO: shorten critical path
+            //new_tkeep = byteCntToTKeep((uint8_t) (tmp_cnt + hangover_byte_cnt));
+            new_tkeep = 0xFF;
+            if(((int64_t) tmp_cnt) - ((int64_t) hangover_byte_cnt) > 0)
+            {
+              hangover_tdata = tmp_tdata >> (hangover_byte_cnt*8);
+              hangover_byte_cnt = tmp_cnt - hangover_byte_cnt;
+            } else {
+              //hangover_tdata = 0x0;
+              hangover_byte_cnt = 0x0;
+            }
+            tmp_read.setTData(new_tdata);
+            tmp_read.setTKeep(new_tkeep);
+            curCnt += 8; //TODO better exact, but critical path?
+          } else {
+            curCnt += tmp_cnt;
+          }
+          //printf("curCnt: %d\n", curCnt);
+          //we know the length, so we don't trust the incoming tlast
+          if(curCnt >= curLength)
+          {
+            tmp_read.setTLast(1);
+            sendEnqFsm = SEND_WAIT;
+            nextBuffer = 1;
+          } else {
+            tmp_read.setTLast(0);
+          }
+          sSendBuff_0.write(tmp_read);
         }
-        sSendBuff_0.write(tmp_read);
       }
       break;
 
@@ -724,17 +775,25 @@ void pSendEnq(
       if( !siData.empty() && !sSendBuff_1.full() && !sDataArrived.full() )
       {
         tmp_read = siData.read();
-        curCnt += extractByteCnt(tmp_read);
-        //we know the length, so we don't trust the incoming tlast
-        if(curCnt >= curLength)
+        tmp_cnt = extractByteCnt(tmp_read);
+        if(tmp_read.getTKeep() >= 0xFF || tmp_read.getTLast() == 0b1)
         {
-          tmp_read.setTLast(1);
-          sendEnqFsm = SEND_WAIT;
-          nextBuffer = 0;
+          //curCnt += extractByteCnt(tmp_read);
+          curCnt += tmp_cnt;
+          //we know the length, so we don't trust the incoming tlast
+          if(curCnt >= curLength)
+          {
+            tmp_read.setTLast(1);
+            sendEnqFsm = SEND_WAIT;
+            nextBuffer = 0;
+          } else {
+            tmp_read.setTLast(0);
+          }
+          sSendBuff_1.write(tmp_read);
         } else {
-          tmp_read.setTLast(0);
+          hangover_tdata = tmp_read.getTData();
+          hangover_byte_cnt = tmp_cnt;
         }
-        sSendBuff_1.write(tmp_read);
         sDataArrived.write(true);
         sendEnqFsm = SEND_BUF_1;
       }
@@ -744,17 +803,49 @@ void pSendEnq(
       if( !siData.empty() && !sSendBuff_1.full() )
       {
         tmp_read = siData.read();
-        curCnt += extractByteCnt(tmp_read);
-        //we know the length, so we don't trust the incoming tlast
-        if(curCnt >= curLength)
+        //curCnt += extractByteCnt(tmp_read);
+        tmp_cnt = extractByteCnt(tmp_read);
+        if(tmp_read.getTKeep() < 0xFF && (curCnt + tmp_cnt < curLength))
         {
-          tmp_read.setTLast(1);
-          sendEnqFsm = SEND_WAIT;
-          nextBuffer = 0;
+          //if two after each other --> we'll lose data...ok for now TODO
+          hangover_tdata = tmp_read.getTData();
+          hangover_byte_cnt = tmp_cnt;
         } else {
-          tmp_read.setTLast(0);
+          if(hangover_byte_cnt > 0)
+          {
+            tmp_tdata = tmp_read.getTData();
+            tmp_tkeep = tmp_read.getTKeep();
+            new_tdata = hangover_tdata;
+            new_tdata |= tmp_tdata << (hangover_byte_cnt*8);
+            //TODO make dynamic
+            //TODO: shorten critical path
+            //new_tkeep = byteCntToTKeep((uint8_t) (tmp_cnt + hangover_byte_cnt));
+            new_tkeep = 0xFF;
+            if(((int64_t) tmp_cnt) - ((int64_t) hangover_byte_cnt) > 0)
+            {
+              hangover_tdata = tmp_tdata >> (hangover_byte_cnt*8);
+              hangover_byte_cnt = tmp_cnt - hangover_byte_cnt;
+            } else {
+              //hangover_tdata = 0x0;
+              hangover_byte_cnt = 0x0;
+            }
+            tmp_read.setTData(new_tdata);
+            tmp_read.setTKeep(new_tkeep);
+            curCnt += 8; //TODO better exact, but critical path?
+          } else {
+            curCnt += tmp_cnt;
+          }
+          //we know the length, so we don't trust the incoming tlast
+          if(curCnt >= curLength)
+          {
+            tmp_read.setTLast(1);
+            sendEnqFsm = SEND_WAIT;
+            nextBuffer = 0;
+          } else {
+            tmp_read.setTLast(0);
+          }
+          sSendBuff_1.write(tmp_read);
         }
-        sSendBuff_1.write(tmp_read);
       }
       break;
   }
