@@ -45,6 +45,9 @@
 extern "C" void init(int argc, char **argv);
 
 //DOCSTRING...
+extern "C" void cleanup(void);
+
+//DOCSTRING...
 extern "C" void reset_state(void);
 
 //DOCSTRING...
@@ -65,7 +68,7 @@ extern "C" bool are_processing_pipelines_filled(void);
 //DOCSTRING...
 //extern "C" int infer(int *input, uint32_t input_length, int *output, uint32_t output_length);
 //TODO: also allow single frame inference?
-extern "C" int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num);
+extern "C" int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_num);
 
 
 #endif

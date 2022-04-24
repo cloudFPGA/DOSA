@@ -28,12 +28,18 @@ static uint8_t mpiRanks[DOSA_WRAPPER_PROG_LENGTH];
 static uint32_t mpiCounts[DOSA_WRAPPER_PROG_LENGTH];
 static uint8_t commandRepetitions[DOSA_WRAPPER_PROG_LENGTH];
 static bool saveCurData[DOSA_WRAPPER_PROG_LENGTH];
+static uint32_t byteCounts[DOSA_WRAPPER_PROG_LENGTH];
+
+static int my_argc;
+static char **my_argv;
+static bool is_init = false;
 
 static uint32_t nextCommandPtr = 0x0;
 static uint8_t curIterationCnt = 0x0;
 static uint8_t curCmnd = MPI_INSTR_NOP;
 static uint8_t curRank = MPI_NO_RANK;
 static uint32_t curCount = 0;
+static uint32_t curBytes = 0;
 static uint8_t curRep = 0;
 static bool save_cur_data = false;
 static bool processing_pipeline_filled = false;
@@ -55,19 +61,31 @@ void init(int argc, char **argv)
   //{
   //  printf("%d: %s\n",i,argv[i]);
   //}
+  my_argc = argc;
+  my_argv = argv;
   MPI_Init(&argc, &argv);
+  is_init = true;
+}
+
+void cleanup(void)
+{
+   ZRLMPI_cleanup();
 }
 
 
 void reset_state(void)
 {
+  //ZRLMPI_cleanup();
   nextCommandPtr = 0x0;
   curIterationCnt = 0x0;
   curCmnd = MPI_INSTR_NOP;
   curRep = 0;
+  curCount = 0;
+  curBytes = 0;
   curRank = MPI_NO_RANK;
   save_cur_data = false;
   processing_pipeline_filled = false;
+  //MPI_Init(&my_argc, &my_argv);
 }
 
 
@@ -103,7 +121,7 @@ bool are_processing_pipelines_filled(void)
 
 //TODO: also allow single frame inference?
 //int infer(int *input, uint32_t input_length, int *output, uint32_t output_length)
-int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num)
+int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_num)
 {
   //if(input_num % DOSA_MINIMAL_INPUT_NUM != 0)
   //{
@@ -169,11 +187,13 @@ int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num
   mpiCommands[0]          = MPI_INSTR_SEND;
   mpiRanks[0]             = 1;
   mpiCounts[0]            = 6;  // 22/4;  //MUST be wordsize!
+  byteCounts[0]           = 22;
   commandRepetitions[0]   = 1;
   saveCurData[0]          = false;
   mpiCommands[1]          = MPI_INSTR_RECV;
   mpiRanks[1]             = 5;
   mpiCounts[1]            = 6;  // 22/4;  //MUST be wordsize!
+  byteCounts[0]           = 22;
   commandRepetitions[1]   = 1;
   saveCurData[1]          = false;
 #else
@@ -182,6 +202,9 @@ int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num
 
   uint32_t total_input_processed = 0;
   uint32_t total_output_processed = 0;
+  char *cur_send_pointer = input;
+  char *cur_recv_pointer = output;
+  bool last_instruction_was_recv = true;
   timestamp_t t0 = get_timestamp();
 
   //output is same multiple, checked above
@@ -194,6 +217,7 @@ int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num
       curCmnd = mpiCommands[nextCommandPtr];
       curRank = mpiRanks[nextCommandPtr];
       curCount = mpiCounts[nextCommandPtr];
+      curBytes = byteCounts[nextCommandPtr];
       curRep = commandRepetitions[nextCommandPtr];
       save_cur_data = saveCurData[nextCommandPtr];
       nextCommandPtr++;
@@ -206,7 +230,10 @@ int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num
         processing_pipeline_filled = true;
       }
       curIterationCnt = 1;
-      printf("[DOSA:INFO] Performing %d inference(s), each with length %d (words)...\n", curRep, curCount);
+      if(curCmnd == MPI_INSTR_SEND && last_instruction_was_recv)
+      {
+      	printf("[DOSA:INFO] Performing %d inference(s), each with length %d (words)...\n", curRep, curCount);
+      }
     } else { //issue same again
       curIterationCnt++;
     }
@@ -216,15 +243,24 @@ int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num
       if(curCmnd == MPI_INSTR_SEND)
       {
         //send data to infer
-        MPI_Send(input + (total_input_processed*curCount*(4/sizeof(int))), curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD);
+        //MPI_Send(input + (total_input_processed*curCount*(4/sizeof(int))), curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD);
+        MPI_Send((int*)cur_send_pointer, curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD);
         if(!save_cur_data)
         {
+	  //cur_send_pointer += curCount*(4/sizeof(int));
+	  //cur_send_pointer += (curBytes+ sizeof(int)-1)/sizeof(int);
+	  cur_send_pointer += curBytes;
           total_input_processed++;
         }
+  	last_instruction_was_recv = false;
       } else {
         //receive result
-        MPI_Recv(output + (total_output_processed*curCount*(4/sizeof(int))), curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD, &status);
+        //MPI_Recv(output + (total_output_processed*curCount*(4/sizeof(int))), curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv((int*)cur_recv_pointer, curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD, &status);
         total_output_processed++;
+	//cur_recv_pointer += curCount*(4/sizeof(int));
+	cur_recv_pointer += curBytes;
+  	last_instruction_was_recv = true;
       }
     }
 
@@ -236,7 +272,6 @@ int infer_batch(int *input, uint32_t input_num, int *output, uint32_t output_num
   printf("[DOSA:INFO] Done with %d inferences, %d results stored.\n>>>>>>>>>>>> Total execution time: %lfs\n", total_input_processed, total_output_processed, elapsed_time_secs);
 
   //return success
-  //MPI_Finalize();
   return 0;
 }
 
