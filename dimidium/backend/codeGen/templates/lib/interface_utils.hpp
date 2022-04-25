@@ -58,49 +58,51 @@ inline uint8_t byteCntToTKeep(uint8_t byte_cnt)
 #pragma HLS INLINE
 
   uint8_t ret = 0;
-  const uint8_t byte2keep[9] = {
-  [0] = 0b00000000,
-  [1] = 0b00000001,
-  [2] = 0b00000011,
-  [3] = 0b00000111,
-  [4] = 0b00001111,
-  [5] = 0b00011111,
-  [6] = 0b00111111,
-  [7] = 0b01111111,
-  [8] = 0b11111111};
+//  const uint8_t byte2keep[9] = {
+//  [0] = 0b00000000,
+//  [1] = 0b00000001,
+//  [2] = 0b00000011,
+//  [3] = 0b00000111,
+//  [4] = 0b00001111,
+//  [5] = 0b00011111,
+//  [6] = 0b00111111,
+//  [7] = 0b01111111,
+//  [8] = 0b11111111};
 
-//  switch (byte_cnt) {
-//    case 8:
-//      ret = 0b11111111;
-//      break;
-//    case 7:
-//      ret = 0b01111111;
-//      break;
-//    case 6:
-//      ret = 0b00111111;
-//      break;
-//    case 5:
-//      ret = 0b00011111;
-//      break;
-//    case 4:
-//      ret = 0b00001111;
-//      break;
-//    case 3:
-//      ret = 0b00000111;
-//      break;
-//    case 2:
-//      ret = 0b00000011;
-//      break;
-//    default:
-//    case 1:
-//      ret = 0b00000001;
-//      break;
-//  }
-  if(byte_cnt == 0 || byte_cnt > 8)
-  {
-    //TODO
-    return 0xFF;
+//LESSON LEARNED: switch-case with default better than if with array lookup
+
+  switch (byte_cnt) {
+    case 1:
+      ret = 0b00000001;
+      break;
+    case 2:
+      ret = 0b00000011;
+      break;
+    case 3:
+      ret = 0b00000111;
+      break;
+    case 4:
+      ret = 0b00001111;
+      break;
+    case 5:
+      ret = 0b00011111;
+      break;
+    case 6:
+      ret = 0b00111111;
+      break;
+    case 7:
+      ret = 0b01111111;
+      break;
+    default:
+    case 8:
+      ret = 0b11111111;
+      break;
   }
+  //if(byte_cnt == 0 || byte_cnt > 8)
+  //{
+  //  //TODO
+  //  return 0xFF;
+  //}
 
   //uint8_t byte2keep[9];
   //byte2keep[8] =  0b11111111;
@@ -113,7 +115,7 @@ inline uint8_t byteCntToTKeep(uint8_t byte_cnt)
   //byte2keep[1] =  0b00000001;
   //byte2keep[0] =  0b00000000;
 
-  ret = byte2keep[byte_cnt];
+  //ret = byte2keep[byte_cnt];
   //printf("\tgetting tkeep for %d bytes is %X\n", byte_cnt, ret);
   return ret;
 }
