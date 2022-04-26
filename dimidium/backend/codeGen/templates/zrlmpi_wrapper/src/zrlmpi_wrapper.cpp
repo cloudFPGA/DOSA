@@ -729,7 +729,7 @@ void pSendEnq(
         tmp_read = siData.read();
         //curCnt += extractByteCnt(tmp_read);
         tmp_cnt = extractByteCnt(tmp_read);
-        if(tmp_read.getTKeep() < 0xFF && (curCnt + tmp_cnt < curLength))
+        if(tmp_read.getTKeep() < 0xFF && ((curCnt + tmp_cnt) < curLength))
         {
           //if two after each other --> we'll lose data...ok for now TODO
           hangover_tdata = tmp_read.getTData();
@@ -748,11 +748,11 @@ void pSendEnq(
             //new_tkeep = 0xFF;
             new_tkeep = hangover_tkeep;
             new_tkeep |= tmp_tkeep << hangover_byte_cnt;
-            if(((int64_t) tmp_cnt) - ((int64_t) hangover_byte_cnt) > 0)
+            if(((int64_t) tmp_cnt) - (8-((int64_t) hangover_byte_cnt)) > 0)
             {
+              hangover_byte_cnt = tmp_cnt - (8-hangover_byte_cnt);
               hangover_tdata = tmp_tdata >> (hangover_byte_cnt*8);
               hangover_tkeep = tmp_tkeep >> hangover_byte_cnt;
-              hangover_byte_cnt = tmp_cnt - hangover_byte_cnt;
             } else {
               //hangover_tdata = 0x0;
               hangover_byte_cnt = 0x0;
@@ -835,7 +835,7 @@ void pSendEnq(
         tmp_read = siData.read();
         //curCnt += extractByteCnt(tmp_read);
         tmp_cnt = extractByteCnt(tmp_read);
-        if(tmp_read.getTKeep() < 0xFF && (curCnt + tmp_cnt < curLength))
+        if(tmp_read.getTKeep() < 0xFF && ((curCnt + tmp_cnt) < curLength))
         {
           //if two after each other --> we'll lose data...ok for now TODO
           hangover_tdata = tmp_read.getTData();
@@ -853,11 +853,11 @@ void pSendEnq(
             //new_tkeep = 0xFF;
             new_tkeep = hangover_tkeep;
             new_tkeep |= tmp_tkeep << hangover_byte_cnt;
-            if(((int64_t) tmp_cnt) - ((int64_t) hangover_byte_cnt) > 0)
+            if(((int64_t) tmp_cnt) - (8-((int64_t) hangover_byte_cnt)) > 0)
             {
+              hangover_byte_cnt = tmp_cnt - (8-hangover_byte_cnt);
               hangover_tdata = tmp_tdata >> (hangover_byte_cnt*8);
               hangover_tkeep = tmp_tkeep >> hangover_byte_cnt;
-              hangover_byte_cnt = tmp_cnt - hangover_byte_cnt;
             } else {
               //hangover_tdata = 0x0;
               hangover_byte_cnt = 0x0;
