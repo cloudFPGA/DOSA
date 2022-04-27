@@ -24,29 +24,37 @@ inline uint8_t extractByteCnt(Axis<64> &currWord)
   uint8_t ret = 0;
 
   switch (currWord.getTKeep()) {
-    case 0b11111111:
+    //case 0b11111111:
+    case 0xFF:
       ret = 8;
       break;
-    case 0b01111111:
+    //case 0b01111111:
+    case 0x7F:
       ret = 7;
       break;
-    case 0b00111111:
+    //case 0b00111111:
+    case 0x3F:
       ret = 6;
       break;
-    case 0b00011111:
+    //case 0b00011111:
+    case 0x1F:
       ret = 5;
       break;
-    case 0b00001111:
+    //case 0b00001111:
+    case 0x0F:
       ret = 4;
       break;
-    case 0b00000111:
+    //case 0b00000111:
+    case 0x07:
       ret = 3;
       break;
-    case 0b00000011:
+    //case 0b00000011:
+    case 0x03:
       ret = 2;
       break;
     default:
-    case 0b00000001:
+    //case 0b00000001:
+    case 0x01:
       ret = 1;
       break;
   }

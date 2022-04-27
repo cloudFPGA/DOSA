@@ -51,6 +51,8 @@ ap_uint<32> debug_out_ignore = 0;
 //------------------------------------------------------
 int         simCnt;
 stream<Axis<64> >  Loopback_data ("Loopback_data");
+stream<Axis<64> >  recv_data ("recv_data");
+stream<Axis<64> >  send_data ("send_data");
 
 /*****************************************************************************
  * @brief Run a single iteration of the DUT model.
@@ -107,17 +109,23 @@ int main() {
   Loopback_data.write(Axis<64>((uint64_t) 0x0101010101010101,0xFF,0b0));
   Loopback_data.write(Axis<64>((uint64_t) 0x0202020202020202,0xFF,0b0));
   Loopback_data.write(Axis<64>((uint64_t) 0x0A0B030303030303,0x3F,0b1));
+  send_data.write(Axis<64>((uint64_t) 0x0101010101010101,0xFF,0b0));
+  send_data.write(Axis<64>((uint64_t) 0x0202020202020202,0x0F,0b0));
+  send_data.write(Axis<64>((uint64_t) 0x0303030302020202,0xFF,0b0));
+  send_data.write(Axis<64>((uint64_t) 0x0A0B030303030303,0x03,0b1));
 
     simCnt = 0;
     nrErr  = 0;
     feb_2_cnt = simCnt + 6;
+    //int half_tkeep_cnt = 0;
+    bool start_send = false;
 
     //------------------------------------------------------
     //-- STEP-2 : MAIN TRAFFIC LOOP
     //------------------------------------------------------
     while (!nrErr) {
 
-      if (simCnt < 22)
+      if (simCnt < 32)
       {
         stepDut();
 
@@ -125,10 +133,31 @@ int main() {
         if( !soData.empty() )
         {
           Axis<64> tmp_fw = soData.read();
-          printf("[TB] Forwarding (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_fw.getTData(), (uint32_t) tmp_fw.getTKeep(), (uint8_t) tmp_fw.getTLast());
-          siData.write(tmp_fw);
+          recv_data.write(tmp_fw);
+          printf("[TB] Recving (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_fw.getTData(), (uint32_t) tmp_fw.getTKeep(), (uint8_t) tmp_fw.getTLast());
+          //if(half_tkeep_cnt == 1)
+          //{
+          //  Axis<64> tmp_fw_1 = Axis<64>(tmp_fw.getTData(), 0x0F, 0);
+          //  Axis<64> tmp_fw_2 = Axis<64>(tmp_fw.getTData() >> 32, 0x0F, 0);
+          //  printf("[TB] Forwarding (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_fw_1.getTData(), (uint32_t) tmp_fw_1.getTKeep(), (uint8_t) tmp_fw_1.getTLast());
+          //  printf("[TB] Forwarding (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_fw_2.getTData(), (uint32_t) tmp_fw_2.getTKeep(), (uint8_t) tmp_fw_2.getTLast());
+          //  siData.write(tmp_fw_1);
+          //  siData.write(tmp_fw_2);
+          //} else {
+          //  printf("[TB] Forwarding (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_fw.getTData(), (uint32_t) tmp_fw.getTKeep(), (uint8_t) tmp_fw.getTLast());
+          //  siData.write(tmp_fw);
+          //}
           //fw_cnt++;
           feb_2_cnt = simCnt + 6;
+          //half_tkeep_cnt++;
+          start_send = true;
+        }
+
+        if(start_send && !send_data.empty())
+        {
+          Axis<64> tmp_fw = send_data.read();
+          printf("[TB] Writing (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_fw.getTData(), (uint32_t) tmp_fw.getTKeep(), (uint8_t) tmp_fw.getTLast());
+          siData.write(tmp_fw);
         }
 
         //if( fw_cnt == 1 )
@@ -183,8 +212,10 @@ int main() {
     while( !soMPI_data.empty() )
     {
       Axis<64> out_data = soMPI_data.read();
+      printf("[TB] Reading (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) out_data.getTData(), (uint32_t) out_data.getTKeep(), (uint8_t) out_data.getTLast());
       Axis<64> golden_data = Loopback_data.read();
-      if( out_data.getTData() != golden_data.getTData() )
+      Axis<64> recv_word = recv_data.read();
+      if( (out_data.getTData() & golden_data.getTKeep()) != (golden_data.getTData() & golden_data.getTKeep()) ) //yes, two times golden tkeep
       {
         nrErr++;
         printf("ERROR: out tdata: Expected 0x%16.16llX but got 0x%16.16llX\n", (unsigned long long) golden_data.getTData(), (unsigned long long) out_data.getTData());
@@ -199,11 +230,31 @@ int main() {
         nrErr++;
         printf("ERROR: out tlast: Expected %X but got %X\n", (uint32_t) golden_data.getTLast(), (uint32_t) out_data.getTLast());
       }
+      if( recv_word.getTData() != golden_data.getTData() )
+      {
+        nrErr++;
+        printf("ERROR: recv word tdata: Expected 0x%16.16llX but got 0x%16.16llX\n", (unsigned long long) golden_data.getTData(), (unsigned long long) recv_word.getTData());
+      }
+      if( recv_word.getTKeep() != golden_data.getTKeep() )
+      {
+        nrErr++;
+        printf("ERROR: recv word tkeep: Expected %2.2X but got %2.2X\n", (uint32_t) golden_data.getTKeep(), (uint32_t) recv_word.getTKeep());
+      }
+      if( recv_word.getTLast() != golden_data.getTLast() )
+      {
+        nrErr++;
+        printf("ERROR: recv word tlast: Expected %X but got %X\n", (uint32_t) golden_data.getTLast(), (uint32_t) recv_word.getTLast());
+      }
     }
     if( !Loopback_data.empty() )
     {
       nrErr++;
       printf("ERROR: DUT produced to few output data.\n");
+    }
+    if( !recv_data.empty() )
+    {
+      nrErr++;
+      printf("ERROR: DUT prduced to much recv data.\n");
     }
 
 
