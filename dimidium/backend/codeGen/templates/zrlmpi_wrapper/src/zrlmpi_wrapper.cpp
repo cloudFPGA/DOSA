@@ -53,6 +53,8 @@ void pStateControl(
 #pragma HLS reset variable=curRank
   static uint32_t curCount = 0;
 #pragma HLS reset variable=curCount
+  static uint32_t curBytes= 0;
+#pragma HLS reset variable=curBytes
   static uint8_t curRep = 0;
 #pragma HLS reset variable=curRep
   static bool reuse_prev_data = false;
@@ -66,6 +68,8 @@ void pStateControl(
   #pragma HLS ARRAY_PARTITION variable=mpiRanks complete
   static uint32_t mpiCounts[DOSA_WRAPPER_PROG_LENGTH];
   #pragma HLS ARRAY_PARTITION variable=mpiCounts complete
+  static uint32_t byteCounts[DOSA_WRAPPER_PROG_LENGTH];
+  #pragma HLS ARRAY_PARTITION variable=byteCounts complete
   static uint8_t commandRepetitions[DOSA_WRAPPER_PROG_LENGTH];
   #pragma HLS ARRAY_PARTITION variable=commandRepetitions complete
   static bool saveCurData[DOSA_WRAPPER_PROG_LENGTH];
@@ -88,6 +92,7 @@ void pStateControl(
         mpiCommands[i] = MPI_INSTR_NOP;
         mpiRanks[i] = MPI_NO_RANK;
         mpiCounts[i] = 0;
+        byteCounts[i] = 0;
         commandRepetitions[i] = 0;
         saveCurData[i] = false;
       }
@@ -129,11 +134,13 @@ void pStateControl(
         mpiCommands[0]          = MPI_INSTR_RECV;
         mpiRanks[0]             = 0;
         mpiCounts[0]            = 6; // 22/4;  //MUST be wordsize!
+        byteCounts[0]           = 22;
         commandRepetitions[0]   = 1;
         saveCurData[0]          = false;
         mpiCommands[1]          = MPI_INSTR_SEND;
         mpiRanks[1]             = 0;
         mpiCounts[1]            = 6; // 22/4; //MUST be wordsize!
+        byteCounts[1]           = 22;
         commandRepetitions[1]   = 1;
         saveCurData[1]          = false;
       }
@@ -149,6 +156,7 @@ void pStateControl(
         curCmnd = mpiCommands[nextCommandPtr];
         curRank = mpiRanks[nextCommandPtr];
         curCount = mpiCounts[nextCommandPtr];
+        curBytes = byteCounts[nextCommandPtr];
         curRep = commandRepetitions[nextCommandPtr];
         //relevant for send only
         save_cur_data = saveCurData[nextCommandPtr];
@@ -183,12 +191,13 @@ void pStateControl(
       {
           MPI_Interface info = MPI_Interface();
           //curCount is WORD length
-          uint32_t byte_length = (curCount*4) - 3; //since it would be friction WITHIN a line -> should work
+          //uint32_t byte_length = (curCount*4) - 3; //since it would be friction WITHIN a line -> should work
           if(curCmnd == MPI_INSTR_SEND)
           {
             if(!reuse_prev_data)
             {
-              sSendLength.write(byte_length);
+              //sSendLength.write(byte_length);
+              sSendLength.write(curBytes);
               controlFSM = WAIT_DATA;
             } else {
               MPI_Interface info = MPI_Interface();
@@ -205,7 +214,8 @@ void pStateControl(
             info.count = (uint32_t) curCount;
             soMPIif.write(info);
             printf("[pStateControl] Issuing %d command, rank %d, count %d.\n", (uint8_t) info.mpi_call, (uint8_t) info.rank, (uint32_t) info.count);
-            sReceiveLength.write(byte_length);
+            //sReceiveLength.write(byte_length);
+            sReceiveLength.write(curBytes);
             controlFSM = PROC_RECEIVE;
           }
       }

@@ -105,6 +105,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                             rank = ie['rank']
                             # counts must be in WORDS!
                             counts = int((ie['count'] + 3) / 4)
+                            byte_cnt = ie['count']
                             assert counts < 0xFFFF  # max message size is uint16
                             repeat = ie['repeat']
                             save_cur_data = 'false'
@@ -114,6 +115,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                             outline += indent + f'      mpiCommands[{instr_num}]          = {cmnd_macro};\n'
                             outline += indent + f'      mpiRanks[{instr_num}]             = {rank};\n'
                             outline += indent + f'      mpiCounts[{instr_num}]            = {counts};\n'
+                            outline += indent + f'      byteCounts[{instr_num}]           = {byte_cnt};\n'
                             outline += indent + f'      commandRepetitions[{instr_num}]   = {repeat};\n'
                             outline += indent + f'      saveCurData[{instr_num}]          = {save_cur_data};\n'
                             instr_num += 1
