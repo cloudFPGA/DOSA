@@ -644,8 +644,8 @@ void pSendEnq(
   static uint32_t hangover_byte_cnt = 0x0;
 #pragma HLS reset variable=hangover_byte_cnt
   //-- STATIC VARIABLES ------------------------------------------------------
-  static ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> hangover_tdata;
-  static ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> hangover_tkeep;
+  static ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> hangover_tdata;
+  static ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4> hangover_tkeep;
   //-- LOCAL VARIABLES ------------------------------------------------------
   bool not_empty = false;
   Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read;
@@ -725,9 +725,9 @@ void pSendEnq(
           sSendBuff_0.write(tmp_read);
         printf("[pSendEnq|Buf0] Enqueuing (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_read.getTData(), (uint32_t) tmp_read.getTKeep(), (uint8_t) tmp_read.getTLast());
         } else {
-          hangover_tdata = tmp_read.getTData();
+          hangover_tdata = (ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) tmp_read.getTData();
           hangover_byte_cnt = tmp_cnt;
-          hangover_tkeep = tmp_read.getTKeep();
+          hangover_tkeep = (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4>) tmp_read.getTKeep();
         }
         sDataArrived.write(true);
         sendEnqFsm = SEND_BUF_0;
@@ -740,34 +740,35 @@ void pSendEnq(
         tmp_read = siData.read();
         //curCnt += extractByteCnt(tmp_read);
         tmp_cnt = extractByteCnt(tmp_read);
-        if(tmp_read.getTKeep() < 0xFF && ((curCnt + tmp_cnt) < curLength) && hangover_byte_cnt == 0)
+        if(tmp_read.getTKeep() < DOSA_WRAPPER_DEFAULT_TKEEP && ((curCnt + tmp_cnt + hangover_byte_cnt) < curLength))
         {
-          //if three after each other --> it'll break...ok for now? //TODO
-          hangover_tdata = tmp_read.getTData();
-          hangover_byte_cnt = tmp_cnt;
-          hangover_tkeep = tmp_read.getTKeep();
+          hangover_tdata |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) tmp_read.getTData()) << (hangover_byte_cnt*8);
+          hangover_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4>) tmp_read.getTKeep()) << hangover_byte_cnt;
+          hangover_byte_cnt += tmp_cnt;
+          if(hangover_byte_cnt >= DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE)
+          {
+              sendEnqFsm = SEND_BUF_0_HANGOVER;
+          }
+          printf("new hangover_byte_cnt: %d\n", (uint32_t) hangover_byte_cnt);
         } else {
           if(hangover_byte_cnt > 0)
           {
             tmp_tdata = tmp_read.getTData();
             tmp_tkeep = tmp_read.getTKeep();
-            new_tdata = hangover_tdata;
+            new_tdata = (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) hangover_tdata;
             new_tdata |= tmp_tdata << (hangover_byte_cnt*8);
-            //TODO make dynamic
             //new_tkeep = byteCntToTKeep((uint8_t) (tmp_cnt + hangover_byte_cnt));
-            //TODO: shorten critical path
-            //new_tkeep = 0xFF;
-            new_tkeep = hangover_tkeep;
+            new_tkeep = (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) hangover_tkeep;
             new_tkeep |= tmp_tkeep << hangover_byte_cnt;
             //new_tkeep |= (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) ((((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4>) tmp_tkeep) << hangover_byte_cnt) & 0xFF);
-            int64_t remaining_bytes = ((int64_t) tmp_cnt) - (8 - ((int64_t) hangover_byte_cnt));
+            int64_t remaining_bytes = ((int64_t) tmp_cnt) - (DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE - ((int64_t) hangover_byte_cnt));
             if( remaining_bytes > 0 )
             {
               hangover_byte_cnt = remaining_bytes;
               //hangover_tdata = tmp_tdata >> (hangover_byte_cnt*8);
               //hangover_tkeep = tmp_tkeep >> hangover_byte_cnt;
-              hangover_tdata = tmp_tdata >> ((8 - remaining_bytes)*8);
-              hangover_tkeep = tmp_tkeep >> (8 - remaining_bytes);
+              hangover_tdata = ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) tmp_tdata) >> ((DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE - remaining_bytes)*8);
+              hangover_tkeep = ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4>) tmp_tkeep) >> (DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE - remaining_bytes);
             } else {
               //hangover_tdata = 0x0;
               hangover_byte_cnt = 0x0;
@@ -776,7 +777,6 @@ void pSendEnq(
             //tmp_read.setTData(new_tdata);
             //tmp_read.setTKeep(new_tkeep);
             Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> new_out = Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(new_tdata, new_tkeep, 0b0);
-            //curCnt += 8; //TODO better exact, but critical path?
             curCnt += extractByteCnt(new_out);
             if(curCnt >= curLength)
             {
@@ -792,6 +792,10 @@ void pSendEnq(
             }
             sSendBuff_0.write(new_out);
             printf("[pSendEnq|Buf0] Enqueuing (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) new_out.getTData(), (uint32_t) new_out.getTKeep(), (uint8_t) new_out.getTLast());
+            if(hangover_byte_cnt >= DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE)
+            {
+                sendEnqFsm = SEND_BUF_0_HANGOVER;
+            }
           } else {
             curCnt += tmp_cnt;
             //we know the length, so we don't trust the incoming tlast
@@ -814,15 +818,30 @@ void pSendEnq(
     case SEND_BUF_0_HANGOVER:
       if( !sSendBuff_0.full() )
       {
-        tmp_read.setTData(hangover_tdata);
-        //TODO: make datatype dynamic
-        //tmp_read.setTKeep(byteCntToTKeep((uint8_t) hangover_byte_cnt));
-        tmp_read.setTKeep(hangover_tkeep);
-        tmp_read.setTLast(1);
-        sendEnqFsm = SEND_WAIT;
-        nextBuffer = 1;
-        hangover_byte_cnt = 0;
-        //hangover_tdata = 0x0;
+        new_tdata = (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) hangover_tdata;
+        new_tkeep = (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) hangover_tkeep;
+        if(hangover_byte_cnt > DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE)
+        {
+          hangover_byte_cnt -= DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE;
+          hangover_tdata >>= DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE*8;
+          hangover_tkeep >>= DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE;
+          tmp_cnt = DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE;
+        } else {
+          tmp_cnt = hangover_byte_cnt;
+          hangover_byte_cnt = 0;
+        }
+        tmp_read.setTData(new_tdata);
+        tmp_read.setTKeep(new_tkeep);
+        curCnt += tmp_cnt;
+        if(curCnt >= curLength)
+        {
+          tmp_read.setTLast(1);
+          sendEnqFsm = SEND_WAIT;
+          nextBuffer = 1;
+        } else {
+          tmp_read.setTLast(0);
+          sendEnqFsm = SEND_BUF_0;
+        }
         sSendBuff_0.write(tmp_read);
         printf("[pSendEnq|Buf0] Enqueuing (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_read.getTData(), (uint32_t) tmp_read.getTKeep(), (uint8_t) tmp_read.getTLast());
       }
@@ -849,9 +868,9 @@ void pSendEnq(
           sSendBuff_1.write(tmp_read);
         printf("[pSendEnq|Buf1] Enqueuing (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_read.getTData(), (uint32_t) tmp_read.getTKeep(), (uint8_t) tmp_read.getTLast());
         } else {
-          hangover_tdata = tmp_read.getTData();
+          hangover_tdata = (ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) tmp_read.getTData();
           hangover_byte_cnt = tmp_cnt;
-          hangover_tkeep = tmp_read.getTKeep();
+          hangover_tkeep = (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4>) tmp_read.getTKeep();
         }
         sDataArrived.write(true);
         sendEnqFsm = SEND_BUF_1;
@@ -864,34 +883,35 @@ void pSendEnq(
         tmp_read = siData.read();
         //curCnt += extractByteCnt(tmp_read);
         tmp_cnt = extractByteCnt(tmp_read);
-        if(tmp_read.getTKeep() < 0xFF && ((curCnt + tmp_cnt) < curLength) && hangover_byte_cnt == 0)
+        if(tmp_read.getTKeep() < DOSA_WRAPPER_DEFAULT_TKEEP && ((curCnt + tmp_cnt + hangover_byte_cnt) < curLength))
         {
-          //if three after each other --> it'll break...ok for now? //TODO
-          hangover_tdata = tmp_read.getTData();
-          hangover_byte_cnt = tmp_cnt;
-          hangover_tkeep = tmp_read.getTKeep();
+          hangover_tdata |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) tmp_read.getTData()) << (hangover_byte_cnt*8);
+          hangover_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4>) tmp_read.getTKeep()) << hangover_byte_cnt;
+          hangover_byte_cnt += tmp_cnt;
+          if(hangover_byte_cnt >= DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE)
+          {
+              sendEnqFsm = SEND_BUF_1_HANGOVER;
+          }
+          printf("new hangover_byte_cnt: %d\n", (uint32_t) hangover_byte_cnt);
         } else {
           if(hangover_byte_cnt > 0)
           {
             tmp_tdata = tmp_read.getTData();
             tmp_tkeep = tmp_read.getTKeep();
-            new_tdata = hangover_tdata;
+            new_tdata = (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) hangover_tdata;
             new_tdata |= tmp_tdata << (hangover_byte_cnt*8);
-            //TODO make dynamic
             //new_tkeep = byteCntToTKeep((uint8_t) (tmp_cnt + hangover_byte_cnt));
-            //TODO: shorten critical path
-            //new_tkeep = 0xFF;
-            new_tkeep = hangover_tkeep;
+            new_tkeep = (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) hangover_tkeep;
             new_tkeep |= tmp_tkeep << hangover_byte_cnt;
             //new_tkeep |= (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) ((((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4>) tmp_tkeep) << hangover_byte_cnt) & 0xFF);
-            int64_t remaining_bytes = ((int64_t) tmp_cnt) - (8 - ((int64_t) hangover_byte_cnt));
+            int64_t remaining_bytes = ((int64_t) tmp_cnt) - (DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE - ((int64_t) hangover_byte_cnt));
             if( remaining_bytes > 0 )
             {
               hangover_byte_cnt = remaining_bytes;
               //hangover_tdata = tmp_tdata >> (hangover_byte_cnt*8);
               //hangover_tkeep = tmp_tkeep >> hangover_byte_cnt;
-              hangover_tdata = tmp_tdata >> ((8 - remaining_bytes)*8);
-              hangover_tkeep = tmp_tkeep >> (8 - remaining_bytes);
+              hangover_tdata = ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) tmp_tdata) >> ((DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE - remaining_bytes)*8);
+              hangover_tkeep = ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4>) tmp_tkeep) >> (DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE - remaining_bytes);
             } else {
               //hangover_tdata = 0x0;
               hangover_byte_cnt = 0x0;
@@ -900,7 +920,6 @@ void pSendEnq(
             //tmp_read.setTData(new_tdata);
             //tmp_read.setTKeep(new_tkeep);
             Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> new_out = Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(new_tdata, new_tkeep, 0b0);
-            //curCnt += 8; //TODO better exact, but critical path?
             curCnt += extractByteCnt(new_out);
             if(curCnt >= curLength)
             {
@@ -916,6 +935,10 @@ void pSendEnq(
             }
             sSendBuff_1.write(new_out);
             printf("[pSendEnq|Buf1] Enqueuing (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) new_out.getTData(), (uint32_t) new_out.getTKeep(), (uint8_t) new_out.getTLast());
+            if(hangover_byte_cnt >= DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE)
+            {
+                sendEnqFsm = SEND_BUF_1_HANGOVER;
+            }
           } else {
             curCnt += tmp_cnt;
             //we know the length, so we don't trust the incoming tlast
@@ -937,15 +960,30 @@ void pSendEnq(
     case SEND_BUF_1_HANGOVER:
       if( !sSendBuff_1.full() )
       {
-        tmp_read.setTData(hangover_tdata);
-        //TODO: make datatype dynamic
-        //tmp_read.setTKeep(byteCntToTKeep((uint8_t) hangover_byte_cnt));
-        tmp_read.setTKeep(hangover_tkeep);
-        tmp_read.setTLast(1);
-        sendEnqFsm = SEND_WAIT;
-        nextBuffer = 0;
-        hangover_byte_cnt = 0;
-        //hangover_tdata = 0x0;
+        new_tdata = (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) hangover_tdata;
+        new_tkeep = (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) hangover_tkeep;
+        if(hangover_byte_cnt > DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE)
+        {
+          hangover_byte_cnt -= DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE;
+          hangover_tdata >>= DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE*8;
+          hangover_tkeep >>= DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE;
+          tmp_cnt = DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE;
+        } else {
+          tmp_cnt = hangover_byte_cnt;
+          hangover_byte_cnt = 0;
+        }
+        tmp_read.setTData(new_tdata);
+        tmp_read.setTKeep(new_tkeep);
+        curCnt += tmp_cnt;
+        if(curCnt >= curLength)
+        {
+          tmp_read.setTLast(1);
+          sendEnqFsm = SEND_WAIT;
+          nextBuffer = 0;
+        } else {
+          tmp_read.setTLast(0);
+          sendEnqFsm = SEND_BUF_1;
+        }
         sSendBuff_1.write(tmp_read);
         printf("[pSendEnq|Buf1] Enqueuing (0x%16.16llX, %2.2X, %X).\n", (unsigned long long) tmp_read.getTData(), (uint32_t) tmp_read.getTKeep(), (uint8_t) tmp_read.getTLast());
       }

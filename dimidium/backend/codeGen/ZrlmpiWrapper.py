@@ -45,6 +45,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
         longest_msg = self.comm_plan.get_longest_msg_bytes()
         longest_msg_lines = math.ceil(float(longest_msg) / float(self.if_bitwidth / 8)) + self._add_spare_lines_
         comm_plan_length = self.comm_plan.get_comm_instr_num()
+        default_tkeep = int(math.pow(2, int((self.if_bitwidth+7)/8)) - 1)
         assert comm_plan_length < 255  # uint8 limit
         # 2. wrapper.hpp
         with open(os.path.join(self.templ_dir_path, 'src/zrlmpi_wrapper.hpp'), 'r') as in_file, \
@@ -62,6 +63,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                     outline = ''
                     outline += '#define DOSA_WRAPPER_INPUT_IF_BITWIDTH {}\n'.format(self.if_bitwidth)
                     outline += '#define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH {}\n'.format(self.if_bitwidth)
+                    outline += '#define DOSA_WRAPPER_DEFAULT_TKEEP {}\n'.format(default_tkeep)
                     outline += '#define DOSA_WRAPPER_BUFFER_FIFO_DEPTH_LINES {}\n'.format(int(longest_msg_lines))
                     outline += '#define DOSA_WRAPPER_PROG_LENGTH {}\n'.format(comm_plan_length)
                     outline += '#define DOSA_COMM_PLAN_AFTER_FILL_JUMP {}\n'\

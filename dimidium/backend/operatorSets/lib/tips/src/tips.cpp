@@ -217,7 +217,7 @@ void pLoadOpDual(
     1,1,1,1,1,1,1,1,1,1,1,1, //op1
     0,0,0,0,0,0 //fill-to-end
   };
-#pragma HLS ARRAY_PARTITION variable=opStore complete //TODO: to in-efficient?
+#pragma HLS ARRAY_PARTITION variable=opStore complete //TODO: too in-efficient?
   //for debugging
   static TipsLoadInstr last_instr;
   //-- LOCAL VARIABLES ------------------------------------------------------
@@ -292,6 +292,7 @@ void pALU(
   static ap_uint<TIPS_ACCUM_LENGTH> accum = 0x0;
 #pragma HLS reset variable=accum
   //-- STATIC VARIABLES -----------------------------------------------------
+  static usedDtype tanh_table[N_TABLE];
   //-- LOCAL VARIABLES ------------------------------------------------------
 
   //with internal accum

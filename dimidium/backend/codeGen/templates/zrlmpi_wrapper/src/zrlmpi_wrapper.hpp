@@ -35,6 +35,7 @@ using namespace hls;
 #ifdef WRAPPER_TEST
 #define DOSA_WRAPPER_INPUT_IF_BITWIDTH 64
 #define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH 64
+#define DOSA_WRAPPER_DEFAULT_TKEEP 0xFF
 #define DOSA_WRAPPER_BUFFER_FIFO_DEPTH_LINES 1500
 #define DOSA_WRAPPER_PROG_LENGTH 2
 #define DOSA_COMM_PLAN_AFTER_FILL_JUMP 0
@@ -44,7 +45,10 @@ using namespace hls;
 //DOSA_REMOVE_STOP
 //DOSA_ADD_INTERFACE_DEFINES
 
+//derived defines
 const uint32_t buffer_fifo_depth = DOSA_WRAPPER_BUFFER_FIFO_DEPTH_LINES;
+#define DOSA_WRAPPER_INPUT_IF_BYTES_PER_LINE ((DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8)
+
 enum controlFsmStates {RESET = 0, WRITE_PROGRAM, LOAD_COMMAND, LOAD_COMMAND2, ISSUE_COMMAND, WAIT_DATA, PROC_SEND, WAIT_SEND, PROC_RECEIVE, WAIT_RECEIVE};
 //                          0        1                2             3               4           5          6          7           8            9
 enum deqBufferCmd {FORWARD_0 = 0, DRAIN_0, FORWARD_1, DRAIN_1};
