@@ -757,7 +757,7 @@ void pSendEnq(
             tmp_tkeep = tmp_read.getTKeep();
             new_tdata = (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) hangover_tdata;
             new_tdata |= tmp_tdata << (hangover_byte_cnt*8);
-            //new_tkeep = byteCntToTKeep((uint8_t) (tmp_cnt + hangover_byte_cnt));
+            //new_tkeep = byteCntToTKeep((uint8_t) (tmp_cnt + hangover_byte_cnt)); make dynamic?
             new_tkeep = (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) hangover_tkeep;
             new_tkeep |= tmp_tkeep << hangover_byte_cnt;
             //new_tkeep |= (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) ((((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4>) tmp_tkeep) << hangover_byte_cnt) & 0xFF);
@@ -900,7 +900,7 @@ void pSendEnq(
             tmp_tkeep = tmp_read.getTKeep();
             new_tdata = (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) hangover_tdata;
             new_tdata |= tmp_tdata << (hangover_byte_cnt*8);
-            //new_tkeep = byteCntToTKeep((uint8_t) (tmp_cnt + hangover_byte_cnt));
+            //new_tkeep = byteCntToTKeep((uint8_t) (tmp_cnt + hangover_byte_cnt)); make dynamic?
             new_tkeep = (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) hangover_tkeep;
             new_tkeep |= tmp_tkeep << hangover_byte_cnt;
             //new_tkeep |= (ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) ((((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/4>) tmp_tkeep) << hangover_byte_cnt) & 0xFF);

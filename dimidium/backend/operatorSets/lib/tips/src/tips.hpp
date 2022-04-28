@@ -20,8 +20,7 @@
 #include <hls_stream.h>
 
 #include "../../lib/axi_utils.hpp"
-//#include "../../lib/interface_utils.hpp"
-#include "alu.hpp"
+#include "../../lib/interface_utils.hpp"
 
 
 using namespace hls;
@@ -37,13 +36,11 @@ using namespace hls;
 #define DOSA_TIPS_LONGEST_OUTPUT 12
 #define DOSA_TIPS_PROGRAM_LENGTH 2
 #define DOSA_TIPS_ADDR_SPACE_LENGTH 30
-typedef int8_t usedDtype;
-#define DOSA_TIPS_USED_BITWIDTH 8
+typedef int16_t usedDtype;
+#define DOSA_TIPS_USED_BITWIDTH 16
 typedef int32_t aluAccumDtype;
 #define DOSA_TIPS_ALU_ACCUM_BITWIDTH 32
 //#define DOSA_TIPS_ALU_BACK_CAST_BIT_SHIFT 5
-#define DOSA_TIPS_USED_BITWIDTH_TKEEP 1
-#define DOSA_TIPS_USED_BITWIDTH_TKEEP_WIDTH 1
 #endif
 
 //DOSA_REMOVE_STOP
@@ -59,6 +56,7 @@ typedef int32_t aluAccumDtype;
 //#define TIPS_ACCUM_LENGTH (3 * DOSA_TIPS_LONGEST_OUTPUT)
 #define TIPS_ACCUM_LENGTH DOSA_TIPS_LONGEST_OUTPUT
 //#define TIPS_OP_LOOP_MAX MAX(DOSA_TIPS_LONGEST_OP0, DOSA_TIPS_LONGEST_OP1)
+#define DOSA_WRAPPER_OUTPUT_BYTES_PER_LINE ((DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8)
 
 //as constants for HLS pragmas
 //const uint32_t cnn_input_frame_size = (CNN_INPUT_FRAME_SIZE);
@@ -68,6 +66,7 @@ typedef int32_t aluAccumDtype;
 enum twoStatesFSM {RESET = 0, FORWARD};
 enum aluFSM {INIT = 0, ALU};
 enum LoadNetworkStates {RESET1 = 0, READ_INSTR, READ_NETWORK};
+enum StoreNetworkStates {RESET2 = 0, READ_INSTR1, WRITE_NETWORK};
 
 typedef uint8_t TipsOpcode;
 typedef uint8_t AluOpcode;
@@ -115,14 +114,14 @@ struct TipsLoadInstr {
 
 struct TipsAluInstr {
   //TipsExecId id;
-  TipsAluInstr operation;
+  TipsOpcode operation;
   TipsAddr in_addr;
   TipsLength in_length;
   TipsLength op0_length;
   TipsLength op1_length;
   TipsAddr out_addr;
   TipsLength out_length;
-}
+};
 
 
 
@@ -133,7 +132,7 @@ void tips_test(
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
     // ----- add potential DRAM Interface -----
     // ----- DEBUG out ------
-    ap_uint<64> *debug_out
+    ap_uint<80> *debug_out
 );
 
 #endif

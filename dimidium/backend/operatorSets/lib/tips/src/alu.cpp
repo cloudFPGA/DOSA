@@ -78,7 +78,7 @@ void dense(
     usedDtype biases[DOSA_TIPS_LONGEST_OP1])
 {
 #pragma HLS inline
-  usedDtype cache[matrix_width];
+  usedDtype cache;
   aluAccumDtype mult[DOSA_TIPS_LONGEST_OP0];
   aluAccumDtype acc[DOSA_TIPS_LONGEST_OUTPUT];
   //#pragma HLS ARRAY_PARTITION variable=biases complete
@@ -111,7 +111,7 @@ Accum2: for(int jj = 0; jj < DOSA_TIPS_LONGEST_OUTPUT; jj++) {
         }
 
         // Cast to result type
-Result: for(int ires = 0; ires < CONFIG_T::n_out; ires++){
+Result: for(int ires = 0; ires < DOSA_TIPS_LONGEST_OUTPUT; ires++){
           res[ires] = (usedDtype) (acc[ires]); //TODO: take care of quantization?
           //res[ires] = cast<data_T, res_T, CONFIG_T>(acc[ires]);
         }

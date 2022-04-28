@@ -15,6 +15,8 @@
 
 #include <cmath>
 #include "ap_fixed.h"
+#include "tips.hpp"
+
 
 #define N_TABLE 1024
 

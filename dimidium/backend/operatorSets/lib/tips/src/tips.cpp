@@ -19,6 +19,7 @@
 #include <cassert>
 
 #include "tips.hpp"
+#include "alu.hpp"
 
 using namespace hls;
 
@@ -48,6 +49,7 @@ void pLoadNetwork(
   static ap_uint<DOSA_TIPS_LONGEST_INPUT> mask;
   //-- LOCAL VARIABLES ------------------------------------------------------
 
+  //TODO: update for non int8 types (i.e. different length)
   switch(loadNetFSM)
   {
     default:
@@ -62,9 +64,10 @@ void pLoadNetwork(
       break;
 
     case READ_INSTR:
-      if( !sNetworkLoadCmd.empty() && !sNetworkInput.full() )
+      if( !sNetworkLoadCmd.empty() && !sNetworkInput.full()
+          && !siData.empty() )
       {
-        req_input_length = sNetworkLoadCmd.read().length;
+        req_input_length = sNetworkLoadCmd.read().length*(DOSA_TIPS_USED_BITWIDTH/8);
         if(req_input_length == 0)
         {
           sNetworkInput.write(0x0);
@@ -77,7 +80,7 @@ void pLoadNetwork(
             ap_uint<DOSA_TIPS_LONGEST_INPUT> out_vector = hangover_store & mask;
             sNetworkInput.write(out_vector);
             hangover_valid_bytes -= req_input_length;
-            hangover_store =>> req_input_length * 8;
+            hangover_store >>= req_input_length * 8;
             //stay here
           } else {
             cur_length = hangover_valid_bytes;
@@ -93,7 +96,7 @@ void pLoadNetwork(
     case READ_NETWORK:
       if( !siData.empty() && !sNetworkInput.full() )
       {
-        NetworkWord in_word = siData.read();
+        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> in_word = siData.read();
         TipsLength byte_read = extractByteCnt(in_word);
         cur_input |= ((ap_uint<DOSA_TIPS_LONGEST_INPUT>) in_word.getTData()) << cur_length*8;
         cur_length += byte_read;
@@ -130,8 +133,62 @@ void pSendNetwork(
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  static StoreNetworkStates storeNetFSM = RESET2;
+#pragma HLS reset variable=storeNetFSM
+  static TipsLength cur_length = 0;
+#pragma HLS reset variable=cur_length
+  static TipsLength req_output_length = 0;
+#pragma HLS reset variable=req_output_length
   //-- STATIC VARIABLES -----------------------------------------------------
+  static ap_uint<DOSA_TIPS_LONGEST_OUTPUT> cur_output;
   //-- LOCAL VARIABLES ------------------------------------------------------
+
+  switch(storeNetFSM)
+  {
+    default:
+    case RESET2:
+      //necessary?
+      cur_length = 0;
+      req_output_length = 0;
+      cur_output = 0;
+      storeNetFSM = READ_INSTR1;
+      break;
+
+    case READ_INSTR1:
+      if( !sNetworkStoreCmnd.empty() && !sNetworkOutput.empty()
+          && !soData.full() )
+      {
+        req_output_length = sNetworkStoreCmnd.read().length*(DOSA_TIPS_USED_BITWIDTH/8);
+        cur_output = sNetworkOutput.read();
+        cur_length = 0;
+        if(req_output_length > 0)
+        {
+          storeNetFSM = WRITE_NETWORK;
+        }
+      }
+      break;
+
+    case WRITE_NETWORK:
+      if( !soData.full() )
+      {
+        ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> new_tdata = (ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) (cur_output >> cur_length);
+        Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> out_word = Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(new_tdata);
+        //TODO: make type dynamic
+        uint8_t tmp_cnt = DOSA_WRAPPER_OUTPUT_BYTES_PER_LINE;
+        out_word.setTLast(0);
+        if( (req_output_length - cur_length) < DOSA_WRAPPER_OUTPUT_BYTES_PER_LINE)
+        {
+          tmp_cnt = req_output_length - cur_length;
+          out_word.setTLast(1);
+          storeNetFSM = READ_INSTR1;
+        }
+        ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> new_tkeep = byteCntToTKeep(tmp_cnt);
+        out_word.setTKeep(new_tkeep);
+        soData.write(out_word);
+        cur_length += tmp_cnt;
+      }
+      break;
+  }
 
 }
 
@@ -150,6 +207,7 @@ void pTipsControl(
   static uint16_t next_command_pointer = 0;
 #pragma HLS reset varialbe=next_command_pointer
   //-- STATIC VARIABLES -----------------------------------------------------
+#ifdef TIPS_TEST
   const TipsOp program[] = {
     [0] = { .opcode = DENSE_BIAS, .in_addr = NETWORK_ALIAS_ADDRESS, .in_length = 9,
             .op0_addr = 0, .op0_length = 12, .op1_addr = 12, .op1_length = 12,
@@ -160,7 +218,10 @@ void pTipsControl(
             .op1_addr = NO_ADDRESS_ALIAS, .op1_length = 0,
             .out_addr = NETWORK_ALIAS_ADDRESS, .out_length = 12
           }
-  }
+  };
+#else
+  //DOSA_ADD_program
+#endif
 #pragma HLS RESOURCE variable=program core=ROM_2P_BRAM
 
   //-- LOCAL VARIABLES ------------------------------------------------------
@@ -216,11 +277,15 @@ void pLoadOpDual(
 #pragma HLS pipeline //II=1
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   //-- STATIC VARIABLES -----------------------------------------------------
+#ifdef TIPS_TEST
   const usedDtype opStore[DOSA_TIPS_ADDR_SPACE_LENGTH] = {
-    10,10,10,11,11,11,12,12,12,13,13,13, //op0
+    10,11,12,13,21,22,23,24,31,32,33,34, //op0
     1,1,1,1,1,1,1,1,1,1,1,1, //op1
     0,0,0,0,0,0 //fill-to-end
   };
+#else
+  //DOSA_ADD_op_store
+#endif
 //#pragma HLS ARRAY_PARTITION variable=opStore complete //TODO: too in-efficient?
 #pragma HLS RESOURCE variable=opStore core=ROM_2P_BRAM
   //for debugging
@@ -273,7 +338,8 @@ void pLoadOpDual(
     last_instr = cur_instr;
   }
 
-  *debug = (uint16_t) last_instr;
+  *debug = (uint8_t) last_instr.addr_0;
+  *debug |= (uint16_t) (last_instr.addr_1 << 8);
 
 }
 
@@ -298,7 +364,7 @@ void pALU(
   static ap_uint<TIPS_ACCUM_LENGTH> accum;
   static usedDtype tanh_table[N_TABLE];
 //  static usedDtype accum_scratchpad[TIPS_ACCUM_LENGTH];
-//#pragma HLS ARRAY_PARTITION variable=output_scratchpad complete
+//#pragma HLS ARRAY_PARTITION variable=accum_scratchpad complete
   //-- LOCAL VARIABLES ------------------------------------------------------
   TipsAluInstr cur_instr;
   ap_uint<DOSA_TIPS_LONGEST_INPUT> cur_network_in;
@@ -307,7 +373,7 @@ void pALU(
   ap_uint<DOSA_TIPS_LONGEST_INPUT> cur_input;
   ap_uint<DOSA_TIPS_LONGEST_OUTPUT> cur_output;
   usedDtype input_scratchpad[DOSA_TIPS_LONGEST_INPUT];
-#pragma HLS ARRAY_PARTITION variable=input_scratchpad complete //TODO: too in-efficient?
+#pragma HLS ARRAY_PARTITION variable=input_scratchpad complete
   usedDtype op0_scratchpad[DOSA_TIPS_LONGEST_OP0];
 #pragma HLS ARRAY_PARTITION variable=op0_scratchpad complete
   usedDtype op1_scratchpad[DOSA_TIPS_LONGEST_OP1];
@@ -315,15 +381,16 @@ void pALU(
   usedDtype output_scratchpad[DOSA_TIPS_LONGEST_OUTPUT];
 #pragma HLS ARRAY_PARTITION variable=output_scratchpad complete
 
+//TODO: customize ALU for each Brick/Block?
 
-  if(aluFSM == INIT)
+  if(aluState == INIT)
   {
     init_tanh_table(tanh_table);
     accum = 0x0;
     aluState = ALU;
   } else {
     if(!sAluInstr.empty() && !sNetworkInput.empty() && !sOp0.empty() && !sOp1.empty()
-        !sNetworkStoreCmnd.full() && !sNetworkOutput.full()
+        && !sNetworkStoreCmnd.full() && !sNetworkOutput.full()
       )
     {
       //read all inputs to clear streams
@@ -414,7 +481,7 @@ void pALU(
       }
       if(cur_instr.out_addr == NETWORK_ALIAS_ADDRESS)
       {
-        sNetworkLoadCmd.write({ .length = cur_instr.out_length });
+        sNetworkStoreCmnd.write({ .length = cur_instr.out_length });
         sNetworkOutput.write(cur_output);
       } else if(cur_instr.out_addr == ACCUM_ALIAS_ADDRESS)
       {
@@ -432,17 +499,19 @@ void pMergeDebug(
   uint16_t *debug1,
   uint16_t *debug2,
   uint16_t *debug3,
-    ap_uint<64> *debug_out
+  uint16_t *debug4,
+    ap_uint<80> *debug_out
     )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-  *debug_out = (uint64_t) *debug0;
-  *debug_out |= ((uint64_t) *debug1) << 16;
-  *debug_out |= ((uint64_t) *debug2) << 32;
-  *debug_out |= ((uint64_t) *debug3) << 48;
+  *debug_out =   (ap_uint<80>) *debug0;
+  *debug_out |= ((ap_uint<80>) *debug1) << 16;
+  *debug_out |= ((ap_uint<80>) *debug2) << 32;
+  *debug_out |= ((ap_uint<80>) *debug3) << 48;
+  *debug_out |= ((ap_uint<80>) *debug4) << 64;
 
 }
 
@@ -454,7 +523,7 @@ void tips_test(
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
     // ----- add potential DRAM Interface -----
     // ----- DEBUG out ------
-    ap_uint<64> *debug_out
+    ap_uint<80> *debug_out
     )
 {
   //-- DIRECTIVES FOR THE BLOCK ---------------------------------------------
@@ -472,6 +541,8 @@ void tips_test(
 #ifndef __SYNTHESIS__
   assert(DOSA_TIPS_ADDR_SPACE_LENGTH < 0xFFFF);
   assert(DOSA_TIPS_USED_BITWIDTH % 8 == 0); //only byte aligned for now
+  assert(DOSA_WRAPPER_INPUT_IF_BITWIDTH == 64);
+  assert(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH == 64);
 #endif
 
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
@@ -485,12 +556,15 @@ void tips_test(
   static stream<TipsAluInstr> sAluInstr_from_op_load ("sAluInstr_from_op_load");
   static stream<ap_uint<DOSA_TIPS_LONGEST_OP0> >  sOp0 ("sOp0");
   static stream<ap_uint<DOSA_TIPS_LONGEST_OP1> >  sOp1 ("sOp1");
+  static stream<TipsNetworkInstr>  sNetworkStoreCmnd ("sNetworkStoreCmnd");
+  static stream<ap_uint<DOSA_TIPS_LONGEST_OUTPUT> >  sNetworkOutput ("sNetworkOutput");
 
   //-- LOCAL VARIABLES ------------------------------------------------------------
   uint16_t debug0 = 0;
   uint16_t debug1 = 0;
   uint16_t debug2 = 0;
   uint16_t debug3 = 0;
+  uint16_t debug4 = 0;
 
   //-- DATAFLOW PROCESS ---------------------------------------------------
 
@@ -498,9 +572,15 @@ void tips_test(
 
   pLoadNetwork(sNetworkLoadCmd, siData, sNetworkInput, &debug1);
 
+  pSendNetwork(sNetworkStoreCmnd, sNetworkOutput, soData, &debug4);
+
+  //slow processes last
+
   pLoadOpDual(sOpLoadCmd, sAluInstr, sAluInstr_from_op_load, sOp0, sOp1, &debug2);
 
-  pMergeDebug(&debug0, &debug1, &debug2, &debug3, debug_out);
+  pALU(sAluInstr_from_op_load, sNetworkInput, sOp0, sOp1, sNetworkStoreCmnd, sNetworkOutput, &debug3);
+
+  pMergeDebug(&debug0, &debug1, &debug2, &debug3, &debug4, debug_out);
 }
 
 
