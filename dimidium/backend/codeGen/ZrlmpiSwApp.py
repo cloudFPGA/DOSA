@@ -52,6 +52,7 @@ class ZrlmpiSwApp:
         total_send_repeat = 0
         total_recv_repeat = 0
         last_instr = 'none'
+        prog_i = 0
         for ci in comm_instr:
             if ci['instr'] == 'send':
                 if last_instr == 'send':
@@ -63,7 +64,8 @@ class ZrlmpiSwApp:
                     cur_send_cmds = [ci]
                     last_instr = 'send'
                 if ci['combine'] is None or ci['combine'] == 'start':
-                    total_send_repeat += ci['repeat']
+                    if prog_i < self.comm_plan.after_pipeline_full_instr_start:
+                        total_send_repeat += ci['repeat']
             else:
                 # recv_cmds.append(ci)
                 if last_instr == 'recv':
@@ -75,7 +77,9 @@ class ZrlmpiSwApp:
                     cur_recv_cmds = [ci]
                     last_instr = 'recv'
                 if ci['combine'] is None or ci['combine'] == 'start':
-                    total_recv_repeat += ci['repeat']
+                    if prog_i < self.comm_plan.after_pipeline_full_instr_start:
+                        total_recv_repeat += ci['repeat']
+            prog_i += 1
         if len(cur_send_cmds) > 0:
             all_send_cmds.append(cur_send_cmds)
         if len(cur_recv_cmds) > 0:
