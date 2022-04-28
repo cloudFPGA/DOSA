@@ -120,6 +120,10 @@ void pLoadNetwork(
 
 
 void pSendNetwork(
+    stream<TipsNetworkInstr>  &sNetworkStoreCmnd,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OUTPUT> >  &sNetworkOutput,
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
+    uint16_t *debug
     )
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -154,10 +158,10 @@ void pTipsControl(
     [1] = { .opcode = TANH, .in_addr = ACCUM_ALIAS_ADDRESS, .in_length = 12,
             .op0_addr = NO_ADDRESS_ALIAS, .op0_length = 0,
             .op1_addr = NO_ADDRESS_ALIAS, .op1_length = 0,
-            .out_addr = ACCUM_ALIAS_ADDRESS, .out_length = 12
+            .out_addr = NETWORK_ALIAS_ADDRESS, .out_length = 12
           }
-  };
-//#pragma HLS reset varialbe=program
+  }
+#pragma HLS RESOURCE variable=program core=ROM_2P_BRAM
 
   //-- LOCAL VARIABLES ------------------------------------------------------
   TipsOp cur_op = program[next_command_pointer];
@@ -209,7 +213,7 @@ void pLoadOpDual(
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
 #pragma HLS INLINE off
-#pragma HLS pipeline II=1
+#pragma HLS pipeline //II=1
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   //-- STATIC VARIABLES -----------------------------------------------------
   const usedDtype opStore[DOSA_TIPS_ADDR_SPACE_LENGTH] = {
@@ -217,7 +221,8 @@ void pLoadOpDual(
     1,1,1,1,1,1,1,1,1,1,1,1, //op1
     0,0,0,0,0,0 //fill-to-end
   };
-#pragma HLS ARRAY_PARTITION variable=opStore complete //TODO: too in-efficient?
+//#pragma HLS ARRAY_PARTITION variable=opStore complete //TODO: too in-efficient?
+#pragma HLS RESOURCE variable=opStore core=ROM_2P_BRAM
   //for debugging
   static TipsLoadInstr last_instr;
   //-- LOCAL VARIABLES ------------------------------------------------------
@@ -241,9 +246,9 @@ void pLoadOpDual(
         {
           continue;
         }
-        //new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
+        new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
         //0 at end?
-        new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (DOSA_TIPS_LONGEST_OP0 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
+        //new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (DOSA_TIPS_LONGEST_OP0 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
       }
     }
     ap_uint<DOSA_TIPS_LONGEST_OP1> new_op1 = 0x0;
@@ -256,9 +261,9 @@ void pLoadOpDual(
         {
           continue;
         }
-        //new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
+        new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
         //0 at end?
-        new_op1 |= ((ap_uint<DOSA_TIPS_LONGEST_OP1>) opStore[cur_instr.addr_1 + i]) << (DOSA_TIPS_LONGEST_OP1 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
+        //new_op1 |= ((ap_uint<DOSA_TIPS_LONGEST_OP1>) opStore[cur_instr.addr_1 + i]) << (DOSA_TIPS_LONGEST_OP1 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
       }
     }
 
@@ -289,21 +294,136 @@ void pALU(
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   static aluFSM aluState = INIT;
 #pragma HLS reset variable=aluState
-  static ap_uint<TIPS_ACCUM_LENGTH> accum = 0x0;
-#pragma HLS reset variable=accum
   //-- STATIC VARIABLES -----------------------------------------------------
+  static ap_uint<TIPS_ACCUM_LENGTH> accum;
   static usedDtype tanh_table[N_TABLE];
+//  static usedDtype accum_scratchpad[TIPS_ACCUM_LENGTH];
+//#pragma HLS ARRAY_PARTITION variable=output_scratchpad complete
   //-- LOCAL VARIABLES ------------------------------------------------------
+  TipsAluInstr cur_instr;
+  ap_uint<DOSA_TIPS_LONGEST_INPUT> cur_network_in;
+  ap_uint<DOSA_TIPS_LONGEST_OP0> cur_op0;
+  ap_uint<DOSA_TIPS_LONGEST_OP1> cur_op1;
+  ap_uint<DOSA_TIPS_LONGEST_INPUT> cur_input;
+  ap_uint<DOSA_TIPS_LONGEST_OUTPUT> cur_output;
+  usedDtype input_scratchpad[DOSA_TIPS_LONGEST_INPUT];
+#pragma HLS ARRAY_PARTITION variable=input_scratchpad complete //TODO: too in-efficient?
+  usedDtype op0_scratchpad[DOSA_TIPS_LONGEST_OP0];
+#pragma HLS ARRAY_PARTITION variable=op0_scratchpad complete
+  usedDtype op1_scratchpad[DOSA_TIPS_LONGEST_OP1];
+#pragma HLS ARRAY_PARTITION variable=op1_scratchpad complete
+  usedDtype output_scratchpad[DOSA_TIPS_LONGEST_OUTPUT];
+#pragma HLS ARRAY_PARTITION variable=output_scratchpad complete
 
-  //with internal accum
-  //superscalar architecture: can schedule different alu operations in paralell --> later
 
   if(aluFSM == INIT)
   {
-
+    init_tanh_table(tanh_table);
+    accum = 0x0;
+    aluState = ALU;
   } else {
+    if(!sAluInstr.empty() && !sNetworkInput.empty() && !sOp0.empty() && !sOp1.empty()
+        !sNetworkStoreCmnd.full() && !sNetworkOutput.full()
+      )
+    {
+      //read all inputs to clear streams
+      cur_instr = sAluInstr.read();
+      cur_network_in = sNetworkInput.read();
+      cur_op0 = sOp0.read();
+      cur_op1 = sOp1.read();
+      cur_input = 0x0;
+      if(cur_instr.in_addr == ACCUM_ALIAS_ADDRESS)
+      {
+        cur_input = (ap_uint<DOSA_TIPS_LONGEST_INPUT>) accum;
+      } else if(cur_instr.in_addr == NETWORK_ALIAS_ADDRESS)
+      {
+        cur_input = cur_network_in;
+      }
+      for(int i = 0; i < DOSA_TIPS_LONGEST_INPUT; i++)
+      {
+#pragma HLS unroll
+        if( i >= cur_instr.in_length )
+        {
+          input_scratchpad[i] = 0x0;
+        }
+        input_scratchpad[i] = (usedDtype) (cur_input >> (i*DOSA_TIPS_USED_BITWIDTH));
+      }
+      for(int i = 0; i < DOSA_TIPS_LONGEST_OUTPUT; i++)
+      {
+#pragma HLS unroll
+        output_scratchpad[i] = 0x0;
+      }
+      //"type cast" op vectors
+      for(int i = 0; i < DOSA_TIPS_LONGEST_OP0; i++)
+      {
+#pragma HLS unroll
+        if( i >= cur_instr.op0_length )
+        {
+          op0_scratchpad[i] = 0x0;
+        }
+        op0_scratchpad[i] = (usedDtype) (cur_op0 >> (i*DOSA_TIPS_USED_BITWIDTH));
+      }
+      for(int i = 0; i < DOSA_TIPS_LONGEST_OP1; i++)
+      {
+#pragma HLS unroll
+        if( i >= cur_instr.op1_length )
+        {
+          op1_scratchpad[i] = 0x0;
+        }
+        op1_scratchpad[i] = (usedDtype) (cur_op1 >> (i*DOSA_TIPS_USED_BITWIDTH));
+      }
+
+      //process AluOp
+      switch(cur_instr.operation)
+      {
+        default:
+        case TIPS_NOP:
+          accum = 0x0;
+          sNetworkStoreCmnd.write({ .length = 0x0 });
+          sNetworkOutput.write(0x0);
+          break;
+
+        case DENSE:
+          //is the same, since bias is then already at 0
+        case DENSE_BIAS:
+          //void dense(usedDtype data[DOSA_TIPS_LONGEST_INPUT], usedDtype res[DOSA_TIPS_LONGEST_OUTPUT], usedDtype weights[DOSA_TIPS_LONGEST_OP0], usedDtype biases[DOSA_TIPS_LONGEST_OP1]);
+          dense(input_scratchpad, output_scratchpad, op0_scratchpad, op1_scratchpad);
+          break;
+
+        case RELU:
+          //void relu(usedDtype data[DOSA_TIPS_LONGEST_OUTPUT], usedDtype res[DOSA_TIPS_LONGEST_OUTPUT]);
+          relu(input_scratchpad, output_scratchpad);
+          break;
+
+        case TANH:
+          //void tanh(usedDtype data[DOSA_TIPS_LONGEST_OUTPUT], usedDtype res[DOSA_TIPS_LONGEST_OUTPUT], usedDtype tanh_table[N_TABLE]);
+          tanh(input_scratchpad, output_scratchpad, tanh_table);
+          break;
+      }
+
+      //write output
+      cur_output = 0x0;
+      for(int i = 0; i < DOSA_TIPS_LONGEST_OUTPUT; i++)
+      {
+#pragma HLS unroll
+        if( i >= cur_instr.out_length)
+        {
+          continue;
+        }
+        cur_output |= ((ap_uint<DOSA_TIPS_LONGEST_OUTPUT>) output_scratchpad[i]) << (i*DOSA_TIPS_LONGEST_OUTPUT);
+      }
+      if(cur_instr.out_addr == NETWORK_ALIAS_ADDRESS)
+      {
+        sNetworkLoadCmd.write({ .length = cur_instr.out_length });
+        sNetworkOutput.write(cur_output);
+      } else if(cur_instr.out_addr == ACCUM_ALIAS_ADDRESS)
+      {
+        accum = (ap_uint<TIPS_ACCUM_LENGTH>) cur_output;
+      }
+    }
   }
 
+  *debug = (uint16_t) cur_instr.operation;
 }
 
 

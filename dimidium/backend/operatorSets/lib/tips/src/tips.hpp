@@ -39,6 +39,9 @@ using namespace hls;
 #define DOSA_TIPS_ADDR_SPACE_LENGTH 30
 typedef int8_t usedDtype;
 #define DOSA_TIPS_USED_BITWIDTH 8
+typedef int32_t aluAccumDtype;
+#define DOSA_TIPS_ALU_ACCUM_BITWIDTH 32
+//#define DOSA_TIPS_ALU_BACK_CAST_BIT_SHIFT 5
 #define DOSA_TIPS_USED_BITWIDTH_TKEEP 1
 #define DOSA_TIPS_USED_BITWIDTH_TKEEP_WIDTH 1
 #endif
@@ -53,7 +56,8 @@ typedef int8_t usedDtype;
 //#define MAX(a,b) (((a)>(b))?(a):(b))
 
 //derived defines
-#define TIPS_ACCUM_LENGTH = 3 * DOSA_TIPS_LONGEST_OUTPUT
+//#define TIPS_ACCUM_LENGTH (3 * DOSA_TIPS_LONGEST_OUTPUT)
+#define TIPS_ACCUM_LENGTH DOSA_TIPS_LONGEST_OUTPUT
 //#define TIPS_OP_LOOP_MAX MAX(DOSA_TIPS_LONGEST_OP0, DOSA_TIPS_LONGEST_OP1)
 
 //as constants for HLS pragmas
