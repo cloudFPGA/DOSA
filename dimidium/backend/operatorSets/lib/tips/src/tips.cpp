@@ -27,7 +27,7 @@ using namespace hls;
 void pLoadNetwork(
     stream<TipsNetworkInstr>  &sNetworkLoadCmd,
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
-    stream<ap_uint<DOSA_TIPS_LONGEST_INPUT> >  &sNetworkInput,
+    stream<ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> >  &sNetworkInput,
     uint16_t *debug
     )
 {
@@ -44,9 +44,9 @@ void pLoadNetwork(
   static TipsLength hangover_valid_bytes = 0x0;
 #pragma HLS reset variable=hangover_valid_bytes
   //-- STATIC VARIABLES -----------------------------------------------------
-  static ap_uint<DOSA_TIPS_LONGEST_INPUT> cur_input;
-  static ap_uint<DOSA_TIPS_LONGEST_INPUT> hangover_store;
-  static ap_uint<DOSA_TIPS_LONGEST_INPUT> mask;
+  static ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> cur_input;
+  static ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> hangover_store;
+  static ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> mask;
   //-- LOCAL VARIABLES ------------------------------------------------------
 
   //TODO: update for non int8 types (i.e. different length)
@@ -68,6 +68,7 @@ void pLoadNetwork(
           && !siData.empty() )
       {
         req_input_length = sNetworkLoadCmd.read().length*(DOSA_TIPS_USED_BITWIDTH/8);
+        printf("[pLoadNetwork] new req_input_length: %d Bytes;\n", (uint32_t) req_input_length);
         if(req_input_length == 0)
         {
           sNetworkInput.write(0x0);
@@ -77,7 +78,7 @@ void pLoadNetwork(
 
           if(hangover_valid_bytes >= req_input_length)
           {
-            ap_uint<DOSA_TIPS_LONGEST_INPUT> out_vector = hangover_store & mask;
+            ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> out_vector = hangover_store & mask;
             sNetworkInput.write(out_vector);
             hangover_valid_bytes -= req_input_length;
             hangover_store >>= req_input_length * 8;
@@ -98,14 +99,15 @@ void pLoadNetwork(
       {
         Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> in_word = siData.read();
         TipsLength byte_read = extractByteCnt(in_word);
-        cur_input |= ((ap_uint<DOSA_TIPS_LONGEST_INPUT>) in_word.getTData()) << cur_length*8;
+        cur_input |= ((ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH>) in_word.getTData()) << cur_length*8;
         cur_length += byte_read;
         //ignore tlast?
         if(cur_length >= req_input_length)
         {
-            //ap_uint<DOSA_TIPS_LONGEST_INPUT> mask = exp2(req_input_length*8)-1;
-            ap_uint<DOSA_TIPS_LONGEST_INPUT> out_vector = cur_input & mask;
+            //ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> mask = exp2(req_input_length*8)-1;
+            ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> out_vector = cur_input & mask;
             sNetworkInput.write(out_vector);
+            printf("[pLoadNetwork] forwarding (last 64 bits): %16.16llX\n", (uint64_t) out_vector);
             hangover_valid_bytes = cur_length - req_input_length;
             hangover_store = (cur_input >> req_input_length * 8);
             cur_input = 0;
@@ -124,7 +126,7 @@ void pLoadNetwork(
 
 void pSendNetwork(
     stream<TipsNetworkInstr>  &sNetworkStoreCmnd,
-    stream<ap_uint<DOSA_TIPS_LONGEST_OUTPUT> >  &sNetworkOutput,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH> >  &sNetworkOutput,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
     uint16_t *debug
     )
@@ -140,7 +142,7 @@ void pSendNetwork(
   static TipsLength req_output_length = 0;
 #pragma HLS reset variable=req_output_length
   //-- STATIC VARIABLES -----------------------------------------------------
-  static ap_uint<DOSA_TIPS_LONGEST_OUTPUT> cur_output;
+  static ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH> cur_output;
   //-- LOCAL VARIABLES ------------------------------------------------------
 
   switch(storeNetFSM)
@@ -159,7 +161,9 @@ void pSendNetwork(
           && !soData.full() )
       {
         req_output_length = sNetworkStoreCmnd.read().length*(DOSA_TIPS_USED_BITWIDTH/8);
+        printf("[pSendNetwork] new req_output_length: %d Bytes;\n", (uint32_t) req_output_length);
         cur_output = sNetworkOutput.read();
+        printf("[pSendNetwork] forwarding (last 64 bits): %16.16llX\n", (uint64_t) cur_output);
         cur_length = 0;
         if(req_output_length > 0)
         {
@@ -230,7 +234,7 @@ void pTipsControl(
 
   if( !sNetworkLoadCmd.full() && !sOpLoadCmd.full() && !sAluInstr.full() )
   {
-    if(cur_op.opcode == TIPS_NOP)
+    if(cur_op.opcode != TIPS_NOP)
     {
       if(cur_op.in_addr == NETWORK_ALIAS_ADDRESS)
       {
@@ -254,7 +258,7 @@ void pTipsControl(
     next_command_pointer++;
     if(next_command_pointer >= DOSA_TIPS_PROGRAM_LENGTH)
     {
-      next_command_pointer = 0x0;
+      next_command_pointer = 0;
     }
   }
 
@@ -267,8 +271,8 @@ void pLoadOpDual(
     stream<TipsLoadInstr>     &sOpLoadCmd,
     stream<TipsAluInstr>      &sAluInstr_in,
     stream<TipsAluInstr>      &sAluInstr_out,
-    stream<ap_uint<DOSA_TIPS_LONGEST_OP0> >  &sOp0,
-    stream<ap_uint<DOSA_TIPS_LONGEST_OP1> >  &sOp1,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH> >  &sOp0,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH> >  &sOp1,
     uint16_t *debug
     )
 {
@@ -301,7 +305,7 @@ void pLoadOpDual(
   {
     TipsLoadInstr cur_instr = sOpLoadCmd.read();
     TipsAluInstr alu_instr_fw = sAluInstr_in.read();
-    ap_uint<DOSA_TIPS_LONGEST_OP0> new_op0 = 0x0;
+    ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH> new_op0 = 0x0;
     //if(cur_instr.addr_0 < TIPS_MAX_ADDRESS)
     if(cur_instr.addr_0 < DOSA_TIPS_ADDR_SPACE_LENGTH)
     {
@@ -311,12 +315,12 @@ void pLoadOpDual(
         {
           continue;
         }
-        new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
+        new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
         //0 at end?
-        //new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (DOSA_TIPS_LONGEST_OP0 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
+        //new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH>) opStore[cur_instr.addr_0 + i]) << (DOSA_TIPS_LONGEST_OP0 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
       }
     }
-    ap_uint<DOSA_TIPS_LONGEST_OP1> new_op1 = 0x0;
+    ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH> new_op1 = 0x0;
     //if(cur_instr.addr_1 < TIPS_MAX_ADDRESS)
     if(cur_instr.addr_1 < DOSA_TIPS_ADDR_SPACE_LENGTH)
     {
@@ -326,15 +330,17 @@ void pLoadOpDual(
         {
           continue;
         }
-        new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
+        new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
         //0 at end?
-        //new_op1 |= ((ap_uint<DOSA_TIPS_LONGEST_OP1>) opStore[cur_instr.addr_1 + i]) << (DOSA_TIPS_LONGEST_OP1 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
+        //new_op1 |= ((ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH>) opStore[cur_instr.addr_1 + i]) << (DOSA_TIPS_LONGEST_OP1 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
       }
     }
 
     sAluInstr_out.write(alu_instr_fw);
     sOp0.write(new_op0);
-    sOp0.write(new_op1);
+    printf("[pLoadOpDual] forwarding Op0 (last 64 bits): %16.16llX\n", (uint64_t) new_op0);
+    printf("[pLoadOpDual] forwarding Op1 (last 64 bits): %16.16llX\n", (uint64_t) new_op1);
+    sOp1.write(new_op1);
     last_instr = cur_instr;
   }
 
@@ -346,11 +352,11 @@ void pLoadOpDual(
 
 void pALU(
     stream<TipsAluInstr>      &sAluInstr,
-    stream<ap_uint<DOSA_TIPS_LONGEST_INPUT> >  &sNetworkInput,
-    stream<ap_uint<DOSA_TIPS_LONGEST_OP0> >  &sOp0,
-    stream<ap_uint<DOSA_TIPS_LONGEST_OP1> >  &sOp1,
+    stream<ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> >  &sNetworkInput,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH> >  &sOp0,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH> >  &sOp1,
     stream<TipsNetworkInstr>  &sNetworkStoreCmnd,
-    stream<ap_uint<DOSA_TIPS_LONGEST_OUTPUT> >  &sNetworkOutput,
+    stream<ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH> >  &sNetworkOutput,
     uint16_t *debug
     )
 {
@@ -367,11 +373,11 @@ void pALU(
 //#pragma HLS ARRAY_PARTITION variable=accum_scratchpad complete
   //-- LOCAL VARIABLES ------------------------------------------------------
   TipsAluInstr cur_instr;
-  ap_uint<DOSA_TIPS_LONGEST_INPUT> cur_network_in;
-  ap_uint<DOSA_TIPS_LONGEST_OP0> cur_op0;
-  ap_uint<DOSA_TIPS_LONGEST_OP1> cur_op1;
-  ap_uint<DOSA_TIPS_LONGEST_INPUT> cur_input;
-  ap_uint<DOSA_TIPS_LONGEST_OUTPUT> cur_output;
+  ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> cur_network_in;
+  ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH> cur_op0;
+  ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH> cur_op1;
+  ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> cur_input;
+  ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH> cur_output;
   usedDtype input_scratchpad[DOSA_TIPS_LONGEST_INPUT];
 #pragma HLS ARRAY_PARTITION variable=input_scratchpad complete
   usedDtype op0_scratchpad[DOSA_TIPS_LONGEST_OP0];
@@ -401,7 +407,7 @@ void pALU(
       cur_input = 0x0;
       if(cur_instr.in_addr == ACCUM_ALIAS_ADDRESS)
       {
-        cur_input = (ap_uint<DOSA_TIPS_LONGEST_INPUT>) accum;
+        cur_input = (ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH>) accum;
       } else if(cur_instr.in_addr == NETWORK_ALIAS_ADDRESS)
       {
         cur_input = cur_network_in;
@@ -477,7 +483,7 @@ void pALU(
         {
           continue;
         }
-        cur_output |= ((ap_uint<DOSA_TIPS_LONGEST_OUTPUT>) output_scratchpad[i]) << (i*DOSA_TIPS_LONGEST_OUTPUT);
+        cur_output |= ((ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH>) output_scratchpad[i]) << (i*DOSA_TIPS_LONGEST_OUTPUT);
       }
       if(cur_instr.out_addr == NETWORK_ALIAS_ADDRESS)
       {
@@ -552,12 +558,12 @@ void tips_test(
   static stream<TipsNetworkInstr> sNetworkLoadCmd ("sNetworkLoadCmd");
   static stream<TipsLoadInstr> sOpLoadCmd ("sOpLoadCmd");
   static stream<TipsAluInstr> sAluInstr ("sAluInstr");
-  static stream<ap_uint<DOSA_TIPS_LONGEST_INPUT> > sNetworkInput ("sNetworkInput");
+  static stream<ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> > sNetworkInput ("sNetworkInput");
   static stream<TipsAluInstr> sAluInstr_from_op_load ("sAluInstr_from_op_load");
-  static stream<ap_uint<DOSA_TIPS_LONGEST_OP0> >  sOp0 ("sOp0");
-  static stream<ap_uint<DOSA_TIPS_LONGEST_OP1> >  sOp1 ("sOp1");
+  static stream<ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH> >  sOp0 ("sOp0");
+  static stream<ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH> >  sOp1 ("sOp1");
   static stream<TipsNetworkInstr>  sNetworkStoreCmnd ("sNetworkStoreCmnd");
-  static stream<ap_uint<DOSA_TIPS_LONGEST_OUTPUT> >  sNetworkOutput ("sNetworkOutput");
+  static stream<ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH> >  sNetworkOutput ("sNetworkOutput");
 
   //-- LOCAL VARIABLES ------------------------------------------------------------
   uint16_t debug0 = 0;

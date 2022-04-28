@@ -53,6 +53,7 @@ void stepDut() {
       soData,
       &debug_out
       );
+  printf("        debug_out: %4.4llX%16.16llX\n", (uint16_t) (debug_out >> 64), (uint64_t) debug_out);
   printf("----- [%4.4d] STEP DUT done -----\n", simCnt);
   simCnt++;
 }
@@ -88,7 +89,7 @@ int main() {
 
   siData.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0x0004000300020001,0xFF,0b0));
   siData.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0x0008000600060005,0xFF,0b0));
-  siData.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0x0000000000000009,0x02,0b1));
+  siData.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0x0000000000000009,0x03,0b1));
 
   stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > sGoldenOut("sGoldenOut");
   sGoldenOut.write(Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(0x00a4009e00980092, 0xFF, 0));
@@ -101,7 +102,7 @@ int main() {
     //------------------------------------------------------
     while (!nrErr) {
 
-      if (simCnt < 32)
+      if (simCnt < DOSA_TIPS_PROGRAM_LENGTH*3)
       {
         stepDut();
 
