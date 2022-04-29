@@ -266,8 +266,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
                  '    ap_clk =>  [clk],\n' +
                  '    ap_rst =>  [rst]\n' +  # no comma
                  ');\n')
-        # decl += 'sFMC_debug_out <= sZRLMPI_Wrapper_Debug(15 downto 0);\n'
-        decl += 'sFMC_debug_out <= sMPE_Debug(15 downto 0);\n'
+        decl += 'sFMC_debug_out <= sZRLMPI_Wrapper_Debug(15 downto 0);\n'
+        # decl += 'sFMC_debug_out <= sMPE_Debug(15 downto 0);\n'
         decl += '\n'
         inst = decl.format(ip_mod_name=self.ip_mod_name)
         # replace [] with {}

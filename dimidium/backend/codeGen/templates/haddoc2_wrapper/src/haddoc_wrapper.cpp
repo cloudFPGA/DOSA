@@ -32,11 +32,12 @@ void processLargeInput(
   for(int i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)
   {
 #pragma HLS unroll
-    if((in_read.getTKeep() >> i) == 0)
-    {
-      printf("skipped due to tkeep\n");
-      continue;
-    }
+    //TODO: should not make a difference, since we count them?
+    //if((in_read.getTKeep() >> i) == 0)
+    //{
+    //  printf("skipped due to tkeep\n");
+    //  continue;
+    //}
     ap_uint<8> current_byte = (ap_uint<8>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> (i*8));
     //TODO: what if input is not byte aligned?
     combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_read_offset;
@@ -61,11 +62,12 @@ void flattenAxisInput(
   for(int i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)
   {
 #pragma HLS unroll
-    if((in_read.getTKeep() >> i) == 0)
-    {
-      printf("flatten: skipped due to tkeep\n");
-      continue;
-    }
+    //TODO: should not make a difference, since we count them?
+    //if((in_read.getTKeep() >> i) == 0)
+    //{
+    //  printf("flatten: skipped due to tkeep\n");
+    //  continue;
+    //}
     //TODO: what if input is not byte aligned?
     ap_uint<8> current_byte = (ap_uint<8>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> (i*8));
     //printf("flatten: cur_byte %x\n", (uint32_t) current_byte);
@@ -286,11 +288,12 @@ ap_uint<64> flattenAxisBuffer(
   for(int i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)
   {
 #pragma HLS unroll
-    if((in_read.getTKeep() >> i) == 0)
-    {
-      printf("flatten buffer: skipped due to tkeep\n");
-      continue;
-    }
+    //TODO: should not make a difference, since we count them?
+    //if((in_read.getTKeep() >> i) == 0)
+    //{
+    //  printf("flatten buffer: skipped due to tkeep\n");
+    //  continue;
+    //}
     //TODO: what if input is not byte aligned?
     ap_uint<8> current_byte = (ap_uint<8>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> (i*8));
     //combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_line_bit_cnt;
@@ -544,26 +547,30 @@ void pToHaddocDeq(
           {
             have_all_valid_data = false;
           }
+          if(cur_line_bit_cnt[i] > 2* DOSA_HADDOC_GENERAL_BITWIDTH)
+          {
+            need_backlog_process = true;
+          }
         }
         if(have_all_valid_data)
         {
           for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
           {
-            ap_uint<64> tmp_bit_cnt = cur_line_bit_cnt[i];
+            //ap_uint<64> tmp_bit_cnt = cur_line_bit_cnt[i];
             //actually, it is either > or ==..., since frames are transmitted aligned, can't be less than that
             // checked above
             //if(tmp_bit_cnt >= DOSA_HADDOC_GENERAL_BITWIDTH)
             //{
-            tmp_bit_cnt = DOSA_HADDOC_GENERAL_BITWIDTH;
+            //tmp_bit_cnt = DOSA_HADDOC_GENERAL_BITWIDTH;
             hangover_bits_valid_bits[i] = cur_line_bit_cnt[i] - DOSA_HADDOC_GENERAL_BITWIDTH;
             hangover_bits[i] = (ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (combined_input[i] >> DOSA_HADDOC_GENERAL_BITWIDTH);
-            if(hangover_bits_valid_bits[i] >= DOSA_HADDOC_GENERAL_BITWIDTH)
-            {
-              need_backlog_process = true;
-              //only_hangover_processing = true;
-              //printf("pToHaddocDeq: processing backlog next\n");
-              //dequeueFSM = BACKLOG3;
-            } //else {
+            //if(hangover_bits_valid_bits[i] >= DOSA_HADDOC_GENERAL_BITWIDTH)
+            //{
+            //  need_backlog_process = true;
+            //  //only_hangover_processing = true;
+            //  //printf("pToHaddocDeq: processing backlog next\n");
+            //  //dequeueFSM = BACKLOG3;
+            //} //else {
             //dequeueFSM = FORWARD3;
             //}
             //printf("deq: hangover %16.16llx, hangover_cnt: %d, only_hangover_processing: %d\n", (uint64_t) hangover_bits[i], (uint32_t) hangover_bits_valid_bits[i], only_hangover_processing);
@@ -573,24 +580,6 @@ void pToHaddocDeq(
             //DynLayerInput requires (chan2,chan1,chan0) vector layout
             output_data |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) ((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) combined_input[i])) << (i*DOSA_HADDOC_GENERAL_BITWIDTH);
           }
-        } else {
-          for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
-          {
-            hangover_bits[i] = combined_input[i];
-            hangover_bits_valid_bits[i] = cur_line_bit_cnt[i];
-          }
-        }
-        //for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
-        //{
-        //  printf("deq: hangover 0x%16.16llx%16.16llx, hangover_cnt: %d\n", (uint64_t) (hangover_bits[i] >> 64), (uint64_t) hangover_bits[i], (uint32_t) hangover_bits_valid_bits[i]);
-        //}
-
-        //*po_haddoc_data_valid = 0x1;
-        //*po_haddoc_data_vector = output_data;
-        //*output_vector = output_data;
-        //*output_vector |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>) 0x1) << DOSA_HADDOC_INPUT_BITDIWDTH;
-        if(have_all_valid_data)
-        {
           po_haddoc_data.write(output_data);
           printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
           sHaddocUnitProcessing.write(true);
@@ -602,10 +591,24 @@ void pToHaddocDeq(
             dequeueFSM = FORWARD3;
           }
         } else {
+          for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+          {
+            hangover_bits[i] = combined_input[i];
+            hangover_bits_valid_bits[i] = cur_line_bit_cnt[i];
+          }
           printf("pToHaddocDeq: skipped due to no valid data\n");
           //dequeueFSM = BACKLOG3;
           dequeueFSM = FORWARD3;
         }
+        //for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+        //{
+        //  printf("deq: hangover 0x%16.16llx%16.16llx, hangover_cnt: %d\n", (uint64_t) (hangover_bits[i] >> 64), (uint64_t) hangover_bits[i], (uint32_t) hangover_bits_valid_bits[i]);
+        //}
+
+        //*po_haddoc_data_valid = 0x1;
+        //*po_haddoc_data_vector = output_data;
+        //*output_vector = output_data;
+        //*output_vector |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>) 0x1) << DOSA_HADDOC_INPUT_BITDIWDTH;
       } //else {
       //*po_haddoc_data_vector = 0x0;
       //*po_haddoc_data_valid = 0x0;
@@ -652,12 +655,12 @@ void pToHaddocDeq(
         {
           for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
           {
-            ap_uint<64> tmp_bit_cnt = cur_line_bit_cnt[i];
+            //ap_uint<64> tmp_bit_cnt = cur_line_bit_cnt[i];
             //actually, it is either > or ==..., since frames are transmitted aligned, can't be less than that
             // checked above
             //if(tmp_bit_cnt >= DOSA_HADDOC_GENERAL_BITWIDTH)
             //{
-            tmp_bit_cnt = DOSA_HADDOC_GENERAL_BITWIDTH;
+            //tmp_bit_cnt = DOSA_HADDOC_GENERAL_BITWIDTH;
             hangover_bits_valid_bits[i] = cur_line_bit_cnt[i] - DOSA_HADDOC_GENERAL_BITWIDTH;
             hangover_bits[i] = (ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (combined_input[i] >> DOSA_HADDOC_GENERAL_BITWIDTH);
             if(hangover_bits_valid_bits[i] >= DOSA_HADDOC_GENERAL_BITWIDTH)
@@ -674,7 +677,21 @@ void pToHaddocDeq(
             //DynLayerInput requires (chan2,chan1,chan0) vector layout
             output_data |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) ((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) combined_input[i])) << (i*DOSA_HADDOC_GENERAL_BITWIDTH);
           }
-        } //else {
+          po_haddoc_data.write(output_data);
+          printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
+          sHaddocUnitProcessing.write(true);
+          if(need_backlog_process && !need_new_data)
+          {
+            printf("pToHaddocDeq: processing backlog next\n");
+            dequeueFSM = BACKLOG3;
+          } else {
+            dequeueFSM = FORWARD3;
+          }
+        } else {
+          printf("pToHaddocDeq: skipped due to no valid data\n");
+          //dequeueFSM = BACKLOG3;
+          dequeueFSM = FORWARD3;
+        }
         //for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
         //{
         //  hangover_bits[i] = combined_input[i];
@@ -694,23 +711,6 @@ void pToHaddocDeq(
         //printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
         //sHaddocUnitProcessing.write(true);
 
-        if(have_all_valid_data)
-        {
-          po_haddoc_data.write(output_data);
-          printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
-          sHaddocUnitProcessing.write(true);
-          if(need_backlog_process && !need_new_data)
-          {
-            printf("pToHaddocDeq: processing backlog next\n");
-            dequeueFSM = BACKLOG3;
-          } else {
-            dequeueFSM = FORWARD3;
-          }
-        } else {
-          printf("pToHaddocDeq: skipped due to no valid data\n");
-          //dequeueFSM = BACKLOG3;
-          dequeueFSM = FORWARD3;
-        }
       } //else {
       break;
   }
@@ -719,8 +719,7 @@ void pToHaddocDeq(
   //*debug_out = 0x0;
   *debug = (uint8_t) hangover_bits_valid_bits[0];
   //*debug |= ((uint16_t) only_hangover_processing) << 15;
-  *debug |= ((uint16_t) dequeueFSM) << 15;
-
+  *debug |= ((uint16_t) dequeueFSM) << 8;
 }
 
 void pFromHaddocEnq(
