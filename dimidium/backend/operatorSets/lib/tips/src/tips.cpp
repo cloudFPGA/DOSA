@@ -64,8 +64,7 @@ void pLoadNetwork(
       break;
 
     case READ_INSTR:
-      if( !sNetworkLoadCmd.empty() && !sNetworkInput.full()
-          && !siData.empty() )
+      if( !sNetworkLoadCmd.empty() && !sNetworkInput.full() )  //no siData
       {
         req_input_length = sNetworkLoadCmd.read().length*(DOSA_TIPS_USED_BITWIDTH/8);
         printf("[pLoadNetwork] new req_input_length: %d Bytes;\n", (uint32_t) req_input_length);
@@ -180,7 +179,7 @@ void pSendNetwork(
         //TODO: make type dynamic
         uint8_t tmp_cnt = DOSA_WRAPPER_OUTPUT_BYTES_PER_LINE;
         out_word.setTLast(0);
-        if( (req_output_length - cur_length) < DOSA_WRAPPER_OUTPUT_BYTES_PER_LINE)
+        if( (req_output_length - cur_length) <= DOSA_WRAPPER_OUTPUT_BYTES_PER_LINE)
         {
           tmp_cnt = req_output_length - cur_length;
           out_word.setTLast(1);
@@ -209,15 +208,15 @@ void pTipsControl(
 #pragma HLS pipeline II=1
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   static uint16_t next_command_pointer = 0;
-#pragma HLS reset varialbe=next_command_pointer
+#pragma HLS reset variable=next_command_pointer
   //-- STATIC VARIABLES -----------------------------------------------------
 #ifdef TIPS_TEST
   const TipsOp program[] = {
     [0] = { .opcode = DENSE_BIAS, .in_addr = NETWORK_ALIAS_ADDRESS, .in_length = 9,
             .op0_addr = 0, .op0_length = 12, .op1_addr = 12, .op1_length = 12,
-            .out_addr = ACCUM_ALIAS_ADDRESS, .out_length = 12
+            .out_addr = NETWORK_ALIAS_ADDRESS, .out_length = 12
           },
-    [1] = { .opcode = TANH, .in_addr = ACCUM_ALIAS_ADDRESS, .in_length = 12,
+    [1] = { .opcode = TANH, .in_addr = NETWORK_ALIAS_ADDRESS, .in_length = 12,
             .op0_addr = NO_ADDRESS_ALIAS, .op0_length = 0,
             .op1_addr = NO_ADDRESS_ALIAS, .op1_length = 0,
             .out_addr = NETWORK_ALIAS_ADDRESS, .out_length = 12
@@ -234,13 +233,19 @@ void pTipsControl(
 
   if( !sNetworkLoadCmd.full() && !sOpLoadCmd.full() && !sAluInstr.full() )
   {
+#ifndef __SYNTHESIS__
+    if(next_command_pointer < DOSA_TIPS_PROGRAM_LENGTH)
+    {
+#endif
     if(cur_op.opcode != TIPS_NOP)
     {
       if(cur_op.in_addr == NETWORK_ALIAS_ADDRESS)
       {
-        sNetworkLoadCmd.write({ .length = cur_op.in_length });
+        TipsNetworkInstr ni = { .length = cur_op.in_length };
+        sNetworkLoadCmd.write(ni);
       } else {
-        sNetworkLoadCmd.write({ .length = 0x0 });
+        TipsNetworkInstr ni = { .length = 0x0 };
+        sNetworkLoadCmd.write(ni);
       }
       TipsLoadInstr new_op_load = { .addr_0 = cur_op.op0_addr, .length_0 = cur_op.op0_length,
         .addr_1 = cur_op.op1_addr, .length_1 = cur_op.op1_length
@@ -253,12 +258,15 @@ void pTipsControl(
         .out_length = cur_op.out_length
       };
       sAluInstr.write(new_alu_cmd);
+      printf("[pTipsControl] Issuing %d ALU instr at position %d.\n", (uint8_t) cur_op.opcode, (uint8_t) next_command_pointer);
     }
 
     next_command_pointer++;
+#ifdef __SYNTHESIS__
     if(next_command_pointer >= DOSA_TIPS_PROGRAM_LENGTH)
     {
       next_command_pointer = 0;
+#endif
     }
   }
 
@@ -338,9 +346,9 @@ void pLoadOpDual(
 
     sAluInstr_out.write(alu_instr_fw);
     sOp0.write(new_op0);
+    sOp1.write(new_op1);
     printf("[pLoadOpDual] forwarding Op0 (last 64 bits): %16.16llX\n", (uint64_t) new_op0);
     printf("[pLoadOpDual] forwarding Op1 (last 64 bits): %16.16llX\n", (uint64_t) new_op1);
-    sOp1.write(new_op1);
     last_instr = cur_instr;
   }
 
@@ -373,6 +381,7 @@ void pALU(
 //#pragma HLS ARRAY_PARTITION variable=accum_scratchpad complete
   //-- LOCAL VARIABLES ------------------------------------------------------
   TipsAluInstr cur_instr;
+  TipsNetworkInstr ni;
   ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> cur_network_in;
   ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH> cur_op0;
   ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH> cur_op1;
@@ -447,12 +456,14 @@ void pALU(
       }
 
       //process AluOp
+      printf("[pALU] Executing %d AluOp.\n", (uint8_t) cur_instr.operation);
       switch(cur_instr.operation)
       {
         default:
         case TIPS_NOP:
           accum = 0x0;
-          sNetworkStoreCmnd.write({ .length = 0x0 });
+          ni = (TipsNetworkInstr) { .length = 0x0 };
+          sNetworkStoreCmnd.write(ni);
           sNetworkOutput.write(0x0);
           break;
 
@@ -487,8 +498,10 @@ void pALU(
       }
       if(cur_instr.out_addr == NETWORK_ALIAS_ADDRESS)
       {
-        sNetworkStoreCmnd.write({ .length = cur_instr.out_length });
+        ni = (TipsNetworkInstr) { .length = cur_instr.out_length };
+        sNetworkStoreCmnd.write(ni);
         sNetworkOutput.write(cur_output);
+        printf("[pALU] forwarding to network store (last 64 bits): %16.16llX\n", (uint64_t) cur_output);
       } else if(cur_instr.out_addr == ACCUM_ALIAS_ADDRESS)
       {
         accum = (ap_uint<TIPS_ACCUM_LENGTH>) cur_output;

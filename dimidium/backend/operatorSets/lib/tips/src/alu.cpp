@@ -87,12 +87,14 @@ void dense(
   //TODO
   //#pragma HLS ALLOCATION instances=mul limit=multiplier_limit operation
 
+  int matrix_width = 4; //TODO
+  int matrix_height = 3;
   // Do the matrix-multiply
 Product1: for(int ii = 0; ii < DOSA_TIPS_LONGEST_INPUT; ii++) {
 #pragma HLS PIPELINE
             cache = data[ii];
-Product2: for(int jj = 0; jj < DOSA_TIPS_LONGEST_OUTPUT; jj++) {
-            int index = ii*DOSA_TIPS_LONGEST_OUTPUT+jj;
+Product2: for(int jj = 0; jj < matrix_height; jj++) {
+            int index = ii*matrix_width+jj;
             mult[index] = cache * weights[index];
           }
           }

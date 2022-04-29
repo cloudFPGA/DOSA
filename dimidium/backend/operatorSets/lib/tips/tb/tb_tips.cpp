@@ -87,14 +87,21 @@ int main() {
   //-- Fill Streams
   //------------------------------------------------------
 
+  stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > sGoldenOut("sGoldenOut");
+  //first instruction DENSE_BIAS
   siData.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0x0004000300020001,0xFF,0b0));
   siData.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0x0008000600060005,0xFF,0b0));
   siData.write(Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(0x0000000000000009,0x03,0b1));
-
-  stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > sGoldenOut("sGoldenOut");
   sGoldenOut.write(Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(0x00a4009e00980092, 0xFF, 0));
   sGoldenOut.write(Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(0x0179016a015b014c, 0xFF, 0));
   sGoldenOut.write(Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(0x024e0236021e0206, 0xFF, 1));
+  //second instruction TANH
+  siData.write(Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(0x00a4009e00980092, 0xFF, 0));
+  siData.write(Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(0x0179016a015b014c, 0xFF, 0));
+  siData.write(Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(0x024e0236021e0206, 0xFF, 1));
+  sGoldenOut.write(Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(0x0001000100010001, 0xFF, 0));
+  sGoldenOut.write(Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(0x0001000100010001, 0xFF, 0));
+  sGoldenOut.write(Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>(0x0001000100010001, 0xFF, 1));
 
     //TODO
     //------------------------------------------------------
@@ -102,7 +109,7 @@ int main() {
     //------------------------------------------------------
     while (!nrErr) {
 
-      if (simCnt < DOSA_TIPS_PROGRAM_LENGTH*3)
+      if (simCnt < DOSA_TIPS_PROGRAM_LENGTH*7)
       {
         stepDut();
 
