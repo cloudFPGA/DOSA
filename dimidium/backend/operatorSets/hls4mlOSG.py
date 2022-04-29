@@ -393,13 +393,19 @@ class Hls4mlOSG(BaseOSG):
         if used_dtype == DosaDtype.float16 or used_dtype == DosaDtype.float32:
             precision_string = 'ap_fixed<16,6>'  # TODO
         else:
-            precision_string = 'ap_uint<{}>'.format(cur_w)
+            # precision_string = 'ap_uint<{}>'.format(cur_w)
+            # TODO: make dynamic
+            precision_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w, cur_w-6)
         # reuse_factor_stream = 1
         # reuse_factor_stream = 4  # TODO
         reuse_factor_stream = 32  # works so far...TODO
         reuse_factor_engine = 2
-        hls_config = {'Model': {'Precision': precision_string, 'ReuseFactor': reuse_factor_engine,
-                                'Strategy': 'Resource'}}
+        precision_dict = {'default': precision_string, 'accum': 'ap_fixed<16,5, AP_RND_CONV, AP_SAT_SYM>'}
+        hls_config = {'Model': {
+                # 'Precision': precision_string,
+                'Precision': precision_dict,
+                'ReuseFactor': reuse_factor_engine,
+                'Strategy': 'Resource'}}
 
         # TODO: tune hls pragmas...
         if arch_block.block_impl_type == BrickImplTypes.STREAM:
@@ -572,7 +578,10 @@ class Hls4mlOSG(BaseOSG):
             print("[DOSA:OSG:ERROR] hls4ml only supports models with batch_size 1")
             exit(-1)
         input_layer = {'class_name': 'InputLayer',
-                       'config': {'batch_input_shape': input_batch_shape, 'dtype': first_used_dtype.name,
+                       'config': {'batch_input_shape': input_batch_shape,
+                                  # 'dtype': first_used_dtype.name,
+                                  # TODO
+                                  'dtype': precision_string,
                                   'name': 'input_1', 'sparse': False,
                                   # 'data_format': 'channels_first'},
                                   'data_format': 'channels_last'},
