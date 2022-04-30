@@ -28,7 +28,7 @@ from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.lib.util import BrickImplTypes
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 from dimidium.backend.operatorSets.osgUtils import convert_IntImm_array
-from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype
+from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype, DosaDtype_is_signed, DosaDtype_to_string
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
 from dimidium.backend.operatorSets.lib.hls4ml.DosaFileReader import OsgDataReader
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
@@ -109,14 +109,19 @@ class Hls4mlOSG(BaseOSG):
         fallback_entries = []
         exact_matches = []
         op_str = op.op_call.split('.')[-1]
+        dtype_str = 'int8'  # default?
+        if op.used_dtype != DosaDtype.UNKNOWN:
+            dtype_str = repr(op.used_dtype)
+        if dosa_singleton.uc['overwrite_fixed_point_dtypes']:
+            dtype_str = 'Q{}'.format(get_bitwidth_of_DosaDtype(op.used_dtype))
         for dk in self.util_db:
             if dk == target_hw.type_str:
                 for e in self.util_db[dk]:
-                    if op_str in e['ops']:
+                    if op_str in e['ops'] and dtype_str in e['dtype']:
                         relevant_entries.append(e)
-                    if op.input_bytes == e['inpB'] and e['latency_lim_per_tensor_cycl'] > 0:
-                        if (consider_paramB and op.parameter_bytes == e['paramB']) or (not consider_paramB):
-                            exact_matches.append(e)
+                        if op.input_bytes == e['inpB'] and e['latency_lim_per_tensor_cycl'] > 0:
+                            if (consider_paramB and op.parameter_bytes == e['paramB']) or (not consider_paramB):
+                                exact_matches.append(e)
                     if fallback_ops is not None:
                         for f in fallback_ops:
                             if f in e['ops']:
@@ -268,7 +273,7 @@ class Hls4mlOSG(BaseOSG):
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
                                                                                         consider_outB=True,
-                                                                                        custom_byte_factor=2.3,
+                                                                                        custom_byte_factor=1.2,
                                                                                         fallback_ops=['conv1d',
                                                                                                       'conv2d'])
             elif 'batch_norm' in e:
@@ -399,11 +404,13 @@ class Hls4mlOSG(BaseOSG):
             accum_string = precision_string
         else:
             int_bits = cur_w
-            if not dosa_singleton.uc['overwrite_fixe_point_dtypes']:
+            if not dosa_singleton.uc['overwrite_fixed_point_dtypes']:
                 precision_string = 'ap_uint<{}>'.format(cur_w)
             else:
                 fractional_bits = dosa_singleton.uc['overwrite_dtypes']['fixed_point_fraction_bits']
                 int_bits = cur_w - fractional_bits
+                if DosaDtype_is_signed(used_dtype):
+                    int_bits -= 1
                 precision_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w, int_bits)
             if dosa_singleton.uc['use_extra_accum_dtype']:
                 accum_factor = dosa_singleton.uc['overwrite_dtypes']['accum_bits_factor']

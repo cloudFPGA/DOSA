@@ -81,3 +81,10 @@ def DosaDtype_to_string(dtype: DosaDtype) -> str:
         return 'double'
     return 'unknown'
 
+
+def DosaDtype_is_signed(dtype: DosaDtype) -> bool:
+    if dtype == DosaDtype.uint8:
+        return False
+    return True
+
+

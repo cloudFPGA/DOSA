@@ -123,16 +123,16 @@ def parse_uc_dict(path, dosa_devices):
                 parsed_constraints['overwrite_dtypes']['weights']))
             exit(1)
         if 'fixed_point_fraction_bits' in parsed_constraints['overwrite_dtypes']:
-            parsed_constraints['overwrite_fixe_point_dtypes'] = True
+            parsed_constraints['overwrite_fixed_point_dtypes'] = True
         else:
-            parsed_constraints['overwrite_fixe_point_dtypes'] = False
+            parsed_constraints['overwrite_fixed_point_dtypes'] = False
         if 'accum_bits_factor' in parsed_constraints['overwrite_dtypes']:
             parsed_constraints['use_extra_accum_dtype'] = True
         else:
             parsed_constraints['use_extra_accum_dtype'] = False
     else:
         parsed_constraints['overwrite_imported_dtypes'] = False
-        parsed_constraints['overwrite_fixe_point_dtypes'] = False
+        parsed_constraints['overwrite_fixed_point_dtypes'] = False
         parsed_constraints['use_extra_accum_dtype'] = False
 
     return parsed_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw
