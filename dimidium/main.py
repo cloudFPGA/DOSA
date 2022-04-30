@@ -96,6 +96,7 @@ if __name__ == '__main__':
     print("DOSA: Parsing constraints...")
     user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw = parse_uc_dict(const_path,
                                                                                                available_devices)
+    dosa_singelton.add_user_constraints(user_constraints)
 
     target_sps = user_constraints['target_sps']  # in #/s
     target_latency = user_constraints['target_latency']  # in s per sample

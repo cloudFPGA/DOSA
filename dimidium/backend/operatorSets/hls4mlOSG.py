@@ -34,7 +34,6 @@ from dimidium.backend.operatorSets.lib.hls4ml.DosaFileReader import OsgDataReade
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
 from dimidium.middleend.archGen.OperationContract import OperationContract
 
-
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 __db_path__ = __filedir__ + '/osg_impl_db.json'
 
@@ -76,7 +75,7 @@ class Hls4mlOSG(BaseOSG):
         # self.suggested_max_block_length = 1
         self.util_db = {}
         self.avg_util_dict = {}
-        self.pipeline_tensor_store = 1
+        self.pipeline_tensor_store = 2
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
@@ -184,8 +183,10 @@ class Hls4mlOSG(BaseOSG):
             proc_share['DSPs'] *= 0.5
             # util_dict['latency_lim_per_tensor_cycl'] *= 2
             # wrapper stays
-            offer_05 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.5, proc_comp_share*0.5,
-                                         proc_mem_share*0.5, 'conf:mult_limit=0.5', wrapper_comp_share, wrapper_mem_share,
+            offer_05 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.5,
+                                         proc_comp_share * 0.5,
+                                         proc_mem_share * 0.5, 'conf:mult_limit=0.5', wrapper_comp_share,
+                                         wrapper_mem_share,
                                          proc_share, wrapper_share)
             # TODO
             # offer_list.append(offer_05)
@@ -247,12 +248,14 @@ class Hls4mlOSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._generatae_hls_prelu, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
-                                                                                        fallback_ops=['relu', 'softmax'])
+                                                                                        fallback_ops=['relu',
+                                                                                                      'softmax'])
             elif 'relu' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_parAct, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
-                                                                                        fallback_ops=['prelu', 'softmax'],
+                                                                                        fallback_ops=['prelu',
+                                                                                                      'softmax'],
                                                                                         custom_latency=op.dims.inp[-1])
             elif 'softmax' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_softmax, \
@@ -390,22 +393,35 @@ class Hls4mlOSG(BaseOSG):
                 used_dtype = cur_dt
                 cur_w = bitw
         precision_string = ''
+        accum_string = ''
         if used_dtype == DosaDtype.float16 or used_dtype == DosaDtype.float32:
             precision_string = 'ap_fixed<16,6>'  # TODO
+            accum_string = precision_string
         else:
-            # precision_string = 'ap_uint<{}>'.format(cur_w)
-            # TODO: make dynamic
-            precision_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w, cur_w-6)
+            int_bits = cur_w
+            if not dosa_singleton.uc['overwrite_fixe_point_dtypes']:
+                precision_string = 'ap_uint<{}>'.format(cur_w)
+            else:
+                fractional_bits = dosa_singleton.uc['overwrite_dtypes']['fixed_point_fraction_bits']
+                int_bits = cur_w - fractional_bits
+                precision_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w, int_bits)
+            if dosa_singleton.uc['use_extra_accum_dtype']:
+                accum_factor = dosa_singleton.uc['overwrite_dtypes']['accum_bits_factor']
+                accum_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w * accum_factor,
+                                                                                 int_bits * accum_factor)
+            else:
+                accum_string = precision_string
         # reuse_factor_stream = 1
         # reuse_factor_stream = 4  # TODO
         reuse_factor_stream = 32  # works so far...TODO
         reuse_factor_engine = 2
-        precision_dict = {'default': precision_string, 'accum': 'ap_fixed<16,5, AP_RND_CONV, AP_SAT_SYM>'}
+        precision_dict = {'default': precision_string,
+                          'accum': accum_string}
         hls_config = {'Model': {
-                # 'Precision': precision_string,
-                'Precision': precision_dict,
-                'ReuseFactor': reuse_factor_engine,
-                'Strategy': 'Resource'}}
+            # 'Precision': precision_string,
+            'Precision': precision_dict,
+            'ReuseFactor': reuse_factor_engine,
+            'Strategy': 'Resource'}}
 
         # TODO: tune hls pragmas...
         if arch_block.block_impl_type == BrickImplTypes.STREAM:

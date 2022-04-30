@@ -17,6 +17,7 @@ from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 is_initiated = False
 config = SimpleNamespace()
+uc = {}
 
 
 def init_singleton(config_dict):
@@ -79,4 +80,11 @@ def add_global_build_dir(abs_path):
     os.system("mkdir -p {}".format(config.global_report_dir))
     os.system("cp {}/../backend/buildTools/templates/dosa_report.py {}/".format(__filedir__, abs_path))
     return 0
+
+
+def add_user_constraints(uc_dict):
+    global uc
+    uc = uc_dict
+    return 0
+
 

@@ -22,6 +22,45 @@ using namespace hls;
 
 
 
+//ap_uint<64> flattenAxisBuffer(
+//    Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> &in_read,
+//    ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>  &combined_input,
+//    ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>  &hangover_bits,
+//    ap_uint<64>                            &hangover_bits_valid_bits
+//    )
+//{
+//#pragma HLS INLINE
+//  ap_uint<64> cur_line_bit_cnt = 0;
+//  // consider hangover
+//  if(hangover_bits_valid_bits > 0)
+//  {
+//    combined_input = hangover_bits;
+//    hangover_bits = 0x0;
+//    cur_line_bit_cnt = hangover_bits_valid_bits;
+//    hangover_bits_valid_bits = 0;
+//  }
+//
+//  for(int i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)
+//  {
+//#pragma HLS unroll
+//    //TODO: should not make a difference, since we count them?
+//    //if((in_read.getTKeep() >> i) == 0)
+//    //{
+//    //  printf("flatten buffer: skipped due to tkeep\n");
+//    //  continue;
+//    //}
+//    //TODO: what if input is not byte aligned?
+//    ap_uint<8> current_byte = (ap_uint<8>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> (i*8));
+//    combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_line_bit_cnt;
+//    //printf("flatten buffer: read 0x%16llx %16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
+//    cur_line_bit_cnt += 8;
+//  }
+//
+//  printf("flatten buffer: read 0x%16llx %16llx, ret bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
+//  return cur_line_bit_cnt;
+//}
+
+
 ap_uint<64> flattenAxisBuffer(
     Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> &in_read,
     ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>  &combined_input,
@@ -30,35 +69,62 @@ ap_uint<64> flattenAxisBuffer(
     )
 {
 #pragma HLS INLINE
-  ap_uint<64> cur_line_bit_cnt = 0;
+  //ap_uint<64> cur_line_bit_cnt = 0;
   // consider hangover
   if(hangover_bits_valid_bits > 0)
   {
     combined_input = hangover_bits;
     hangover_bits = 0x0;
-    cur_line_bit_cnt = hangover_bits_valid_bits;
-    hangover_bits_valid_bits = 0;
+    //printf("flatten: used hangover %d bits: 0x%16llx\n", (uint64_t) hangover_bits_valid_bits, (uint64_t) combined_input);
+    //cur_line_bit_cnt = hangover_bits_valid_bits;
+    //hangover_bits_valid_bits = 0;
   }
 
+  ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_input = 0x0;
   for(int i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)
   {
 #pragma HLS unroll
-    if((in_read.getTKeep() >> i) == 0)
-    {
-      printf("flatten buffer: skipped due to tkeep\n");
-      continue;
-    }
+    //TODO: should not make a difference, since we count them?
+    //if((in_read.getTKeep() >> i) == 0)
+    //{
+    //  printf("flatten buffer: skipped due to tkeep\n");
+    //  continue;
+    //}
     //TODO: what if input is not byte aligned?
     ap_uint<8> current_byte = (ap_uint<8>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> (i*8));
-    combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_line_bit_cnt;
+    //combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_line_bit_cnt;
+    tmp_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << (i*8);
     //printf("flatten buffer: read 0x%16llx %16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
-    cur_line_bit_cnt += 8;
+    //cur_line_bit_cnt += 8;
   }
+  //printf("flatten buffer: tmp input 0x%16llx 0x%2.2X\n", (uint64_t) tmp_input, (uint32_t) in_read.getTKeep());
+  combined_input |= (ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (tmp_input << hangover_bits_valid_bits);
+  ap_uint<64> cur_line_bit_cnt = extractByteCnt(in_read)*8 + hangover_bits_valid_bits;
+  hangover_bits_valid_bits = 0;
+  printf("flatten buffer: read 0x%16llx %16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
 
-  printf("flatten buffer: read 0x%16llx %16llx, ret bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
+  //ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_input = 0x0;
+  //for(int i = 0; i < DOSA_WRAPPER_INPUT_IF_BITWIDTH; i++)
+  //{
+//  #pragma HLS unroll
+  //  if(i > in_read.getTKeep())
+  //  {
+  //    printf("flatten buffer: skipped due to tkeep\n");
+  //    continue;
+  //  }
+  //  //TODO: what if input is not byte aligned?
+  //  ap_uint<1> current_byte = (ap_uint<1>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> i);
+  //  //combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_line_bit_cnt;
+  //  tmp_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << i;
+  //  //printf("flatten buffer: read 0x%16llx %16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
+  //  //cur_line_bit_cnt += 8;
+  //}
+  //combined_input |= tmp_input << hangover_bits_valid_bits;
+  //ap_uint<64> cur_line_bit_cnt = in_read.getTKeep() + hangover_bits_valid_bits;
+
+  //printf("flatten buffer: read 0x%16llx %16llx, ret bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
   return cur_line_bit_cnt;
 }
-
 
 
 void pToAcc(
@@ -181,7 +247,7 @@ void pFromAcc(
     {
       combined_output = hangover_store;
       //uint8_t tkeep_offset_hangover = 0x0;
-      uint32_t cur_line_bit_cnt = 0x0;
+      //uint32_t cur_line_bit_cnt = 0x0;
       //for(int k = 0; k < (DOSA_HLS4ML_OUTPUT_BITWIDTH+7)/8; k++)
       //{
       //  if(hangover_store_valid_bits > k*8)
@@ -192,46 +258,49 @@ void pFromAcc(
       //    break;
       //  }
       //}
-      uint32_t bits_read = 0x0;
+      //uint32_t bits_read = 0x0;
 
       ap_uint<DOSA_HLS4ML_OUTPUT_BITWIDTH> nv = 0x0;
-      if(cur_line_bit_cnt < DOSA_WRAPPER_OUTPUT_IF_BITWIDTH && !siFromHls4mlData.empty())
-      {
-        nv = siFromHls4mlData.read();
-        bits_read += DOSA_HLS4ML_OUTPUT_BITWIDTH;
-      }
+      //if(cur_line_bit_cnt < DOSA_WRAPPER_OUTPUT_IF_BITWIDTH && !siFromHls4mlData.empty())
+      //{
+      nv = siFromHls4mlData.read();
+      //bits_read += DOSA_HLS4ML_OUTPUT_BITWIDTH;
+      //}
       combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HLS4ML_OUTPUT_BITWIDTH>) nv) << (hangover_store_valid_bits);
 
+      current_frame_bit_cnt += DOSA_HLS4ML_OUTPUT_BITWIDTH;
       if( (DOSA_HLS4ML_OUTPUT_BITWIDTH < DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
-          && ((hangover_store_valid_bits + bits_read) < DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
-          && ((current_frame_bit_cnt+DOSA_HLS4ML_OUTPUT_BITWIDTH) < HLS4ML_OUTPUT_FRAME_BIT_CNT)
+          && ((hangover_store_valid_bits + DOSA_HLS4ML_OUTPUT_BITWIDTH) < DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
+          && (current_frame_bit_cnt < HLS4ML_OUTPUT_FRAME_BIT_CNT)
         )
       {//not a full line yet, and not end of frame
         hangover_store = combined_output;
-        hangover_store_valid_bits += bits_read;
-        current_frame_bit_cnt += bits_read;
+        hangover_store_valid_bits += DOSA_HLS4ML_OUTPUT_BITWIDTH;
+        //current_frame_bit_cnt += DOSA_HLS4ML_OUTPUT_BITWIDTH;
       } else {
         //full line
         ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
-        uint32_t total_bit_cnt = hangover_store_valid_bits + bits_read;
+        uint32_t total_bit_cnt = hangover_store_valid_bits + DOSA_HLS4ML_OUTPUT_BITWIDTH;
         //printf("total_bit_cnt: %d\n", total_bit_cnt);
-        for(int k = 0; k < DOSA_WRAPPER_OUTPUT_IF_BITWIDTH/8; k++)
-        {
-          if(k*8 < total_bit_cnt)
-          {
-            tkeep |= ((ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) 0b1) << k;
-          }
-        }
+        //for(int k = 0; k < DOSA_WRAPPER_OUTPUT_IF_BITWIDTH/8; k++)
+        //{
+        //  if(k*8 < total_bit_cnt)
+        //  {
+        //    tkeep |= ((ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) 0b1) << k;
+        //  }
+        //}
         //tkeep = (ap_uint<(DOSA_HLS4ML_OUTPUT_BITWIDTH+7)/8>) byteCntToTKeep((uint8_t) (bits_read + hangover_store_valid_bits));
+        //TODO: make data type dynamic
+        tkeep = byteCntToTKeep((uint8_t) (total_bit_cnt/8));
 
         hangover_store = (ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) (combined_output >> DOSA_WRAPPER_OUTPUT_IF_BITWIDTH);
-        if(bits_read + hangover_store_valid_bits > DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
+        if(total_bit_cnt > DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
         {
           hangover_store_valid_bits -= DOSA_HLS4ML_OUTPUT_BITWIDTH;
         } else {
           hangover_store_valid_bits = 0x0;
         }
-        current_frame_bit_cnt += bits_read - hangover_store_valid_bits;
+        //current_frame_bit_cnt += total_bit_cnt - hangover_store_valid_bits;
         printf("\tpFromAcc: combined %16.16llx, hangover_bits_valid_bits: %d, current_frame_bit_cnt: %d\n", (uint64_t) combined_output, (uint64_t) hangover_store_valid_bits, (uint32_t) current_frame_bit_cnt);
 
         ap_uint<1> tlast = 0;
@@ -280,6 +349,8 @@ void hls4ml_wrapper_test(
 #ifndef __SYNTHESIS__
   assert(HLS4ML_INPUT_FRAME_BIT_CNT % 8 == 0); //currently, only byte-aligned FRAMES are supported
   assert(HLS4ML_OUTPUT_FRAME_BIT_CNT % 8 == 0); //currently, only byte-aligned FRAMES are supported
+  assert(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH % 8 == 0);
+  assert(DOSA_WRAPPER_INPUT_IF_BITWIDTH % 8 == 0);
   //printf("cnn_input_frame_size: %d\n", cnn_input_frame_size);
   //printf("cnn_output_frame_size: %d\n", cnn_output_frame_size);
 #endif

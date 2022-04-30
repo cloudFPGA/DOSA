@@ -19,7 +19,7 @@
 #include <hls_stream.h>
 
 #include "../../lib/axi_utils.hpp"
-//#include "../../lib/interface_utils.hpp"
+#include "../../lib/interface_utils.hpp"
 
 using namespace hls;
 
