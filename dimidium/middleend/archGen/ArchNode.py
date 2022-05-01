@@ -263,6 +263,8 @@ class ArchNode(object):
             self.used_perf_F = total_flops_tmp
             self.max_perf_iter_based = total_flops_tmp * (max_iter/min_iter_hz_impl)
             self.total_pipeline_store = total_tensor_store
+            if self.total_pipeline_store > dosa_singleton.config.backend.maximum_pipeline_store_per_node:
+                self.total_pipeline_store = dosa_singleton.config.backend.maximum_pipeline_store_per_node
         if max_util > dosa_singleton.config.utilization.dosa_xi:
             self.over_utilized_node = True
         else:

@@ -4,6 +4,7 @@
   "build" : {
     "create_rank_0_for_io": true,
     "comm_message_interleaving": 5,
+    "maximum_pipeline_store_per_node": 5,
     "engine_saving_threshold": 1.5,
     "insert_debug_cores": true,
     "generate_testbenchs": 0,
