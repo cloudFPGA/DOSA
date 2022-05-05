@@ -42,10 +42,10 @@ typedef ap_fixed<16,14, AP_RND_CONV, AP_SAT_SYM> quantDtype;
 #define DOSA_TIPS_LONGEST_OUTPUT 3
 #define DOSA_TIPS_PROGRAM_LENGTH 2
 #define DOSA_TIPS_ADDR_SPACE_LENGTH 20
-typedef ap_fixed<32,30, AP_RND_CONV, AP_SAT_SYM> aluAccumDtype;
+typedef ap_fixed<32,26, AP_RND_CONV, AP_SAT_SYM> aluAccumDtype;
 //typedef quantDtype aluAccumDtype;
-//#define DEBUG_ALU_ACCUM_FRACTIONAL_BITS 6
-#define DEBUG_ALU_ACCUM_FRACTIONAL_BITS 2
+#define DEBUG_ALU_ACCUM_FRACTIONAL_BITS 6
+//#define DEBUG_ALU_ACCUM_FRACTIONAL_BITS 2
 #define DOSA_TIPS_ALU_ACCUM_BITWIDTH 32
 //#define DOSA_TIPS_ALU_BACK_CAST_BIT_SHIFT 5
 #endif

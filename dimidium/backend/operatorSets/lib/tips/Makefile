@@ -25,12 +25,17 @@ endif
 
 ${ipName}_prj/solution1/impl/ip: $(DEPS)
 	@rm -rf ${ipName}_prj
+	@date +%s > .tmp_stamp_3
 	export dosaIpName=${ipName}; export hlsSim=0; export hlsCoSim=0; export useTipsTest=1; vivado_hls -f run_hls.tcl
+	@echo "-" > .tmp_stamp_2
+	@date +%s > .tmp_stamp_1
 	@cat ${ipName}_prj/solution1/syn/report/${appName}_csynth.rpt
 	@touch $@
 	touch $(IP_GUARD)
 	@# to be sure...
 	rm -f $(IP_GUARD_FORCE)
+	@/usr/bin/echo -n "HLS build time: "
+	@/bin/bash -c "cat <(cat .tmp_stamp_* | tr '\n' ' ') <(echo '') | /usr/bin/bc -l"
 
 csim:
 	@/bin/echo -e "---------------\n\tThis simulation executes only a small test program!\n\tSo the flag TIPS_TEST is set.\n\t(to use the actual parameters, use 'make csim_orig')\n---------------\n"
@@ -38,8 +43,13 @@ csim:
 
 syn_test:
 	@rm -rf ${ipName}_prj
+	@date +%s > .tmp_stamp_3
 	export dosaIpName=${ipName}; export hlsSim=0; export hlsCoSim=0; export useTipsTest=1; vivado_hls -f run_hls.tcl
+	@echo "-" > .tmp_stamp_2
+	@date +%s > .tmp_stamp_1
 	@cat ${ipName}_prj/solution1/syn/report/${appName}_csynth.rpt
+	@/usr/bin/echo -n "HLS build time: "
+	@/bin/bash -c "cat <(cat .tmp_stamp_* | tr '\n' ' ') <(echo '') | /usr/bin/bc -l"
 
 csim_orig:
 	export hlsSim=1; export hlsCoSim=0; export useTipsTest=0; vivado_hls -f run_hls.tcl

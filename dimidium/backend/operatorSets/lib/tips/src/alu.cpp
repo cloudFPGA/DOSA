@@ -20,7 +20,7 @@
 // *************************************************
 //       TanH Activation
 // *************************************************
-void init_tanh_table(quantDtype table_out[N_TABLE])
+void init_tanh_table(aluAccumDtype table_out[N_TABLE])
 {
 #pragma HLS inline
   // Implement tanh lookup
@@ -28,7 +28,7 @@ void init_tanh_table(quantDtype table_out[N_TABLE])
     // First, convert from table index to X-value (signed 8-bit, range -4 to +4)
     float in_val = 2*4.0*(ii-float(N_TABLE)/2.0)/float(N_TABLE);
     // Next, compute lookup table function
-    quantDtype real_val = (quantDtype) tanh(in_val);
+    aluAccumDtype real_val = (aluAccumDtype) tanh(in_val);
 #ifdef ALU_DEBUG
     std::cout << "Tanh:  Lookup table Index: " <<  ii << " In Value: " << in_val << " Result: " << real_val << std::endl;
 #endif
@@ -37,7 +37,7 @@ void init_tanh_table(quantDtype table_out[N_TABLE])
 }
 
 
-void tanh(quantDtype data[DOSA_TIPS_LONGEST_OUTPUT], quantDtype res[DOSA_TIPS_LONGEST_OUTPUT], quantDtype tanh_table[N_TABLE])
+void tanh(quantDtype data[DOSA_TIPS_LONGEST_OUTPUT], quantDtype res[DOSA_TIPS_LONGEST_OUTPUT], aluAccumDtype tanh_table[N_TABLE])
 {
 #pragma HLS inline
   // Index into the lookup table based on data
@@ -105,6 +105,8 @@ void dense(
   assert(DOSA_TIPS_LONGEST_OUTPUT <= DOSA_TIPS_LONGEST_OP1);
 #endif
 #pragma HLS inline
+#pragma HLS function_instantiate variable=m
+#pragma HLS PIPELINE
   quantDtype cache;
   aluAccumDtype mult[DOSA_TIPS_LONGEST_OP0];
   aluAccumDtype acc[DOSA_TIPS_LONGEST_OUTPUT];
@@ -145,15 +147,19 @@ Product1: for(int ii = 0; ii < DOSA_TIPS_LONGEST_INPUT; ii++) {
 Product2: for(int jj = 0; jj < m; jj++) {
             int index = jj*m+ii;
             //mult[index] = (((aluAccumDtype) cache) * ((aluAccumDtype) weights[index])) / QUANT_SCALE_BACK_VALUE;
-            mult[index] = (((aluAccumDtype) cache) * ((aluAccumDtype) weights[index]));
+            if(index < DOSA_TIPS_LONGEST_OP0)
+            {
+              mult[index] = (((aluAccumDtype) cache) * ((aluAccumDtype) weights[index]));
+            }
           }
           }
 #ifdef ALU_DEBUG
   printf("mult intermediate:\n\t");
   for(int i = 0; i < DOSA_TIPS_LONGEST_OP0; i++)
   {
+    printf(" %d", (uint16_t) (mult[i] >> DEBUG_FRACTIONAL_BITS));
     //printf(" %d", (uint16_t) (mult[i] >> DEBUG_ALU_ACCUM_FRACTIONAL_BITS));
-    printf(" %d", (uint16_t) (mult[i] >> 2*DEBUG_ALU_ACCUM_FRACTIONAL_BITS));
+    //printf(" %d", (uint16_t) (mult[i] >> 2*DEBUG_ALU_ACCUM_FRACTIONAL_BITS));
     if(i > 0 && i%m == (m-1))
     {
       printf("\n\t");
@@ -172,7 +178,8 @@ ResetAccum: for(int iacc = 0; iacc < DOSA_TIPS_LONGEST_OUTPUT; iacc++) {
   printf("accum intermediate:\n\t");
   for(int i = 0; i < DOSA_TIPS_LONGEST_OUTPUT; i++)
   {
-    printf(" %d", (uint16_t) (acc[i] >> DEBUG_ALU_ACCUM_FRACTIONAL_BITS));
+    //printf(" %d", (uint16_t) (acc[i] >> DEBUG_ALU_ACCUM_FRACTIONAL_BITS));
+    printf(" %d", (uint16_t) (acc[i] >> DEBUG_FRACTIONAL_BITS));
   }
   printf("\n");
 #endif

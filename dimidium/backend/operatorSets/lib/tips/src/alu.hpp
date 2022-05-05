@@ -23,8 +23,8 @@
 
 #define N_TABLE 1024
 
-void init_tanh_table(quantDtype table_out[N_TABLE]);
-void tanh(quantDtype data[DOSA_TIPS_LONGEST_OUTPUT], quantDtype res[DOSA_TIPS_LONGEST_OUTPUT], quantDtype tanh_table[N_TABLE]);
+void init_tanh_table(aluAccumDtype table_out[N_TABLE]);
+void tanh(quantDtype data[DOSA_TIPS_LONGEST_OUTPUT], quantDtype res[DOSA_TIPS_LONGEST_OUTPUT], aluAccumDtype tanh_table[N_TABLE]);
 
 void relu(quantDtype data[DOSA_TIPS_LONGEST_OUTPUT], quantDtype res[DOSA_TIPS_LONGEST_OUTPUT]);
 

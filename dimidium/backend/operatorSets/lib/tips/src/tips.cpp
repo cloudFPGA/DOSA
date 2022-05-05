@@ -387,13 +387,14 @@ void pALU(
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
 #pragma HLS INLINE off
-#pragma HLS pipeline
+//#pragma HLS pipeline II=512
+#pragma HLS DATAFLOW
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   static aluFSM aluState = INIT;
 #pragma HLS reset variable=aluState
   //-- STATIC VARIABLES -----------------------------------------------------
   static ap_uint<TIPS_ACCUM_LENGTH*DOSA_TIPS_USED_BITWIDTH> accum;
-  static quantDtype tanh_table[N_TABLE];
+  static aluAccumDtype tanh_table[N_TABLE];
 //  static usedDtype accum_scratchpad[TIPS_ACCUM_LENGTH];
 //#pragma HLS ARRAY_PARTITION variable=accum_scratchpad complete
   //-- LOCAL VARIABLES ------------------------------------------------------
@@ -446,7 +447,7 @@ void pALU(
           input_scratchpad[i] = 0x0;
         }
         input_scratchpad[i] = (quantDtype) ((usedDtype) (cur_input >> (i*DOSA_TIPS_USED_BITWIDTH)));
-        printf("input_scratchpad[%d]: %d\n", i, (uint16_t) (input_scratchpad[i] >> DEBUG_FRACTIONAL_BITS));
+        //printf("input_scratchpad[%d]: %d\n", i, (uint16_t) (input_scratchpad[i] >> DEBUG_FRACTIONAL_BITS));
       }
       for(int i = 0; i < DOSA_TIPS_LONGEST_OUTPUT; i++)
       {
@@ -492,7 +493,8 @@ void pALU(
           assert(cur_instr.op_param == cur_instr.in_length);
 #endif
           //void dense(usedDtype data[DOSA_TIPS_LONGEST_INPUT], usedDtype res[DOSA_TIPS_LONGEST_OUTPUT], usedDtype weights[DOSA_TIPS_LONGEST_OP0], usedDtype biases[DOSA_TIPS_LONGEST_OP1], int m);
-          dense(input_scratchpad, output_scratchpad, op0_scratchpad, op1_scratchpad, (int) cur_instr.op_param);
+          //dense(input_scratchpad, output_scratchpad, op0_scratchpad, op1_scratchpad, (int) cur_instr.op_param);
+          dense(input_scratchpad, output_scratchpad, op0_scratchpad, op1_scratchpad, 4);
           break;
 
         case RELU:
