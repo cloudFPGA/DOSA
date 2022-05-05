@@ -15,7 +15,7 @@
 #include "ap_int.h"
 #include "ap_utils.h"
 #include <hls_stream.h>
-#include <hls_math.h>
+//#include <hls_math.h>
 #include <cassert>
 
 #include "tips.hpp"
@@ -73,7 +73,16 @@ void pLoadNetwork(
           sNetworkInput.write(0x0);
           //stay here
         } else {
-          mask = exp2(req_input_length*8)-1;
+          //mask = ((ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH>) exp2(req_input_length*8))-1;
+          mask = 0x0;
+          for(uint32_t i = 0; i < DOSA_TIPS_LONGEST_INPUT; i++)
+          {
+            if(i < req_input_length)
+            {
+              mask |= ((ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH>) DOSA_TIPS_USED_BITWIDTH_PARTIAL_MASK) << i*DOSA_TIPS_USED_BITWIDTH;
+            }
+          }
+          printf("[pLoadNetwork] using mask %llX\n", (uint64_t) mask);
 
           if(hangover_valid_bytes >= req_input_length)
           {
@@ -96,6 +105,7 @@ void pLoadNetwork(
     case READ_NETWORK:
       if( !siData.empty() && !sNetworkInput.full() )
       {
+        //printf("cur_length: %d\n", cur_length);
         Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> in_word = siData.read();
         TipsLength byte_read = extractByteCnt(in_word);
         cur_input |= ((ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH>) in_word.getTData()) << cur_length*8;
@@ -212,14 +222,16 @@ void pTipsControl(
   //-- STATIC VARIABLES -----------------------------------------------------
 #ifdef TIPS_TEST
   const TipsOp program[] = {
-    [0] = { .opcode = DENSE_BIAS, .in_addr = NETWORK_ALIAS_ADDRESS, .in_length = 9,
-            .op0_addr = 0, .op0_length = 12, .op1_addr = 12, .op1_length = 12,
-            .out_addr = NETWORK_ALIAS_ADDRESS, .out_length = 12
+    [0] = { .opcode = DENSE_BIAS, .op_param = 4,
+            .in_addr = NETWORK_ALIAS_ADDRESS, .in_length = 4,
+            .op0_addr = 0, .op0_length = 12, .op1_addr = 12, .op1_length = 3,
+            .out_addr = NETWORK_ALIAS_ADDRESS, .out_length = 3
           },
-    [1] = { .opcode = TANH, .in_addr = NETWORK_ALIAS_ADDRESS, .in_length = 12,
+    [1] = { .opcode = TANH, .op_param = 0,
+            .in_addr = NETWORK_ALIAS_ADDRESS, .in_length = 3,
             .op0_addr = NO_ADDRESS_ALIAS, .op0_length = 0,
             .op1_addr = NO_ADDRESS_ALIAS, .op1_length = 0,
-            .out_addr = NETWORK_ALIAS_ADDRESS, .out_length = 12
+            .out_addr = NETWORK_ALIAS_ADDRESS, .out_length = 3
           }
   };
 #else
@@ -236,6 +248,7 @@ void pTipsControl(
 #ifndef __SYNTHESIS__
     if(next_command_pointer < DOSA_TIPS_PROGRAM_LENGTH)
     {
+      printf("[pTipsControl] processing operation at postion %d: opcode %d, op_param %d, in_addr %d, in_length %d, op0_addr %d, op0_length %d, op1_addr %d, op1_length %d, out_addr %d, out_length %d;\n", next_command_pointer, cur_op.opcode, cur_op.op_param, cur_op.in_addr, cur_op.in_length, cur_op.op0_addr, cur_op.op0_length, cur_op.op1_addr, cur_op.op1_length, cur_op.out_addr, cur_op.out_length);
 #endif
     if(cur_op.opcode != TIPS_NOP)
     {
@@ -248,11 +261,12 @@ void pTipsControl(
         sNetworkLoadCmd.write(ni);
       }
       TipsLoadInstr new_op_load = { .addr_0 = cur_op.op0_addr, .length_0 = cur_op.op0_length,
-        .addr_1 = cur_op.op1_addr, .length_1 = cur_op.op1_length
-      };
+        .addr_1 = cur_op.op1_addr, .length_1 = cur_op.op1_length};
+      printf("new_op_load: %d, %d, %d, %d\n", new_op_load.addr_0, new_op_load.length_0, new_op_load.addr_1, new_op_load.length_1);
       sOpLoadCmd.write(new_op_load);
 
-      TipsAluInstr new_alu_cmd = { .operation = cur_op.opcode, .in_addr = cur_op.in_addr,
+      TipsAluInstr new_alu_cmd = { .operation = cur_op.opcode, .op_param = cur_op.op_param,
+        .in_addr = cur_op.in_addr,
         .in_length = cur_op.in_length, .op0_length = cur_op.op0_length,
         .op1_length = cur_op.op1_length, .out_addr = cur_op.out_addr,
         .out_length = cur_op.out_length
@@ -291,9 +305,11 @@ void pLoadOpDual(
   //-- STATIC VARIABLES -----------------------------------------------------
 #ifdef TIPS_TEST
   const usedDtype opStore[DOSA_TIPS_ADDR_SPACE_LENGTH] = {
-    10,11,12,13,21,22,23,24,31,32,33,34, //op0
-    1,1,1,1,1,1,1,1,1,1,1,1, //op1
-    0,0,0,0,0,0 //fill-to-end
+    //uin16_t 10,11,12,13,21,22,23,24,31,32,33,34, //op0
+    //fixed ['0x28', '0x2c', '0x30', '0x34', '0x54', '0x58', '0x5c', '0x60', '0x7c', '0x80', '0x84', '0x88']
+    0x28, 0x2c, 0x30, 0x34, 0x54, 0x58, 0x5c, 0x60, 0x7c, 0x80, 0x84, 0x88,
+    4,4,4, //op1
+    0,0,0,0,0 //fill-to-end
   };
 #else
   //DOSA_ADD_op_store
@@ -312,6 +328,7 @@ void pLoadOpDual(
     )
   {
     TipsLoadInstr cur_instr = sOpLoadCmd.read();
+    //printf("cur_instr: %d, %d, %d, %d\n", cur_instr.addr_0, cur_instr.length_0, cur_instr.addr_1, cur_instr.length_1);
     TipsAluInstr alu_instr_fw = sAluInstr_in.read();
     ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH> new_op0 = 0x0;
     //if(cur_instr.addr_0 < TIPS_MAX_ADDRESS)
@@ -338,7 +355,7 @@ void pLoadOpDual(
         {
           continue;
         }
-        new_op0 |= ((ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH>) opStore[cur_instr.addr_0 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
+        new_op1 |= ((ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH>) opStore[cur_instr.addr_1 + i]) << (i*DOSA_TIPS_USED_BITWIDTH);
         //0 at end?
         //new_op1 |= ((ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH>) opStore[cur_instr.addr_1 + i]) << (DOSA_TIPS_LONGEST_OP1 - 1 - (i*DOSA_TIPS_USED_BITWIDTH));
       }
@@ -347,8 +364,8 @@ void pLoadOpDual(
     sAluInstr_out.write(alu_instr_fw);
     sOp0.write(new_op0);
     sOp1.write(new_op1);
-    printf("[pLoadOpDual] forwarding Op0 (last 64 bits): %16.16llX\n", (uint64_t) new_op0);
-    printf("[pLoadOpDual] forwarding Op1 (last 64 bits): %16.16llX\n", (uint64_t) new_op1);
+    printf("[pLoadOpDual] forwarding Op0 from position %d (last 64 bits): %16.16llX\n", (uint32_t) cur_instr.addr_0, (uint64_t) new_op0);
+    printf("[pLoadOpDual] forwarding Op1 from position %d (last 64 bits): %16.16llX\n", (uint32_t) cur_instr.addr_1, (uint64_t) new_op1);
     last_instr = cur_instr;
   }
 
@@ -375,8 +392,8 @@ void pALU(
   static aluFSM aluState = INIT;
 #pragma HLS reset variable=aluState
   //-- STATIC VARIABLES -----------------------------------------------------
-  static ap_uint<TIPS_ACCUM_LENGTH> accum;
-  static usedDtype tanh_table[N_TABLE];
+  static ap_uint<TIPS_ACCUM_LENGTH*DOSA_TIPS_USED_BITWIDTH> accum;
+  static quantDtype tanh_table[N_TABLE];
 //  static usedDtype accum_scratchpad[TIPS_ACCUM_LENGTH];
 //#pragma HLS ARRAY_PARTITION variable=accum_scratchpad complete
   //-- LOCAL VARIABLES ------------------------------------------------------
@@ -387,13 +404,13 @@ void pALU(
   ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH> cur_op1;
   ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> cur_input;
   ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH> cur_output;
-  usedDtype input_scratchpad[DOSA_TIPS_LONGEST_INPUT];
+  quantDtype input_scratchpad[DOSA_TIPS_LONGEST_INPUT];
 #pragma HLS ARRAY_PARTITION variable=input_scratchpad complete
-  usedDtype op0_scratchpad[DOSA_TIPS_LONGEST_OP0];
+  quantDtype op0_scratchpad[DOSA_TIPS_LONGEST_OP0];
 #pragma HLS ARRAY_PARTITION variable=op0_scratchpad complete
-  usedDtype op1_scratchpad[DOSA_TIPS_LONGEST_OP1];
+  quantDtype op1_scratchpad[DOSA_TIPS_LONGEST_OP1];
 #pragma HLS ARRAY_PARTITION variable=op1_scratchpad complete
-  usedDtype output_scratchpad[DOSA_TIPS_LONGEST_OUTPUT];
+  quantDtype output_scratchpad[DOSA_TIPS_LONGEST_OUTPUT];
 #pragma HLS ARRAY_PARTITION variable=output_scratchpad complete
 
 //TODO: customize ALU for each Brick/Block?
@@ -428,7 +445,8 @@ void pALU(
         {
           input_scratchpad[i] = 0x0;
         }
-        input_scratchpad[i] = (usedDtype) (cur_input >> (i*DOSA_TIPS_USED_BITWIDTH));
+        input_scratchpad[i] = (quantDtype) ((usedDtype) (cur_input >> (i*DOSA_TIPS_USED_BITWIDTH)));
+        printf("input_scratchpad[%d]: %d\n", i, (uint16_t) (input_scratchpad[i] >> DEBUG_FRACTIONAL_BITS));
       }
       for(int i = 0; i < DOSA_TIPS_LONGEST_OUTPUT; i++)
       {
@@ -443,7 +461,7 @@ void pALU(
         {
           op0_scratchpad[i] = 0x0;
         }
-        op0_scratchpad[i] = (usedDtype) (cur_op0 >> (i*DOSA_TIPS_USED_BITWIDTH));
+        op0_scratchpad[i] = (quantDtype) ((usedDtype) (cur_op0 >> (i*DOSA_TIPS_USED_BITWIDTH)));
       }
       for(int i = 0; i < DOSA_TIPS_LONGEST_OP1; i++)
       {
@@ -452,11 +470,11 @@ void pALU(
         {
           op1_scratchpad[i] = 0x0;
         }
-        op1_scratchpad[i] = (usedDtype) (cur_op1 >> (i*DOSA_TIPS_USED_BITWIDTH));
+        op1_scratchpad[i] = (quantDtype) ((usedDtype) (cur_op1 >> (i*DOSA_TIPS_USED_BITWIDTH)));
       }
 
       //process AluOp
-      printf("[pALU] Executing %d AluOp.\n", (uint8_t) cur_instr.operation);
+      printf("[pALU] Executing %d AluOp with param %d.\n", (uint8_t) cur_instr.operation, cur_instr.op_param);
       switch(cur_instr.operation)
       {
         default:
@@ -470,8 +488,11 @@ void pALU(
         case DENSE:
           //is the same, since bias is then already at 0
         case DENSE_BIAS:
-          //void dense(usedDtype data[DOSA_TIPS_LONGEST_INPUT], usedDtype res[DOSA_TIPS_LONGEST_OUTPUT], usedDtype weights[DOSA_TIPS_LONGEST_OP0], usedDtype biases[DOSA_TIPS_LONGEST_OP1]);
-          dense(input_scratchpad, output_scratchpad, op0_scratchpad, op1_scratchpad);
+#ifndef __SYNTHESIS__
+          assert(cur_instr.op_param == cur_instr.in_length);
+#endif
+          //void dense(usedDtype data[DOSA_TIPS_LONGEST_INPUT], usedDtype res[DOSA_TIPS_LONGEST_OUTPUT], usedDtype weights[DOSA_TIPS_LONGEST_OP0], usedDtype biases[DOSA_TIPS_LONGEST_OP1], int m);
+          dense(input_scratchpad, output_scratchpad, op0_scratchpad, op1_scratchpad, (int) cur_instr.op_param);
           break;
 
         case RELU:
@@ -494,7 +515,7 @@ void pALU(
         {
           continue;
         }
-        cur_output |= ((ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH>) output_scratchpad[i]) << (i*DOSA_TIPS_LONGEST_OUTPUT);
+        cur_output |= ((ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH>) ((usedDtype) output_scratchpad[i])) << (i*DOSA_TIPS_USED_BITWIDTH);
       }
       if(cur_instr.out_addr == NETWORK_ALIAS_ADDRESS)
       {

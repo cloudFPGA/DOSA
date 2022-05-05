@@ -17,15 +17,18 @@
 #include "ap_fixed.h"
 #include "tips.hpp"
 
+#ifndef __SYNTHESIS__
+#define ALU_DEBUG
+#endif
 
 #define N_TABLE 1024
 
-void init_tanh_table(usedDtype table_out[N_TABLE]);
-void tanh(usedDtype data[DOSA_TIPS_LONGEST_OUTPUT], usedDtype res[DOSA_TIPS_LONGEST_OUTPUT], usedDtype tanh_table[N_TABLE]);
+void init_tanh_table(quantDtype table_out[N_TABLE]);
+void tanh(quantDtype data[DOSA_TIPS_LONGEST_OUTPUT], quantDtype res[DOSA_TIPS_LONGEST_OUTPUT], quantDtype tanh_table[N_TABLE]);
 
-void relu(usedDtype data[DOSA_TIPS_LONGEST_OUTPUT], usedDtype res[DOSA_TIPS_LONGEST_OUTPUT]);
+void relu(quantDtype data[DOSA_TIPS_LONGEST_OUTPUT], quantDtype res[DOSA_TIPS_LONGEST_OUTPUT]);
 
-void dense(usedDtype data[DOSA_TIPS_LONGEST_INPUT], usedDtype res[DOSA_TIPS_LONGEST_OUTPUT], usedDtype weights[DOSA_TIPS_LONGEST_OP0], usedDtype biases[DOSA_TIPS_LONGEST_OP1]);
+void dense(quantDtype data[DOSA_TIPS_LONGEST_INPUT], quantDtype res[DOSA_TIPS_LONGEST_OUTPUT], quantDtype weights[DOSA_TIPS_LONGEST_OP0], quantDtype biases[DOSA_TIPS_LONGEST_OP1], int m);
 
 
 #endif

@@ -30,15 +30,22 @@ using namespace hls;
 #ifdef TIPS_TEST
 #define DOSA_WRAPPER_INPUT_IF_BITWIDTH 64
 #define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH 64
-typedef int16_t usedDtype;
+typedef uint16_t usedDtype;
+typedef ap_fixed<16,14, AP_RND_CONV, AP_SAT_SYM> quantDtype;
+#define DEBUG_FRACTIONAL_BITS 2
+#define QUANT_SCALE_BACK_VALUE 4  //2^2
 #define DOSA_TIPS_USED_BITWIDTH 16
-#define DOSA_TIPS_LONGEST_INPUT 9  // 3x3
+#define DOSA_TIPS_USED_BITWIDTH_PARTIAL_MASK 0xFFFF
+#define DOSA_TIPS_LONGEST_INPUT 4
 #define DOSA_TIPS_LONGEST_OP0 12   // 3x4
-#define DOSA_TIPS_LONGEST_OP1 12
-#define DOSA_TIPS_LONGEST_OUTPUT 12
+#define DOSA_TIPS_LONGEST_OP1 3
+#define DOSA_TIPS_LONGEST_OUTPUT 3
 #define DOSA_TIPS_PROGRAM_LENGTH 2
-#define DOSA_TIPS_ADDR_SPACE_LENGTH 30
-typedef int32_t aluAccumDtype;
+#define DOSA_TIPS_ADDR_SPACE_LENGTH 20
+typedef ap_fixed<32,30, AP_RND_CONV, AP_SAT_SYM> aluAccumDtype;
+//typedef quantDtype aluAccumDtype;
+//#define DEBUG_ALU_ACCUM_FRACTIONAL_BITS 6
+#define DEBUG_ALU_ACCUM_FRACTIONAL_BITS 2
 #define DOSA_TIPS_ALU_ACCUM_BITWIDTH 32
 //#define DOSA_TIPS_ALU_BACK_CAST_BIT_SHIFT 5
 #endif
@@ -90,6 +97,7 @@ typedef uint16_t TipsLength;
 
 struct TipsOp {
   TipsOpcode opcode;
+  uint32_t op_param;
   TipsAddr in_addr;
   TipsLength in_length;
   TipsAddr op0_addr;
@@ -115,6 +123,7 @@ struct TipsLoadInstr {
 struct TipsAluInstr {
   //TipsExecId id;
   TipsOpcode operation;
+  uint32_t op_param;
   TipsAddr in_addr;
   TipsLength in_length;
   TipsLength op0_length;
