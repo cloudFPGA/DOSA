@@ -32,11 +32,12 @@ void processLargeInput(
   for(int i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)
   {
 #pragma HLS unroll
-    if((in_read.getTKeep() >> i) == 0)
-    {
-      printf("skipped due to tkeep\n");
-      continue;
-    }
+    //TODO: should not make a difference, since we count them?
+    //if((in_read.getTKeep() >> i) == 0)
+    //{
+    //  printf("skipped due to tkeep\n");
+    //  continue;
+    //}
     ap_uint<8> current_byte = (ap_uint<8>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> (i*8));
     //TODO: what if input is not byte aligned?
     combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_read_offset;
@@ -57,107 +58,208 @@ void flattenAxisInput(
     )
 {
 #pragma HLS INLINE
+  ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_input = 0x0;
   for(int i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)
   {
 #pragma HLS unroll
-    if((in_read.getTKeep() >> i) == 0)
-    {
-      printf("flatten: skipped due to tkeep\n");
-      continue;
-    }
+    //TODO: should not make a difference, since we count them?
+    //if((in_read.getTKeep() >> i) == 0)
+    //{
+    //  printf("flatten: skipped due to tkeep\n");
+    //  continue;
+    //}
     //TODO: what if input is not byte aligned?
     ap_uint<8> current_byte = (ap_uint<8>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> (i*8));
     //printf("flatten: cur_byte %x\n", (uint32_t) current_byte);
     //ap_uint<128> tmp_delme = ((ap_uint<128>) current_byte) << cur_line_bit_cnt;
     //printf("flatten: delm 0x%16llx %16llx, bitwidth %d\n", (uint64_t) (tmp_delme >> 64), (uint64_t) tmp_delme, 2*DOSA_WRAPPER_INPUT_IF_BITWIDTH);
-    combined_input |= (ap_uint<(2*DOSA_WRAPPER_INPUT_IF_BITWIDTH)>) (((ap_uint<(2*DOSA_WRAPPER_INPUT_IF_BITWIDTH)>) current_byte) << cur_line_bit_cnt);
+    //combined_input |= (ap_uint<(2*DOSA_WRAPPER_INPUT_IF_BITWIDTH)>) (((ap_uint<(2*DOSA_WRAPPER_INPUT_IF_BITWIDTH)>) current_byte) << cur_line_bit_cnt);
+    tmp_input |= (ap_uint<(2*DOSA_WRAPPER_INPUT_IF_BITWIDTH)>) (((ap_uint<(2*DOSA_WRAPPER_INPUT_IF_BITWIDTH)>) current_byte) << (i*8));
     //printf("flatten: read 0x%16llx %16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
-    cur_line_bit_cnt += 8;
+    //cur_line_bit_cnt += 8;
   }
+  combined_input |= tmp_input << cur_line_bit_cnt;
+  cur_line_bit_cnt += extractByteCnt(in_read)*8;
 }
 
 
-ap_uint<WRAPPER_INPUT_IF_BYTES> createTReady(ap_uint<64> valid_bit_cnt)
+ap_uint<WRAPPER_INPUT_IF_BYTES> createTKeep(ap_uint<64> valid_bit_cnt)
 {
 #pragma HLS INLINE
-  ap_uint<WRAPPER_INPUT_IF_BYTES> tready = 0x0;
+  ap_uint<WRAPPER_INPUT_IF_BYTES> tkeep = 0x0;
   for(int i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)
   {
 #pragma HLS unroll
     if(i < valid_bit_cnt)
     {
-      tready |= ((ap_uint<WRAPPER_INPUT_IF_BYTES>) 0x1) << i;
+      tkeep |= ((ap_uint<WRAPPER_INPUT_IF_BYTES>) 0x1) << i;
     }
     //TODO: not byte aligned?
   }
-  return tready;
+  return tkeep;
 }
+
+const uint8_t byte2keep[9] = {
+  [0] = 0b00000000,
+  [1] = 0b00000001,
+  [2] = 0b00000011,
+  [3] = 0b00000111,
+  [4] = 0b00001111,
+  [5] = 0b00011111,
+  [6] = 0b00111111,
+  [7] = 0b01111111,
+  [8] = 0b11111111};
+//
+//bool genericEnqState(
+//  stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
+//  stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >    &cur_buffer,
+//  ap_uint<64> &current_frame_bit_cnt,
+//  ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> &hangover_store,
+//  ap_uint<64> &hangover_store_valid_bits
+//    )
+//{
+//#pragma HLS INLINE
+//  ap_uint<(2*DOSA_WRAPPER_INPUT_IF_BITWIDTH)> combined_input = 0x0;
+//  ap_uint<64> cur_line_bit_cnt = 0;
+//
+//  bool go_to_next_state = false;
+//
+//  // consider hangover
+//  if(hangover_store_valid_bits > 0)
+//  {
+//    //printf("considered hangover\n");
+//    combined_input = hangover_store;
+//    hangover_store = 0x0;
+//    cur_line_bit_cnt = hangover_store_valid_bits;
+//    hangover_store_valid_bits = 0;
+//  }
+//
+//  if(cur_line_bit_cnt < DOSA_WRAPPER_INPUT_IF_BITWIDTH)
+//  {
+//    //read axis, determine byte count, fill in buffer
+//    Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();
+//    flattenAxisInput(tmp_read_0, combined_input, cur_line_bit_cnt);
+//    //TODO: what about siData.tlast? --> ignore, we know what we need
+//    //ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_input = tmp_read_0.getTData();
+//    //combined_input |= tmp_input << cur_line_bit_cnt;
+//    //cur_line_bit_cnt += extractByteCnt(tmp_read_0)*8;
+//  }
+//  //printf("enq: read 0x%16.16llx %16.16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
+//
+//  ap_uint<8> to_axis_cnt = cur_line_bit_cnt;
+//  if( to_axis_cnt > DOSA_WRAPPER_INPUT_IF_BITWIDTH )
+//  {
+//    //printf("hangover necessary\n");
+//    to_axis_cnt = DOSA_WRAPPER_INPUT_IF_BITWIDTH;
+//    //write to hangover
+//    hangover_store_valid_bits = cur_line_bit_cnt - DOSA_WRAPPER_INPUT_IF_BITWIDTH;
+//    hangover_store = (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (combined_input >> DOSA_WRAPPER_INPUT_IF_BITWIDTH);
+//  } else {
+//    hangover_store_valid_bits = 0x0;
+//  }
+//  ap_uint<1> to_axis_tlast = 0;
+//  current_frame_bit_cnt += to_axis_cnt;
+//  if( current_frame_bit_cnt >= HADDOC_INPUT_FRAME_BIT_CNT )
+//  {
+//    hangover_store <<= hangover_store_valid_bits;
+//    hangover_store_valid_bits += current_frame_bit_cnt - HADDOC_INPUT_FRAME_BIT_CNT;
+//    to_axis_cnt = HADDOC_INPUT_FRAME_BIT_CNT - (current_frame_bit_cnt - to_axis_cnt);
+//    hangover_store |= (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (combined_input >> to_axis_cnt);
+//    to_axis_tlast = 1;
+//    //printf("enque: go to next state, cur_frame_cnt: %d, hangover_valid_bits: %d\n", (uint32_t) current_frame_bit_cnt, (uint32_t) hangover_store_valid_bits);
+//    //enqueueFSM = FILL_BUF_1;
+//    current_frame_bit_cnt = 0;
+//    go_to_next_state = true;
+//  } else {
+//    //enqueueFSM = FILL_BUF_0;
+//    go_to_next_state = false;
+//  }
+//  //printf("enq: sorted %16.16llx, to_axis_cnt: %d\n", (uint64_t) combined_input, (uint32_t) to_axis_cnt);
+//  //Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_0 =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) combined_input, createTKeep(to_axis_cnt), to_axis_tlast);
+//  //ap_uint<8> tkeep = byte2keep[(uint8_t) ((to_axis_cnt+7)/8)];
+//  //ap_uint<8> tkeep = byte2keep[(uint8_t) (to_axis_cnt/8)];
+//  //ap_uint<8> tkeep = to_axis_cnt; //FIXME
+//  ap_uint<8> tkeep = createTKeep(to_axis_cnt);
+//  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_0 =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) combined_input, tkeep, to_axis_tlast);
+//  cur_buffer.write(tmp_write_0);
+//
+//  return go_to_next_state;
+//}
 
 bool genericEnqState(
   stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
   stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >    &cur_buffer,
-  ap_uint<64> &current_frame_bit_cnt,
+  ap_uint<64> &current_frame_byte_cnt,
   ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> &hangover_store,
-  ap_uint<64> &hangover_store_valid_bits
+  ap_uint<64> &hangover_store_valid_bytes
+  //uint32_t &cur_frame_line_cnt
     )
 {
 #pragma HLS INLINE
-  ap_uint<(2*DOSA_WRAPPER_INPUT_IF_BITWIDTH)> combined_input = 0x0;
-  ap_uint<64> cur_line_bit_cnt = 0;
+  //ap_uint<(2*DOSA_WRAPPER_INPUT_IF_BITWIDTH)> combined_input = 0x0;
+  ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> cur_input = 0x0;
+  uint8_t cur_line_byte_cnt = 0; //TODO: make dynamic
 
   bool go_to_next_state = false;
+   //Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_0;
+    ap_uint<8> tkeep = 0;
 
   // consider hangover
-  if(hangover_store_valid_bits > 0)
+  if(hangover_store_valid_bytes > 0)
   {
     //printf("considered hangover\n");
-    combined_input = hangover_store;
+    cur_input = hangover_store;
     hangover_store = 0x0;
-    cur_line_bit_cnt = hangover_store_valid_bits;
-    hangover_store_valid_bits = 0;
-  }
-
-  if(cur_line_bit_cnt < DOSA_WRAPPER_INPUT_IF_BITWIDTH)
-  {
-    //read axis, determine byte count, fill in buffer
-    Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();
-    flattenAxisInput(tmp_read_0, combined_input, cur_line_bit_cnt);
-    //TODO: what about siData.tlast?
-  }
-  //printf("enq: read 0x%16.16llx %16.16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
-
-  ap_uint<64> to_axis_cnt = cur_line_bit_cnt;
-  if( to_axis_cnt > DOSA_WRAPPER_INPUT_IF_BITWIDTH )
-  {
-    //printf("hangover necessary\n");
-    to_axis_cnt = DOSA_WRAPPER_INPUT_IF_BITWIDTH;
-    //write to hangover
-    hangover_store_valid_bits = cur_line_bit_cnt - DOSA_WRAPPER_INPUT_IF_BITWIDTH;
-    hangover_store = (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (combined_input >> DOSA_WRAPPER_INPUT_IF_BITWIDTH);
+    cur_line_byte_cnt = (uint8_t) hangover_store_valid_bytes;
+    hangover_store_valid_bytes = 0;
+    //ap_uint<8> tkeep = byte2keep[(uint8_t) ((cur_line_bit_cnt+7)/8)];
+    //ap_uint<8> tkeep = byte2keep[(uint8_t) cur_line_bit_cnt/8];
+    //tkeep = 0xFF >> (cur_line_bit_cnt/8);
+    tkeep = 0xFF >> cur_line_byte_cnt;
+    //current_frame_bit_cnt += cur_line_bit_cnt;
+    //tmp_write_0 =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, tkeep, 0b0);
+  //cur_buffer.write(tmp_write_0);
+  //hangover only in the beginning?
   } else {
-    hangover_store_valid_bits = 0x0;
+    Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();
+    //flattenAxisInput(tmp_read_0, combined_input, cur_line_bit_cnt);
+    //TODO: what about siData.tlast? --> ignore, we know what we need
+    cur_input = tmp_read_0.getTData();
+    //combined_input |= tmp_input << cur_line_bit_cnt;
+    //cur_line_bit_cnt = extractByteCnt(tmp_read_0)*8;
+
+    tkeep = tmp_read_0.getTKeep();
+    //cur_line_bit_cnt = byte2keep[tkeep]*8;
+    cur_line_byte_cnt = extractByteCnt(tmp_read_0);
   }
+
+  //ap_uint<8> to_axis_cnt = cur_line_bit_cnt;
   ap_uint<1> to_axis_tlast = 0;
-  current_frame_bit_cnt += to_axis_cnt;
-  if( current_frame_bit_cnt >= HADDOC_INPUT_FRAME_BIT_CNT )
+  //current_frame_bit_cnt += to_axis_cnt;
+  //current_frame_bit_cnt += cur_line_bit_cnt;
+  current_frame_byte_cnt += cur_line_byte_cnt;
+  if( current_frame_byte_cnt >= HADDOC_INPUT_FRAME_BIT_CNT/8 )
   {
-    hangover_store <<= hangover_store_valid_bits;
-    hangover_store_valid_bits += current_frame_bit_cnt - HADDOC_INPUT_FRAME_BIT_CNT;
-    to_axis_cnt = HADDOC_INPUT_FRAME_BIT_CNT - (current_frame_bit_cnt - to_axis_cnt);
-    hangover_store |= (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (combined_input >> to_axis_cnt);
+    //hangover_store <<= hangover_store_valid_bits;
+    hangover_store_valid_bytes = current_frame_byte_cnt - (HADDOC_INPUT_FRAME_BIT_CNT/8);
+    //tkeep >>= (hangover_store_valid_bits/8);
+    tkeep >>= hangover_store_valid_bytes;
+    //to_axis_cnt = HADDOC_INPUT_FRAME_BIT_CNT - (current_frame_bit_cnt - to_axis_cnt);
+    hangover_store = (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (cur_input >> (cur_line_byte_cnt-hangover_store_valid_bytes)*8);
     to_axis_tlast = 1;
-    //printf("enque: go to next state, cur_frame_cnt: %d, hangover_valid_bits: %d\n", (uint32_t) current_frame_bit_cnt, (uint32_t) hangover_store_valid_bits);
-    //enqueueFSM = FILL_BUF_1;
-    current_frame_bit_cnt = 0;
+    current_frame_byte_cnt = 0;
+    printf("enque: go to next state, cur_frame_cnt: %d, hangover_valid_bytes: %d\n", (uint32_t) current_frame_byte_cnt, (uint32_t) hangover_store_valid_bytes);
     go_to_next_state = true;
   } else {
-    //enqueueFSM = FILL_BUF_0;
     go_to_next_state = false;
   }
-  //printf("enq: sorted %16.16llx, to_axis_cnt: %d\n", (uint64_t) combined_input, (uint32_t) to_axis_cnt);
-  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) combined_input,
-      createTReady(to_axis_cnt), to_axis_tlast);
+  //ap_uint<8> tkeep = byte2keep[(uint8_t) ((to_axis_cnt+7)/8)];
+  //ap_uint<8> tkeep = to_axis_cnt; //FIXME
+  //ap_uint<8> tkeep = createTKeep(to_axis_cnt);
+    printf("enque: 0x%16.16llX 0x%2.2X\n", (uint64_t) cur_input, (uint8_t) tkeep);
+  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_0 =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, tkeep, to_axis_tlast);
   cur_buffer.write(tmp_write_0);
+
 
   return go_to_next_state;
 }
@@ -166,35 +268,63 @@ bool genericEnqState(
 ap_uint<64> flattenAxisBuffer(
     Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> &in_read,
     ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>  &combined_input,
-    ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>  &hangover_bits,
+    ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>  &hangover_bits,
     ap_uint<64>                            &hangover_bits_valid_bits
     )
 {
 #pragma HLS INLINE
-  ap_uint<64> cur_line_bit_cnt = 0;
+  //ap_uint<64> cur_line_bit_cnt = 0;
   // consider hangover
   if(hangover_bits_valid_bits > 0)
   {
     combined_input = hangover_bits;
     hangover_bits = 0x0;
-    cur_line_bit_cnt = hangover_bits_valid_bits;
-    hangover_bits_valid_bits = 0;
+    //printf("flatten: used hangover %d bits: 0x%16llx\n", (uint64_t) hangover_bits_valid_bits, (uint64_t) combined_input);
+    //cur_line_bit_cnt = hangover_bits_valid_bits;
+    //hangover_bits_valid_bits = 0;
   }
 
+  ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_input = 0x0;
   for(int i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)
   {
 #pragma HLS unroll
-    if((in_read.getTKeep() >> i) == 0)
-    {
-      printf("flatten buffer: skipped due to tkeep\n");
-      continue;
-    }
+    //TODO: should not make a difference, since we count them?
+    //if((in_read.getTKeep() >> i) == 0)
+    //{
+    //  printf("flatten buffer: skipped due to tkeep\n");
+    //  continue;
+    //}
     //TODO: what if input is not byte aligned?
     ap_uint<8> current_byte = (ap_uint<8>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> (i*8));
-    combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_line_bit_cnt;
+    //combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_line_bit_cnt;
+    tmp_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << (i*8);
     //printf("flatten buffer: read 0x%16llx %16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
-    cur_line_bit_cnt += 8;
+    //cur_line_bit_cnt += 8;
   }
+  //printf("flatten buffer: tmp input 0x%16llx 0x%2.2X\n", (uint64_t) tmp_input, (uint32_t) in_read.getTKeep());
+  combined_input |= (ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (tmp_input << hangover_bits_valid_bits);
+  ap_uint<64> cur_line_bit_cnt = extractByteCnt(in_read)*8 + hangover_bits_valid_bits;
+  hangover_bits_valid_bits = 0;
+  printf("flatten buffer: read 0x%16llx %16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
+
+  //ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_input = 0x0;
+  //for(int i = 0; i < DOSA_WRAPPER_INPUT_IF_BITWIDTH; i++)
+  //{
+//  #pragma HLS unroll
+  //  if(i > in_read.getTKeep())
+  //  {
+  //    printf("flatten buffer: skipped due to tkeep\n");
+  //    continue;
+  //  }
+  //  //TODO: what if input is not byte aligned?
+  //  ap_uint<1> current_byte = (ap_uint<1>) (((ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) in_read.getTData()) >> i);
+  //  //combined_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << cur_line_bit_cnt;
+  //  tmp_input |= ((ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) current_byte) << i;
+  //  //printf("flatten buffer: read 0x%16llx %16llx, bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
+  //  //cur_line_bit_cnt += 8;
+  //}
+  //combined_input |= tmp_input << hangover_bits_valid_bits;
+  //ap_uint<64> cur_line_bit_cnt = in_read.getTKeep() + hangover_bits_valid_bits;
 
   //printf("flatten buffer: read 0x%16llx %16llx, ret bit cnt: %d\n", (uint64_t) (combined_input >> 64), (uint64_t) combined_input, (uint32_t) cur_line_bit_cnt);
   return cur_line_bit_cnt;
@@ -228,6 +358,8 @@ void pToHaddocEnq(
 #pragma HLS reset variable=hangover_store_valid_bits
   static uint32_t wait_drain_cnt = cnn_input_frame_size;
 #pragma HLS reset variable=wait_drain_cnt
+//  static uint32_t cur_frame_line_cnt = 0x0;
+//#pragma HLS reset variable=cur_frame_line_cnt
 
   //-- LOCAL VARIABLES ------------------------------------------------------
 
@@ -240,6 +372,7 @@ void pToHaddocEnq(
       hangover_store = 0x0;
       hangover_store_valid_bits = 0;
       wait_drain_cnt = cnn_input_frame_size;
+//      cur_frame_line_cnt = 0x0;
 #ifndef __SYNTHESIS_
       wait_drain_cnt = 10;
 #endif
@@ -305,9 +438,11 @@ void pToHaddocDeq(
 #else
     //DOSA_ADD_toHaddoc_buffer_param_decl
 #endif
-    ap_uint<1>                                *po_haddoc_data_valid,
+    //ap_uint<1>                                *po_haddoc_data_valid,
     //ap_uint<1>                                *po_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
+    //ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
+    //ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>      *output_vector,
+    stream<ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH> > &po_haddoc_data,
     stream<bool>                              &sHaddocUnitProcessing,
     uint16_t *debug
     )
@@ -316,138 +451,282 @@ void pToHaddocDeq(
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
-  static twoStatesFSM dequeueFSM = RESET;
+  static threeStatesFSM dequeueFSM = RESET3;
 #pragma HLS reset variable=dequeueFSM
-  static ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> hangover_bits[DOSA_HADDOC_INPUT_CHAN_NUM];
+  static ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> hangover_bits[DOSA_HADDOC_INPUT_CHAN_NUM];
 #pragma HLS ARRAY_PARTITION variable=hangover_bits complete
+#pragma HLS reset variable=hangover_bits
   static ap_uint<64> hangover_bits_valid_bits[DOSA_HADDOC_INPUT_CHAN_NUM];
 #pragma HLS ARRAY_PARTITION variable=hangover_bits_valid_bits complete
-  static bool only_hangover_processing = false;
-#pragma HLS reset variable=only_hangover_processing
+#pragma HLS reset variable=hangover_bits_valid_bits
+//  static bool only_hangover_processing = false;
+//#pragma HLS reset variable=only_hangover_processing
   //-- LOCAL VARIABLES ------------------------------------------------------
 
   ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH> combined_input[DOSA_HADDOC_INPUT_CHAN_NUM];
 #pragma HLS ARRAY_PARTITION variable=combined_input complete
   ap_uint<64> cur_line_bit_cnt[DOSA_HADDOC_INPUT_CHAN_NUM];
 #pragma HLS ARRAY_PARTITION variable=cur_line_bit_cnt complete
-  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0;
 
-  //if-else better than 2-state switch?
-  if(dequeueFSM == RESET)
+  //Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0;
+  bool one_not_empty = false;
+
+  switch(dequeueFSM)
   {
-    for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
-    {
-      hangover_bits[i] = 0x0;
-      hangover_bits_valid_bits[i] = 0x0;
-    }
-    bool one_not_empty = false;
-#ifdef WRAPPER_TEST
-    if( !sToHaddocBuffer_chan1.empty() )
-    {
-      sToHaddocBuffer_chan1.read();
-      one_not_empty = true;
-    }
-    if( !sToHaddocBuffer_chan2.empty() )
-    {
-      sToHaddocBuffer_chan2.read();
-      one_not_empty = true;
-    }
-    if( !sToHaddocBuffer_chan3.empty() )
-    {
-      sToHaddocBuffer_chan3.read();
-      one_not_empty = true;
-    }
-#else
-    //DOSA_ADD_toHaddoc_deq_buffer_drain
-#endif
-    *po_haddoc_data_valid = 0x0;
-    //*po_haddoc_frame_valid = 0x0;
-    *po_haddoc_data_vector = 0x0;
-    only_hangover_processing = false;
-    if( !one_not_empty )
-    {
-      dequeueFSM = FORWARD;
-    }
-  } else {
-    if( !sHaddocUnitProcessing.full()
-#ifdef WRAPPER_TEST
-        && !sToHaddocBuffer_chan1.empty() && !sToHaddocBuffer_chan2.empty() && !sToHaddocBuffer_chan3.empty()
-#else
-        //DOSA_ADD_toHaddoc_deq_if_clause
-#endif
-      )
-    {
+    default:
+    case RESET3:
       for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
       {
-        combined_input[i] = 0x0;
-        cur_line_bit_cnt[i] = 0x0;
+        hangover_bits[i] = 0x0;
+        hangover_bits_valid_bits[i] = 0x0;
       }
-
-      if( !only_hangover_processing )
-      {
 #ifdef WRAPPER_TEST
-        tmp_read_0 = sToHaddocBuffer_chan1.read();
+      if( !sToHaddocBuffer_chan1.empty() )
+      {
+        sToHaddocBuffer_chan1.read();
+        one_not_empty = true;
+      }
+      if( !sToHaddocBuffer_chan2.empty() )
+      {
+        sToHaddocBuffer_chan2.read();
+        one_not_empty = true;
+      }
+      if( !sToHaddocBuffer_chan3.empty() )
+      {
+        sToHaddocBuffer_chan3.read();
+        one_not_empty = true;
+      }
+#else
+      //DOSA_ADD_toHaddoc_deq_buffer_drain
+#endif
+      //*po_haddoc_data_valid = 0x0;
+      //*po_haddoc_frame_valid = 0x0;
+      //*po_haddoc_data_vector = 0x0;
+      //*output_vector = 0x0;
+      //only_hangover_processing = false;
+      if( !one_not_empty )
+      {
+        dequeueFSM = FORWARD3;
+      }
+      break;
+
+    case FORWARD3:
+      if( !sHaddocUnitProcessing.full()
+#ifdef WRAPPER_TEST
+          && !sToHaddocBuffer_chan1.empty() && !sToHaddocBuffer_chan2.empty() && !sToHaddocBuffer_chan3.empty()
+#else
+          //DOSA_ADD_toHaddoc_deq_if_clause
+#endif
+          && !po_haddoc_data.full()
+        )
+      {
+        for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+        {
+          combined_input[i] = 0x0;
+          cur_line_bit_cnt[i] = 0x0;
+        }
+
+#ifdef WRAPPER_TEST
+        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = sToHaddocBuffer_chan1.read();
         cur_line_bit_cnt[0] = flattenAxisBuffer(tmp_read_0, combined_input[0], hangover_bits[0], hangover_bits_valid_bits[0]);
-        tmp_read_0 = sToHaddocBuffer_chan2.read();
-        cur_line_bit_cnt[1] = flattenAxisBuffer(tmp_read_0, combined_input[1], hangover_bits[1], hangover_bits_valid_bits[1]);
-        tmp_read_0 = sToHaddocBuffer_chan3.read();
-        cur_line_bit_cnt[2] = flattenAxisBuffer(tmp_read_0, combined_input[2], hangover_bits[2], hangover_bits_valid_bits[2]);
+        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_1 = sToHaddocBuffer_chan2.read();
+        cur_line_bit_cnt[1] = flattenAxisBuffer(tmp_read_1, combined_input[1], hangover_bits[1], hangover_bits_valid_bits[1]);
+        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_2 = sToHaddocBuffer_chan3.read();
+        cur_line_bit_cnt[2] = flattenAxisBuffer(tmp_read_2, combined_input[2], hangover_bits[2], hangover_bits_valid_bits[2]);
 #else
         //DOSA_ADD_deq_flatten
 #endif
-      } else {
+        //only_hangover_processing = false;
+        dequeueFSM = FORWARD3; //default
+        ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH> output_data = 0x0;
+        bool have_all_valid_data = true;
+        bool need_backlog_process = false;
+        for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+        {
+          if(cur_line_bit_cnt[i] < DOSA_HADDOC_GENERAL_BITWIDTH)
+          {
+            have_all_valid_data = false;
+          }
+          if(cur_line_bit_cnt[i] > 2* DOSA_HADDOC_GENERAL_BITWIDTH)
+          {
+            need_backlog_process = true;
+          }
+        }
+        if(have_all_valid_data)
+        {
+          for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+          {
+            //ap_uint<64> tmp_bit_cnt = cur_line_bit_cnt[i];
+            //actually, it is either > or ==..., since frames are transmitted aligned, can't be less than that
+            // checked above
+            //if(tmp_bit_cnt >= DOSA_HADDOC_GENERAL_BITWIDTH)
+            //{
+            //tmp_bit_cnt = DOSA_HADDOC_GENERAL_BITWIDTH;
+            hangover_bits_valid_bits[i] = cur_line_bit_cnt[i] - DOSA_HADDOC_GENERAL_BITWIDTH;
+            hangover_bits[i] = (ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (combined_input[i] >> DOSA_HADDOC_GENERAL_BITWIDTH);
+            //if(hangover_bits_valid_bits[i] >= DOSA_HADDOC_GENERAL_BITWIDTH)
+            //{
+            //  need_backlog_process = true;
+            //  //only_hangover_processing = true;
+            //  //printf("pToHaddocDeq: processing backlog next\n");
+            //  //dequeueFSM = BACKLOG3;
+            //} //else {
+            //dequeueFSM = FORWARD3;
+            //}
+            //printf("deq: hangover %16.16llx, hangover_cnt: %d, only_hangover_processing: %d\n", (uint64_t) hangover_bits[i], (uint32_t) hangover_bits_valid_bits[i], only_hangover_processing);
+            //} else {
+            //  have_all_valid_data = false;
+            //}
+            //DynLayerInput requires (chan2,chan1,chan0) vector layout
+            output_data |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) ((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) combined_input[i])) << (i*DOSA_HADDOC_GENERAL_BITWIDTH);
+          }
+          po_haddoc_data.write(output_data);
+          printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
+          sHaddocUnitProcessing.write(true);
+          if(need_backlog_process)
+          {
+            printf("pToHaddocDeq: processing backlog next\n");
+            dequeueFSM = BACKLOG3;
+          } else {
+            dequeueFSM = FORWARD3;
+          }
+        } else {
+          for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+          {
+            hangover_bits[i] = combined_input[i];
+            hangover_bits_valid_bits[i] = cur_line_bit_cnt[i];
+          }
+          printf("pToHaddocDeq: skipped due to no valid data\n");
+          //dequeueFSM = BACKLOG3;
+          dequeueFSM = FORWARD3;
+        }
+        //for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+        //{
+        //  printf("deq: hangover 0x%16.16llx%16.16llx, hangover_cnt: %d\n", (uint64_t) (hangover_bits[i] >> 64), (uint64_t) hangover_bits[i], (uint32_t) hangover_bits_valid_bits[i]);
+        //}
+
+        //*po_haddoc_data_valid = 0x1;
+        //*po_haddoc_data_vector = output_data;
+        //*output_vector = output_data;
+        //*output_vector |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>) 0x1) << DOSA_HADDOC_INPUT_BITDIWDTH;
+      } //else {
+      //*po_haddoc_data_vector = 0x0;
+      //*po_haddoc_data_valid = 0x0;
+      //*output_vector = 0x0;
+      //}
+      //*po_haddoc_frame_valid = 0x1;
+      break;
+
+    case BACKLOG3:
+      if( !sHaddocUnitProcessing.full() && !po_haddoc_data.full() )
+      {
+        //for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+        //{
+        //  combined_input[i] = 0x0;
+        //  cur_line_bit_cnt[i] = 0x0;
+        //}
+
         //need to reduce backlog
         for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
         {
           combined_input[i] = hangover_bits[i];
           cur_line_bit_cnt[i] = hangover_bits_valid_bits[i];
-          hangover_bits[i] = 0x0;
-          hangover_bits_valid_bits[i] = 0x0;
+          //hangover_bits[i] = 0x0;
+          //hangover_bits_valid_bits[i] = 0x0;
         }
-      }
 
-      only_hangover_processing = false;
-      ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH> output_data = 0x0;
-      for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
-      {
-        ap_uint<64> tmp_bit_cnt = cur_line_bit_cnt[i];
-        //actually, it is either > or ==..., since frames are transmitted aligned, can't be less than that
-        if(tmp_bit_cnt > DOSA_HADDOC_GENERAL_BITWIDTH)
+        dequeueFSM = FORWARD3; //default
+        ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH> output_data = 0x0;
+        bool have_all_valid_data = true;
+        bool need_new_data = false;
+        for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
         {
-          tmp_bit_cnt = DOSA_HADDOC_GENERAL_BITWIDTH;
-          hangover_bits_valid_bits[i] = cur_line_bit_cnt[i] - DOSA_HADDOC_GENERAL_BITWIDTH;
-          hangover_bits[i] = (ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (combined_input[i] >> DOSA_HADDOC_GENERAL_BITWIDTH);
-          if(hangover_bits_valid_bits[i] >= DOSA_HADDOC_GENERAL_BITWIDTH)
+          if(cur_line_bit_cnt[i] < DOSA_HADDOC_GENERAL_BITWIDTH)
           {
-            only_hangover_processing = true;
+            have_all_valid_data = false;
           }
-          //printf("deq: hangover %16.16llx, hangover_cnt: %d, only_hangover_processing: %d\n", (uint64_t) hangover_bits[i], (uint32_t) hangover_bits_valid_bits[i], only_hangover_processing);
+          else if(cur_line_bit_cnt[i] < 2*DOSA_HADDOC_GENERAL_BITWIDTH)
+          {
+            need_new_data = true;
+          }
         }
-        //DynLayerInput requires (chan2,chan1,chan0) vector layout
-        output_data |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) ((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) combined_input[i])) << (i*DOSA_HADDOC_GENERAL_BITWIDTH);
-      }
+        bool need_backlog_process = false;
+        if(have_all_valid_data)
+        {
+          for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+          {
+            //ap_uint<64> tmp_bit_cnt = cur_line_bit_cnt[i];
+            //actually, it is either > or ==..., since frames are transmitted aligned, can't be less than that
+            // checked above
+            //if(tmp_bit_cnt >= DOSA_HADDOC_GENERAL_BITWIDTH)
+            //{
+            //tmp_bit_cnt = DOSA_HADDOC_GENERAL_BITWIDTH;
+            hangover_bits_valid_bits[i] = cur_line_bit_cnt[i] - DOSA_HADDOC_GENERAL_BITWIDTH;
+            hangover_bits[i] = (ap_uint<2*DOSA_WRAPPER_INPUT_IF_BITWIDTH>) (combined_input[i] >> DOSA_HADDOC_GENERAL_BITWIDTH);
+            if(hangover_bits_valid_bits[i] >= DOSA_HADDOC_GENERAL_BITWIDTH)
+            {
+              need_backlog_process = true;
+              //dequeueFSM = BACKLOG3;
+            } //else {
+            //dequeueFSM = FORWARD3;
+            //}
+            //printf("deq: hangover %16.16llx, hangover_cnt: %d, only_hangover_processing: %d\n", (uint64_t) hangover_bits[i], (uint32_t) hangover_bits_valid_bits[i], only_hangover_processing);
+            //} else {
+            //  have_all_valid_data = false;
+            //}
+            //DynLayerInput requires (chan2,chan1,chan0) vector layout
+            output_data |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) ((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) combined_input[i])) << (i*DOSA_HADDOC_GENERAL_BITWIDTH);
+          }
+          po_haddoc_data.write(output_data);
+          printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
+          sHaddocUnitProcessing.write(true);
+          if(need_backlog_process && !need_new_data)
+          {
+            printf("pToHaddocDeq: processing backlog next\n");
+            dequeueFSM = BACKLOG3;
+          } else {
+            dequeueFSM = FORWARD3;
+          }
+        } else {
+          printf("pToHaddocDeq: skipped due to no valid data\n");
+          //dequeueFSM = BACKLOG3;
+          dequeueFSM = FORWARD3;
+        }
+        //for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+        //{
+        //  hangover_bits[i] = combined_input[i];
+        //  hangover_bits_valid_bits[i] = cur_line_bit_cnt[i];
+        //}
+        //}
+        //for(int i = 0; i<DOSA_HADDOC_INPUT_CHAN_NUM; i++)
+        //{
+        //  printf("deq: hangover 0x%16.16llx%16.16llx, hangover_cnt: %d\n", (uint64_t) (hangover_bits[i] >> 64), (uint64_t) hangover_bits[i], (uint32_t) hangover_bits_valid_bits[i]);
+        //}
 
-      *po_haddoc_data_valid = 0x1;
-      *po_haddoc_data_vector = output_data;
-      printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
-      sHaddocUnitProcessing.write(true);
-    } else {
-      *po_haddoc_data_valid = 0x0;
-    }
-    //*po_haddoc_frame_valid = 0x1;
+        //*po_haddoc_data_valid = 0x1;
+        //*po_haddoc_data_vector = output_data;
+        //*output_vector = output_data;
+        //*output_vector |= ((ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>) 0x1) << DOSA_HADDOC_INPUT_BITDIWDTH;
+        //po_haddoc_data.write(output_data);
+        //printf("pToHaddocDeq: write 0x%6.6X\n", (uint32_t) output_data);
+        //sHaddocUnitProcessing.write(true);
+
+      } //else {
+      break;
   }
 
   //debugging?
   //*debug_out = 0x0;
   *debug = (uint8_t) hangover_bits_valid_bits[0];
-  *debug |= ((uint16_t) only_hangover_processing) << 15;
-
+  //*debug |= ((uint16_t) only_hangover_processing) << 15;
+  *debug |= ((uint16_t) dequeueFSM) << 8;
 }
 
 void pFromHaddocEnq(
-    ap_uint<1>                                *pi_haddoc_data_valid,
-    ap_uint<1>                                *pi_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
+    //ap_uint<1>                                *pi_haddoc_data_valid,
+    //ap_uint<1>                                *pi_haddoc_frame_valid,
+    //ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
+    stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > &pi_haddoc_data,
     stream<bool>                              &sHaddocUnitProcessing,
     stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> >  &sFromHaddocBuffer
     )
@@ -470,265 +749,45 @@ void pFromHaddocEnq(
       enqueueFSM = FORWARD;
     }
   } else {
-    if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full() )
+    if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
+        && !pi_haddoc_data.empty()
+        )
     {
       //ignore pi_haddoc_frame_valid?
-      if( *pi_haddoc_data_valid == 0b1 )
-      {
-        input_data = *pi_haddoc_data_vector;
+      //if( *pi_haddoc_data_valid == 0b1 )
+      //{
+        //input_data = *pi_haddoc_data_vector;
+        input_data = pi_haddoc_data.read();
         //read only if able to process
         bool ignore_me = sHaddocUnitProcessing.read();
         printf("pFromHaddocEnq: read 0x%6.6X\n", (uint32_t) input_data);
         sFromHaddocBuffer.write(input_data);
-      }
+      //}
+    }
+    else if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
+        && pi_haddoc_data.empty() //yes, empty!
+        )
+    { // consume one HUP token, so that the fifo doesn't sand
+      // and, since sFromHaddocBuffer isn't full, we can do this safely
+        bool ignore_me = sHaddocUnitProcessing.read();
+        printf("pFromHaddocEnq: read HUP token to avoid sanding..\n");
     }
   }
 
 }
 
 
-//void pFromHaddocFlatten(
-//    ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>     *arrFromHaddocBuffer_global,
-//    stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> >  &sFromHaddocBuffer,
-//    stream<bool>                              &sFromHaddocFrameComplete
-//    )
-//{
-//  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
-//#pragma HLS INLINE off
-//#pragma HLS pipeline II=1
-//  //-- STATIC VARIABLES (with RESET) ------------------------------------------
-//  static twoStatesFSM flattenFSM = RESET;
-//#pragma HLS reset variable=flattenFSM
-//  static ap_uint<64> current_frame_bit_cnt = 0x0;
-//#pragma HLS reset variable=current_frame_bit_cnt
-//  static ap_uint<64> current_array_write_pnt = 0x0;
-//#pragma HLS reset variable=current_array_write_pnt
-//  static ap_uint<2> current_array_slot_pnt = 0x0;
-//#pragma HLS reset variable=current_array_slot_pnt
-//  //-- LOCAL VARIABLES ------------------------------------------------------
-//  ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> input_data = 0x0;
-//
-//  //if-else better than 2-state switch?
-//  if(flattenFSM == RESET)
-//  {
-//    current_frame_bit_cnt = 0x0;
-//    current_array_slot_pnt = 0x0;
-//    current_array_write_pnt = 0x0;
-//    //we have to write the array...
-//    for(int i = 0; i < DOSA_HADDOC_OUTPUT_CHAN_NUM*2*cnn_output_frame_size; i++)
-//    {
-//      arrFromHaddocBuffer_global[i] = 0;
-//    }
-//    flattenFSM = FORWARD;
-//  } else {
-//    if( !sFromHaddocBuffer.empty() && !sFromHaddocFrameComplete.full() )
-//    {
-//      input_data = sFromHaddocBuffer.read();
-//      //slot structure: |a0....b0....c0|a1....b1....c1|
-//      //cnn_output_frame_size: WIDTH*WIDTH
-//      for(int c = 0; c < DOSA_HADDOC_OUTPUT_CHAN_NUM; c++)
-//      {
-//        ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = (ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> c * DOSA_HADDOC_GENERAL_BITWIDTH);
-//        uint32_t np = DOSA_HADDOC_OUTPUT_CHAN_NUM*current_array_slot_pnt*cnn_output_frame_size + c*cnn_output_frame_size + current_array_write_pnt;
-//        arrFromHaddocBuffer_global[np] = nv;
-//        //printf("pFromHaddocFlatten: sorted incoming %2.2x to position %d\n", (uint8_t) nv, np);
-//      }
-//      current_array_write_pnt++;
-//      current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH;
-//      if( current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT )
-//      {
-//        sFromHaddocFrameComplete.write(true);
-//        current_frame_bit_cnt = 0;
-//        current_array_write_pnt = 0;
-//        current_array_slot_pnt++;
-//        if(current_array_slot_pnt > 1)
-//        {//double buffering
-//          current_array_slot_pnt = 0;
-//        }
-//      }
-//    }
-//  }
-//
-//}
-//
-//
-//void pFromHaddocDeq(
-//    ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>     *arrFromHaddocBuffer_global,
-//    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
-//    stream<bool>                              &sFromHaddocFrameComplete
-//    )
-//{
-//  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
-//#pragma HLS INLINE off
-//#pragma HLS pipeline II=1
-//  //-- STATIC VARIABLES (with RESET) ------------------------------------------
-//  static FromHaddocDeqStates dequeueFSM = RESET1;
-//#pragma HLS reset variable=dequeueFSM
-//  static ap_uint<64> current_frame_bit_cnt = 0x0;
-//#pragma HLS reset variable=current_frame_bit_cnt
-//  static ap_uint<64> current_array_read_pnt = 0x0;
-//#pragma HLS reset variable=current_array_read_pnt
-//  static ap_uint<64> current_batch_bit_cnt = 0x0;
-//#pragma HLS reset variable=current_batch_bit_cnt
-//  static ap_uint<2> current_array_slot_pnt = 0x0;
-//#pragma HLS reset variable=current_array_slot_pnt
-//  static ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> hangover_store = 0x0;
-//#pragma HLS reset variable=hangover_store
-//  static ap_uint<64> hangover_store_valid_bits = 0x0;
-//#pragma HLS reset variable=hangover_store_valid_bits
-//  //-- LOCAL VARIABLES ------------------------------------------------------
-//  ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH> combined_output = 0x0;
-//
-//  switch (dequeueFSM)
-//  {
-//    default:
-//    case RESET1:
-//      //necessary?
-//      current_frame_bit_cnt = 0x0;
-//      current_array_read_pnt = 0x0;
-//      current_batch_bit_cnt = 0x0;
-//      current_array_slot_pnt = 0x0;
-//      hangover_store = 0x0;
-//      hangover_store_valid_bits = 0x0;
-//      dequeueFSM = WAIT_FRAME;
-//      break;
-//
-//    case WAIT_FRAME:
-//      if( !sFromHaddocFrameComplete.empty() && !soData.full() )
-//      {
-//        bool ignore_me = sFromHaddocFrameComplete.read();
-//        current_frame_bit_cnt = 0x0;
-//        combined_output = hangover_store;
-//        ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
-//        for(int r = 0; r < WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL; r++)
-//        {
-//          uint32_t rp = current_array_slot_pnt*DOSA_HADDOC_OUTPUT_CHAN_NUM*cnn_output_frame_size + r;
-//          ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = arrFromHaddocBuffer_global[rp];
-//          combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH>) nv) << (r*DOSA_HADDOC_GENERAL_BITWIDTH + hangover_store_valid_bits);
-//          if(current_batch_bit_cnt + r*DOSA_HADDOC_GENERAL_BITWIDTH < HADDOC_OUTPUT_FRAME_BIT_CNT*DOSA_HADDOC_OUTPUT_CHAN_NUM)
-//          {
-//            for(int k = 0; k < DOSA_HADDOC_GENERAL_BITWIDTH/8; k++)
-//            {
-//              tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) 0b1) << r*(DOSA_HADDOC_GENERAL_BITWIDTH/8) + k;
-//            }
-//          }
-//          //printf("pFromHaddocDeq: read %2.2x, from position %d\n", (uint8_t) nv, rp);
-//        }
-//        hangover_store = (ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) (combined_output >> DOSA_WRAPPER_OUTPUT_IF_BITWIDTH);
-//        hangover_store_valid_bits = (WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL*DOSA_HADDOC_GENERAL_BITWIDTH) - DOSA_WRAPPER_OUTPUT_IF_BITWIDTH;
-//        current_frame_bit_cnt = DOSA_WRAPPER_OUTPUT_IF_BITWIDTH;
-//        current_array_read_pnt = WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL;
-//        current_batch_bit_cnt = DOSA_WRAPPER_INPUT_IF_BITWIDTH;
-//        //printf("pFromHaddocDeq: combined %16.16llx, hangover_bits_valid_bits: %x\n", (uint64_t) combined_output, (uint64_t) hangover_store_valid_bits);
-//
-//        ap_uint<1> tlast = 0;
-//        if( current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT )
-//        {
-//          current_frame_bit_cnt -= HADDOC_OUTPUT_FRAME_BIT_CNT;
-//          if(current_batch_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT*DOSA_HADDOC_OUTPUT_CHAN_NUM)
-//          {
-//            dequeueFSM = WAIT_FRAME;
-//            current_array_slot_pnt++;
-//            current_batch_bit_cnt = 0x0;
-//            //in all cases
-//            tlast = 0b1;
-//          }
-//          //check for tlast after each frame
-//          if(!DOSA_HADDOC_OUTPUT_BATCH_FLATTEN)
-//          {
-//            tlast = 0b1;
-//          }
-//
-//          if(current_array_slot_pnt > 1)
-//          {
-//            current_array_slot_pnt = 0x0;
-//          }
-//        } else {
-//          dequeueFSM = READ_FRAME;
-//        }
-//        Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) combined_output, tkeep, tlast);
-//        soData.write(tmp_write_0);
-//        printf("pFromHaddocDeq: write Axis tdata: %16.16llx, tkeep: %2.2x, tlast: %x;\n", (uint64_t) tmp_write_0.getTData(), (uint8_t) tmp_write_0.getTKeep(), (uint8_t) tmp_write_0.getTLast());
-//      }
-//      break;
-//
-//    case READ_FRAME:
-//      if( !soData.full() )
-//      {
-//        combined_output = hangover_store;
-//        ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
-//        for(int r = 0; r < WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL; r++)
-//        {
-//          uint32_t rp = current_array_slot_pnt*DOSA_HADDOC_OUTPUT_CHAN_NUM*cnn_output_frame_size + r + current_array_read_pnt;
-//          ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = arrFromHaddocBuffer_global[rp];
-//          combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH>) nv) << (r*DOSA_HADDOC_GENERAL_BITWIDTH + hangover_store_valid_bits);
-//          if(current_batch_bit_cnt + r*DOSA_HADDOC_GENERAL_BITWIDTH < HADDOC_OUTPUT_FRAME_BIT_CNT*DOSA_HADDOC_OUTPUT_CHAN_NUM)
-//          {
-//            for(int k = 0; k < DOSA_HADDOC_GENERAL_BITWIDTH/8; k++)
-//            {
-//              tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) 0b1) << r*(DOSA_HADDOC_GENERAL_BITWIDTH/8) + k;
-//            }
-//          }
-//          //printf("pFromHaddocDeq: read %2.2x, from position %d\n", (uint8_t) nv, rp);
-//        }
-//        hangover_store = (ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) (combined_output >> DOSA_WRAPPER_OUTPUT_IF_BITWIDTH);
-//        hangover_store_valid_bits = (WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL*DOSA_HADDOC_GENERAL_BITWIDTH) - DOSA_WRAPPER_OUTPUT_IF_BITWIDTH;
-//        current_frame_bit_cnt += DOSA_WRAPPER_OUTPUT_IF_BITWIDTH;
-//        current_array_read_pnt += WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL;
-//        current_batch_bit_cnt += DOSA_WRAPPER_INPUT_IF_BITWIDTH;
-//        //printf("pFromHaddocDeq: combined %16.16llx, hangover_bits_valid_bits: %d, current_frame_bit_cnt: %d, current_batch_bit_cnt: %d\n", (uint64_t) combined_output, (uint64_t) hangover_store_valid_bits, (uint32_t) current_frame_bit_cnt, (uint32_t) current_batch_bit_cnt);
-//
-//        ap_uint<1> tlast = 0;
-//        if( current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT )
-//        {
-//          current_frame_bit_cnt -= HADDOC_OUTPUT_FRAME_BIT_CNT;
-//          if(current_batch_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT*DOSA_HADDOC_OUTPUT_CHAN_NUM)
-//          {
-//            dequeueFSM = WAIT_FRAME;
-//            current_array_slot_pnt++;
-//            current_batch_bit_cnt = 0x0;
-//            //in all cases
-//            tlast = 0b1;
-//          }
-//          //check for tlast after each frame
-//          if(!DOSA_HADDOC_OUTPUT_BATCH_FLATTEN)
-//          {
-//            tlast = 0b1;
-//          }
-//
-//          if(current_array_slot_pnt > 1)
-//          {
-//            current_array_slot_pnt = 0x0;
-//          }
-//        } else {
-//          //stay here
-//          dequeueFSM = READ_FRAME;
-//        }
-//        Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) combined_output, tkeep, tlast);
-//        soData.write(tmp_write_0);
-//        printf("pFromHaddocDeq: write Axis tdata: %16.16llx, tkeep: %2.2x, tlast: %x;\n", (uint64_t) tmp_write_0.getTData(), (uint8_t) tmp_write_0.getTKeep(), (uint8_t) tmp_write_0.getTLast());
-//      }
-//      break;
-//  }
-//
-//}
-
-
 void pFromHaddocFlatten(
 #ifdef WRAPPER_TEST
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan1_buffer_0,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan1_buffer_1,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan2_buffer_0,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan2_buffer_1,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan3_buffer_0,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan3_buffer_1,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan4_buffer_0,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> *chan4_buffer_1,
+  stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chan1,
+  stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chan2,
+  stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chan3,
+  stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chan4,
 #else
-    //DOSA_ADD_from_haddoc_buffer_param_decl
+    //DOSA_ADD_from_haddoc_stream_param_decl
 #endif
     stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> >  &sFromHaddocBuffer,
-    stream<bool>                              &sFromHaddocFrameComplete,
+    //stream<bool>                              &sFromHaddocIfLineComplete,
     uint16_t *debug
     )
 {
@@ -738,94 +797,645 @@ void pFromHaddocFlatten(
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   static twoStatesFSM flattenFSM = RESET;
 #pragma HLS reset variable=flattenFSM
-  static ap_uint<64> current_array_write_pnt = 0x0;
-#pragma HLS reset variable=current_array_write_pnt
-  static ap_uint<2> current_array_slot_pnt = 0x0;
-#pragma HLS reset variable=current_array_slot_pnt
+//  static ap_uint<64> current_array_write_pnt = 0x0;
+//#pragma HLS reset variable=current_array_write_pnt
+//  static ap_uint<2> current_array_slot_pnt = 0x0;
+//#pragma HLS reset variable=current_array_slot_pnt
   //-- LOCAL VARIABLES ------------------------------------------------------
   ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> input_data = 0x0;
+  bool not_empty = false;
 
-  switch (flattenFSM)
+  if(flattenFSM == RESET)
   {
-    default:
-    case RESET1:
-      current_array_write_pnt = 0x0;
-      current_array_slot_pnt = 0x0;
-      //DUE to pipeline: no reset necessary?
-//      for(int i = 0; i < CNN_OUTPUT_FRAME_SIZE; i++)
-//      {
-//#ifdef WRAPPER_TEST
-//        chan1_buffer_0[i] = 0x0;
-//        chan1_buffer_1[i] = 0x0;
-//        chan2_buffer_0[i] = 0x0;
-//        chan2_buffer_1[i] = 0x0;
-//        chan3_buffer_0[i] = 0x0;
-//        chan3_buffer_1[i] = 0x0;
-//        chan4_buffer_0[i] = 0x0;
-//        chan4_buffer_1[i] = 0x0;
-//#else
-//        //DOSA_ADD_from_haddoc_buffer_clear
-//#endif
-//      }
+    //current_array_write_pnt = 0x0;
+    if(!sFromHaddocBuffer.empty())
+    {
+      sFromHaddocBuffer.read();
+      not_empty = true;
+    }
+    if(!not_empty)
+    {
       flattenFSM = FORWARD;
-      break;
-
-    case FORWARD:
-      if ( !sFromHaddocBuffer.empty() && !sFromHaddocFrameComplete.full() )
+    }
+  } else { //FORWARD
+      if ( !sFromHaddocBuffer.empty() //&& !sFromHaddocIfLineComplete.full()
+#ifdef WRAPPER_TEST
+          && !sFromHaddocBuffer_chan1.full() && !sFromHaddocBuffer_chan2.full() && !sFromHaddocBuffer_chan3.full() && !sFromHaddocBuffer_chan4.full()
+#else
+          //DOSA_ADD_from_haddoc_stream_full_check
+#endif
+         )
       {
         input_data = sFromHaddocBuffer.read();
 #ifdef WRAPPER_TEST
-        if( current_array_slot_pnt == 0 )
-        {
-          chan1_buffer_0[current_array_write_pnt] = (ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 0 * DOSA_HADDOC_GENERAL_BITWIDTH);
-          chan2_buffer_0[current_array_write_pnt] = (ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 1 * DOSA_HADDOC_GENERAL_BITWIDTH);
-          chan3_buffer_0[current_array_write_pnt] = (ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 2 * DOSA_HADDOC_GENERAL_BITWIDTH);
-          chan4_buffer_0[current_array_write_pnt] = (ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 3 * DOSA_HADDOC_GENERAL_BITWIDTH);
-        } else {
-          chan1_buffer_1[current_array_write_pnt] = (ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 0 * DOSA_HADDOC_GENERAL_BITWIDTH);
-          chan2_buffer_1[current_array_write_pnt] = (ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 1 * DOSA_HADDOC_GENERAL_BITWIDTH);
-          chan3_buffer_1[current_array_write_pnt] = (ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 2 * DOSA_HADDOC_GENERAL_BITWIDTH);
-          chan4_buffer_1[current_array_write_pnt] = (ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 3 * DOSA_HADDOC_GENERAL_BITWIDTH);
-        }
+        sFromHaddocBuffer_chan1.write((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 0 * DOSA_HADDOC_GENERAL_BITWIDTH));
+        sFromHaddocBuffer_chan2.write((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 1 * DOSA_HADDOC_GENERAL_BITWIDTH));
+        sFromHaddocBuffer_chan3.write((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 2 * DOSA_HADDOC_GENERAL_BITWIDTH));
+        sFromHaddocBuffer_chan4.write((ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH>) (input_data >> 3 * DOSA_HADDOC_GENERAL_BITWIDTH));
 #else
-        //DOSA_ADD_from_haddoc_buffer_read
+        //DOSA_ADD_from_haddoc_stream_write
 #endif
-        printf("pFromHaddocFlatten: sorted incoming %2.2x to position %d in slot %d\n", (uint32_t) input_data, (uint32_t) current_array_write_pnt, (uint8_t) current_array_slot_pnt);
-        current_array_write_pnt++;
-        if( current_array_write_pnt >= CNN_OUTPUT_FRAME_SIZE )
-        {
-          sFromHaddocFrameComplete.write(true);
-          current_array_write_pnt = 0;
-          current_array_slot_pnt++;
-          if( current_array_slot_pnt > 1 )
-          {//double buffering
-            current_array_slot_pnt = 0;
+        //printf("pFromHaddocFlatten: sorted incoming %2.2x to position %d in slot %d\n", (uint32_t) input_data, (uint32_t) current_array_write_pnt, (uint8_t) current_array_slot_pnt);
+        //current_array_write_pnt++;
+        //if( current_array_write_pnt >= WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL)
+        //{
+        //  sFromHaddocIfLineComplete.write(true);
+        //  current_array_write_pnt = 0;
+        //}
+      }
+  }
+
+  //*debug = ((uint16_t) current_array_write_pnt);
+  *debug = ((uint16_t) input_data);
+
+}
+
+//void genericWiden(
+//  stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &small_input,
+//  stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &wide_output,
+//  uint32_t &current_frame_bit_cnt,
+//  uint32_t &current_line_read_pnt,
+//  ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> &hangover_store,
+//  ap_uint<32> &hangover_store_valid_bits
+//    )
+//{
+//#pragma HLS INLINE
+//#pragma HLS latency max=1
+//  ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH> combined_output = 0x0;
+//
+//  //if(!small_input.empty() && !wide_output.full())
+//  //{
+//    combined_output = hangover_store;
+//    ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
+//
+//    ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = small_input.read();
+//    combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH>) nv) << (hangover_store_valid_bits);
+//    current_line_read_pnt++;
+//
+//    //current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH - hangover_store_valid_bits;
+//    current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH;
+//
+//    if(current_line_read_pnt >= WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL || current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT)
+//    {//write to stream
+//      current_line_read_pnt = 0x0;
+//      tkeep = bitCntToTKeep(ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH/8> (DOSA_HADDOC_GENERAL_BITWIDTH + hangover_store_valid_bits));
+//      ap_uint<1> tlast = 0;
+//      if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT)
+//      {
+//        //TODO: what if there is hangover data left?
+//        current_frame_bit_cnt = 0x0;
+//        tlast = 0b1;
+//      }
+//      hangover_store = (ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) (combined_output >> DOSA_WRAPPER_OUTPUT_IF_BITWIDTH);
+//      if((hangover_store_valid_bits+DOSA_HADDOC_GENERAL_BITWIDTH) > DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
+//      {
+//        hangover_store_valid_bits -= (DOSA_WRAPPER_OUTPUT_IF_BITWIDTH-DOSA_HADDOC_GENERAL_BITWIDTH);
+//      } else {
+//        hangover_store_valid_bits = 0x0;
+//      }
+//      Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) combined_output, tkeep, tlast);
+//      wide_output.write(tmp_write_0);
+//      printf("genericWiden: write Axis tdata: %16.16llx, tkeep: %2.2x, tlast: %x;\n", (uint64_t) tmp_write_0.getTData(), (uint8_t) tmp_write_0.getTKeep(), (uint8_t) tmp_write_0.getTLast());
+//    } else {
+//      //wait
+//      hangover_store = combined_output;
+//      hangover_store_valid_bits += DOSA_HADDOC_GENERAL_BITWIDTH;
+//    }
+//    printf("genericWiden: combined %16.16llx, hangover_bits_valid_bits: %d, current_frame_bit_cnt: %d\n", (uint64_t) combined_output, (uint64_t) hangover_store_valid_bits, (uint32_t) current_frame_bit_cnt);
+//  //}
+//}
+
+
+
+//void pFromHaddocWiden(
+//#ifdef WRAPPER_TEST
+//    stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chan1,
+//    stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chan2,
+//    stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chan3,
+//    stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chan4,
+//#else
+//    //DOSA_ ADD_from_haddoc_stream_param_decl
+//#endif
+//#ifdef WRAPPER_TEST
+//    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan1,
+//    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan2,
+//    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan3,
+//    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan4,
+//#else
+//    //DOSA_ ADD_output_stream_param_decl
+//#endif
+//    uint16_t param_void
+//    )
+//{
+//  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+//#pragma HLS INLINE off
+//#pragma HLS pipeline II=1
+//  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+//  static twoStatesFSM widenFSM = RESET;
+//#pragma HLS reset variable=widenFSM
+//  static uint32_t current_frame_bit_cnt[DOSA_HADDOC_OUTPUT_CHAN_NUM];
+//#pragma HLS ARRAY_PARTITION variable=current_frame_bit_cnt complete
+//#pragma HLS reset variable=current_frame_bit_cnt
+//  static uint32_t current_line_read_pnt[DOSA_HADDOC_OUTPUT_CHAN_NUM];
+//#pragma HLS ARRAY_PARTITION variable=current_line_read_pnt complete
+//#pragma HLS reset variable=current_line_read_pnt
+//  static ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> hangover_store[DOSA_HADDOC_OUTPUT_CHAN_NUM];
+//#pragma HLS ARRAY_PARTITION variable=hangover_store
+//#pragma HLS reset variable=hangover_store
+//  static ap_uint<32> hangover_store_valid_bits[DOSA_HADDOC_OUTPUT_CHAN_NUM];
+//#pragma HLS ARRAY_PARTITION variable=hangover_store_valid_bits
+//#pragma HLS reset variable=hangover_store_valid_bits
+//  //-- LOCAL VARIABLES ------------------------------------------------------
+//  bool not_empty = false;
+//
+//  switch(widenFSM)
+//  {
+//    default:
+//    case RESET:
+////    for(int i = 0; i < DOSA_HADDOC_OUTPUT_CHAN_NUM; i++)
+////    {
+////      current_frame_bit_cnt[i]= 0x0;
+////      current_line_read_pnt[i] = 0x0;
+////      hangover_store[i] = 0x0;
+////      hangover_store_valid_bits[i] = 0x0;
+////    }
+//#ifdef WRAPPER_TEST
+//    if(!sFromHaddocBuffer_chan1.empty())
+//    {
+//      sFromHaddocBuffer_chan1.read();
+//      not_empty = true;
+//    }
+//    if(!sFromHaddocBuffer_chan2.empty())
+//    {
+//      sFromHaddocBuffer_chan2.read();
+//        not_empty = true;
+//    }
+//    if(!sFromHaddocBuffer_chan3.empty())
+//    {
+//      sFromHaddocBuffer_chan3.read();
+//      not_empty = true;
+//    }
+//    if(!sFromHaddocBuffer_chan4.empty())
+//    {
+//      sFromHaddocBuffer_chan4.read();
+//      not_empty = true;
+//    }
+//#else
+//    //DOSA_ ADD_from_haddoc_stream_drain
+//#endif
+//    if(!not_empty)
+//    {
+//      widenFSM = FORWARD;
+//    }
+//    break;
+//    case FORWARD:
+//#ifdef WRAPPER_TEST
+//    if(!sFromHaddocBuffer_chan1.empty() && !sOutBuffer_chan1.full())
+//    {
+//      genericWiden(sFromHaddocBuffer_chan1, sOutBuffer_chan1, current_frame_bit_cnt[0], current_line_read_pnt[0], hangover_store[0], hangover_store_valid_bits[0]);
+//    }
+//    if(!sFromHaddocBuffer_chan2.empty() && !sOutBuffer_chan2.full())
+//    {
+//      genericWiden(sFromHaddocBuffer_chan2, sOutBuffer_chan2, current_frame_bit_cnt[1], current_line_read_pnt[1], hangover_store[1], hangover_store_valid_bits[1]);
+//    }
+//    if(!sFromHaddocBuffer_chan3.empty() && !sOutBuffer_chan3.full())
+//    {
+//      genericWiden(sFromHaddocBuffer_chan3, sOutBuffer_chan3, current_frame_bit_cnt[2], current_line_read_pnt[2], hangover_store[2], hangover_store_valid_bits[2]);
+//    }
+//    if(!sFromHaddocBuffer_chan4.empty() && !sOutBuffer_chan4.full())
+//    {
+//      genericWiden(sFromHaddocBuffer_chan4, sOutBuffer_chan4, current_frame_bit_cnt[3], current_line_read_pnt[3], hangover_store[3], hangover_store_valid_bits[3]);
+//    }
+//#else
+//    //DOSA_ ADD_widen
+//#endif
+//    break;
+//  }
+//
+//}
+
+// THANKS to vivado HLS...pralellize it explicitly
+#ifdef WRAPPER_TEST
+void pFromHaddocWiden_1(
+    stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chanX,
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chanX
+    )
+{
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  static twoStatesFSM widenFSM = RESET;
+#pragma HLS reset variable=widenFSM
+  static uint32_t current_frame_bit_cnt;
+#pragma HLS reset variable=current_frame_bit_cnt
+  static uint32_t current_line_read_pnt;
+#pragma HLS reset variable=current_line_read_pnt
+  static ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> hangover_store;
+#pragma HLS reset variable=hangover_store
+  static ap_uint<32> hangover_store_valid_bits;
+#pragma HLS reset variable=hangover_store_valid_bits
+  static ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep;
+#pragma HLS reset variable=tkeep
+  //-- LOCAL VARIABLES ------------------------------------------------------
+  bool not_empty = false;
+  ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH> combined_output = 0x0;
+
+  switch(widenFSM)
+  {
+    default:
+    case RESET:
+      //    for(int i = 0; i < DOSA_HADDOC_OUTPUT_CHAN_NUM; i++)
+      //    {
+      //      current_frame_bit_cnt[i]= 0x0;
+      //      current_line_read_pnt[i] = 0x0;
+      //      hangover_store[i] = 0x0;
+      //      hangover_store_valid_bits[i] = 0x0;
+      //    }
+      current_frame_bit_cnt = 0x0;
+      current_line_read_pnt = 0x0;
+      hangover_store = 0x0;
+      hangover_store_valid_bits = 0x0;
+      tkeep = 0x0;
+      if(!sFromHaddocBuffer_chanX.empty())
+      {
+        sFromHaddocBuffer_chanX.read();
+        not_empty = true;
+      }
+      if(!not_empty)
+      {
+        widenFSM = FORWARD;
+      }
+      break;
+
+    case FORWARD:
+      if(!sFromHaddocBuffer_chanX.empty() && !sOutBuffer_chanX.full())
+      {
+        combined_output = hangover_store;
+        //ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
+
+        ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = sFromHaddocBuffer_chanX.read();
+        combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH>) nv) << (hangover_store_valid_bits);
+        current_line_read_pnt++;
+        tkeep <<= DOSA_HADDOC_GENERAL_BITWIDTH_TKEEP_WIDTH;
+        tkeep |= (ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) DOSA_HADDOC_GENERAL_BITWIDTH_TKEEP;
+
+        //current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH - hangover_store_valid_bits;
+        current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH;
+        //tkeep = bitCntToTKeep(ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH/8> (DOSA_HADDOC_GENERAL_BITWIDTH + hangover_store_valid_bits)); //do it HERE, to achieve II=1
+
+        if(current_line_read_pnt >= WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL || current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT)
+        {//write to stream
+          current_line_read_pnt = 0x0;
+          ap_uint<1> tlast = 0;
+          if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT)
+          {
+            //TODO: what if there is hangover data left?
+            current_frame_bit_cnt = 0x0;
+            tlast = 0b1;
           }
+          Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) combined_output, tkeep, tlast);
+          sOutBuffer_chanX.write(tmp_write_0);
+          tkeep = 0x0;
+          printf("genericWiden: write Axis tdata: %16.16llx, tkeep: %2.2x, tlast: %x;\n", (uint64_t) tmp_write_0.getTData(), (uint8_t) tmp_write_0.getTKeep(), (uint8_t) tmp_write_0.getTLast());
+
+          hangover_store = (ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) (combined_output >> DOSA_WRAPPER_OUTPUT_IF_BITWIDTH);
+          if((hangover_store_valid_bits+DOSA_HADDOC_GENERAL_BITWIDTH) > DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
+          {
+            hangover_store_valid_bits -= (DOSA_WRAPPER_OUTPUT_IF_BITWIDTH-DOSA_HADDOC_GENERAL_BITWIDTH);
+          } else {
+            hangover_store_valid_bits = 0x0;
+          }
+        } else {
+          //wait
+          hangover_store = combined_output;
+          hangover_store_valid_bits += DOSA_HADDOC_GENERAL_BITWIDTH;
         }
+        printf("genericWiden: combined %16.16llx, hangover_bits_valid_bits: %d, current_frame_bit_cnt: %d\n", (uint64_t) combined_output, (uint64_t) hangover_store_valid_bits, (uint32_t) current_frame_bit_cnt);
       }
       break;
   }
 
-  *debug = ((uint16_t) current_array_write_pnt) & 0xFFF;
-  *debug |= ((uint16_t) current_array_slot_pnt) << 12;
+}
+void pFromHaddocWiden_2(
+    stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chanX,
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chanX
+    )
+{
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  static twoStatesFSM widenFSM = RESET;
+#pragma HLS reset variable=widenFSM
+  static uint32_t current_frame_bit_cnt;
+#pragma HLS reset variable=current_frame_bit_cnt
+  static uint32_t current_line_read_pnt;
+#pragma HLS reset variable=current_line_read_pnt
+  static ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> hangover_store;
+#pragma HLS reset variable=hangover_store
+  static ap_uint<32> hangover_store_valid_bits;
+#pragma HLS reset variable=hangover_store_valid_bits
+  static ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep;
+#pragma HLS reset variable=tkeep
+  //-- LOCAL VARIABLES ------------------------------------------------------
+  bool not_empty = false;
+  ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH> combined_output = 0x0;
+
+  switch(widenFSM)
+  {
+    default:
+    case RESET:
+      //    for(int i = 0; i < DOSA_HADDOC_OUTPUT_CHAN_NUM; i++)
+      //    {
+      //      current_frame_bit_cnt[i]= 0x0;
+      //      current_line_read_pnt[i] = 0x0;
+      //      hangover_store[i] = 0x0;
+      //      hangover_store_valid_bits[i] = 0x0;
+      //    }
+      current_frame_bit_cnt = 0x0;
+      current_line_read_pnt = 0x0;
+      hangover_store = 0x0;
+      hangover_store_valid_bits = 0x0;
+      tkeep = 0x0;
+      if(!sFromHaddocBuffer_chanX.empty())
+      {
+        sFromHaddocBuffer_chanX.read();
+        not_empty = true;
+      }
+      if(!not_empty)
+      {
+        widenFSM = FORWARD;
+      }
+      break;
+
+    case FORWARD:
+      if(!sFromHaddocBuffer_chanX.empty() && !sOutBuffer_chanX.full())
+      {
+        combined_output = hangover_store;
+        //ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
+
+        ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = sFromHaddocBuffer_chanX.read();
+        combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH>) nv) << (hangover_store_valid_bits);
+        current_line_read_pnt++;
+        tkeep <<= DOSA_HADDOC_GENERAL_BITWIDTH_TKEEP_WIDTH;
+        tkeep |= (ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) DOSA_HADDOC_GENERAL_BITWIDTH_TKEEP;
+
+        //current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH - hangover_store_valid_bits;
+        current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH;
+        //tkeep = bitCntToTKeep(ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH/8> (DOSA_HADDOC_GENERAL_BITWIDTH + hangover_store_valid_bits)); //do it HERE, to achieve II=1
+
+        if(current_line_read_pnt >= WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL || current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT)
+        {//write to stream
+          current_line_read_pnt = 0x0;
+          ap_uint<1> tlast = 0;
+          if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT)
+          {
+            //TODO: what if there is hangover data left?
+            current_frame_bit_cnt = 0x0;
+            tlast = 0b1;
+          }
+          Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) combined_output, tkeep, tlast);
+          sOutBuffer_chanX.write(tmp_write_0);
+          tkeep = 0x0;
+          printf("genericWiden: write Axis tdata: %16.16llx, tkeep: %2.2x, tlast: %x;\n", (uint64_t) tmp_write_0.getTData(), (uint8_t) tmp_write_0.getTKeep(), (uint8_t) tmp_write_0.getTLast());
+
+          hangover_store = (ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) (combined_output >> DOSA_WRAPPER_OUTPUT_IF_BITWIDTH);
+          if((hangover_store_valid_bits+DOSA_HADDOC_GENERAL_BITWIDTH) > DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
+          {
+            hangover_store_valid_bits -= (DOSA_WRAPPER_OUTPUT_IF_BITWIDTH-DOSA_HADDOC_GENERAL_BITWIDTH);
+          } else {
+            hangover_store_valid_bits = 0x0;
+          }
+        } else {
+          //wait
+          hangover_store = combined_output;
+          hangover_store_valid_bits += DOSA_HADDOC_GENERAL_BITWIDTH;
+        }
+        printf("genericWiden: combined %16.16llx, hangover_bits_valid_bits: %d, current_frame_bit_cnt: %d\n", (uint64_t) combined_output, (uint64_t) hangover_store_valid_bits, (uint32_t) current_frame_bit_cnt);
+      }
+      break;
+  }
 
 }
+void pFromHaddocWiden_3(
+    stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chanX,
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chanX
+    )
+{
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  static twoStatesFSM widenFSM = RESET;
+#pragma HLS reset variable=widenFSM
+  static uint32_t current_frame_bit_cnt;
+#pragma HLS reset variable=current_frame_bit_cnt
+  static uint32_t current_line_read_pnt;
+#pragma HLS reset variable=current_line_read_pnt
+  static ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> hangover_store;
+#pragma HLS reset variable=hangover_store
+  static ap_uint<32> hangover_store_valid_bits;
+#pragma HLS reset variable=hangover_store_valid_bits
+  static ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep;
+#pragma HLS reset variable=tkeep
+  //-- LOCAL VARIABLES ------------------------------------------------------
+  bool not_empty = false;
+  ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH> combined_output = 0x0;
+
+  switch(widenFSM)
+  {
+    default:
+    case RESET:
+      //    for(int i = 0; i < DOSA_HADDOC_OUTPUT_CHAN_NUM; i++)
+      //    {
+      //      current_frame_bit_cnt[i]= 0x0;
+      //      current_line_read_pnt[i] = 0x0;
+      //      hangover_store[i] = 0x0;
+      //      hangover_store_valid_bits[i] = 0x0;
+      //    }
+      current_frame_bit_cnt = 0x0;
+      current_line_read_pnt = 0x0;
+      hangover_store = 0x0;
+      hangover_store_valid_bits = 0x0;
+      tkeep = 0x0;
+      if(!sFromHaddocBuffer_chanX.empty())
+      {
+        sFromHaddocBuffer_chanX.read();
+        not_empty = true;
+      }
+      if(!not_empty)
+      {
+        widenFSM = FORWARD;
+      }
+      break;
+
+    case FORWARD:
+      if(!sFromHaddocBuffer_chanX.empty() && !sOutBuffer_chanX.full())
+      {
+        combined_output = hangover_store;
+        //ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
+
+        ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = sFromHaddocBuffer_chanX.read();
+        combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH>) nv) << (hangover_store_valid_bits);
+        current_line_read_pnt++;
+        tkeep <<= DOSA_HADDOC_GENERAL_BITWIDTH_TKEEP_WIDTH;
+        tkeep |= (ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) DOSA_HADDOC_GENERAL_BITWIDTH_TKEEP;
+
+        //current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH - hangover_store_valid_bits;
+        current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH;
+        //tkeep = bitCntToTKeep(ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH/8> (DOSA_HADDOC_GENERAL_BITWIDTH + hangover_store_valid_bits)); //do it HERE, to achieve II=1
+
+        if(current_line_read_pnt >= WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL || current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT)
+        {//write to stream
+          current_line_read_pnt = 0x0;
+          ap_uint<1> tlast = 0;
+          if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT)
+          {
+            //TODO: what if there is hangover data left?
+            current_frame_bit_cnt = 0x0;
+            tlast = 0b1;
+          }
+          Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) combined_output, tkeep, tlast);
+          sOutBuffer_chanX.write(tmp_write_0);
+          tkeep = 0x0;
+          printf("genericWiden: write Axis tdata: %16.16llx, tkeep: %2.2x, tlast: %x;\n", (uint64_t) tmp_write_0.getTData(), (uint8_t) tmp_write_0.getTKeep(), (uint8_t) tmp_write_0.getTLast());
+
+          hangover_store = (ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) (combined_output >> DOSA_WRAPPER_OUTPUT_IF_BITWIDTH);
+          if((hangover_store_valid_bits+DOSA_HADDOC_GENERAL_BITWIDTH) > DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
+          {
+            hangover_store_valid_bits -= (DOSA_WRAPPER_OUTPUT_IF_BITWIDTH-DOSA_HADDOC_GENERAL_BITWIDTH);
+          } else {
+            hangover_store_valid_bits = 0x0;
+          }
+        } else {
+          //wait
+          hangover_store = combined_output;
+          hangover_store_valid_bits += DOSA_HADDOC_GENERAL_BITWIDTH;
+        }
+        printf("genericWiden: combined %16.16llx, hangover_bits_valid_bits: %d, current_frame_bit_cnt: %d\n", (uint64_t) combined_output, (uint64_t) hangover_store_valid_bits, (uint32_t) current_frame_bit_cnt);
+      }
+      break;
+  }
+
+}
+void pFromHaddocWiden_4(
+    stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sFromHaddocBuffer_chanX,
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chanX
+    )
+{
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  static twoStatesFSM widenFSM = RESET;
+#pragma HLS reset variable=widenFSM
+  static uint32_t current_frame_bit_cnt;
+#pragma HLS reset variable=current_frame_bit_cnt
+  static uint32_t current_line_read_pnt;
+#pragma HLS reset variable=current_line_read_pnt
+  static ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> hangover_store;
+#pragma HLS reset variable=hangover_store
+  static ap_uint<32> hangover_store_valid_bits;
+#pragma HLS reset variable=hangover_store_valid_bits
+  static ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep;
+#pragma HLS reset variable=tkeep
+  //-- LOCAL VARIABLES ------------------------------------------------------
+  bool not_empty = false;
+  ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH> combined_output = 0x0;
+
+  switch(widenFSM)
+  {
+    default:
+    case RESET:
+      //    for(int i = 0; i < DOSA_HADDOC_OUTPUT_CHAN_NUM; i++)
+      //    {
+      //      current_frame_bit_cnt[i]= 0x0;
+      //      current_line_read_pnt[i] = 0x0;
+      //      hangover_store[i] = 0x0;
+      //      hangover_store_valid_bits[i] = 0x0;
+      //    }
+      current_frame_bit_cnt = 0x0;
+      current_line_read_pnt = 0x0;
+      hangover_store = 0x0;
+      hangover_store_valid_bits = 0x0;
+      tkeep = 0x0;
+      if(!sFromHaddocBuffer_chanX.empty())
+      {
+        sFromHaddocBuffer_chanX.read();
+        not_empty = true;
+      }
+      if(!not_empty)
+      {
+        widenFSM = FORWARD;
+      }
+      break;
+
+    case FORWARD:
+      if(!sFromHaddocBuffer_chanX.empty() && !sOutBuffer_chanX.full())
+      {
+        combined_output = hangover_store;
+        //ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
+
+        ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = sFromHaddocBuffer_chanX.read();
+        combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH>) nv) << (hangover_store_valid_bits);
+        current_line_read_pnt++;
+        tkeep <<= DOSA_HADDOC_GENERAL_BITWIDTH_TKEEP_WIDTH;
+        tkeep |= (ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) DOSA_HADDOC_GENERAL_BITWIDTH_TKEEP;
+
+        //current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH - hangover_store_valid_bits;
+        current_frame_bit_cnt += DOSA_HADDOC_GENERAL_BITWIDTH;
+        //tkeep = bitCntToTKeep(ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH/8> (DOSA_HADDOC_GENERAL_BITWIDTH + hangover_store_valid_bits)); //do it HERE, to achieve II=1
+
+        if(current_line_read_pnt >= WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL || current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT)
+        {//write to stream
+          current_line_read_pnt = 0x0;
+          ap_uint<1> tlast = 0;
+          if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT)
+          {
+            //TODO: what if there is hangover data left?
+            current_frame_bit_cnt = 0x0;
+            tlast = 0b1;
+          }
+          Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) combined_output, tkeep, tlast);
+          sOutBuffer_chanX.write(tmp_write_0);
+          tkeep = 0x0;
+          printf("genericWiden: write Axis tdata: %16.16llx, tkeep: %2.2x, tlast: %x;\n", (uint64_t) tmp_write_0.getTData(), (uint8_t) tmp_write_0.getTKeep(), (uint8_t) tmp_write_0.getTLast());
+
+          hangover_store = (ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) (combined_output >> DOSA_WRAPPER_OUTPUT_IF_BITWIDTH);
+          if((hangover_store_valid_bits+DOSA_HADDOC_GENERAL_BITWIDTH) > DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
+          {
+            hangover_store_valid_bits -= (DOSA_WRAPPER_OUTPUT_IF_BITWIDTH-DOSA_HADDOC_GENERAL_BITWIDTH);
+          } else {
+            hangover_store_valid_bits = 0x0;
+          }
+        } else {
+          //wait
+          hangover_store = combined_output;
+          hangover_store_valid_bits += DOSA_HADDOC_GENERAL_BITWIDTH;
+        }
+        printf("genericWiden: combined %16.16llx, hangover_bits_valid_bits: %d, current_frame_bit_cnt: %d\n", (uint64_t) combined_output, (uint64_t) hangover_store_valid_bits, (uint32_t) current_frame_bit_cnt);
+      }
+      break;
+  }
+
+}
+#else
+  //DOSA_ADD_pFromHaddocWiden_X_declaration
+#endif
+
 
 
 void pFromHaddocDeq(
 #ifdef WRAPPER_TEST
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> const * const chan1_buffer_0,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> const * const chan1_buffer_1,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> const * const chan2_buffer_0,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> const * const chan2_buffer_1,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> const * const chan3_buffer_0,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> const * const chan3_buffer_1,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> const * const chan4_buffer_0,
-  ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> const * const chan4_buffer_1,
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan1,
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan2,
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan3,
+    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan4,
 #else
-    //DOSA_ADD_from_haddoc_buffer_param_decl
+    //DOSA_ADD_output_stream_param_decl
 #endif
-    stream<bool>                              &sFromHaddocFrameComplete,
+    //stream<bool>                              &sFromHaddocIfLineComplete,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
     uint16_t *debug
     )
@@ -838,165 +1448,185 @@ void pFromHaddocDeq(
 #pragma HLS reset variable=dequeueFSM
   static ap_uint<64> current_frame_bit_cnt = 0x0;
 #pragma HLS reset variable=current_frame_bit_cnt
-  static ap_uint<64> current_array_read_pnt = 0x0;
-#pragma HLS reset variable=current_array_read_pnt
-  static ap_uint<64> current_batch_bit_cnt = 0x0;
-#pragma HLS reset variable=current_batch_bit_cnt
-  static ap_uint<2> current_array_slot_pnt = 0x0;
-#pragma HLS reset variable=current_array_slot_pnt
-  static ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> hangover_store = 0x0;
-#pragma HLS reset variable=hangover_store
-  static ap_uint<64> hangover_store_valid_bits = 0x0;
-#pragma HLS reset variable=hangover_store_valid_bits
+  //  static ap_uint<64> current_batch_bit_cnt = 0x0;
+  //#pragma HLS reset variable=current_batch_bit_cnt
   //-- LOCAL VARIABLES ------------------------------------------------------
-  ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH> combined_output = 0x0;
+  bool not_empty = false;
+  Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> tmp_read_0;
 
   switch (dequeueFSM)
   {
     default:
     case RESET1:
-      //necessary?
       current_frame_bit_cnt = 0x0;
-      current_array_read_pnt = 0x0;
-      current_batch_bit_cnt = 0x0;
-      current_array_slot_pnt = 0x0;
-      hangover_store = 0x0;
-      hangover_store_valid_bits = 0x0;
-      dequeueFSM = WAIT_FRAME;
-      break;
-
-    case WAIT_FRAME:
-      if( !sFromHaddocFrameComplete.empty() )
+      //current_batch_bit_cnt = 0x0;
+#ifdef WRAPPER_TEST
+      if(!sOutBuffer_chan1.empty())
       {
-        bool ignore_me = sFromHaddocFrameComplete.read();
-        current_frame_bit_cnt = 0x0;
-        current_array_read_pnt = 0x0;
-        current_batch_bit_cnt = 0x0;
-        current_array_slot_pnt = 0x0;
-        hangover_store = 0x0;
-        hangover_store_valid_bits = 0x0;
-        dequeueFSM = READ_FRAME;
+        sOutBuffer_chan1.read();
+        not_empty = true;
+      }
+      if(!sOutBuffer_chan2.empty())
+      {
+        sOutBuffer_chan2.read();
+        not_empty = true;
+      }
+      if(!sOutBuffer_chan3.empty())
+      {
+        sOutBuffer_chan3.read();
+        not_empty = true;
+      }
+      if(!sOutBuffer_chan4.empty())
+      {
+        sOutBuffer_chan4.read();
+        not_empty = true;
+      }
+#else
+      //DOSA_ADD_out_stream_drain
+#endif
+      if(!not_empty)
+      {
+        dequeueFSM = READ_BUF_0;
       }
       break;
 
-    case READ_FRAME:
-      if( !soData.full() )
+      //case WAIT_LINE:
+      //  if( !sFromHaddocIfLineComplete.empty() )
+      //  {
+      //    bool ignore_me = sFromHaddocFrameComplete.read();
+      //    current_frame_bit_cnt = 0x0;
+      //    current_array_read_pnt = 0x0;
+      //    current_batch_bit_cnt = 0x0;
+      //    current_array_slot_pnt = 0x0;
+      //    hangover_store = 0x0;
+      //    hangover_store_valid_bits = 0x0;
+      //    dequeueFSM = READ_FRAME;
+      //  }
+      //  break;
+#ifdef WRAPPER_TEST
+    case READ_BUF_0:
+      if(!soData.full() && !sOutBuffer_chan1.empty())
       {
-        combined_output = hangover_store;
-        ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> tkeep = 0x0;
-        //uint8_t tkeep_offset_hangover = 0x0;
-        //for(int k = 0; k < (DOSA_HADDOC_GENERAL_BITWIDTH+7)/8; k++)
-        //{
-        //  if(hangover_store_valid_bits > k*8)
-        //  {
-        //    tkeep |= ((ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) 0b1) << k;
-        //    tkeep_offset_hangover++;
-        //  } else {
-        //    break;
-        //  }
-        //}
-        uint16_t bytes_read = 0;
-        bool eof = false;
-        for(int r = 0; r < WRAPPER_OUTPUT_IF_HADDOC_WORDS_CNT_CEIL; r++)
+        tmp_read_0 = sOutBuffer_chan1.read();
+        uint32_t bit_read = extractByteCnt(tmp_read_0) * 8;
+        current_frame_bit_cnt += bit_read;
+        //current_batch_bit_cnt += bit_read;
+        if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT || tmp_read_0.getTLast() == 1)
         {
-          ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> nv = 0x0;
-          uint8_t cur_channel = (current_array_read_pnt + r) / CNN_OUTPUT_FRAME_SIZE;
-          if(cur_channel >= DOSA_HADDOC_OUTPUT_CHAN_NUM)
-          {
-            eof = true;
-            break;
-          }
-          uint16_t cur_read_position = (current_array_read_pnt + r) - (cur_channel * CNN_OUTPUT_FRAME_SIZE);
-          if( current_array_slot_pnt == 0)
-          {
-#ifdef WRAPPER_TEST
-            switch (cur_channel) {
-              case 0: nv = chan1_buffer_0[cur_read_position]; break;
-              case 1: nv = chan2_buffer_0[cur_read_position]; break;
-              case 2: nv = chan3_buffer_0[cur_read_position]; break;
-              case 3: nv = chan4_buffer_0[cur_read_position]; break;
-            }
-#else
-            //DOSA_ADD_output_deq_read_switch_case_buff0
-#endif
-          } else {
-#ifdef WRAPPER_TEST
-            switch (cur_channel) {
-              case 0: nv = chan1_buffer_1[cur_read_position]; break;
-              case 1: nv = chan2_buffer_1[cur_read_position]; break;
-              case 2: nv = chan3_buffer_1[cur_read_position]; break;
-              case 3: nv = chan4_buffer_1[cur_read_position]; break;
-            }
-#else
-            //DOSA_ADD_output_deq_read_switch_case_buff1
-#endif
-          }
-          combined_output |= ((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+DOSA_HADDOC_GENERAL_BITWIDTH>) nv) << (r*DOSA_HADDOC_GENERAL_BITWIDTH + hangover_store_valid_bits);
-
-          //if(current_batch_bit_cnt + r*DOSA_HADDOC_GENERAL_BITWIDTH < HADDOC_OUTPUT_FRAME_BIT_CNT*DOSA_HADDOC_OUTPUT_CHAN_NUM)
+          current_frame_bit_cnt = 0x0;
+          dequeueFSM = READ_BUF_1;
+          //if(current_batch_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT*DOSA_HADDOC_OUTPUT_CHAN_NUM)
           //{
-          //  for(int k = 0; k < DOSA_HADDOC_GENERAL_BITWIDTH/8; k++)
-          //  {
-          //    tkeep |= ((ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8>) 0b1) << r*(DOSA_HADDOC_GENERAL_BITWIDTH/8) + k + tkeep_offset_hangover;
-          //  }
+          //  current_batch_bit_cnt = 0x0;
+          //  //in all cases
+          //  tlast = 0b1;
           //}
-          printf("pFromHaddocDeq: read %2.2x, from position %d in channels %d and slot %d\n", (uint8_t) nv, (uint16_t) cur_read_position, (uint8_t) cur_channel, (uint8_t) current_array_slot_pnt);
-          bytes_read++;
-        }
-        tkeep = bitCntToTKeep(ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH/8> (bytes_read*8 + hangover_store_valid_bits));
-        hangover_store = (ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) (combined_output >> DOSA_WRAPPER_OUTPUT_IF_BITWIDTH);
-        if((bytes_read*DOSA_HADDOC_GENERAL_BITWIDTH) > DOSA_WRAPPER_OUTPUT_IF_BITWIDTH)
-        {
-          hangover_store_valid_bits = (bytes_read*DOSA_HADDOC_GENERAL_BITWIDTH) - DOSA_WRAPPER_OUTPUT_IF_BITWIDTH;
-        } else {
-          hangover_store_valid_bits = 0x0;
-        }
-        //current_frame_bit_cnt += DOSA_WRAPPER_OUTPUT_IF_BITWIDTH;
-        //current_batch_bit_cnt += DOSA_WRAPPER_OUTPUT_IF_BITWIDTH;
-        current_frame_bit_cnt += bytes_read*DOSA_HADDOC_GENERAL_BITWIDTH - hangover_store_valid_bits;
-        current_batch_bit_cnt += bytes_read*DOSA_HADDOC_GENERAL_BITWIDTH - hangover_store_valid_bits;
-        current_array_read_pnt += bytes_read;
-        printf("pFromHaddocDeq: combined %16.16llx, hangover_bits_valid_bits: %d, current_frame_bit_cnt: %d, current_batch_bit_cnt: %d\n", (uint64_t) combined_output, (uint64_t) hangover_store_valid_bits, (uint32_t) current_frame_bit_cnt, (uint32_t) current_batch_bit_cnt);
-
-        ap_uint<1> tlast = 0;
-        if( current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT || eof )
-        {
-          if(current_frame_bit_cnt > HADDOC_OUTPUT_FRAME_BIT_CNT)
-          {
-            current_frame_bit_cnt -= HADDOC_OUTPUT_FRAME_BIT_CNT;
-          } else {
-            current_frame_bit_cnt = 0x0;
-          }
-          if(current_batch_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT*DOSA_HADDOC_OUTPUT_CHAN_NUM)
-          {
-            dequeueFSM = WAIT_FRAME;
-            current_array_slot_pnt++;
-            if(current_array_slot_pnt > 1)
-            {
-              current_array_slot_pnt = 0x0;
-            }
-            current_batch_bit_cnt = 0x0;
-            //in all cases
-            tlast = 0b1;
-          }
           //check for tlast after each frame
           if(!DOSA_HADDOC_OUTPUT_BATCH_FLATTEN)
           {
-            tlast = 0b1;
+            tmp_read_0.setTLast(0b1);
+          } else {
+            tmp_read_0.setTLast(0b0);
           }
         }
-        //else {
-        //  //stay here
-        //  dequeueFSM = READ_FRAME;
-        //}
-        Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> tmp_write_0 = Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>((ap_uint<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH>) combined_output, tkeep, tlast);
-        soData.write(tmp_write_0);
-        printf("pFromHaddocDeq: write Axis tdata: %16.16llx, tkeep: %2.2x, tlast: %x;\n", (uint64_t) tmp_write_0.getTData(), (uint8_t) tmp_write_0.getTKeep(), (uint8_t) tmp_write_0.getTLast());
+        soData.write(tmp_read_0);
       }
       break;
+
+    case READ_BUF_1:
+      if(!soData.full() && !sOutBuffer_chan2.empty())
+      {
+        tmp_read_0 = sOutBuffer_chan2.read();
+        uint32_t bit_read = extractByteCnt(tmp_read_0) * 8;
+        current_frame_bit_cnt += bit_read;
+        if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT || tmp_read_0.getTLast() == 1)
+        {
+          current_frame_bit_cnt = 0x0;
+          dequeueFSM = READ_BUF_2;
+          //check for tlast after each frame
+          if(!DOSA_HADDOC_OUTPUT_BATCH_FLATTEN)
+          {
+            tmp_read_0.setTLast(0b1);
+          } else {
+            tmp_read_0.setTLast(0b0);
+          }
+        }
+        soData.write(tmp_read_0);
+      }
+      break;
+
+    case READ_BUF_2:
+      if(!soData.full() && !sOutBuffer_chan3.empty())
+      {
+        tmp_read_0 = sOutBuffer_chan3.read();
+        uint32_t bit_read = extractByteCnt(tmp_read_0) * 8;
+        current_frame_bit_cnt += bit_read;
+        if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT || tmp_read_0.getTLast() == 1)
+        {
+          current_frame_bit_cnt = 0x0;
+          dequeueFSM = READ_BUF_3;
+          //check for tlast after each frame
+          if(!DOSA_HADDOC_OUTPUT_BATCH_FLATTEN)
+          {
+            tmp_read_0.setTLast(0b1);
+          } else {
+            tmp_read_0.setTLast(0b0);
+          }
+        }
+        soData.write(tmp_read_0);
+      }
+      break;
+
+    case READ_BUF_3:
+      if(!soData.full() && !sOutBuffer_chan4.empty())
+      {
+        tmp_read_0 = sOutBuffer_chan4.read();
+        uint32_t bit_read = extractByteCnt(tmp_read_0) * 8;
+        current_frame_bit_cnt += bit_read;
+        if(current_frame_bit_cnt >= HADDOC_OUTPUT_FRAME_BIT_CNT || tmp_read_0.getTLast() == 1)
+        {
+          current_frame_bit_cnt = 0x0;
+          dequeueFSM = READ_BUF_0; //back to start
+          //check for tlast after each frame
+          //if(!DOSA_HADDOC_OUTPUT_BATCH_FLATTEN)
+          //{
+          // tmp_read_0.setTLast(0b1);
+          //} else {
+          // tmp_read_0.setTLast(0b0);
+          //}
+          //in all cases
+          tmp_read_0.setTLast(0b1);
+        }
+        soData.write(tmp_read_0);
+      }
+      break;
+#else
+      //DOSA_ADD_from_haddoc_deq_buf_read
+#endif
+
   }
 
   *debug = current_frame_bit_cnt;
+
+}
+
+void pMergeDebug(
+  uint16_t *debug0,
+  uint16_t *debug1,
+  uint16_t *debug2,
+  uint16_t *debug3,
+    ap_uint<64> *debug_out
+    )
+{
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+
+  *debug_out = (uint64_t) *debug0;
+  *debug_out |= ((uint64_t) *debug1) << 16;
+  *debug_out |= ((uint64_t) *debug2) << 32;
+  *debug_out |= ((uint64_t) *debug3) << 48;
 
 }
 
@@ -1008,12 +1638,14 @@ void haddoc_wrapper_test(
     stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >   &siData,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >  &soData,
     // ----- Haddoc Interface -----
-    ap_uint<1>                                *po_haddoc_data_valid,
+    //ap_uint<1>                                *po_haddoc_data_valid,
+    //ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
     ap_uint<1>                                *po_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>      *po_haddoc_data_vector,
-    ap_uint<1>                                *pi_haddoc_data_valid,
+    stream<ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH> > &po_haddoc_data,
+    //ap_uint<1>                                *pi_haddoc_data_valid,
+    //ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
     ap_uint<1>                                *pi_haddoc_frame_valid,
-    ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH>     *pi_haddoc_data_vector,
+    stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > &pi_haddoc_data,
     // ----- DEBUG IO ------
     ap_uint<64> *debug_out
     )
@@ -1024,13 +1656,15 @@ void haddoc_wrapper_test(
 #pragma HLS INTERFACE ap_fifo port=siData
 #pragma HLS INTERFACE ap_fifo port=soData
 
-#pragma HLS INTERFACE ap_ovld register port=po_haddoc_data_valid
+//#pragma HLS INTERFACE ap_ovld register port=po_haddoc_data_valid
+//#pragma HLS INTERFACE ap_ovld register port=po_haddoc_data_vector
 #pragma HLS INTERFACE ap_ovld register port=po_haddoc_frame_valid
-#pragma HLS INTERFACE ap_ovld register port=po_haddoc_data_vector
-#pragma HLS INTERFACE ap_vld register port=pi_haddoc_data_valid
+//#pragma HLS INTERFACE ap_vld register port=pi_haddoc_data_valid
+//#pragma HLS INTERFACE ap_vld register port=pi_haddoc_data_vector
 #pragma HLS INTERFACE ap_vld register port=pi_haddoc_frame_valid
-#pragma HLS INTERFACE ap_vld register port=pi_haddoc_data_vector
 #pragma HLS INTERFACE ap_ovld register port=debug_out
+#pragma HLS INTERFACE axis register port=po_haddoc_data
+#pragma HLS INTERFACE axis register port=pi_haddoc_data
 
 
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -1048,40 +1682,56 @@ void haddoc_wrapper_test(
   //-- STATIC DATAFLOW VARIABLES ------------------------------------------
 #ifdef WRAPPER_TEST
   static stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> > sToHaddocBuffer_chan1 ("sToHaddocBuffer_chan1");
-  #pragma HLS STREAM variable=sToHaddocBuffer_chan1   depth=cnn_input_frame_size
+#pragma HLS STREAM variable=sToHaddocBuffer_chan1   depth=cnn_input_frame_size
   static stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> > sToHaddocBuffer_chan2 ("sToHaddocBuffer_chan2");
-  #pragma HLS STREAM variable=sToHaddocBuffer_chan2   depth=cnn_input_frame_size
+#pragma HLS STREAM variable=sToHaddocBuffer_chan2   depth=cnn_input_frame_size
   static stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> > sToHaddocBuffer_chan3 ("sToHaddocBuffer_chan3");
-  #pragma HLS STREAM variable=sToHaddocBuffer_chan3   depth=cnn_input_frame_size
-static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan1_buffer_0[CNN_OUTPUT_FRAME_SIZE];
-static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan1_buffer_1[CNN_OUTPUT_FRAME_SIZE];
-static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan2_buffer_0[CNN_OUTPUT_FRAME_SIZE];
-static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan2_buffer_1[CNN_OUTPUT_FRAME_SIZE];
-static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan3_buffer_0[CNN_OUTPUT_FRAME_SIZE];
-static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan3_buffer_1[CNN_OUTPUT_FRAME_SIZE];
-static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_0[CNN_OUTPUT_FRAME_SIZE];
-static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_1[CNN_OUTPUT_FRAME_SIZE];
-//potential VIVADO HLS bug...with partition complete, the wrong error of two write access is issued
-//#pragma HLS ARRAY_PARTITION variable=g_chan1_buffer_0 complete
-//#pragma HLS ARRAY_PARTITION variable=g_chan1_buffer_1 complete
-//#pragma HLS ARRAY_PARTITION variable=g_chan2_buffer_0 complete
-//#pragma HLS ARRAY_PARTITION variable=g_chan2_buffer_1 complete
-//#pragma HLS ARRAY_PARTITION variable=g_chan3_buffer_0 complete
-//#pragma HLS ARRAY_PARTITION variable=g_chan3_buffer_1 complete
-//#pragma HLS ARRAY_PARTITION variable=g_chan4_buffer_0 complete
-//#pragma HLS ARRAY_PARTITION variable=g_chan4_buffer_1 complete
-//ERROR: [XFORM 203-711] Internal global variable 'g_chan1_buffer_0.V.0'  failed dataflow checking: it can only be written in one process function.
-//WARNING: [XFORM 203-713] Internal global variable 'g_chan1_buffer_0.V.0' has write operations in process function 'pFromHaddocFlatten'.
-//WARNING: [XFORM 203-713] Internal global variable 'g_chan1_buffer_0.V.0' has read and write operations in process function 'pFromHaddocDeq'.
-//using cyclic instead
-#pragma HLS ARRAY_PARTITION variable=g_chan1_buffer_0 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
-#pragma HLS ARRAY_PARTITION variable=g_chan1_buffer_1 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
-#pragma HLS ARRAY_PARTITION variable=g_chan2_buffer_0 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
-#pragma HLS ARRAY_PARTITION variable=g_chan2_buffer_1 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
-#pragma HLS ARRAY_PARTITION variable=g_chan3_buffer_0 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
-#pragma HLS ARRAY_PARTITION variable=g_chan3_buffer_1 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
-#pragma HLS ARRAY_PARTITION variable=g_chan4_buffer_0 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
-#pragma HLS ARRAY_PARTITION variable=g_chan4_buffer_1 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
+#pragma HLS STREAM variable=sToHaddocBuffer_chan3   depth=cnn_input_frame_size
+  //static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan1_buffer_0[CNN_OUTPUT_FRAME_SIZE];
+  //static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan1_buffer_1[CNN_OUTPUT_FRAME_SIZE];
+  //static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan2_buffer_0[CNN_OUTPUT_FRAME_SIZE];
+  //static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan2_buffer_1[CNN_OUTPUT_FRAME_SIZE];
+  //static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan3_buffer_0[CNN_OUTPUT_FRAME_SIZE];
+  //static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan3_buffer_1[CNN_OUTPUT_FRAME_SIZE];
+  //static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_0[CNN_OUTPUT_FRAME_SIZE];
+  //static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_1[CNN_OUTPUT_FRAME_SIZE];
+  ////potential VIVADO HLS bug...with partition complete, the wrong error of two write access is issued
+  ////#pragma HLS ARRAY_PARTITION variable=g_chan1_buffer_0 complete
+  ////#pragma HLS ARRAY_PARTITION variable=g_chan1_buffer_1 complete
+  ////#pragma HLS ARRAY_PARTITION variable=g_chan2_buffer_0 complete
+  ////#pragma HLS ARRAY_PARTITION variable=g_chan2_buffer_1 complete
+  ////#pragma HLS ARRAY_PARTITION variable=g_chan3_buffer_0 complete
+  ////#pragma HLS ARRAY_PARTITION variable=g_chan3_buffer_1 complete
+  ////#pragma HLS ARRAY_PARTITION variable=g_chan4_buffer_0 complete
+  ////#pragma HLS ARRAY_PARTITION variable=g_chan4_buffer_1 complete
+  ////ERROR: [XFORM 203-711] Internal global variable 'g_chan1_buffer_0.V.0'  failed dataflow checking: it can only be written in one process function.
+  ////WARNING: [XFORM 203-713] Internal global variable 'g_chan1_buffer_0.V.0' has write operations in process function 'pFromHaddocFlatten'.
+  ////WARNING: [XFORM 203-713] Internal global variable 'g_chan1_buffer_0.V.0' has read and write operations in process function 'pFromHaddocDeq'.
+  ////using cyclic instead
+  //#pragma HLS ARRAY_PARTITION variable=g_chan1_buffer_0 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
+  //#pragma HLS ARRAY_PARTITION variable=g_chan1_buffer_1 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
+  //#pragma HLS ARRAY_PARTITION variable=g_chan2_buffer_0 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
+  //#pragma HLS ARRAY_PARTITION variable=g_chan2_buffer_1 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
+  //#pragma HLS ARRAY_PARTITION variable=g_chan3_buffer_0 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
+  //#pragma HLS ARRAY_PARTITION variable=g_chan3_buffer_1 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
+  //#pragma HLS ARRAY_PARTITION variable=g_chan4_buffer_0 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
+  //#pragma HLS ARRAY_PARTITION variable=g_chan4_buffer_1 cyclic factor=2*wrapper_output_if_haddoc_words_cnt_ceil
+  static stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> > sFromHaddocBuffer_chan1 ("sFromHaddocBuffer_chan1");
+#pragma HLS STREAM variable=sFromHaddocBuffer_chan1 depth=cnn_output_frame_size
+  static stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> > sFromHaddocBuffer_chan2 ("sFromHaddocBuffer_chan2");
+#pragma HLS STREAM variable=sFromHaddocBuffer_chan2 depth=cnn_output_frame_size
+  static stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> > sFromHaddocBuffer_chan3 ("sFromHaddocBuffer_chan3");
+#pragma HLS STREAM variable=sFromHaddocBuffer_chan3 depth=cnn_output_frame_size
+  static stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> > sFromHaddocBuffer_chan4 ("sFromHaddocBuffer_chan4");
+#pragma HLS STREAM variable=sFromHaddocBuffer_chan4 depth=cnn_output_frame_size
+  static stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > sOutBuffer_chan1 ("sOutBuffer_chan1");
+#pragma HLS STREAM variable=sOutBuffer_chan1 depth=cnn_output_frame_size
+  static stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > sOutBuffer_chan2 ("sOutBuffer_chan2");
+#pragma HLS STREAM variable=sOutBuffer_chan2 depth=cnn_output_frame_size
+  static stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > sOutBuffer_chan3 ("sOutBuffer_chan3");
+#pragma HLS STREAM variable=sOutBuffer_chan3 depth=cnn_output_frame_size
+  static stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > sOutBuffer_chan4 ("sOutBuffer_chan4");
+#pragma HLS STREAM variable=sOutBuffer_chan4 depth=cnn_output_frame_size
 #else
   //DOSA_ADD_haddoc_buffer_instantiation
 #endif
@@ -1089,15 +1739,18 @@ static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_1[CNN_OUTPUT_FRAME_S
   const int haddoc_processing_fifo_depth = HADDOC_AVG_LAYER_LATENCY * DOSA_HADDOC_LAYER_CNT;
   #pragma HLS STREAM variable=sHaddocUnitProcessing depth=haddoc_processing_fifo_depth
   static stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > sFromHaddocBuffer ("sFromHaddocBuffer");
-  #pragma HLS STREAM variable=sFromHaddocBuffer depth=haddoc_processing_fifo_depth+3  //so that we can receive, what we send out...
-  static stream<bool> sFromHaddocFrameComplete ("sFromHaddocFrameComplete");
-  #pragma HLS STREAM variable=sFromHaddocFrameComplete depth=2  //2! since arrays are double-buffers
+  #pragma HLS STREAM variable=sFromHaddocBuffer depth=3*haddoc_processing_fifo_depth  //so that we can receive, what we send out...
+  //static stream<bool> sFromHaddocFrameComplete ("sFromHaddocFrameComplete");
+  //#pragma HLS STREAM variable=sFromHaddocFrameComplete depth=2  //2! since arrays are double-buffers
+  //static stream<bool> sFromHaddocIfLineComplete ("sFromHaddocIfLineComplete");
+  //#pragma HLS STREAM variable=sFromHaddocIfLineComplete depth=2*wrapper_output_if_haddoc_words_cnt_ceil  //2 since arrays are double-buffers
 
   //-- LOCAL VARIABLES ------------------------------------------------------------
   uint16_t debug0 = 0;
   uint16_t debug1 = 0;
   uint16_t debug2 = 0;
   uint16_t debug3 = 0;
+  //ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH+1>      output_vector = 0;
   //-- PROCESS INSTANTIATION ------------------------------------------------------
 
   // with the current strategy [INPUT] -> [CHANEL, with same bitwidth] -> [BATCH_PIXEL], we can maintain
@@ -1118,33 +1771,59 @@ static ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> g_chan4_buffer_1[CNN_OUTPUT_FRAME_S
 #else
       //DOSA_ADD_toHaddoc_buffer_list
 #endif
-      po_haddoc_data_valid,
+      //po_haddoc_data_valid,
       //po_haddoc_frame_valid,
-      po_haddoc_data_vector, sHaddocUnitProcessing, &debug1);
+      //po_haddoc_data_vector,
+      //&output_vector,
+      po_haddoc_data,
+      sHaddocUnitProcessing, &debug1);
 
-  pFromHaddocEnq(pi_haddoc_data_valid, pi_haddoc_frame_valid, pi_haddoc_data_vector, sHaddocUnitProcessing, sFromHaddocBuffer);
+  pFromHaddocEnq(
+      //pi_haddoc_data_valid, pi_haddoc_frame_valid, pi_haddoc_data_vector,
+      pi_haddoc_data,
+      sHaddocUnitProcessing, sFromHaddocBuffer);
 
   pFromHaddocFlatten(
 #ifdef WRAPPER_TEST
-      g_chan1_buffer_0, g_chan1_buffer_1, g_chan2_buffer_0, g_chan2_buffer_1, g_chan3_buffer_0, g_chan3_buffer_1, g_chan4_buffer_0, g_chan4_buffer_1,
+      sFromHaddocBuffer_chan1, sFromHaddocBuffer_chan2, sFromHaddocBuffer_chan3, sFromHaddocBuffer_chan4,
 #else
-      //DOSA_ADD_from_haddoc_buffer_list
+      //DOSA_ADD_from_haddoc_stream_list
 #endif
-      sFromHaddocBuffer, sFromHaddocFrameComplete, &debug2);
+      sFromHaddocBuffer, &debug2);
+
+#ifdef WRAPPER_TEST
+  pFromHaddocWiden_1(sFromHaddocBuffer_chan1, sOutBuffer_chan1);
+  pFromHaddocWiden_2(sFromHaddocBuffer_chan2, sOutBuffer_chan2);
+  pFromHaddocWiden_3(sFromHaddocBuffer_chan3, sOutBuffer_chan3);
+  pFromHaddocWiden_4(sFromHaddocBuffer_chan4, sOutBuffer_chan4);
+#else
+  //DOSA_ADD_pFromHaddocWiden_X_instantiate
+#endif
 
   pFromHaddocDeq(
 #ifdef WRAPPER_TEST
-      g_chan1_buffer_0, g_chan1_buffer_1, g_chan2_buffer_0, g_chan2_buffer_1, g_chan3_buffer_0, g_chan3_buffer_1, g_chan4_buffer_0, g_chan4_buffer_1,
+      sOutBuffer_chan1, sOutBuffer_chan2, sOutBuffer_chan3, sOutBuffer_chan4,
 #else
-      //DOSA_ADD_from_haddoc_buffer_list
+      //DOSA_ADD_from_haddoc_out_list
 #endif
-      sFromHaddocFrameComplete, soData, &debug3);
+      soData, &debug3);
 
-  *debug_out = (uint64_t) debug0;
-  *debug_out |= ((uint64_t) debug1) << 16;
-  *debug_out |= ((uint64_t) debug2) << 32;
-  *debug_out |= ((uint64_t) debug3) << 48;
+//  //currently the slowest --> last
+//  pFromHaddocWiden(
+//#ifdef WRAPPER_TEST
+//      sFromHaddocBuffer_chan1, sFromHaddocBuffer_chan2, sFromHaddocBuffer_chan3, sFromHaddocBuffer_chan4,
+//      sOutBuffer_chan1, sOutBuffer_chan2, sOutBuffer_chan3, sOutBuffer_chan4,
+//#else
+//      //DOSA_ ADD_from_haddoc_stream_list
+//      //DOSA_ ADD_from_haddoc_out_list
+//#endif
+//      0);
 
+  pMergeDebug(&debug0, &debug1, &debug2, &debug3, debug_out);
+
+  //un-bundle output
+  //*po_haddoc_data_valid = (ap_uint<1>) (output_vector >> DOSA_HADDOC_INPUT_BITDIWDTH);
+  //*po_haddoc_data_vector = (ap_uint<DOSA_HADDOC_INPUT_BITDIWDTH>) output_vector;
 
 }
 

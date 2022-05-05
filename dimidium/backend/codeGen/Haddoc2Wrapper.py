@@ -133,19 +133,82 @@ class Haddoc2Wrapper:
                     for b in range(0, self.in_dims[1]):
                         outline += '    stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >    &sToHaddocBuffer_chan{},\n'.format(
                             b)
-                elif 'DOSA_ADD_enq_fsm' in line:
-                    fsm_tmpl = '    case FILL_BUF_{b}:\n      if( !siData.empty() && !sToHaddocBuffer_chan{b}.full() )\n' + \
-                               '      {{\n        if(genericEnqState(siData, sToHaddocBuffer_chan{b}, current_frame_bit_cnt,' + \
-                               ' hangover_store, hangover_store_valid_bits))\n        {{\n          ' + \
-                               'enqueueFSM = FILL_BUF_{b1};\n        }}\n      }}\n      break;\n'
+                # elif 'DOSA_ADD_enq_fsm' in line:
+                #     fsm_tmpl = '    case FILL_BUF_{b}:\n      if( !siData.empty() && !sToHaddocBuffer_chan{b}.full() )\n' + \
+                #                '      {{\n        if(genericEnqState(siData, sToHaddocBuffer_chan{b}, current_frame_bit_cnt,' + \
+                #                ' hangover_store, hangover_store_valid_bits))\n        {{\n          ' + \
+                #                'enqueueFSM = FILL_BUF_{b1};\n        }}\n      }}\n      break;\n'
+                #     outline = ''
+                #     for b in range(0, self.in_dims[1]):
+                #         b1 = b + 1
+                #         if b1 >= self.in_dims[1]:
+                #             b1 = 0
+                #         outline += fsm_tmpl.format(b=b, b1=b1)
+                elif 'DOSA_ADD_demux_fsm' in line:
+                    fsm_tmpl = '    case FILL_BUF_{b}:\n' + \
+                               '      if( !siData.empty() && !sToHaddocBuffer_chan{b}.full() && !sToHaddocBuffer_chan{b1}.full() )\n' + \
+                               '      {{\n' + \
+                               '        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();\n' + \
+                               '        uint32_t new_bytes_cnt = extractByteCnt(tmp_read_0);\n' + \
+                               '        if((current_frame_byte_cnt + new_bytes_cnt) >= HADDOC_INPUT_FRAME_BYTE_CNT)\n' + \
+                               '        {{\n' + \
+                               '          uint32_t bytes_to_this_frame = HADDOC_INPUT_FRAME_BYTE_CNT - current_frame_byte_cnt;\n' + \
+                               '          uint32_t bytes_to_next_frame = new_bytes_cnt - bytes_to_this_frame;\n' + \
+                               '          ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> cur_input = tmp_read_0.getTData();\n' + \
+                               '          ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> cur_tkeep = tmp_read_0.getTKeep();\n' + \
+                               '          ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> this_tkeep = 0x0;\n' + \
+                               '          ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> next_tkeep = 0x0;\n' + \
+                               '          for(uint32_t i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)\n' + \
+                               '          {{\n' + \
+                               '            ap_uint<1> cur_tkeep_bit = (ap_uint<1>) (cur_tkeep >> i);\n' + \
+                               '            if(i < bytes_to_this_frame)\n' + \
+                               '            {{\n' + \
+                               '              this_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) cur_tkeep_bit) << i;\n' + \
+                               '            }} else {{\n' + \
+                               '              next_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) cur_tkeep_bit) << i;\n' + \
+                               '            }}\n' + \
+                               '          }}\n' + \
+                               '          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_this =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, this_tkeep, 0);\n' + \
+                               '          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, next_tkeep, 0);\n' + \
+                               '          sToHaddocBuffer_chan{b}.write(tmp_write_this);\n' + \
+                               '          if(bytes_to_next_frame > 0)\n' + \
+                               '          {{\n' + \
+                               '            sToHaddocBuffer_chan{b1}.write(tmp_write_next);\n' + \
+                               '          }}\n' + \
+                               '          current_frame_byte_cnt = bytes_to_next_frame;\n' + \
+                               '          enqueueFSM = FILL_BUF_{b1};\n' + \
+                               '        }} else {{\n' + \
+                               '          current_frame_byte_cnt += new_bytes_cnt;\n' + \
+                               '          tmp_read_0.setTLast(0);\n' + \
+                               '          sToHaddocBuffer_chan{b}.write(tmp_read_0);\n' + \
+                               '        }}\n' + \
+                               '      }}\n' + \
+                               '      break;\n'
                     outline = ''
                     for b in range(0, self.in_dims[1]):
                         b1 = b + 1
                         if b1 >= self.in_dims[1]:
                             b1 = 0
                         outline += fsm_tmpl.format(b=b, b1=b1)
+                elif 'DOSA_ADD_pToHaddocNarrow_X_declaration' in line:
+                    template_lines = Path(os.path.join(__filedir__, 'templates/haddoc2_wrapper/src/pToHaddocNarrow_b'
+                                                                    '.fstrtmpl')).read_text()
+                    outline = ''
+                    for b in range(0, self.in_dims[1]):
+                        outline += template_lines.format(b=b)
                 elif 'DOSA_ADD_toHaddoc_deq_buffer_drain' in line:
                     fsm_tmpl = '    if( !sToHaddocBuffer_chan{b}.empty() )\n    {{\n      sToHaddocBuffer_chan{b}.read();\n' + \
+                               '      one_not_empty = true;\n    }}\n'
+                    outline = ''
+                    for b in range(0, self.in_dims[1]):
+                        outline += fsm_tmpl.format(b=b)
+                elif 'DOSA_ADD_toHaddoc_pixelChain_param_decl' in line:
+                    outline = ''
+                    for b in range(0, self.in_dims[1]):
+                        outline += '  stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> >    &sToHaddocPixelChain_chan{},\n'.format(
+                            b)
+                elif 'DOSA_ADD_toHaddoc_deq_pixelChain_drain' in line:
+                    fsm_tmpl = '    if( !sToHaddocPixelChain_chan{b}.empty() )\n    {{\n      sToHaddocPixelChain_chan{b}.read();\n' + \
                                '      one_not_empty = true;\n    }}\n'
                     outline = ''
                     for b in range(0, self.in_dims[1]):
@@ -153,13 +216,15 @@ class Haddoc2Wrapper:
                 elif 'DOSA_ADD_toHaddoc_deq_if_clause' in line:
                     outline = '       '
                     for b in range(0, self.in_dims[1]):
-                        outline += ' && !sToHaddocBuffer_chan{}.empty()'.format(b)
+                        # outline += ' && !sToHaddocBuffer_chan{}.empty()'.format(b)
+                        outline += ' && !sToHaddocPixelChain_chan{}.empty()'.format(b)
                     outline += '\n'
                 elif 'DOSA_ADD_deq_flatten' in line:
-                    fsm_tmpl = '        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_{b} = ' + \
-                               'sToHaddocBuffer_chan{b}.read();\n        cur_line_bit_cnt[{b}] = ' + \
-                               'flattenAxisBuffer(tmp_read_{b}, combined_input[{b}], hangover_bits[{b}], ' + \
-                               'hangover_bits_valid_bits[{b}]);\n'
+                    # fsm_tmpl = '        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_{b} = ' + \
+                    #            'sToHaddocBuffer_chan{b}.read();\n        cur_line_bit_cnt[{b}] = ' + \
+                    #            'flattenAxisBuffer(tmp_read_{b}, combined_input[{b}], hangover_bits[{b}], ' + \
+                    #            'hangover_bits_valid_bits[{b}]);\n'
+                    fsm_tmpl = '        pixel_array[{b}] = sToHaddocPixelChain_chan{b}.read();\n'
                     outline = ''
                     for b in range(0, self.in_dims[1]):
                         outline += fsm_tmpl.format(b=b)
@@ -281,6 +346,9 @@ class Haddoc2Wrapper:
                     fsm_tmpl = '  static stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> > sToHaddocBuffer_chan{b} ' + \
                                '("sToHaddocBuffer_chan{b}");\n  #pragma HLS STREAM variable=sToHaddocBuffer_chan{b}   ' + \
                                'depth=cnn_input_frame_size\n'
+                    fsm_tmpl += '  static stream<ap_uint<DOSA_HADDOC_GENERAL_BITWIDTH> > ' + \
+                               'sToHaddocPixelChain_chan{b} ("sToHaddocPixelChain_chan{b}");\n' + \
+                               '  #pragma HLS STREAM variable=sToHaddocPixelChain_chan{b} depth=2*cnn_input_frame_size\n'
                     outline = '\n'
                     for b in range(0, self.in_dims[1]):
                         outline += fsm_tmpl.format(b=b)
@@ -313,6 +381,17 @@ class Haddoc2Wrapper:
                 #     for b in range(0, self.out_dims[1]):
                 #         outline += ' g_chan{b}_buffer_0, g_chan{b}_buffer_1,'.format(b=b)
                 #     outline += '\n'
+                elif 'DOSA_ADD_pToHaddocNarrow_X_instantiate' in line:
+                    outline = ''
+                    tmpl = '  pToHaddocNarrow_{b}(sToHaddocBuffer_chan{b}, sToHaddocPixelChain_chan{b});\n'
+                    for b in range(0, self.in_dims[1]):
+                        outline += tmpl.format(b=b)
+                    outline += '\n'
+                elif 'DOSA_ADD_toHaddoc_pixelChain_list' in line:
+                    outline = '     '
+                    for b in range(0, self.in_dims[1]):
+                        outline += ' sToHaddocPixelChain_chan{b},'.format(b=b)
+                    outline += '\n'
                 elif 'DOSA_ADD_from_haddoc_stream_list' in line:
                     outline = '     '
                     for b in range(0, self.out_dims[1]):
