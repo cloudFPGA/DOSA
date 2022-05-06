@@ -147,8 +147,11 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     print("\t...done.")
 
     # if debug or verbose:
-    #     print("\n[DEBUG] best draft found:")
-    #     print(best_draft)
+    #     print("\n[DEBUG] printing best draft found to: dimidium/out.json")
+    #     # print(best_draft)
+    #     with open('./out.json', 'w') as of:
+    #         of.write(str(best_draft))
+    #     # print("\n[DEBUG] ...trying to build...")
 
     print("\nDOSA: Found best and valid draft, generating architecture and software in {}...\n"
           .format(dosa_singleton.config.global_build_dir))

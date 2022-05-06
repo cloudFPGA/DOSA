@@ -168,11 +168,14 @@ class BrickContract(DosaContract):
         comp_util_detail['DSPs']       = self.detailed_FPGA_component_share['DSPs']      * fpga_utility['DSPs']
         res['component_utility_detail'] = comp_util_detail
         wrapper_util_detail = {}
-        wrapper_util_detail['LUTLOG']     = self.detailed_FPGA_wrapper_share['LUTLOG']    * fpga_utility['LUTLOG']
-        wrapper_util_detail['LUTMEM']     = self.detailed_FPGA_wrapper_share['LUTMEM']    * fpga_utility['LUTMEM']
-        wrapper_util_detail['Registers']  = self.detailed_FPGA_wrapper_share['Registers'] * fpga_utility['Registers']
-        wrapper_util_detail['BRAM']       = self.detailed_FPGA_wrapper_share['BRAM']      * fpga_utility['BRAM']
-        wrapper_util_detail['DSPs']       = self.detailed_FPGA_wrapper_share['DSPs']      * fpga_utility['DSPs']
+        if self.detailed_FPGA_wrapper_share is not None:
+            wrapper_util_detail['LUTLOG']     = self.detailed_FPGA_wrapper_share['LUTLOG']    * fpga_utility['LUTLOG']
+            wrapper_util_detail['LUTMEM']     = self.detailed_FPGA_wrapper_share['LUTMEM']    * fpga_utility['LUTMEM']
+            wrapper_util_detail['Registers']  = self.detailed_FPGA_wrapper_share['Registers'] * fpga_utility['Registers']
+            wrapper_util_detail['BRAM']       = self.detailed_FPGA_wrapper_share['BRAM']      * fpga_utility['BRAM']
+            wrapper_util_detail['DSPs']       = self.detailed_FPGA_wrapper_share['DSPs']      * fpga_utility['DSPs']
+        else:
+            wrapper_util_detail['INFO'] = "no wrapper present"
         res['wrapper_utility_detail'] = wrapper_util_detail
         return res
 

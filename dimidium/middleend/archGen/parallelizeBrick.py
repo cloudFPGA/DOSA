@@ -15,6 +15,7 @@ import tvm.relay as relay
 from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype
 from dimidium.middleend.archGen.ArchOp import ArchOp
 # from dimidium.middleend.archGen.ArchBrick import ArchBrick
+from dimidium.lib.util import get_next_larger_dividor
 
 
 __ops_possible_to_paralleize__ = ['nn.conv2d', 'nn.bias_add', 'tanh', 'relu', 'nn.max_pool2d', 'nn.batch_flatten']
@@ -24,7 +25,16 @@ __min_factor__ = 2
 def parallelize_ops_of_brick(orig_brick, factor, with_inputs=False):
     if factor < __min_factor__:
         factor = __min_factor__
-    factor = 2 * round(factor/2)  # TODO: necessary?
+    factor = 2 * round(factor/2)
+    # check factor
+    necessary = True
+    while necessary:
+        necessary = False
+        for oid in orig_brick.ops:
+            op = orig_brick.ops[oid]
+            if len(op.dims.param) > 0 and op.dims.param[0] % factor != 0:
+                factor = get_next_larger_dividor(op.dims.param[0], factor)
+                necessary = True
     is_possible = True
     util_class = ParallelizeOpClass()
     new_ops_dict = {}
@@ -151,7 +161,7 @@ class ParallelizeOpClass(object):
             new_op.tvm_args = {'calls': [], 'constants': [], 'vars': [], 'else': [], 'by_position': []}
             # input stays
             new_op.tvm_args['by_position'] = [None, None]
-            new_op.tvm_args['by_position'] = orig_op.tvm_args['by_position'][0].copy()
+            new_op.tvm_args['by_position'][0] = orig_op.tvm_args['by_position'][0].copy()
             orig_var = orig_op.tvm_args['by_position'][1]['node']
             new_op.tvm_args['by_position'][1] = {'pos': 1,
                                                  'node': relay.var(orig_var.name_hint, shape=new_op.dims.param,

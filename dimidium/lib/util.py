@@ -14,6 +14,7 @@ import re
 from enum import Enum
 import math
 import copy
+import numpy as np
 
 from dimidium.lib.units import config_bits_per_byte
 from dimidium.lib.dosa_dtype import convert_tvmDtype_to_DosaDtype, get_bitwidth_of_DosaDtype
@@ -83,12 +84,12 @@ def list_compare(l1, l2):
 # intensity, peak performance, bandwidth
 def rf_attainable_performance(i, P_max, b_s):
     # return np.minimum(np.float64(P_max), np.float64(b_s)*i)
-    return min(P_max, b_s*i)
+    return min(P_max, b_s * i)
 
 
 def rf_calc_sweet_spot(oi_list, roof_F, b_s):
     for oi in oi_list:
-        if b_s*oi >= roof_F:
+        if b_s * oi >= roof_F:
             return oi
     return -1
 
@@ -104,7 +105,7 @@ def dtype_to_bit(dtype):
 
 def dtype_to_size_b(dtype):
     bits = dtype_to_bit(dtype)
-    return math.ceil(bits/config_bits_per_byte)
+    return math.ceil(bits / config_bits_per_byte)
 
 
 def bit_to_dtype(bit):
@@ -117,11 +118,18 @@ def bit_to_dtype(bit):
 
 # https://stackoverflow.com/questions/51716916/built-in-module-to-calculate-the-least-common-multiple
 def my_lcm(a, b):
-    return abs(a*b) // math.gcd(a, b)  # // is floor div
+    return abs(a * b) // math.gcd(a, b)  # // is floor div
+
+
+# https://stackoverflow.com/questions/57154745/how-to-find-nearest-divisor-to-given-value-with-modulo-zero
+def get_next_larger_dividor(n, near):
+    nn = np.divide(n, np.linspace(1, np.ceil(n / near), int(np.ceil(n / near))))
+    bd = int(nn[nn % 1 == 0][-1])
+    return bd
 
 
 def bit_width_to_tkeep(bit_w):
-    byte_width = math.ceil(bit_w/config_bits_per_byte)
+    byte_width = math.ceil(bit_w / config_bits_per_byte)
     return byte_width_to_tkeep(byte_width)
 
 
@@ -136,4 +144,3 @@ def byte_width_to_tkeep(byte_width):
         tkeep = tkeep << 1
         tkeep |= 0b1
     return tkeep
-

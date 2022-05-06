@@ -274,8 +274,8 @@ class ArchBrick(object):
         new_brick_list = []
         for i in range(0, used_factor):
             new_brick = ArchBrick()
-            new_brick.name = self.name + '_split_{}of{}'.format(i+1, used_factor)
-            new_brick.fn_label = self.fn_label + '_split_{}of{}'.format(i+1, used_factor)
+            new_brick.name = self.name + '_split_{}of{}'.format(i + 1, used_factor)
+            new_brick.fn_label = self.fn_label + '_split_{}of{}'.format(i + 1, used_factor)
             new_brick.tvm_dtype = self.tvm_dtype
             new_brick.used_dtype = self.used_dtype
             new_brick.flops_conv_factor = self.flops_conv_factor
@@ -470,7 +470,7 @@ class ArchBrick(object):
             total_comp_share = c.comp_util_share
             total_mem_share = c.mem_util_share
             if consider_wrapper:
-                total_comp_share +=c.switching_comp_share
+                total_comp_share += c.switching_comp_share
                 total_mem_share += c.switching_mem_share
             if total_comp_share > dosa_singleton.config.utilization.dosa_xi or \
                     total_mem_share > dosa_singleton.config.utilization.dosa_xi:
@@ -485,16 +485,24 @@ class ArchBrick(object):
                   'because no other contract is available.'.format(self.brick_uuid))
             self.still_possible_contracts = within_util_exception
         elif len(still_possible) == 0 and len(within_util_exception) == 0 and len(fitting_type) > 0:
-            print('[DOSA:ContrMngt:INFO] Brick {}: Need to parallelize, due to no available contract withing utilization '
-                  'bounds.'.format(self.brick_uuid))
+            print(
+                '[DOSA:ContrMngt:INFO] Brick {}: Need to parallelize, due to no available contract withing utilization '
+                'bounds.'.format(self.brick_uuid))
+            # if self.brick_uuid is None:
+            #     print('here')
             least_split_factor = float('inf')
             for c in fitting_type:
-                cf = max(c.comp_util_share, c.mem_util_share) \
-                     / (dosa_singleton.config.utilization.dosa_xi - max(c.switching_comp_share, c.switching_mem_share))
+                # cf = max(c.comp_util_share, c.mem_util_share) \
+                #      / (dosa_singleton.config.utilization.dosa_xi - max(c.switching_comp_share, c.switching_mem_share))
+                if consider_switching:
+                    cf = (max(c.comp_util_share, c.mem_util_share) + max(c.switching_comp_share, c.switching_mem_share)) \
+                         / dosa_singleton.config.utilization.dosa_xi
+                else:
+                    cf = max(c.comp_util_share, c.mem_util_share) / dosa_singleton.config.utilization.dosa_xi
                 if cf < least_split_factor:
                     least_split_factor = cf
             self.parallelize(fitting_type, least_split_factor)
-            self.update_possible_contracts()
+            self.update_possible_contracts(consider_switching=False)
         else:
             self.still_possible_contracts = still_possible
 
@@ -538,14 +546,15 @@ class ArchBrick(object):
             if not prefer_engine and self.selected_impl_type != BrickImplTypes.STREAM:
                 tmp_best = self.get_best_possible_contract(filter_device=target_hw)
             else:
-                tmp_best = self.get_best_possible_contract(filter_impl_type=BrickImplTypes.ENGINE, filter_device=target_hw)
+                tmp_best = self.get_best_possible_contract(filter_impl_type=BrickImplTypes.ENGINE,
+                                                           filter_device=target_hw)
                 if tmp_best is None:
                     tmp_best = self.get_best_possible_contract(filter_device=target_hw)
         else:
             tmp_best = self.selected_contract
         if tmp_best is None:
             print(('[DOSA:Contr:ERROR] No valid contracts left for Brick {}. Current available contracts are: {}.\n' +
-                  'STOP.').format(self.brick_uuid, self.available_contracts))
+                   'STOP.').format(self.brick_uuid, self.available_contracts))
             exit(1)
         share_comp = tmp_best.comp_util_share
         share_mem = tmp_best.mem_util_share
@@ -562,8 +571,6 @@ class ArchBrick(object):
             self.req_util_comp_engine = share_comp
         self.tmp_osg = tmp_best.osg
         max_util = max(share_comp + self.switching_comp_share, share_mem + self.switching_mem_share)
-        max_iter = (1.0/max_util) * self.iter_hz
+        max_iter = (1.0 / max_util) * self.iter_hz
         self.max_possible_iter = max_iter
         self.local_pipeline_store = tmp_best.osg.pipeline_tensor_store
-
-
