@@ -15,6 +15,7 @@ import abc
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.backend.buildTools.BaseBuild import BaseBuild
 from dimidium.lib.util import deep_update, BrickImplTypes
+from dimidium.lib.dosa_dtype import DosaDtype
 
 # to init relay_ops
 import dimidium.backend.operatorSets.relay_ops as relay_ops
@@ -23,11 +24,11 @@ from dimidium.middleend.archGen.BrickContract import BrickContract
 
 class BaseOSG(metaclass=abc.ABCMeta):
 
-    def __init__(self, name, device_classes: [DosaHwClasses], framework_path, impl_types: [BrickImplTypes]):
+    def __init__(self, name, device_classes: [DosaHwClasses], supported_dtypes: [DosaDtype], impl_types: [BrickImplTypes]):
         self.name = name
         self.device_classes = device_classes
-        self.framework_path = framework_path
         self.possible_impl_types = impl_types
+        self.supported_dtypes = supported_dtypes
         # self.relay2osg = relay_ops.op
         # self.relay2osg = {}
         # init with all False
@@ -99,7 +100,8 @@ class BaseOSG(metaclass=abc.ABCMeta):
     def annotate_brick(self, brick_node, target_hw, filter_impl_types=None):
         supported_complete = True
         contr_list = [[]]
-        if target_hw.hw_class in self.device_classes:
+        if target_hw.hw_class in self.device_classes and \
+                brick_node.used_dtype in self.supported_dtypes:
             for impl_type in self.possible_impl_types:
                 if filter_impl_types is not None and impl_type != filter_impl_types:
                     continue

@@ -28,7 +28,8 @@ from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.lib.util import BrickImplTypes
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 from dimidium.backend.operatorSets.osgUtils import convert_IntImm_array
-from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype, DosaDtype_is_signed, DosaDtype_to_string
+from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype, DosaDtype_is_signed, DosaDtype_to_string, \
+    complete_dtype_list
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
 from dimidium.backend.operatorSets.lib.hls4ml.DosaFileReader import OsgDataReader
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
@@ -67,7 +68,7 @@ def get_loop_unrolling_factors(req_parallelization_grade):
 class Hls4mlOSG(BaseOSG):
 
     def __init__(self):
-        super().__init__('hls4ml OSG', [DosaHwClasses.FPGA_xilinx], '/t/b/a',
+        super().__init__('hls4ml OSG', [DosaHwClasses.FPGA_xilinx], complete_dtype_list,
                          [BrickImplTypes.STREAM])
         # no DosaHwClasses.FPGA_generic, since it is bound to xilinx?
         self.priority = 92

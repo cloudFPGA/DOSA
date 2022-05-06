@@ -27,6 +27,10 @@ class DosaDtype(Enum):
         return DosaDtype_to_string(self)
 
 
+complete_dtype_list = [DosaDtype.float32, DosaDtype.float16, DosaDtype.int32, DosaDtype.int16, DosaDtype.int8,
+                       DosaDtype.uint8, DosaDtype.double]
+
+
 def convert_tvmDtype_to_DosaDtype(dtype):
     if dtype == 'float32':
         return DosaDtype.float32

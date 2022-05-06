@@ -48,7 +48,8 @@ _part_act_ = 0.05
 class Haddoc2OSG(BaseOSG):
 
     def __init__(self):
-        super().__init__('haddoc2 OSG', [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx], '/t/b/a',
+        super().__init__('haddoc2 OSG', [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx],
+                         [DosaDtype.int8, DosaDtype.uint8, DosaDtype.int16, DosaDtype.int32],
                          [BrickImplTypes.STREAM])
         self.priority = 99
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))

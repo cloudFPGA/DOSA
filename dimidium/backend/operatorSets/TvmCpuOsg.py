@@ -16,12 +16,13 @@ from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.middleend.archGen.OperationContract import OperationContract
+from dimidium.lib.dosa_dtype import complete_dtype_list
 
 
 class TvmCpuOsg(BaseOSG):
 
     def __init__(self):
-        super().__init__('Tvm CPU OSG', [DosaHwClasses.CPU_generic, DosaHwClasses.CPU_x86], '/t/b/a',
+        super().__init__('Tvm CPU OSG', [DosaHwClasses.CPU_generic, DosaHwClasses.CPU_x86], complete_dtype_list,
                          [BrickImplTypes.ENGINE, BrickImplTypes.STREAM])
         # TODO: does difference between stream and engine makes sense for CPUs?
         #  This should anyhow only be fallback?

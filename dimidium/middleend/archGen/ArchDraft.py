@@ -976,17 +976,37 @@ class ArchDraft(object):
         #  (i.e. if the sequence is 1 engine, 2 stream, and 3 & 4 engine --> first engine doesn't make sense)
         #  in other words: ensure that all engine sets are bigger or equal 2
         #  no need to update req. perf or split nodes, is already considered in step 3
+        # also check if 1/n-performance is enough
         self.update_uuids()
         for nn in self.node_iter_gen():
             cur_engine_set = []
             turn_engine_to_stream_list = []
+            highest_iter_req = -1
+            lowest_iter_hz = float('inf')
             for bi in range(0, nn.bid_cnt):
                 bb = nn.bricks[bi]
                 if bb.selected_impl_type == BrickImplTypes.STREAM:
                     if len(cur_engine_set) < 2:
                         turn_engine_to_stream_list.extend(cur_engine_set)
+                    else:
+                        cur_engine_len = len(cur_engine_set)
+                        if lowest_iter_hz/cur_engine_len < highest_iter_req:
+                            print(('[DOSA:archGen:INFO] Engine set {} with len {} of node {} does not fulfill ' +
+                                   'performance requirement: Combined iteration of {} while {} are required. Will be ' +
+                                   'turned into Streams.').format(cur_engine_set, cur_engine_len, nn.node_id,
+                                                                  lowest_iter_hz/cur_engine_len, highest_iter_req)
+                                  )
+                        turn_engine_to_stream_list.extend(cur_engine_set)
+                        # else: is fine
                     cur_engine_set = []
+                    highest_iter_req = -1
+                    lowest_iter_hz = float('inf')
                     continue
+                # else
+                if bb.req_iter_hz > highest_iter_req:
+                    highest_iter_req = bb.req_iter_hz
+                if bb.iter_hz < lowest_iter_hz:
+                    lowest_iter_hz = bb.iter_hz
                 cur_engine_set.append(bi)
             # last time
             if len(cur_engine_set) < 2:
