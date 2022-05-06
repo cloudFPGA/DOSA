@@ -85,23 +85,17 @@ class TipsOSG(BaseOSG):
         else:
             res_dict = get_avg_util_dict_bytes_based(relevant_entries, consider_paramB=consider_paramB)
         ret_dict = {}
+        bytes_total = inpB
         if consider_paramB:
-            bytes_total = paramB
-        else:
-            bytes_total = inpB
+            bytes_total += paramB
         bytes_total *= custom_byte_factor
         ret_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
         ret_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
         ret_dict['Registers'] = res_dict['Registers'] * bytes_total
         ret_dict['BRAM'] = res_dict['BRAM'] * bytes_total
         ret_dict['DSPs'] = res_dict['DSPs'] * bytes_total
-        ret_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl'] * inpB
-        wrapper_dict = {}
-        wrapper_dict['LUTLOG'] = res_dict['wrapper']['LUTLOG'] * bytes_total
-        wrapper_dict['LUTMEM'] = res_dict['wrapper']['LUTMEM'] * bytes_total
-        wrapper_dict['Registers'] = res_dict['wrapper']['Registers'] * bytes_total
-        wrapper_dict['BRAM'] = res_dict['wrapper']['BRAM'] * bytes_total
-        wrapper_dict['DSPs'] = res_dict['wrapper']['DSPs'] * bytes_total
+        ret_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl'] * (inpB + paramB)
+        wrapper_dict = {'LUTLOG': 0.0, 'LUTMEM': 0.0, 'Registers': 0.0, 'BRAM': 0.0, 'DSPs': 0.0}
         return ret_dict, wrapper_dict, used_fallback
 
     def init(self, dosa_hw_classes_dict, priority_internal):

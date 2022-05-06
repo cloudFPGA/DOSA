@@ -205,8 +205,9 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
   char *cur_send_pointer = input;
   char *cur_recv_pointer = output;
   bool last_instruction_was_recv = true;
-  timestamp_t t0 = get_timestamp();
 
+  printf("[DOSA:INFO] Performing %d inference(s)...\n", input_num);
+  timestamp_t t0 = get_timestamp();
   //output is same multiple, checked above
   while( (total_input_processed < input_num) || (total_output_processed < output_num) )
   {
@@ -230,10 +231,12 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
         processing_pipeline_filled = true;
       }
       curIterationCnt = 1;
+#ifdef DEBUG
       if(curCmnd == MPI_INSTR_SEND && last_instruction_was_recv)
       {
-      	printf("[DOSA:INFO] Performing %d inference(s), each with length %d (words)...\n", curRep, curCount);
+      	printf("[DOSA:DEBUG] Performing %d inference(s), each with length %d (words)...\n", curRep, curCount);
       }
+#endif
     } else { //issue same again
       curIterationCnt++;
     }
@@ -269,7 +272,7 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
 
   timestamp_t t1 = get_timestamp();
   double elapsed_time_secs = (double)(t1 - t0) / 1000000.0L;
-  printf("[DOSA:INFO] Done with %d inferences, %d results stored.\n>>>>>>>>>>>> Total execution time: %lfs\n", total_input_processed, total_output_processed, elapsed_time_secs);
+  printf("[DOSA:INFO] ...done with %d inferences, %d results stored.\n    >>>>>>> Total clib-execution time: %lfs\n", total_input_processed, total_output_processed, elapsed_time_secs);
 
   //return success
   return 0;
