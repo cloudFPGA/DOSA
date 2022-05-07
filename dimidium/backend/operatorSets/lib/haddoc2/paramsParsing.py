@@ -61,22 +61,23 @@ def to_scaleFactor(nbits):
     return math.pow(2, (nbits - 1)) - 1
 
 
-def write_bias_value(data, name, nbits, target):
+def write_bias_value(bias_data, name, nbits, target):
     layer_name = name
-    bias_data = data
 
-    scale_factor = to_scaleFactor(nbits)
+    # scale_factor = to_scaleFactor(nbits)
     out_size = bias_data.shape[0]
 
     target.write("constant ")
     target.write(layer_name)
     target.write("_BIAS_VALUE   :  pixel_array ")
     target.write("   (0 to " + layer_name + "_OUT_SIZE - 1 ) := \n")
-    bias_fp = to_fixedPoint(bias_data, scale_factor)
+    # NOT scaling AGAIN
+    # bias_fp = to_fixedPoint(bias_data, scale_factor)
 
     target.write(" (")
     for n in range(out_size):
-        bias_bin = np.binary_repr(bias_fp[n], width=nbits)
+        # bias_bin = np.binary_repr(bias_fp[n], width=nbits)
+        bias_bin = np.binary_repr(bias_data[n], width=nbits)
         target.write("\"" + bias_bin + "\"")
         if (n == out_size - 1):
             target.write(");\n")
@@ -102,7 +103,9 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
                  "_KERNEL_SIZE * " + layer_name + "_KERNEL_SIZE - 1)")
     target.write(" :=\n")
 
-    kernel_fp = to_fixedPoint(kernel_data, scale_factor)
+    # NOT scaling AGAIN
+    # kernel_fp = to_fixedPoint(kernel_data, scale_factor)
+    kernel_fp = kernel_data
     target.write(" (")
 
     # In some Networks, such AlexNet, neurons from layer l are not totally connected to layer l+1
