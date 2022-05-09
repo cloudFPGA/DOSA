@@ -65,6 +65,7 @@ class ArchDraft(object):
         self.substract_node_0 = False
         self.total_perf_F = -1
         self.max_perf_iter_based = -1
+        self.min_iter_hz = -1
 
     def __repr__(self):
         return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
@@ -73,11 +74,14 @@ class ArchDraft(object):
         res = {'name': self.name, 'version': self.version, 'strategy': str(self.strategy),
                'batch_size': self.batch_size, 'target_sps': self.target_sps, 'target_latency': self.target_latency,
                'target_resources': self.target_resources,
-               'total_implemented_perf_F': self.total_perf_F,
+               'total_implemented_perf_F': self.total_perf_F, 'cluster_estimated_iter_hz': self.min_iter_hz,
+               # 'cluster_estimated_maximum_iter_hz': self.max_perf_iter_based,
                'input': str(self.input_layer), 'output': str(self.output_layer),
-               'main_tvm_mod': str(self.main_tvm_mod)[:100], 'main_tvm_params': str(self.main_tvm_params)[:100],
                'possible_hw_types': [], 'target_hw_set': [], 'fallback_hw_set': [],
-               'possible_comm_libs': [], 'selected_comm_lib': repr(self.selected_comm_lib), 'nodes': {}}
+               'possible_comm_libs': [], 'selected_comm_lib': repr(self.selected_comm_lib),
+               'main_tvm_mod': str(self.main_tvm_mod)[:100], 'main_tvm_params': str(self.main_tvm_params)[:100],
+               'total_nodes': len(self.nodes),
+               'nodes': {}}
         for thw in self.target_hw_set:
             tn = type(thw).__name__
             res['target_hw_set'].append(tn)
@@ -1254,13 +1258,17 @@ class ArchDraft(object):
         self.update_required_perf()
         self.total_perf_F = 0
         self.max_perf_iter_based = float('inf')
+        self.min_iter_hz = float('inf')
         for nn in self.node_iter_gen():
             # nn.update_used_perf_util()
             nn.update_used_perf_util_contr(add_switching_costs=True)
             self.total_perf_F += nn.used_perf_F
             n_iter_based = nn.data_parallelism_level * nn.max_perf_iter_based
+            n_used_iter = nn.data_parallelism_level * nn.used_iter_hz
             if n_iter_based < self.max_perf_iter_based:
                 self.max_perf_iter_based = n_iter_based
+            if n_used_iter < self.min_iter_hz:
+                self.min_iter_hz = n_used_iter
             # assert nn.used_comp_util_share < 1.1
             # TODO
             if nn.used_comp_util_share > 1:
@@ -1494,6 +1502,9 @@ class ArchDraft(object):
         out_file = '{}/cluster.json'.format(dosa_singleton.config.global_build_dir)
         with open(out_file, 'w') as of:
             json.dump(cluster_dict, of, indent=4)
+        out_file2 = '{}/generated_architecture.json'.format(dosa_singleton.config.global_build_dir)
+        with open(out_file2, 'w') as of:
+            of.write(str(self))
 
     def _generate_extended_cluster_description(self):
         num_nodes = self.get_total_nodes_cnt()
@@ -1512,7 +1523,7 @@ class ArchDraft(object):
                 ne['bricks'][bb.local_brick_id] = bb_sum
             cluster_dict['nodes'].append(ne)
             # cluster_dict['nodes'][nn_f] = nn_ranks
-        out_file = '{}/draft_info.json'.format(dosa_singleton.config.global_build_dir)
+        out_file = '{}/arch_info.json'.format(dosa_singleton.config.global_build_dir)
         with open(out_file, 'w') as of:
             json.dump(cluster_dict, of, indent=4)
 

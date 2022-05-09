@@ -43,7 +43,7 @@ void pStateControl(
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   static controlFsmStates controlFSM = RESET;
 #pragma HLS reset variable=controlFSM
-  static uint8_t nextCommandPtr = 0x0;
+  static uint16_t nextCommandPtr = 0x0;
 #pragma HLS reset variable=nextCommandPtr
   static uint8_t curIterationCnt = 0x0;
 #pragma HLS reset variable=curIterationCnt

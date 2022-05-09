@@ -17,7 +17,7 @@ from datetime import datetime
 
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
-__cluster_filename__ = 'draft_info.json'
+__cluster_filename__ = 'arch_info.json'
 __cf_device_name__ = 'cF_FMKU60_Themisto-Role_1'
 __cpu_device_name__ = 'CPU_dummy_x86-1'
 

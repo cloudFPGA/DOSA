@@ -118,7 +118,8 @@ class DosaRoofline(object):
         return RooflineRegionsOiPlane.IN_HOUSE
 
     def get_region_OIPlane_iter_based(self, oi_iter, req_iter, contracts) -> RooflineRegionsOiPlane:
-        if oi_iter < 0.001 or req_iter < 0.001:
+        # if oi_iter < 0.001 or req_iter < 0.001:
+        if oi_iter < 0.000001 or req_iter < 0.000001:
             return RooflineRegionsOiPlane.IN_HOUSE
         cl = []
         if isinstance(contracts, list):
@@ -136,17 +137,18 @@ class DosaRoofline(object):
                 min_iter = contr.iter_hz
             total_comp_share += contr.comp_util_share
             total_mem_share += contr.mem_util_share
-        max_util = max(total_comp_share, total_mem_share)
-        max_iter = (1.0/max_util) * min_iter
-        # TODO: do not assume DRAM BW is always higher than network BW?
-        if req_iter > max_iter:
+        # max_util = max(total_comp_share, total_mem_share)
+        # max_iter = (1.0/max_util) * min_iter
+        # for iterbased --> it is already fixed...no "up-scaling" possible
+        if req_iter > min_iter:
             return RooflineRegionsOiPlane.ABOVE_TOP
         # if not self._cache_valid_:
         #     self.update_sweet_spots()
-        ap_net = rf_attainable_performance(oi_iter, max_iter, self.net_bw_B)
-        ap_dram = rf_attainable_performance(oi_iter, max_iter, self.dram_bw_B)
+        # TODO: do not assume DRAM BW is always higher than network BW?
+        ap_net = rf_attainable_performance(oi_iter, min_iter, self.net_bw_B)
+        ap_dram = rf_attainable_performance(oi_iter, min_iter, self.dram_bw_B)
         if self.bram_bw_B != __deactivated_bw_value__:
-            ap_bram = rf_attainable_performance(oi_iter, max_iter, self.bram_bw_B)
+            ap_bram = rf_attainable_performance(oi_iter, min_iter, self.bram_bw_B)
             if req_iter >= ap_bram:
                 return RooflineRegionsOiPlane.ABOVE_BRAM
         if req_iter > ap_dram:

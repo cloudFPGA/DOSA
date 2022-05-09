@@ -441,11 +441,12 @@ class ArchBrick(object):
                     next_poc.iter_hz >= selected_contract.iter_hz:
                 selected_contract = next_poc
         if selected_contract.device is None:
-            # run again with relaxed conditions:
+            # run again with relaxed conditions, but start with best possible performance
+            possible_by_util.sort(key=lambda c: c.iter_hz, reverse=True)
             for next_poc in possible_by_util:
                 if (next_poc.comp_util_share < selected_contract.comp_util_share and
                     next_poc.mem_util_share < selected_contract.mem_util_share) and \
-                        next_poc.iter_hz >= selected_contract.iter_hz:
+                        (next_poc.iter_hz >= selected_contract.iter_hz):
                     selected_contract = next_poc
         return selected_contract
 

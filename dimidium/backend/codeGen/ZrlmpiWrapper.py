@@ -46,7 +46,8 @@ class ZrlmpiWrapper(CommunicationWrapper):
         longest_msg_lines = math.ceil(float(longest_msg) / float(self.if_bitwidth / 8)) + self._add_spare_lines_
         comm_plan_length = self.comm_plan.get_comm_instr_num()
         default_tkeep = int(math.pow(2, int((self.if_bitwidth+7)/8)) - 1)
-        assert comm_plan_length < 255  # uint8 limit
+        # assert comm_plan_length < 255  # uint8 limit
+        assert comm_plan_length < 65536  # uint16 limit
         # 2. wrapper.hpp
         with open(os.path.join(self.templ_dir_path, 'src/zrlmpi_wrapper.hpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'src/zrlmpi_wrapper.hpp'), 'w') as out_file:
@@ -110,6 +111,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                             byte_cnt = ie['count']
                             assert counts < 0xFFFF  # max message size is uint16
                             repeat = ie['repeat']
+                            assert repeat < 255  # uint8 limit
                             save_cur_data = 'false'
                             # if ie['combine'] is not None and ie['combine'] != 'finish':
                             if ie['instr'] == 'send' and (ie['combine'] is not None and ie['combine'] != 'finish'):

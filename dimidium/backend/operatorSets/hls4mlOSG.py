@@ -262,13 +262,13 @@ class Hls4mlOSG(BaseOSG):
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=['prelu',
                                                                                                       'softmax'],
-                                                                                        custom_latency=op.dims.inp[-1])
+                                                                                        custom_latency=int(op.dims.inp[-1]/2))
             elif 'softmax' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_softmax, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=['prelu', 'relu'],
-                                                                                        custom_latency=op.dims.inp[-1])
+                                                                                        custom_latency=int(op.dims.inp[-1]/2))
             elif 'dense' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_dense, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
@@ -291,7 +291,7 @@ class Hls4mlOSG(BaseOSG):
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=None,
-                                                                                        custom_latency=op.dims.inp[-1])
+                                                                                        custom_latency=int(op.dims.inp[-1]/2))
             elif 'flatten' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_flatten, \
                                           lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
@@ -307,15 +307,17 @@ class Hls4mlOSG(BaseOSG):
                 self.relay2osg[e] = self._generate_hls_act, \
                                     lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                   consider_paramB=True,
-                                                                                  fallback_ops=['tan', 'sin', 'cos'])
+                                                                                  fallback_ops=['tan', 'sin', 'cos'],
+                                                                                  custom_latency=int(op.dims.inp[-1]/2))
             elif 'add' in e or 'sub' in e or 'mul' in e or 'avg' in e \
-                    or 'max' in e or 'min' in e or 'concat' in e or 'sum' in e:
+                 or 'max' in e or 'min' in e or 'concat' in e or 'sum' in e:
                 self.relay2osg[e] = self._generate_hls_merge, \
                                     lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                   consider_paramB=False,
                                                                                   fallback_ops=['add', 'sub', 'mul',
                                                                                                 'avg', 'max', 'min',
-                                                                                                'concat', 'sum'])
+                                                                                                'concat', 'sum'],
+                                                                                  custom_latency=int(op.dims.inp[-1]/2))
             elif 'transpose' in e:
                 self.relay2osg[e] = self._generate_hls_transpose, \
                                     lambda op, thw, it: OperationContract(op, thw, self, it, float('inf'), 0.0,
@@ -842,6 +844,10 @@ class Hls4mlOSG(BaseOSG):
         elif next_next_op is not None and next_next_op.op_call == 'nn.softmax':
             conv_config['activity_regularizer'] = None
             conv_config['activation'] = 'softmax'
+            consumed_opt_ops += 1
+        elif next_next_op is not None and (next_next_op.op_call == 'nn.tanh' or next_next_op.op_call == 'tanh'):
+            conv_config['activity_regularizer'] = None
+            conv_config['activation'] = 'tanh'
             consumed_opt_ops += 1
         else:
             conv_config['activity_regularizer'] = None
