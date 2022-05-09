@@ -146,7 +146,7 @@ class Haddoc2OSG(BaseOSG):
                 self.relay2osg[e] = self._generate_hdl_tanh_instance, self._predict_tanh
 
     def _copy_hdl_lib(self, target_hdl_dir, block_id):
-        os.system("cp -n {}/* {}/".format(self.my_hdl_template_folder, target_hdl_dir))
+        os.system("cp -f {}/* {}/".format(self.my_hdl_template_folder, target_hdl_dir))
         # overwrite cnn_types, due to other lib name
         with open(os.path.join(self.my_hdl_template_folder, 'cnn_types.vhd'), 'r') as in_file, \
                 open(os.path.join(target_hdl_dir, 'cnn_types.vhd'), 'w') as out_file:
