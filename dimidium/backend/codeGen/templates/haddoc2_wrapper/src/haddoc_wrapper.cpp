@@ -1077,43 +1077,68 @@ void pFromHaddocEnq(
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
-  static twoStatesFSM enqueueFSM = RESET;
+  static FromHaddocEnqStates enqueueFSM = RESET2;
 #pragma HLS reset variable=enqueueFSM
+  static uint32_t invalid_pixel_cnt = DOSA_HADDOC_VALID_WAIT_CNT;
+#pragma HLS reset variable=invalid_pixel_cnt
   //-- LOCAL VARIABLES ------------------------------------------------------
   ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> input_data = 0x0;
 
-  if(enqueueFSM == RESET)
+  switch(enqueueFSM)
   {
-    if(!sHaddocUnitProcessing.empty())
-    {
-      sHaddocUnitProcessing.read();
-    } else {
-      enqueueFSM = FORWARD;
-    }
-  } else {
-    if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
-        && !pi_haddoc_data.empty()
+    default:
+    case RESET2:
+      invalid_pixel_cnt = DOSA_HADDOC_VALID_WAIT_CNT;
+      if(!sHaddocUnitProcessing.empty())
+      {
+        sHaddocUnitProcessing.read();
+      } else {
+        enqueueFSM = CNT_UNTIL_VAILD;
+      }
+      break;
+
+    case CNT_UNTIL_VAILD:
+      //if(!sHaddocUnitProcessing.empty() && !pi_haddoc_data.empty()
+      if(!pi_haddoc_data.empty()
         )
-    {
-      //ignore pi_haddoc_frame_valid?
-      //if( *pi_haddoc_data_valid == 0b1 )
-      //{
+      {
+        ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> ignore_me = pi_haddoc_data.read();
+        //bool ignore_me_too = sHaddocUnitProcessing.read();
+        printf("pFromHaddocEnq: ignoring 0x%6.6X\n", (uint32_t) ignore_me);
+
+        invalid_pixel_cnt--;
+        if(invalid_pixel_cnt == 0)
+        {
+          enqueueFSM = FORWARD2;
+        }
+      }
+      break;
+
+    case FORWARD2:
+      if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
+          && !pi_haddoc_data.empty()
+         )
+      {
+        //ignore pi_haddoc_frame_valid?
+        //if( *pi_haddoc_data_valid == 0b1 )
+        //{
         //input_data = *pi_haddoc_data_vector;
         input_data = pi_haddoc_data.read();
         //read only if able to process
         bool ignore_me = sHaddocUnitProcessing.read();
         printf("pFromHaddocEnq: read 0x%6.6X\n", (uint32_t) input_data);
         sFromHaddocBuffer.write(input_data);
-      //}
-    }
-    else if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
-        && pi_haddoc_data.empty() //yes, empty!
-        )
-    { // consume one HUP token, so that the fifo doesn't sand
-      // and, since sFromHaddocBuffer isn't full, we can do this safely
+        //}
+      }
+      else if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
+          && pi_haddoc_data.empty() //yes, empty!
+          )
+      { // consume one HUP token, so that the fifo doesn't sand
+        // and, since sFromHaddocBuffer isn't full, we can do this safely
         bool ignore_me = sHaddocUnitProcessing.read();
         printf("pFromHaddocEnq: read HUP token to avoid sanding..\n");
-    }
+      }
+      break;
   }
 
 }

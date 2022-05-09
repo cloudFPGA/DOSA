@@ -38,6 +38,7 @@ using namespace hls;
 #define DOSA_HADDOC_OUTPUT_FRAME_WIDTH 5
 #define DOSA_HADDOC_OUTPUT_BATCH_FLATTEN true
 #define DOSA_HADDOC_LAYER_CNT 3
+#define DOSA_HADDOC_VALID_WAIT_CNT 2
 //#define DOSA_HADDOC_INPUT_FRAME_LINE_CNT 13 //100+7/8
 enum ToHaddocEnqStates {RESET0 = 0, WAIT_DRAIN, FILL_BUF_0, FILL_BUF_1, FILL_BUF_2};
 enum FromHaddocDeqStates {RESET1 = 0, READ_BUF_0, READ_BUF_1, READ_BUF_2, READ_BUF_3};
@@ -72,6 +73,7 @@ const uint32_t wrapper_output_if_haddoc_words_cnt_ceil = (WRAPPER_OUTPUT_IF_HADD
 enum twoStatesFSM {RESET = 0, FORWARD};
 enum threeStatesFSM {RESET3 = 0, FORWARD3, BACKLOG3};
 //enum FromHaddocDeqStates {RESET1 = 0, WAIT_FRAME, READ_FRAME};
+enum FromHaddocEnqStates {RESET2 = 0, CNT_UNTIL_VAILD, FORWARD2};
 
 
 

@@ -22,7 +22,7 @@ __filedir__ = os.path.dirname(os.path.abspath(__file__))
 class Haddoc2Wrapper:
 
     def __init__(self, block_id, in_dims, out_dims, general_bitw, if_in_bitw, if_out_bitw, out_dir_path,
-                 wrapper_flatten_op, haddoc_op_cnt, first_layer_name):
+                 wrapper_flatten_op, haddoc_op_cnt, first_layer_name, initial_delay):
         self.templ_dir_path = os.path.join(__filedir__, 'templates/haddoc2_wrapper/')
         self.ip_name = 'haddoc_wrapper_b{}'.format(block_id)
         self.ip_mod_name = 'Haddoc2Wrapper_b{}'.format(block_id)
@@ -36,6 +36,7 @@ class Haddoc2Wrapper:
         self.wrapper_flatten_op = wrapper_flatten_op
         self.haddoc_op_cnt = haddoc_op_cnt
         self.first_layer_name = first_layer_name
+        self.initial_delay = initial_delay
 
     def generate_haddoc2_wrapper(self):
         # 0. copy 'static' files, dir structure
@@ -103,6 +104,7 @@ class Haddoc2Wrapper:
                         flatten_str = 'true'
                     outline += '#define DOSA_HADDOC_OUTPUT_BATCH_FLATTEN {}\n'.format(flatten_str)
                     outline += '#define DOSA_HADDOC_LAYER_CNT {}\n'.format(self.haddoc_op_cnt)
+                    outline += '#define DOSA_HADDOC_VALID_WAIT_CNT {}\n'.format(self.initial_delay)
                     enum_def = 'enum ToHaddocEnqStates {RESET0 = 0, WAIT_DRAIN'
                     for b in range(0, self.in_dims[1]):
                         enum_def += ', FILL_BUF_{}'.format(b)

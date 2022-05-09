@@ -190,6 +190,7 @@ class Haddoc2OSG(BaseOSG):
         wrapper_flatten_op = None
         wrapper_first_brick = None
         wrapper_last_brick = None
+        total_delay = 1  # first internal register after DynInput
         # as haddoc, we first take care of the params
         with open(paramFile, 'w') as vhdlf:
             paramParsing.write_fileHead(vhdlf, arch_block.block_uuid)
@@ -229,8 +230,9 @@ class Haddoc2OSG(BaseOSG):
                             exit(1)
                     else:
                         osg_func = self._get_osg_func(op.op_call)
-                        mod_op, consumed_opt_ops = osg_func(op, vhdlf, layer_name, next_op, next_next_op)
+                        mod_op, consumed_opt_ops, add_delay = osg_func(op, vhdlf, layer_name, next_op, next_next_op)
 
+                        total_delay += add_delay + 1
                         layer_names_by_op_id[op.global_op_id] = layer_name
                         layer_names_ordered.append(layer_name)
                         input_dims_by_op_id[op.global_op_id] = op.dims.inp
@@ -356,7 +358,7 @@ class Haddoc2OSG(BaseOSG):
         block_wrapper = Haddoc2Wrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_last_op.dims.out,
                                        used_bit_width, if_in_bitw, if_out_bitw, used_hls_dir_path, wrapper_flatten_op,
                                        len(ops_implemented_ordered),
-                                       layer_names_by_op_id[wrapper_first_op.global_op_id])
+                                       layer_names_by_op_id[wrapper_first_op.global_op_id], total_delay)
         block_wrapper.generate_haddoc2_wrapper()
         build_tool.add_makefile_entry(used_hls_dir_path, 'all')
         wrapper_inst_tcl = block_wrapper.get_tcl_lines_wrapper_inst('IP Core to connect DOSA infrastructure with '
@@ -626,7 +628,9 @@ class Haddoc2OSG(BaseOSG):
         paramParsing.write_kernel_value(kernel_data, layer_name, nbits, target_fh)
         target_fh.write("----------------------------------------------------------")
         target_fh.write("--------------------------------------------------------\n")
-        return op, consumed_opt_ops
+        internal_delay = 2 + ((kernel_size-1)*input_data_width) + kernel_size \
+                         + 2 + (kernel_size*kernel_size*in_channel_num)
+        return op, consumed_opt_ops, internal_delay
 
     def _predict_pool(self, op, target_hw, impl_type):
         if impl_type != BrickImplTypes.STREAM or \
@@ -663,7 +667,8 @@ class Haddoc2OSG(BaseOSG):
         paramParsing.write_kernel_size(layer_name, kernel_size, target_fh)
         target_fh.write("----------------------------------------------------------")
         target_fh.write("--------------------------------------------------------\n")
-        return None, 0
+        internal_delay = 1 + input_data_width + kernel_size
+        return None, 0, internal_delay
 
     def _generate_bitwidth(self, bitwidth_file, block_id, general_bitwidth, input_bitwidth, output_bitwidth):
         with open(bitwidth_file, 'w') as f:
