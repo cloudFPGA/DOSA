@@ -234,7 +234,7 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
 #ifdef DEBUG
       if(curCmnd == MPI_INSTR_SEND && last_instruction_was_recv)
       {
-      	printf("[DOSA:DEBUG] Performing %d inference(s), each with length %d (words)...\n", curRep, curCount);
+        printf("[DOSA:DEBUG] Performing %d inference(s), each with length %d (words)...\n", curRep, curCount);
       }
 #endif
     } else { //issue same again
@@ -250,20 +250,20 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
         MPI_Send((int*)cur_send_pointer, curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD);
         if(!save_cur_data)
         {
-	  //cur_send_pointer += curCount*(4/sizeof(int));
-	  //cur_send_pointer += (curBytes+ sizeof(int)-1)/sizeof(int);
-	  cur_send_pointer += curBytes;
+          //cur_send_pointer += curCount*(4/sizeof(int));
+          //cur_send_pointer += (curBytes+ sizeof(int)-1)/sizeof(int);
+          cur_send_pointer += curBytes;
           total_input_processed++;
         }
-  	last_instruction_was_recv = false;
+        last_instruction_was_recv = false;
       } else {
         //receive result
         //MPI_Recv(output + (total_output_processed*curCount*(4/sizeof(int))), curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD, &status);
         MPI_Recv((int*)cur_recv_pointer, curCount, MPI_INTEGER, curRank, 0, MPI_COMM_WORLD, &status);
         total_output_processed++;
-	//cur_recv_pointer += curCount*(4/sizeof(int));
-	cur_recv_pointer += curBytes;
-  	last_instruction_was_recv = true;
+        //cur_recv_pointer += curCount*(4/sizeof(int));
+        cur_recv_pointer += curBytes;
+        last_instruction_was_recv = true;
       }
     }
 
@@ -273,6 +273,10 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
   timestamp_t t1 = get_timestamp();
   double elapsed_time_secs = (double)(t1 - t0) / 1000000.0L;
   printf("[DOSA:INFO] ...done with %d inferences, %d results stored.\n    >>>>>>> Total clib-execution time: %lfs\n", total_input_processed, total_output_processed, elapsed_time_secs);
+
+#ifdef MEASURE_PROTOCOL_WAIT
+  ZRLMPI_print_stats();
+#endif
 
   //return success
   return 0;

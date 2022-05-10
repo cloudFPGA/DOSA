@@ -1098,12 +1098,11 @@ void pFromHaddocEnq(
       break;
 
     case CNT_UNTIL_VAILD:
-      //if(!sHaddocUnitProcessing.empty() && !pi_haddoc_data.empty()
-      if(!pi_haddoc_data.empty()
+      if(!sHaddocUnitProcessing.empty() && !pi_haddoc_data.empty()
         )
       {
         ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> ignore_me = pi_haddoc_data.read();
-        //bool ignore_me_too = sHaddocUnitProcessing.read();
+        bool ignore_me_too = sHaddocUnitProcessing.read();
         printf("pFromHaddocEnq: ignoring 0x%6.6X\n", (uint32_t) ignore_me);
 
         invalid_pixel_cnt--;
@@ -1811,7 +1810,6 @@ void pFromHaddocDeq(
   }
 
   *debug = current_frame_bit_cnt;
-
 }
 
 void pMergeDebug(

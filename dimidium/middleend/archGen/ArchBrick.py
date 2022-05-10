@@ -575,3 +575,4 @@ class ArchBrick(object):
         max_iter = (1.0 / max_util) * self.iter_hz
         self.max_possible_iter = max_iter
         self.local_pipeline_store = tmp_best.osg.pipeline_tensor_store
+        # self.input_bw_Bs / (self.selected_contract.device.get_performance_dict()['bw_netw_gBs'] * gigaU * 0.25 * 0.5)
