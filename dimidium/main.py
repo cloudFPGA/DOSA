@@ -25,6 +25,7 @@ import dimidium.backend.devices.builtin as builtin_devices
 from dimidium.backend.operatorSets.osgs import builtin_OSGs
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 from dimidium.lib.plot_bandwidth import generate_bandwidth_plt
+from dimidium.lib.plot_throughput import generate_throughput_plt
 from dimidium.backend.commLibs.commlibs import builtin_comm_libs
 from dimidium.backend.commLibs.BaseCommLib import sort_commLib_list
 
@@ -163,7 +164,8 @@ if __name__ == '__main__':
             plt5 = plot_2Droofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][2])
             last_plt = plt5
         plt7 = generate_bandwidth_plt(archDict['draft'])
-        last_plt = plt7
+        plt8 = generate_throughput_plt(archDict['draft'])
+        last_plt = plt8
 
         plot_2Droofline.show_roofline_plt(last_plt, waiting=True)
         print("\t...done.\n")

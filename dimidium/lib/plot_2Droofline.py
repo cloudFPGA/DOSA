@@ -160,9 +160,9 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
     for bb in arch_draft.brick_iter_gen():
         if bb.skip_in_roofline:
             continue
-        fn_name = bb.brick_uuid
+        fn_name = str(bb.brick_uuid)
         if show_ops:
-            fn_name = bb.fn_label
+            fn_name += '_' + str(bb.fn_label)
         if iter_based:
             cn = {'name': "{}_engine".format(fn_name), 'oi': bb.oi_iter}
             un = {'name': "{}_stream".format(fn_name), 'oi': bb.oi_iter}
