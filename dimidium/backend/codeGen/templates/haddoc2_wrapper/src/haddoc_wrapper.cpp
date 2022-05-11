@@ -1117,6 +1117,11 @@ void pFromHaddocEnq(
       { // consume one HUP token, so that the fifo doesn't sand
         bool ignore_me = sHaddocUnitProcessing.read();
         printf("pFromHaddocEnq: read HUP token to avoid sanding...(initial phase)\n");
+        invalid_pixel_cnt--;
+        if(invalid_pixel_cnt == 0)
+        {
+          enqueueFSM = FORWARD2;
+        }
       }
       break;
 
@@ -1926,7 +1931,7 @@ void haddoc_wrapper_test(
   //const int haddoc_processing_fifo_depth = DOSA_HADDOC_VALID_WAIT_CNT + (DOSA_HADDOC_INPUT_FRAME_WIDTH*DOSA_HADDOC_LAYER_CNT);
   #pragma HLS STREAM variable=sHaddocUnitProcessing depth=haddoc_processing_fifo_depth
   static stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > sFromHaddocBuffer ("sFromHaddocBuffer");
-  #pragma HLS STREAM variable=sFromHaddocBuffer depth=3*haddoc_processing_fifo_depth  //so that we can receive, what we send out...
+  #pragma HLS STREAM variable=sFromHaddocBuffer depth=2*haddoc_processing_fifo_depth  //so that we can receive, what we send out...
 
   //-- LOCAL VARIABLES ------------------------------------------------------------
   uint16_t debug0 = 0;

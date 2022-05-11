@@ -117,10 +117,11 @@ void pHaddoc() {
   if(haddoc_wait_processing == TB_HADDOC_LATENCY)
   {
     //adding ignore value
-    for(int i = 0; i < DOSA_HADDOC_VALID_WAIT_CNT; i++)
+    for(int i = 0; i < (DOSA_HADDOC_VALID_WAIT_CNT-TB_HADDOC_LATENCY); i++)
     {
       pi_haddoc_data.write(0xBEEF);
     }
+    haddoc_wait_processing++;
   }
   if(haddoc_wait_processing >= TB_HADDOC_LATENCY)
   {

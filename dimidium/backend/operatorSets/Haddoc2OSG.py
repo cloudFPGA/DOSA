@@ -592,6 +592,7 @@ class Haddoc2OSG(BaseOSG):
 
     def _param_parse_conv(self, op, target_fh, layer_name, next_op=None, next_next_op=None):
         consumed_opt_ops = 0
+        assert op.tvm_node.attrs.data_layout == 'NCHW'
         out_channel_num = op.dims.out[1]  # out_size
         in_channel_num = op.dims.inp[1]  # previous_layer_size
         kernel_size = op.dims.param[2]

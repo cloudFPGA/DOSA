@@ -412,8 +412,13 @@ class Hls4mlOSG(BaseOSG):
             else:
                 fractional_bits = dosa_singleton.uc['overwrite_dtypes']['fixed_point_fraction_bits']
                 int_bits = cur_w - fractional_bits
-                if DosaDtype_is_signed(used_dtype):
-                    int_bits -= 1
+                # according to xlinix documentation
+                #  https://docs.xilinx.com/r/en-US/ug1399-vitis-hls/Overview-of-Arbitrary-Precision-Fixed-Point-Data-Types
+                #  https://github.com/Xilinx/HLS_arbitrary_Precision_Types/blob/200a9aecaadf471592558540dc5a88256cbf880f/include/ap_fixed_base.h#L809
+                # ap_fixed<8,2> means 6 fractional bits, and the sign bit is included in the 2 integer bits
+                # so no extra subtraction
+                # if DosaDtype_is_signed(used_dtype):
+                #     int_bits -= 1
                 precision_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w, int_bits)
             if dosa_singleton.uc['use_extra_accum_dtype']:
                 accum_factor = dosa_singleton.uc['overwrite_dtypes']['accum_bits_factor']
