@@ -69,7 +69,7 @@ void init(int argc, char **argv)
 
 void cleanup(void)
 {
-   ZRLMPI_cleanup();
+  ZRLMPI_cleanup();
 }
 
 
@@ -207,6 +207,9 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
   bool last_instruction_was_recv = true;
 
   printf("[DOSA:INFO] Performing %d inference(s)...\n", input_num);
+#ifdef PROGRESS_PRINT
+  fflush(stdout);
+#endif
   timestamp_t t0 = get_timestamp();
   //output is same multiple, checked above
   while( (total_input_processed < input_num) || (total_output_processed < output_num) )
@@ -235,6 +238,7 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
       if(curCmnd == MPI_INSTR_SEND && last_instruction_was_recv)
       {
         printf("[DOSA:DEBUG] Performing %d inference(s), each with length %d (words)...\n", curRep, curCount);
+        fflush(stdout);
       }
 #endif
     } else { //issue same again
@@ -264,6 +268,10 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
         //cur_recv_pointer += curCount*(4/sizeof(int));
         cur_recv_pointer += curBytes;
         last_instruction_was_recv = true;
+#ifdef PROGRESS_PRINT
+        printf("#");
+        fflush(stdout);
+#endif
       }
     }
 
@@ -272,6 +280,9 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
 
   timestamp_t t1 = get_timestamp();
   double elapsed_time_secs = (double)(t1 - t0) / 1000000.0L;
+#ifdef PROGRESS_PRINT
+  printf("\n");
+#endif
   printf("[DOSA:INFO] ...done with %d inferences, %d results stored.\n    >>>>>>> Total clib-execution time: %lfs\n", total_input_processed, total_output_processed, elapsed_time_secs);
 
 #ifdef MEASURE_PROTOCOL_WAIT

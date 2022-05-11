@@ -109,7 +109,7 @@ def generate_throughput_plt(arch_draft: ArchDraft, show_deubg=False):
     ax1.set_ylim(y_lower_lim*0.5, y_upper_lim*20)
     ax1.set_yscale('log', base=10)
     color = 'tab:grey'
-    ax1.set_xlabel('Node Ids', fontsize=MY_SIZE)
+    ax1.set_xlabel('Node Ids (FPGAs)', fontsize=MY_SIZE)
     ax1.set_ylabel('Throughput in Ksamples/s (logarithmic)', fontsize=MY_SIZE)  # , color=color
     color = 'tab:blue'
     z = 5

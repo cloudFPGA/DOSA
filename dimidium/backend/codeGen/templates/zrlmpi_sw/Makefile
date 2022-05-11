@@ -36,6 +36,7 @@ HAEADS  += $(SOURCES:%.cpp=%.hpp)
 
 #CFLAGS +=-DDEBUG
 CFLAGS +=-DMEASURE_PROTOCOL_WAIT
+CFLAGS +=-DPROGRESS_PRINT
 #CFLAGS +=-DZRLMPI_SW_ONLY
 # ------------------------------------------
 #$(PROG): MPI.hpp zrlmpi_common.hpp zrlmpi_int.hpp test.hpp

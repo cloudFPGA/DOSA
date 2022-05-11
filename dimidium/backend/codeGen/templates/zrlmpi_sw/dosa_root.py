@@ -72,7 +72,7 @@ def get_cluster_data(cluster_id, user_dict):
 
 
 def restart_app(cluster_id, user_dict):
-    print("Restart all FPGAs...")
+    print("Reset all ROLEs (FPGAs)...")
     r1 = requests.patch("http://"+__cf_manager_url__+"/clusters/"+str(cluster_id)+"/restart?username={0}&password={1}"
                         .format(user_dict['user'], user_dict['pw']))
 
