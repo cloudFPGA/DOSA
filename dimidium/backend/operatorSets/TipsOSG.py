@@ -10,12 +10,15 @@
 #  *
 #  *
 import os
+from types import SimpleNamespace
+
 import numpy as np
 import tvm
 import tvm.relay as relay
 import math
 import json
 
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.buildTools.BaseBuild import HwBuildTopVhdl
 from dimidium.backend.buildTools.cFBuild1 import cFBuild1
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
@@ -33,10 +36,15 @@ __filedir__ = os.path.dirname(os.path.abspath(__file__))
 __db_path__ = __filedir__ + '/osg_impl_db.json'
 
 
+def _get_twoscomplement_hex_string(x, nbits):
+    return hex(int(np.binary_repr(int(x), width=nbits), 2))
+
+
 class TipsOSG(BaseOSG):
 
     def __init__(self):
-        super().__init__('Tips OSG', [DosaHwClasses.FPGA_xilinx], complete_dtype_list,
+        super().__init__('Tips OSG', [DosaHwClasses.FPGA_xilinx, DosaHwClasses.FPGA_generic],
+                         [DosaDtype.int8, DosaDtype.uint8, DosaDtype.int16, DosaDtype.int32],
                          [BrickImplTypes.ENGINE])
         self.priority = 99
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
@@ -44,6 +52,19 @@ class TipsOSG(BaseOSG):
         self.util_db = {}
         self.avg_util_dict = {}
         self.pipeline_tensor_store = 1
+        self.supports_op_padding = True
+        self.op0_list = []
+        self.op1_list = []
+        self.hls_params = SimpleNamespace()
+        self.hls_params.prog_tmpl = '{ .opcode = {opc}, .op_param = {opp},\n' + \
+                         '  .in_addr = {in_a}, .in_length = {in_l},\n' + \
+                         '  .op0_addr = {op0_a}, .op0_length = {op0_l},\n' + \
+                         '  .op1_addr = {op1_a}, .op1_length = {op1_l},\n' + \
+                         '  .out_addr = {out_a}, .out_length = {out_l}\n' + \
+                         '}'
+        self.hls_params.network_alias_addr = 'NETWORK_ALIAS_ADDRESS'
+        self.hls_params.accum_alias_addr = 'ACCUM_ALIAS_ADDRESS'
+        self.hls_params.no_addr_alias = 'NO_ADDRESS_ALIAS'
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
@@ -59,75 +80,315 @@ class TipsOSG(BaseOSG):
             compl_list.append(e)
         self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True)
 
-    def _get_impl_prediction(self, op_str, inpB, paramB, device, consider_paramB=False, custom_byte_factor=1.0):
+    def _get_impl_prediction(self, op, target_hw, impl_type, consider_paramB=False, fallback_ops=None,
+                             custom_byte_factor=1.0, custom_latency=None, max_param_dim=-1):
+        # if impl_type != BrickImplTypes.ENGINE or \
+        #         (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
+        #     return None
+        if max_param_dim > 0:
+            op_param_dim = 1
+            for d in op.dims.param:
+                op_param_dim *= d
+            if op_param_dim > max_param_dim:
+                print("[DOSA:TIPS:INFO] Can't offer an implementation for {}, due to exceeded parameter size."
+                      .format(repr(op)))
+                return None
+        op_str = op.op_call.split('.')[-1]
+        dtype_str = 'int8'  # default?
+        if op.used_dtype != DosaDtype.UNKNOWN:
+            dtype_str = repr(op.used_dtype)
         relevant_entries = []
         exact_matches = []
+        fallback_entries = []
         # TODO: prefer entries with shorter ops list?
         for dk in self.util_db:
-            if dk == device.type_str:
+            if dk == target_hw.type_str:
                 for e in self.util_db[dk]:
                     if op_str in e['ops']:
                         relevant_entries.append(e)
                         if e['latency_lim_per_tensor_cycl'] > 0:
                             if consider_paramB:
-                                if e['inpB'] == inpB and e['paramB'] == paramB:
+                                if e['inpB'] == op.input_bytes and e['paramB'] == op.parameter_bytes:
                                     exact_matches.append(e)
                             else:
-                                if e['inpB'] == inpB:
+                                if e['inpB'] == op.input_bytes:
                                     exact_matches.append(e)
+                    if fallback_ops is not None:
+                        for f in fallback_ops:
+                            if f in e['ops']:
+                                fallback_entries.append(e)
+                                break
         res_dict = {}
         used_fallback = False
         if len(relevant_entries) == 0:
             res_dict = self.avg_util_dict
             used_fallback = True
         elif len(exact_matches) > 0:
-            res_dict = get_avg_util_dict_bytes_based(exact_matches, consider_paramB=consider_paramB)
+            res_dict = get_avg_util_dict_bytes_based(exact_matches, consider_paramB=consider_paramB,
+                                                     consider_ops_num=True)
         else:
-            res_dict = get_avg_util_dict_bytes_based(relevant_entries, consider_paramB=consider_paramB)
-        ret_dict = {}
-        bytes_total = inpB
+            if len(relevant_entries) == 0:
+                relevant_entries = fallback_entries
+                used_fallback = True
+            res_dict = get_avg_util_dict_bytes_based(relevant_entries, consider_paramB=consider_paramB,
+                                                     consider_ops_num=True)
+        util_dict = {}
+        bytes_total = op.input_bytes
         if consider_paramB:
-            bytes_total += paramB
+            bytes_total += op.parameter_bytes
         bytes_total *= custom_byte_factor
-        ret_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
-        ret_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
-        ret_dict['Registers'] = res_dict['Registers'] * bytes_total
-        ret_dict['BRAM'] = res_dict['BRAM'] * bytes_total
-        ret_dict['DSPs'] = res_dict['DSPs'] * bytes_total
-        ret_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl'] * (inpB + paramB)
+        util_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
+        util_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
+        util_dict['Registers'] = res_dict['Registers'] * bytes_total
+        util_dict['BRAM'] = res_dict['BRAM'] * bytes_total
+        util_dict['DSPs'] = res_dict['DSPs'] * bytes_total
+        util_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl'] \
+                                                   * (op.input_bytes + op.parameter_bytes)
         wrapper_dict = {'LUTLOG': 0.0, 'LUTMEM': 0.0, 'Registers': 0.0, 'BRAM': 0.0, 'DSPs': 0.0}
-        return ret_dict, wrapper_dict, used_fallback
+
+        fpga_utility = target_hw.get_resource_dict()['FPGA_utility']
+        proc_share = get_share_of_FPGA_resources(fpga_utility, util_dict)
+        # wrapper_share = get_share_of_FPGA_resources(fpga_utility, wrapper_dict)
+        wrapper_share = wrapper_dict
+        # proc_comp_share = (proc_share['LUTLOG'] + proc_share['DSPs']) / 2
+        proc_comp_share = proc_share['LUTLOG']  # we know we hardly use DSPs..
+        # proc_mem_share = (proc_share['LUTMEM'] + proc_share['Registers'] + proc_share['BRAM']) / 3
+        proc_mem_share = max(proc_share['LUTMEM'], proc_share['Registers'], proc_share['BRAM'])
+        # wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
+        # wrapper_comp_share = wrapper_share['LUTLOG']  # we know we hardly use DSPs...
+        wrapper_comp_share = 0
+        # wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
+        # wrapper_mem_share = max(wrapper_share['LUTMEM'], wrapper_share['Registers'], wrapper_share['BRAM'])
+        wrapper_mem_share = 0
+        if custom_latency is None:
+            latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
+            iter_hz = 1 / (latency_ns * units.nanoU)
+        else:
+            latency_ns = custom_latency * target_hw.get_performance_dict()['fpga_clk_ns']
+            iter_hz = 1 / (latency_ns * units.nanoU)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.ENGINE, iter_hz, proc_comp_share, proc_mem_share,
+                                  'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
+        return offer
 
     def init(self, dosa_hw_classes_dict, priority_internal):
         self.priority_internal = priority_internal
         self.select_dosa_hw_types(dosa_hw_classes_dict)
         self._init_util_db_()
-        # relay2osg annotation,
-        #  based on https://github.com/DreamIP/haddoc2/blob/master/lib/python/parseNetTopology.py
         for e in self.relay2osg['nn']:
-            if 'conv2d' in e:
-                self.relay2osg['nn'][e] = self._param_parse_conv, self._predict_conv
+            if 'dense' in e:
+                self.relay2osg['nn'][e] = self._parse_dense, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=True,
+                                                                                        custom_byte_factor=1.8,
+                                                                                        max_param_dim=500)
+                self.op0_list.append(e)
             elif 'bias_add' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_biasAdd, self._predict_bias
-            elif 'pool2d' in e:
-                self.relay2osg['nn'][e] = self._param_parse_pool, self._predict_pool
+                self.relay2osg['nn'][e] = self._parse_biasAdd, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=True,
+                                                                                        custom_latency=10)
+                self.op1_list.append(e)
             elif 'tanh' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_tanh_instance, self._predict_tanh
+                self.relay2osg['nn'][e] = self._parse_tanh, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=False)
+                self.op0_list.append(e)
             elif 'relu' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_relu, self._predict_relu
+                self.relay2osg['nn'][e] = self._parse_relu, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=False,
+                                                                                        custom_latency=10)
+                self.op0_list.append(e)
             elif 'flatten' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_flatten_instance, self._predict_flatten_drop
-            elif 'dropout' in e:
-                self.relay2osg['nn'][e] = self._generate_hdl_dropout_instance, self._predict_flatten_drop
+                self.relay2osg['nn'][e] = self._parse_flatten, \
+                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                        consider_paramB=False,
+                                                                                        custom_byte_factor=0,
+                                                                                        custom_latency=0)
         for e in self.relay2osg:
             if type(e) == dict:
                 continue
             elif 'tanh' in e:
-                self.relay2osg[e] = self._generate_hdl_tanh_instance, self._predict_tanh
+                self.relay2osg[e] = self._parse_tanh, \
+                                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                  consider_paramB=False)
+                self.op0_list.append(e)
 
     def build_block(self, arch_block, build_tool, selected_contracts):
-        pass
+        print("[DOSA:Build:ERROR] TIPS OSG was asked to build a streaming block, but it can't. IGNORING.")
+        return -1
 
     def build_container(self, container, build_tool, selected_contracts):
-        pass
+        assert isinstance(build_tool, HwBuildTopVhdl)
+        arch_block = container.block_ref
+        used_dir_path = build_tool.add_ip_dir(arch_block.block_uuid)
+        project_name = 'ArchBlock_{}'.format(arch_block.block_uuid)
+        used_dtype = DosaDtype.int32
+        cur_w = 0
+        for bb in arch_block.brick_list:
+            cur_dt = bb.used_dtype
+            bitw = get_bitwidth_of_DosaDtype(cur_dt)
+            if bitw > cur_w:
+                used_dtype = cur_dt
+                cur_w = bitw
+        precision_string = ''
+        accum_string = ''
+        if used_dtype == DosaDtype.float16 or used_dtype == DosaDtype.float32:
+            precision_string = 'ap_fixed<16,6>'  # TODO
+            accum_string = precision_string
+        else:
+            int_bits = cur_w
+            if not dosa_singleton.uc['overwrite_fixed_point_dtypes']:
+                precision_string = 'ap_uint<{}>'.format(cur_w)
+            else:
+                fractional_bits = dosa_singleton.uc['overwrite_dtypes']['fixed_point_fraction_bits']
+                int_bits = cur_w - fractional_bits
+                # according to xlinix documentation
+                #  https://docs.xilinx.com/r/en-US/ug1399-vitis-hls/Overview-of-Arbitrary-Precision-Fixed-Point-Data-Types
+                #  https://github.com/Xilinx/HLS_arbitrary_Precision_Types/blob/200a9aecaadf471592558540dc5a88256cbf880f/include/ap_fixed_base.h#L809
+                # ap_fixed<8,2> means 6 fractional bits, and the sign bit is included in the 2 integer bits
+                # so no extra subtraction
+                # if DosaDtype_is_signed(used_dtype):
+                #     int_bits -= 1
+                precision_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w, int_bits)
+            if dosa_singleton.uc['use_extra_accum_dtype']:
+                accum_factor = dosa_singleton.uc['overwrite_dtypes']['accum_bits_factor']
+                accum_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w * accum_factor,
+                                                                                 int_bits * accum_factor)
+            else:
+                accum_string = precision_string
 
+        # find largest dimensions
+        largest_input = 0
+        largest_op0 = 0
+        largest_op1 = 0
+        largest_output = 0
+        for bb in arch_block.brick_list:
+            for op in bb.local_op_iter_gen():
+                op_i = np.prod(op.dims.inp)
+                if op_i > largest_input:
+                    largest_input = op_i
+                op_o = np.prod(op.dims.out)
+                if op_o > largest_output:
+                    largest_output = op_o
+                op_op = np.prod(op.dims.param)
+                op_str = op.op_call.split('.')[-1]
+                if op_str in self.op0_list and op_op > largest_op0:
+                    largest_op0 = op_op
+                if op_str in self.op1_list and op_op > largest_op1:
+                    largest_op1 = op_op
+
+        # TODO: later
+        #   iterate over container.ops and decide for op_codes dynamically
+        #   maybe also use to decide largest_op0... parameter
+        opcodes = {'nop': ['TIPS_NOP'], 'dense': ['DENSE', 'DENSE_BIAS'], 'relu': ['RELU'], 'tanh': ['TANH']}
+
+        # implement
+        op_rom = []
+        program = []
+        cur_addr = 0
+        contr_i = 0
+        bb_i = 0
+        for bb in arch_block.brick_list:
+            skip_i = []
+            cur_brick_contr = selected_contracts[contr_i]
+            for op_i in bb.ops.keys():
+                if op_i in skip_i:
+                    continue
+                op = bb.ops[op_i]
+                op_c = cur_brick_contr.get_contract_to_op(op)
+                op_str = op.op_call.split('.')[-1]
+                op_opcode = opcodes[op_str]
+                osg_func = self._get_osg_func(op.op_call)
+
+                first_instr = False
+                last_instr = False
+                if bb_i == 0 and op_i == 0:
+                    first_instr = True
+                elif bb_i == (len(arch_block.brick_list) -1) and op_i == (len(bb.ops.keys()) -1):
+                    last_instr = True
+                next_i = op_i + 1
+                next_op = None
+                if next_i in bb.ops.keys():
+                    next_op = bb.ops[next_i]
+
+                prog, op_r, consumed_next = osg_func(op, op_opcode, first_instr, last_instr, used_dtype, largest_input,
+                                                     largest_op0, largest_op1, largest_output, cur_addr,
+                                                     next_op=next_op)
+                if consumed_next:
+                    skip_i.append(next_i)
+                program.append(prog)
+                op_rom.extend(op_r)
+                cur_addr += len(op_r)
+            contr_i += 1
+            bb_i += 1
+
+
+        return
+
+    def _parse_dense(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0, longest_op1,
+                     longest_output, cur_addr, next_op=None):
+        opc = opcode[0]
+        bias_data = None
+        orig_data = op.tvm_args['by_position'][1]['ref'].data.numpy()
+        consumed_next_op = False
+        in_a = self.hls_params.accum_alias_addr
+        if first:
+            in_a = self.hls_params.network_alias_addr
+        out_a = self.hls_params.accum_alias_addr
+        if last:
+            out_a = self.hls_params.network_alias_addr
+        # for now...TODO: later allow casting
+        assert used_ram_dtype == op.used_dtype
+        assert op.dims.inp[0] == 1  # batch_size 1 for now
+        assert op.dims.inp[0] == op.dims.out[0]
+        in_l = np.prod(op.dims.inp)
+        out_l = np.prod(op.dims.out)
+        opp = in_l
+        op0_a = cur_addr
+        op0_l = np.prod(op.dims.param)
+        op1_a = self.hls_params.no_addr_alias
+        op1_l = 0
+        nbits = get_bitwidth_of_DosaDtype(used_ram_dtype)
+
+        if next_op is not None and (next_op.op_call == 'add' or next_op.op_call == 'nn.bias_add'):
+            opc = opcode[1]
+            consumed_next_op = True
+            if next_op.op_call == 'add':
+                # it is still called bias
+                bias_data = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
+            else:
+                bias_data = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
+            op1_a = cur_addr + op0_l
+            op1_l = np.prod(next_op.dims.param)
+        prog = self.hls_params.prog_tmpl.format(opc=opc, opp=opp, in_a=in_a, in_l=in_l, op0_a=op0_a, op0_l=op0_l,
+                                                op1_a=op1_a, op1_l=op1_l, out_a=out_a, out_l=out_l)
+        data_string = []
+        for r in orig_data:
+            for e in r:
+                # TODO padding
+                ds = _get_twoscomplement_hex_string(e, nbits)
+                data_string.append(ds)
+        if bias_data is not None:
+            for e in bias_data:
+                # TODO padding
+                ds = _get_twoscomplement_hex_string(e, nbits)
+                data_string.append(ds)
+        assert len(data_string) == (op0_l + op1_l)
+        return prog, data_string, consumed_next_op
+
+    def _parse_biasAdd(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0, longest_op1,
+                       longest_output, cur_addr, next_op=None):
+        return
+
+    def _parse_tanh(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0, longest_op1,
+                    longest_output, cur_addr, next_op=None):
+        return
+
+    def _parse_relu(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0, longest_op1,
+                    longest_output, cur_addr, next_op=None):
+        return
+
+    def _parse_flatten(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0, longest_op1,
+                       longest_output, cur_addr, next_op=None):
+        return

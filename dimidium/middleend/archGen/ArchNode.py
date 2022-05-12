@@ -355,7 +355,15 @@ class ArchNode(object):
             self.build_tool.create_build_dir(self.node_id)
         assert self.comm_plan is not None and self.used_comm_lib is not None
         self.used_comm_lib.build(self.comm_plan, self.build_tool)
+        # first, build engines
+        blocks_in_engines = []
+        for ec in self.engine_container_refs:
+            ec.build(self.build_tool)
+            blocks_in_engines.append(ec.block_ref)
+        # then, build remaining
         for ab in self.arch_block_list:
+            if ab in blocks_in_engines:
+                continue
             ab.build(self.build_tool)
         self.build_tool.write_build_scripts()
 

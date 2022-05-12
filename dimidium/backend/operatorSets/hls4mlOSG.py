@@ -94,9 +94,9 @@ class Hls4mlOSG(BaseOSG):
 
     def _get_impl_prediction(self, op, target_hw, impl_type, consider_paramB=False, fallback_ops=None,
                              consider_outB=False, custom_byte_factor=1.0, custom_latency=None, max_param_dim=-1):
-        if impl_type != BrickImplTypes.STREAM or \
-                (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
-            return None
+        # if impl_type != BrickImplTypes.STREAM or \
+        #         (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
+        #     return None
         if max_param_dim > 0:
             op_param_dim = 1
             for d in op.dims.param:

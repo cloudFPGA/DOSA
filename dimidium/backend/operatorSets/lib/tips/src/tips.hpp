@@ -84,7 +84,7 @@ typedef uint16_t TipsLength;
 //pseudo addresses
 #define NETWORK_ALIAS_ADDRESS  0x10001  //network in/out
 #define ACCUM_ALIAS_ADDRESS    0x10002  //to store in ALU accum?
-#define ZERO_ALIAS_ADDRESS     0x10003
+//#define ZERO_ALIAS_ADDRESS     0x10003  useless...
 #define NO_ADDRESS_ALIAS       0x10004
 
 //define TipsOpcode

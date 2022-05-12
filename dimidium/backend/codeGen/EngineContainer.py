@@ -9,7 +9,7 @@
 #  *        Class to help the generation of Engine blocks
 #  *
 #  *
-
+from dimidium.backend.operatorSets.BaseOSG import placeholderOSG
 from dimidium.lib.util import BrickImplTypes
 from dimidium.middleend.archGen.ArchBlock import ArchBlock
 from dimidium.middleend.archGen.ArchOp import ArchOp
@@ -22,7 +22,7 @@ class EngineContainer(object):
         self.block_ref = arch_block
         self.ops = {}
         self.resource_savings = 0
-        self.build_container()
+        self.init_container()
 
     def __repr__(self):
         ops_list = [k for k in self.ops.keys()]
@@ -30,7 +30,7 @@ class EngineContainer(object):
                                                                             self.resource_savings, ops_list)
         return ret
 
-    def build_container(self):
+    def init_container(self):
         self.ops = {}
         total_ops = 0
         num_double_entries = 0
@@ -52,7 +52,7 @@ class EngineContainer(object):
                         if len(orig_dims.param) != len(bo.dims.param) or orig_dims.param != bo.dims.param:
                             is_compatible = False
 
-                        if not is_compatible:
+                        if (not is_compatible) and (not self.block_ref.selected_osg.supports_op_padding):
                             orig_op = self.ops[on]
                             new_e = [orig_op, bo]
                             self.ops[on] = new_e
@@ -65,4 +65,11 @@ class EngineContainer(object):
 
         engine_ops = len(self.ops) + num_double_entries
         self.resource_savings = total_ops/engine_ops
+
+    def build(self, build_tool):
+        self.block_ref.build_tool = build_tool
+        assert self.block_ref.selected_osg != placeholderOSG
+        assert len(self.block_ref.brick_list) == len(self.block_ref.selected_contracts)
+        self.block_ref.selected_osg.build_container(self, build_tool, self.block_ref.selected_contracts)
+
 
