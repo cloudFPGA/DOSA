@@ -174,6 +174,7 @@ def main(path_to_build_folder, user_file, host_address, use_pr_flow=True):
 
 if __name__ == '__main__':
     if len(sys.argv) != 4:
-        print("USAGE: {} <path/to/dosa/build_dir/> <path/to/user.json> <node_0_ip_addr>".format(sys.argv[0]))
+        print("USAGE: {} <path/to/dosa/build_dir/> <path/to/user.json> <local_ip_addr>".format(sys.argv[0]))
+        exit(1)
     main(os.path.abspath(sys.argv[1]), sys.argv[2], sys.argv[3], use_pr_flow=False)
 
