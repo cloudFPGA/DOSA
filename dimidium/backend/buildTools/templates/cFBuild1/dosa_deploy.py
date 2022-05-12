@@ -17,6 +17,7 @@ import requests
 import glob
 import urllib.parse
 from datetime import datetime
+import time
 
 # from cFSPlib import cFSP
 from cFSPlib.cfsp_image import ImagesApi, ApiException, ApiClient, Configuration
@@ -176,5 +177,55 @@ if __name__ == '__main__':
     if len(sys.argv) != 4:
         print("USAGE: {} <path/to/dosa/build_dir/> <path/to/user.json> <local_ip_addr>".format(sys.argv[0]))
         exit(1)
-    main(os.path.abspath(sys.argv[1]), sys.argv[2], sys.argv[3], use_pr_flow=False)
+    demo_version = False
+    if not demo_version:
+        main(os.path.abspath(sys.argv[1]), sys.argv[2], sys.argv[3], use_pr_flow=False)
+    else:
+        print(f"connecting to CloudFPGA Resource Manager at {__cf_manager_url__}")
+        print("upload images...")
+        time.sleep(0.5)
+        print('Images uploaded:\n        {\n            "node_1": "50ea22c8-82d9-46ac-86f2-5bf62cb25577",\n           '
+              ' "node_2": "5e548d42-10f3-4aca-b86b-9f7d55f79d66",\n            "node_3": '
+              '"b2677978-8d3e-40e5-aaa3-5096db19c28b",\n            "node_4": "a7a13c27-6025-41cc-a7d7-537bf33da321",'
+              '\n            "node_5": "4131bde5-1e2f-493c-a86a-a6cc0ea23914",\n            "node_6": '
+              '"f78325b3-f1db-4c06-bc79-92207b97d0f5"\n        }\n')
+        print('Creating FPGA cluster...')
+        cluster = [
+            {
+                "image_id": "NON_FPGA",
+                "node_id": 0,
+                "node_ip": "10.12.0.10"
+            },
+            {
+                "image_id": "50ea22c8-82d9-46ac-86f2-5bf62cb25577",
+                "node_id": 1
+            },
+            {
+                "image_id": "5e548d42-10f3-4aca-b86b-9f7d55f79d66",
+                "node_id": 2
+            },
+            {
+                "image_id": "b2677978-8d3e-40e5-aaa3-5096db19c28b",
+                "node_id": 3
+            },
+            {
+                "image_id": "a7a13c27-6025-41cc-a7d7-537bf33da321",
+                "node_id": 4
+            },
+            {
+                "image_id": "4131bde5-1e2f-493c-a86a-a6cc0ea23914",
+                "node_id": 5
+            },
+            {
+                "image_id": "f78325b3-f1db-4c06-bc79-92207b97d0f5",
+                "node_id": 6
+            }
+        ]
+        print(json.dumps(cluster, indent=2))
+        print('Executing POST ...')
+        time.sleep(len(cluster)/3)
+        print('<cut> (would take some minutes)')
+        time.sleep(len(cluster)/3)
+        print('...done.\nId of new cluster: 326\n')
+
 

@@ -122,7 +122,7 @@ if __name__ == '__main__':
                         verbose=True, generate_build=generate_build)
     print("\t...done.\n")
 
-    all_plots = False
+    all_plots = True
     if show_graphics:
         print("DOSA: Generating and showing roofline...")
         plt = plot_2Droofline.generate_roofline_plt_old(archDict['base_dpl'], target_sps, used_batch,
