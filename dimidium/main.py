@@ -122,6 +122,7 @@ if __name__ == '__main__':
                         verbose=True, generate_build=generate_build)
     print("\t...done.\n")
 
+    all_plots = True
     if show_graphics:
         print("DOSA: Generating and showing roofline...")
         plt = plot_2Droofline.generate_roofline_plt_old(archDict['base_dpl'], target_sps, used_batch,
@@ -134,35 +135,38 @@ if __name__ == '__main__':
         #                                                arch_target_devices[0].get_performance_dict(),
         #                                                arch_target_devices[0].get_roofline_dict(),
         #                                                show_splits=True, show_labels=True)
-        plt2 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
-                                                     show_ops=True, selected_only=False, print_debug=False)
+        if all_plots:
+            plt2 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
+                                                         show_ops=True, selected_only=False, print_debug=False)
         plt22 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
                                                      show_ops=True, selected_only=True, print_debug=False)
-        plt23 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
-                                                      show_ops=True, selected_only=True, print_debug=False,
-                                                      iter_based=True)
-        plt8 = plot_3Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
-                                                     print_debug=False)
-        plt_nodes = []
-        for nn in archDict['draft'].node_iter_gen():
-            if nn.skip_in_roofline:
-                continue
-            new_plt = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
-                                                                     show_splits=True, show_labels=True, selected_only=True,
-                                                                     print_debug=False)
-            new_plt1 = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
-                                                                     show_splits=False, show_labels=True, selected_only=True,
-                                                                     print_debug=False, iter_based=True)
-            new_plt2 = plot_3Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
-                                                                     show_splits=False, show_labels=True, selected_only=True,
-                                                                     print_debug=False)
-            plt_nodes.append(new_plt)
-        last_plt = plt_nodes[-1]
-        if debug_mode:
-            plt3 = plot_2Droofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][0])
-            plt4 = plot_2Droofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][1])
-            plt5 = plot_2Droofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][2])
-            last_plt = plt5
+        if all_plots:
+            plt23 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
+                                                          show_ops=True, selected_only=True, print_debug=False,
+                                                          iter_based=True)
+        if all_plots:
+            plt8 = plot_3Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
+                                                         print_debug=False)
+            plt_nodes = []
+            for nn in archDict['draft'].node_iter_gen():
+                if nn.skip_in_roofline:
+                    continue
+                new_plt = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
+                                                                         show_splits=True, show_labels=True, selected_only=True,
+                                                                         print_debug=False)
+                new_plt1 = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
+                                                                         show_splits=False, show_labels=True, selected_only=True,
+                                                                         print_debug=False, iter_based=True)
+                new_plt2 = plot_3Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
+                                                                         show_splits=False, show_labels=True, selected_only=True,
+                                                                         print_debug=False)
+                plt_nodes.append(new_plt)
+            last_plt = plt_nodes[-1]
+            if debug_mode:
+                plt3 = plot_2Droofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][0])
+                plt4 = plot_2Droofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][1])
+                plt5 = plot_2Droofline.generate_roofline_plt(archDict['debug_obj']['other_opts'][2])
+                last_plt = plt5
         plt7 = generate_bandwidth_plt(archDict['draft'])
         plt8 = generate_throughput_plt(archDict['draft'])
         last_plt = plt8

@@ -16,7 +16,7 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import multiprocessing
+# import multiprocessing
 
 import dimidium.lib.singleton as dosa_singleton
 from dimidium.lib.util import rf_attainable_performance, OptimizationStrategies, BrickImplTypes, rf_calc_sweet_spot
@@ -646,11 +646,12 @@ def show_roofline_plt(plt, blocking=True, waiting=True):
     if not waiting:
         plt.show(block=blocking)
     else:
-        p = multiprocessing.Process(target=plt.show)
-        p.start()
+        # p = multiprocessing.Process(target=plt.show)
+        # p.start()
+        plt.show(block=False)
         input("[DOSA:roofline] Hit [enter] to close roofline plots.")
         plt.close('all')
-        p.terminate()
+        # p.terminate()
 
 
 def calculate_required_performance(detail_list, target_sps, used_batch_size=1, unit=1, debug_print=False):
