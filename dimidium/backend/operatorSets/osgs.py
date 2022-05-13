@@ -14,14 +14,16 @@ from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 from dimidium.backend.operatorSets.hls4mlOSG import Hls4mlOSG
 from dimidium.backend.operatorSets.TvmCpuOsg import TvmCpuOsg
 from dimidium.backend.operatorSets.Haddoc2OSG import Haddoc2OSG
+from dimidium.backend.operatorSets.TipsOSG import TipsOSG
 
 # add all available OSGs here
 
 osg_hls4ml = Hls4mlOSG()
 osg_tvmCpu = TvmCpuOsg()
 osg_haddoc2 = Haddoc2OSG()
+osg_tips = TipsOSG()
 
-builtin_OSGs = [osg_hls4ml, osg_tvmCpu, osg_haddoc2]
+builtin_OSGs = [osg_hls4ml, osg_tvmCpu, osg_haddoc2, osg_tips]
 
 
 def merge_ops_dict(osgs):

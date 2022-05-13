@@ -28,6 +28,7 @@ from dimidium.lib.util import BrickImplTypes
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 from dimidium.backend.codeGen.WrapperInterfaces import InterfaceAxisFifo, wrapper_default_interface_bitwidth
+from dimidium.backend.codeGen.TipsCore import TipsCore
 from dimidium.middleend.archGen.OperationContract import OperationContract
 from dimidium.backend.operatorSets.lib.util import get_avg_util_dict_bytes_based, get_share_of_FPGA_resources
 import dimidium.lib.units as units
@@ -56,12 +57,12 @@ class TipsOSG(BaseOSG):
         self.op0_list = []
         self.op1_list = []
         self.hls_params = SimpleNamespace()
-        self.hls_params.prog_tmpl = '{ .opcode = {opc}, .op_param = {opp},\n' + \
-                         '  .in_addr = {in_a}, .in_length = {in_l},\n' + \
-                         '  .op0_addr = {op0_a}, .op0_length = {op0_l},\n' + \
-                         '  .op1_addr = {op1_a}, .op1_length = {op1_l},\n' + \
-                         '  .out_addr = {out_a}, .out_length = {out_l}\n' + \
-                         '}'
+        self.hls_params.prog_tmpl = '{{ .opcode = {opc}, .op_param = {opp},\n' + \
+                                    '  .in_addr = {in_a}, .in_length = {in_l},\n' + \
+                                    '  .op0_addr = {op0_a}, .op0_length = {op0_l},\n' + \
+                                    '  .op1_addr = {op1_a}, .op1_length = {op1_l},\n' + \
+                                    '  .out_addr = {out_a}, .out_length = {out_l}\n' + \
+                                    '}}'
         self.hls_params.network_alias_addr = 'NETWORK_ALIAS_ADDRESS'
         self.hls_params.accum_alias_addr = 'ACCUM_ALIAS_ADDRESS'
         self.hls_params.no_addr_alias = 'NO_ADDRESS_ALIAS'
@@ -78,7 +79,8 @@ class TipsOSG(BaseOSG):
             else:
                 self.util_db[e['device']].append(e)
             compl_list.append(e)
-        self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True)
+        self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True, consider_ops_num=True,
+                                                           always_consider_input=False)
 
     def _get_impl_prediction(self, op, target_hw, impl_type, consider_paramB=False, fallback_ops=None,
                              custom_byte_factor=1.0, custom_latency=None, max_param_dim=-1):
@@ -125,17 +127,18 @@ class TipsOSG(BaseOSG):
             used_fallback = True
         elif len(exact_matches) > 0:
             res_dict = get_avg_util_dict_bytes_based(exact_matches, consider_paramB=consider_paramB,
-                                                     consider_ops_num=True)
+                                                     consider_ops_num=True, always_consider_input=False)
         else:
             if len(relevant_entries) == 0:
                 relevant_entries = fallback_entries
                 used_fallback = True
             res_dict = get_avg_util_dict_bytes_based(relevant_entries, consider_paramB=consider_paramB,
-                                                     consider_ops_num=True)
+                                                     consider_ops_num=True, always_consider_input=False)
         util_dict = {}
         bytes_total = op.input_bytes
         if consider_paramB:
-            bytes_total += op.parameter_bytes
+            # bytes_total += op.parameter_bytes
+            bytes_total = op.parameter_bytes
         bytes_total *= custom_byte_factor
         util_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
         util_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
@@ -143,7 +146,9 @@ class TipsOSG(BaseOSG):
         util_dict['BRAM'] = res_dict['BRAM'] * bytes_total
         util_dict['DSPs'] = res_dict['DSPs'] * bytes_total
         util_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl'] \
-                                                   * (op.input_bytes + op.parameter_bytes)
+                                                   * op.input_bytes
+                                                    # * op.parameter_bytes
+        # * (op.input_bytes + op.parameter_bytes)
         wrapper_dict = {'LUTLOG': 0.0, 'LUTMEM': 0.0, 'Registers': 0.0, 'BRAM': 0.0, 'DSPs': 0.0}
 
         fpga_utility = target_hw.get_resource_dict()['FPGA_utility']
@@ -179,13 +184,16 @@ class TipsOSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._parse_dense, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
-                                                                                        custom_byte_factor=1.8,
-                                                                                        max_param_dim=500)
+                                                                                        custom_byte_factor=0.0015,
+                                                                                        # max_param_dim=1024
+                                                                                        )
                 self.op0_list.append(e)
             elif 'bias_add' in e:
                 self.relay2osg['nn'][e] = self._parse_biasAdd, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=True,
+                                                                                        fallback_ops=['add'],
+                                                                                        custom_byte_factor=0.02,
                                                                                         custom_latency=10)
                 self.op1_list.append(e)
             elif 'tanh' in e:
@@ -204,10 +212,17 @@ class TipsOSG(BaseOSG):
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
                                                                                         custom_byte_factor=0,
-                                                                                        custom_latency=0)
+                                                                                        custom_latency=1)
         for e in self.relay2osg:
             if type(e) == dict:
                 continue
+            elif 'add' in e:
+                self.relay2osg[e] = self._parse_biasAdd, \
+                                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                                  consider_paramB=True,
+                                                                                  custom_byte_factor=0.02,
+                                                                                  custom_latency=10)
+                self.op1_list.append(e)
             elif 'tanh' in e:
                 self.relay2osg[e] = self._parse_tanh, \
                                     lambda op, thw, it: self._get_impl_prediction(op, thw, it,
@@ -222,7 +237,6 @@ class TipsOSG(BaseOSG):
         assert isinstance(build_tool, HwBuildTopVhdl)
         arch_block = container.block_ref
         used_dir_path = build_tool.add_ip_dir(arch_block.block_uuid)
-        project_name = 'ArchBlock_{}'.format(arch_block.block_uuid)
         used_dtype = DosaDtype.int32
         cur_w = 0
         for bb in arch_block.brick_list:
@@ -233,9 +247,12 @@ class TipsOSG(BaseOSG):
                 cur_w = bitw
         precision_string = ''
         accum_string = ''
+        fractional_bits = 0
+        accum_bitw = cur_w
         if used_dtype == DosaDtype.float16 or used_dtype == DosaDtype.float32:
             precision_string = 'ap_fixed<16,6>'  # TODO
             accum_string = precision_string
+            fractional_bits = 10
         else:
             int_bits = cur_w
             if not dosa_singleton.uc['overwrite_fixed_point_dtypes']:
@@ -255,6 +272,7 @@ class TipsOSG(BaseOSG):
                 accum_factor = dosa_singleton.uc['overwrite_dtypes']['accum_bits_factor']
                 accum_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w * accum_factor,
                                                                                  int_bits * accum_factor)
+                accum_bitw = cur_w * accum_factor
             else:
                 accum_string = precision_string
 
@@ -289,8 +307,13 @@ class TipsOSG(BaseOSG):
         cur_addr = 0
         contr_i = 0
         bb_i = 0
+        wrapper_first_brick = None
+        wrapper_last_brick = None
         for bb in arch_block.brick_list:
             skip_i = []
+            if wrapper_first_brick is None:
+                wrapper_first_brick = bb
+            wrapper_last_brick = bb
             cur_brick_contr = selected_contracts[contr_i]
             for op_i in bb.ops.keys():
                 if op_i in skip_i:
@@ -305,7 +328,7 @@ class TipsOSG(BaseOSG):
                 last_instr = False
                 if bb_i == 0 and op_i == 0:
                     first_instr = True
-                elif bb_i == (len(arch_block.brick_list) -1) and op_i == (len(bb.ops.keys()) -1):
+                elif bb_i == (len(arch_block.brick_list) - 1) and op_i == (len(bb.ops.keys()) - 1):
                     last_instr = True
                 next_i = op_i + 1
                 next_op = None
@@ -317,14 +340,52 @@ class TipsOSG(BaseOSG):
                                                      next_op=next_op)
                 if consumed_next:
                     skip_i.append(next_i)
-                program.append(prog)
-                op_rom.extend(op_r)
-                cur_addr += len(op_r)
+                if prog is not None:
+                    program.append(prog)
+                if len(op_r) > 0:
+                    # op_rom.extend(op_r)
+                    op_rom.append(op_r)  # better append to be able to add comments?
+                    cur_addr += len(op_r)
             contr_i += 1
             bb_i += 1
 
+        # wrapper & interface generation
+        wrapper_input_fifo = InterfaceAxisFifo('input_{}'.format(arch_block.block_uuid),
+                                               wrapper_first_brick.input_bw_Bs, build_tool.target_device)
+        if build_tool.topVhdl.next_proc_comp_cnt == 0:
+            # i.e. we are connected to the input
+            wrapper_input_fifo.bitwidth = wrapper_default_interface_bitwidth
+        if_in_bitw = wrapper_input_fifo.get_if_bitwidth()
+        wrapper_output_fifo = InterfaceAxisFifo('output_{}'.format(arch_block.block_uuid),
+                                                wrapper_last_brick.output_bw_Bs, build_tool.target_device)
+        if len(arch_block.parent_node.arch_block_list) < 2:
+            # we are the only one, so output must also be set
+            wrapper_output_fifo.bitwidth = wrapper_default_interface_bitwidth
+        if_out_bitw = wrapper_output_fifo.get_if_bitwidth()
+        # if_fifo_name = wrapper_input_fifo.get_if_name()
+        if_axis_tcl = wrapper_input_fifo.get_tcl_lines()
+        build_tool.add_tcl_entry(if_axis_tcl)
 
-        return
+        tips_inst = TipsCore(arch_block.block_uuid, cur_w, if_in_bitw, if_out_bitw, used_dir_path, program, op_rom,
+                             largest_input, largest_op0, largest_op1, largest_output,
+                             precision_string, accum_string, fractional_bits, accum_bitw)
+        tips_inst.generate()
+
+        build_tool.add_makefile_entry(used_dir_path, 'all')
+        tips_inst_tcl = tips_inst.get_tcl_lines_inst()
+        build_tool.add_tcl_entry(tips_inst_tcl)
+        tips_inst_decl = tips_inst.get_vhdl_decl_lines()
+        tips_inst_inst_tmpl = tips_inst.get_vhdl_inst_tmpl()
+        build_tool.topVhdl.add_proc_comp_inst(arch_block, tips_inst_decl, tips_inst_inst_tmpl, wrapper_input_fifo,
+                                              wrapper_output_fifo)
+
+        # adding debug
+        tcl_tmp, decl_tmp, inst_tmp = wrapper_input_fifo.get_debug_lines()
+        build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
+        # unsure if output will be used --> add debug lines later
+        tcl_tmp, decl_tmp, inst_tmp = tips_inst.get_debug_lines()
+        build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
+        return 0
 
     def _parse_dense(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0, longest_op1,
                      longest_output, cur_addr, next_op=None):
@@ -361,34 +422,98 @@ class TipsOSG(BaseOSG):
                 bias_data = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
             op1_a = cur_addr + op0_l
             op1_l = np.prod(next_op.dims.param)
-        prog = self.hls_params.prog_tmpl.format(opc=opc, opp=opp, in_a=in_a, in_l=in_l, op0_a=op0_a, op0_l=op0_l,
-                                                op1_a=op1_a, op1_l=op1_l, out_a=out_a, out_l=out_l)
         data_string = []
+        padding_cnt = 0
         for r in orig_data:
             for e in r:
-                # TODO padding
                 ds = _get_twoscomplement_hex_string(e, nbits)
                 data_string.append(ds)
+            # padding
+            # longest input = row-size of dense
+            # also necessary after last line
+            if len(r) < longest_input:
+                for i in range(len(r), longest_input):
+                    data_string.append('0x00')
+                    padding_cnt += 1
         if bias_data is not None:
             for e in bias_data:
-                # TODO padding
                 ds = _get_twoscomplement_hex_string(e, nbits)
                 data_string.append(ds)
-        assert len(data_string) == (op0_l + op1_l)
+            # TODO: no padding necessary?
+
+        if op1_a != self.hls_params.no_addr_alias:
+            op1_a += padding_cnt
+        prog = self.hls_params.prog_tmpl.format(opc=opc, opp=opp, in_a=in_a, in_l=in_l, op0_a=op0_a, op0_l=op0_l,
+                                                op1_a=op1_a, op1_l=op1_l, out_a=out_a, out_l=out_l)
+        assert len(data_string) == (op0_l + op1_l + padding_cnt)
+        assert op0_l <= longest_op0
+        assert op1_l <= longest_op1
+        assert op1_l <= longest_output
         return prog, data_string, consumed_next_op
 
-    def _parse_biasAdd(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0, longest_op1,
+    def _parse_biasAdd(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0,
+                       longest_op1,
                        longest_output, cur_addr, next_op=None):
-        return
+        print('[DOSA:TipsOSG:ERROR] bias_add without dense is not yet supported. STOP. ')
+        exit(1)
+        return -1
 
     def _parse_tanh(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0, longest_op1,
                     longest_output, cur_addr, next_op=None):
-        return
+        opc = opcode[0]
+        in_a = self.hls_params.accum_alias_addr
+        if first:
+            in_a = self.hls_params.network_alias_addr
+        out_a = self.hls_params.accum_alias_addr
+        if last:
+            out_a = self.hls_params.network_alias_addr
+        # for now...TODO: later allow casting
+        assert used_ram_dtype == op.used_dtype
+        assert op.dims.inp[0] == 1  # batch_size 1 for now
+        assert op.dims.inp[0] == op.dims.out[0]
+        in_l = np.prod(op.dims.inp)
+        out_l = np.prod(op.dims.out)
+        assert in_l == out_l
+        opp = 0
+        op0_a = self.hls_params.no_addr_alias
+        op0_l = 0
+        op1_a = self.hls_params.no_addr_alias
+        op1_l = 0
+        nbits = get_bitwidth_of_DosaDtype(used_ram_dtype)
+
+        prog = self.hls_params.prog_tmpl.format(opc=opc, opp=opp, in_a=in_a, in_l=in_l, op0_a=op0_a, op0_l=op0_l,
+                                                op1_a=op1_a, op1_l=op1_l, out_a=out_a, out_l=out_l)
+        return prog, [], False
 
     def _parse_relu(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0, longest_op1,
                     longest_output, cur_addr, next_op=None):
-        return
+        opc = opcode[0]
+        in_a = self.hls_params.accum_alias_addr
+        if first:
+            in_a = self.hls_params.network_alias_addr
+        out_a = self.hls_params.accum_alias_addr
+        if last:
+            out_a = self.hls_params.network_alias_addr
+        # for now...TODO: later allow casting
+        assert used_ram_dtype == op.used_dtype
+        assert op.dims.inp[0] == 1  # batch_size 1 for now
+        assert op.dims.inp[0] == op.dims.out[0]
+        in_l = np.prod(op.dims.inp)
+        out_l = np.prod(op.dims.out)
+        assert in_l == out_l
+        opp = 0
+        op0_a = self.hls_params.no_addr_alias
+        op0_l = 0
+        op1_a = self.hls_params.no_addr_alias
+        op1_l = 0
+        nbits = get_bitwidth_of_DosaDtype(used_ram_dtype)
 
-    def _parse_flatten(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0, longest_op1,
+        prog = self.hls_params.prog_tmpl.format(opc=opc, opp=opp, in_a=in_a, in_l=in_l, op0_a=op0_a, op0_l=op0_l,
+                                                op1_a=op1_a, op1_l=op1_l, out_a=out_a, out_l=out_l)
+        return prog, [], False
+
+    def _parse_flatten(self, op, opcode, first: bool, last: bool, used_ram_dtype, longest_input, longest_op0,
+                       longest_op1,
                        longest_output, cur_addr, next_op=None):
-        return
+        # flatten is done anyhow, not even a NOP necessary
+        return None, [], False

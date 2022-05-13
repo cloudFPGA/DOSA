@@ -764,7 +764,9 @@ class Hls4mlOSG(BaseOSG):
         return 0
 
     def build_container(self, container, build_tool, selected_contracts):
-        pass
+        print("[DOSA:Build:ERROR] hls4ml OSG was asked to build an engine container, but it can't. STOP.")
+        exit(1)
+        return -1
 
     # def generate_brick(self, brick_node: ArchBrick):
     #     pass

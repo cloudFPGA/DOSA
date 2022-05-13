@@ -384,7 +384,8 @@ class Haddoc2OSG(BaseOSG):
         return 0
 
     def build_container(self, container, build_tool, selected_contracts):
-        print("[DOSA:Build:ERROR] Haddoc2 OSG was asked to build an engine container, but it can't. IGNORING.")
+        print("[DOSA:Build:ERROR] Haddoc2 OSG was asked to build an engine container, but it can't. STOP.")
+        exit(1)
         return -1
 
     # def generate_brick(self, brick_node: ArchBrick):

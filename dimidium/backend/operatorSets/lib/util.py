@@ -14,7 +14,8 @@ import math
 import dimidium.lib.singleton as dosa_singleton
 
 
-def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_num=False,  consider_outB=False):
+def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_num=False,  consider_outB=False,
+                                  always_consider_input=False):
     lutlog_total = 0
     lutmem_total = 0
     register_total = 0
@@ -34,6 +35,8 @@ def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_n
     for e in entries:
         if consider_paramB:
             bytes_total += e['paramB']
+            if always_consider_input:
+                bytes_total += e['inpB']
         else:
             bytes_total += e['inpB']
         if consider_outB:

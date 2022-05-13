@@ -122,8 +122,14 @@ class BrickContract(DosaContract):
                 self.switching_comp_share = opc.switching_comp_share
                 self.switching_mem_share = opc.switching_mem_share
                 self.detailed_FPGA_wrapper_share = opc.detailed_FPGA_wrapper_share
-            self.comp_util_share += opc.comp_util_share
-            self.mem_util_share += opc.mem_util_share
+            if self.impl_type == BrickImplTypes.ENGINE:
+                if opc.comp_util_share > self.comp_util_share:
+                    self.comp_util_share = opc.comp_util_share
+                if opc.mem_util_share > self.mem_util_share:
+                    self.mem_util_share = opc.mem_util_share
+            else:
+                self.comp_util_share += opc.comp_util_share
+                self.mem_util_share += opc.mem_util_share
             # self.total_bytes += opc.total_bytes  # all are engine or stream -> so is correct
             # -> NO...would calc internal output/input
             if first_total_bytes is None:
@@ -132,11 +138,16 @@ class BrickContract(DosaContract):
             if self.impl_type == BrickImplTypes.ENGINE:
                 self.total_bytes += opc.op.parameter_bytes
             if opc.detailed_FPGA_component_share is not None:
-                self.detailed_FPGA_component_share['LUTLOG']          += opc.detailed_FPGA_component_share['LUTLOG']
-                self.detailed_FPGA_component_share['LUTMEM']          += opc.detailed_FPGA_component_share['LUTMEM']
-                self.detailed_FPGA_component_share['Registers']       += opc.detailed_FPGA_component_share['Registers']
-                self.detailed_FPGA_component_share['BRAM']            += opc.detailed_FPGA_component_share['BRAM']
-                self.detailed_FPGA_component_share['DSPs']            += opc.detailed_FPGA_component_share['DSPs']
+                if self.impl_type != BrickImplTypes.ENGINE:
+                    self.detailed_FPGA_component_share['LUTLOG']          += opc.detailed_FPGA_component_share['LUTLOG']
+                    self.detailed_FPGA_component_share['LUTMEM']          += opc.detailed_FPGA_component_share['LUTMEM']
+                    self.detailed_FPGA_component_share['Registers']       += opc.detailed_FPGA_component_share['Registers']
+                    self.detailed_FPGA_component_share['BRAM']            += opc.detailed_FPGA_component_share['BRAM']
+                    self.detailed_FPGA_component_share['DSPs']            += opc.detailed_FPGA_component_share['DSPs']
+                else:
+                    for k in self.detailed_FPGA_component_share:
+                        if opc.detailed_FPGA_component_share[k] > self.detailed_FPGA_component_share[k]:
+                            self.detailed_FPGA_component_share[k] = opc.detailed_FPGA_component_share[k]
         # self.oi_iter = self.iter_hz / self.total_bytes
         # self.oi_iter = kiloU / self.total_bytes
         # self.oi_iter = self.total_bytes
