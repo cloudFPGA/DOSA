@@ -57,21 +57,21 @@ set_top       ${projectName}
 
 
 # library files
-add_files ${srcDir}/../../lib/axi_utils.hpp -cflags "-Wno-attributes"
-add_files ${srcDir}/../../lib/interface_utils.hpp -cflags "-Wno-attributes"
+add_files ${srcDir}/../../lib/axi_utils.hpp -cflags "-Wno-attributes -std=c++0x"
+add_files ${srcDir}/../../lib/interface_utils.hpp -cflags "-Wno-attributes -std=c++0x"
 
 if { $useTipsTest } {
-  add_files   ${srcDir}/tips.cpp -cflags "-DTIPS_TEST -Wno-attributes"
-  add_files   ${srcDir}/tips.hpp -cflags "-DTIPS_TEST -Wno-attributes"
-  add_files -tb tb/tb_tips.cpp -cflags   "-DTIPS_TEST -Wno-attributes"
-  add_files ${srcDir}/alu.hpp -cflags "-DTIPS_TEST -Wno-attributes"
-  add_files ${srcDir}/alu.cpp -cflags "-DTIPS_TEST -Wno-attributes"
+  add_files   ${srcDir}/tips.cpp -cflags "-DTIPS_TEST -Wno-attributes -std=c++0x"
+  add_files   ${srcDir}/tips.hpp -cflags "-DTIPS_TEST -Wno-attributes -std=c++0x"
+  add_files -tb tb/tb_tips.cpp -cflags   "-DTIPS_TEST -Wno-attributes -std=c++0x"
+  add_files ${srcDir}/alu.hpp -cflags "-DTIPS_TEST -Wno-attributes -std=c++0x"
+  add_files ${srcDir}/alu.cpp -cflags "-DTIPS_TEST -Wno-attributes -std=c++0x"
 } else {
-  add_files   ${srcDir}/tips.cpp -cflags "-Wno-attributes"
-  add_files   ${srcDir}/tips.hpp -cflags "-Wno-attributes"
-  add_files ${srcDir}/alu.hpp -cflags "-Wno-attributes"
-  add_files ${srcDir}/alu.cpp -cflags "-Wno-attributes"
-  add_files -tb tb/tb_tips.cpp -cflags "-Wno-attributes"
+  add_files   ${srcDir}/tips.cpp -cflags "-Wno-attributes -std=c++0x"
+  add_files   ${srcDir}/tips.hpp -cflags "-Wno-attributes -std=c++0x"
+  add_files ${srcDir}/alu.hpp -cflags "-Wno-attributes -std=c++0x"
+  add_files ${srcDir}/alu.cpp -cflags "-Wno-attributes -std=c++0x"
+  add_files -tb tb/tb_tips.cpp -cflags "-Wno-attributes -std=c++0x"
 }
 
 

@@ -39,7 +39,8 @@ void init_tanh_table(aluAccumDtype table_out[N_TABLE])
 
 void tanh(quantDtype data[DOSA_TIPS_LONGEST_OUTPUT], quantDtype res[DOSA_TIPS_LONGEST_OUTPUT], aluAccumDtype tanh_table[N_TABLE])
 {
-#pragma HLS inline
+//#pragma HLS inline
+#pragma HLS INLINE off
   // Index into the lookup table based on data
   int data_round;
   int index;
@@ -75,7 +76,8 @@ void tanh(quantDtype data[DOSA_TIPS_LONGEST_OUTPUT], quantDtype res[DOSA_TIPS_LO
 // *************************************************
 void relu(quantDtype data[DOSA_TIPS_LONGEST_OUTPUT], quantDtype res[DOSA_TIPS_LONGEST_OUTPUT])
 {
-#pragma HLS inline
+//#pragma HLS inline
+#pragma HLS INLINE off
   quantDtype datareg;
   for (int ii=0; ii<DOSA_TIPS_LONGEST_OUTPUT; ii++) {
 #pragma HLS PIPELINE
@@ -104,7 +106,8 @@ void dense(
   assert(m <= DOSA_TIPS_LONGEST_INPUT);
   assert(DOSA_TIPS_LONGEST_OUTPUT <= DOSA_TIPS_LONGEST_OP1);
 #endif
-#pragma HLS inline
+//#pragma HLS inline
+#pragma HLS INLINE off
 #pragma HLS function_instantiate variable=m
 #pragma HLS PIPELINE
   quantDtype cache;
