@@ -154,6 +154,7 @@ class BrickContract(DosaContract):
         # self.oi_iter = self.iter_hz / first_total_bytes
         if self.total_bytes > 0:
             self.oi_iter = 1 / self.total_bytes
+        # assert self.iter_hz < float('inf')
 
     def __repr__(self):
         return "BrickContr({} on {} using {}/{}: {:.2f}/s, {:.2f}c%, {:.2f}m%, switching {:.2f}%c, {:.2f}%m)" \

@@ -1046,11 +1046,12 @@ class ArchDraft(object):
                 rr = nn.roofline.get_region_OIPlane_iter_based(lb.selected_contract.oi_iter, lb.req_iter_hz,
                                                                lb.selected_contract)
                 if rr == RooflineRegionsOiPlane.ABOVE_TOP or rr == RooflineRegionsOiPlane.ABOVE_BRAM:
-                    need_to_split = True
                     nsf = lb.req_iter_hz / lb.selected_contract.iter_hz
-                    if nsf > split_factor:
-                        reasons_txt.append('exceeded compute budget')
-                        split_factor = nsf
+                    if nsf > 1.0:
+                        need_to_split = True
+                        if nsf > split_factor:
+                            reasons_txt.append('exceeded compute budget')
+                            split_factor = nsf
                 if rr != RooflineRegionsOiPlane.IN_HOUSE:
                     ap_contr_iter = nn.roofline.get_max_perf_at_oi_iter_based(lb.selected_contract.oi_iter,
                                                                               lb.selected_contract)
@@ -1058,21 +1059,23 @@ class ArchDraft(object):
                     if rr == RooflineRegionsOiPlane.ABOVE_NETWORK \
                             and lb.selected_impl_type == BrickImplTypes.ENGINE \
                             and lb.req_flops > ap_stream:
-                        need_to_split = True
                         nsf = lb.req_flops / ap_stream
-                        if nsf > split_factor:
-                            reasons_txt.append('exceeded network bandwidth budget')
-                            split_factor = nsf
+                        if nsf > 1.0:
+                            need_to_split = True
+                            if nsf > split_factor:
+                                reasons_txt.append('exceeded network bandwidth budget')
+                                split_factor = nsf
                     else:
-                        need_to_split = True
                         nsf = lb.req_iter_hz / ap_contr_iter
-                        if nsf > split_factor:
-                            reasons_txt.append('exceeded bandwidth (DRAM or network) budget')
-                            split_factor = nsf
+                        if nsf > 1.0:
+                            need_to_split = True
+                            if nsf > split_factor:
+                                reasons_txt.append('exceeded bandwidth (DRAM or network) budget')
+                                split_factor = nsf
             if need_to_split:
                 split_factor_up = math.ceil(split_factor)
-                if split_factor_up < 1:
-                    split_factor_up = 1
+                if split_factor_up < 2:
+                    split_factor_up = 2
                 nn.split_vertical(factor=split_factor_up)  # including update of used perf
                 if verbose:
                     print("[DOSA:archGen:INFO] Splitting node {} vertically, due to ({})."
@@ -1102,7 +1105,7 @@ class ArchDraft(object):
                             or lb.compute_parallelization_factor != max_factor \
                             or lb.local_brick_id != 0:
                         # TODO: allow also already splitted brick in the middle of a node?
-                        assert prev_lb is not None
+                        # assert prev_lb is not None
                         # TODO: (reactive check later, now it will stop if not possible)
                         lb.parallelize([lb.selected_contract], max_factor, with_inputs=True)
                     prev_lb = lb

@@ -459,7 +459,7 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, float('inf'), 0.0, 0.0, 'basis', 0.0, 0.0)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, abs(op.req_iter_hz*10000), 0.0, 0.0, 'basis', 0.0, 0.0)
         return offer
 
     def _generate_hdl_flatten_instance(self, todo):

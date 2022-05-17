@@ -108,7 +108,7 @@ void dense(
 #endif
 //#pragma HLS inline
 #pragma HLS INLINE off
-#pragma HLS function_instantiate variable=m
+//#pragma HLS function_instantiate variable=m
 #pragma HLS PIPELINE
   quantDtype cache;
   aluAccumDtype mult[DOSA_TIPS_LONGEST_OP0];

@@ -38,7 +38,7 @@ class TvmCpuOsg(BaseOSG):
     def _get_contr_offer(self, op, target_hw, impl_type):
         if impl_type != BrickImplTypes.ENGINE:
             return None
-        placeholder_contr = OperationContract(op, target_hw, self, impl_type, float('inf'), 1.0, 1.0,
+        placeholder_contr = OperationContract(op, target_hw, self, impl_type, 1, 1.0, 1.0,
                                               "not-yet-implemented", 0.0, 0.0)
         return placeholder_contr
 

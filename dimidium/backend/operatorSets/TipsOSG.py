@@ -186,6 +186,7 @@ class TipsOSG(BaseOSG):
                                                                                         consider_paramB=True,
                                                                                         custom_byte_factor=0.0015,
                                                                                         # max_param_dim=1024
+                                                                                        max_param_dim=32768
                                                                                         )
                 self.op0_list.append(e)
             elif 'bias_add' in e:

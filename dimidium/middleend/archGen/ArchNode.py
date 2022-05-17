@@ -260,6 +260,7 @@ class ArchNode(object):
         self.used_mem_util_share = total_mem_per
         self.used_perf_share = self.used_iter_hz/self.max_iter_hz
         if all_flops_valid:
+            assert min_iter_hz_impl < float('inf')
             self.used_perf_F = total_flops_tmp
             self.max_perf_iter_based = total_flops_tmp * (max_iter/min_iter_hz_impl)
             self.total_pipeline_store = total_tensor_store

@@ -306,7 +306,7 @@ void pLoadOpDual(
 {
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
 #pragma HLS INLINE off
-#pragma HLS pipeline //II=1
+//#pragma HLS pipeline //II=1
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   //-- STATIC VARIABLES -----------------------------------------------------
 #ifdef TIPS_TEST
@@ -344,6 +344,7 @@ void pLoadOpDual(
     {
       for(int i = 0; i < DOSA_TIPS_LONGEST_OP0; i++)
       {
+#pragma HLS unroll factor=512
         if(i >= cur_instr.length_0)
         {
           new_op0[i] = 0x0;
@@ -362,6 +363,7 @@ void pLoadOpDual(
     {
       for(int i = 0; i < DOSA_TIPS_LONGEST_OP1; i++)
       {
+#pragma HLS unroll factor=512
         if(i >= cur_instr.length_1)
         {
           new_op1[i] = 0x0;
@@ -425,9 +427,11 @@ void pALU(
   quantDtype input_scratchpad[DOSA_TIPS_LONGEST_INPUT];
 #pragma HLS ARRAY_PARTITION variable=input_scratchpad complete
   quantDtype op0_scratchpad[DOSA_TIPS_LONGEST_OP0];
-#pragma HLS ARRAY_PARTITION variable=op0_scratchpad complete
+//#pragma HLS ARRAY_PARTITION variable=op0_scratchpad complete
+#pragma HLS ARRAY_PARTITION variable=op0_scratchpad cyclic factor=512
   quantDtype op1_scratchpad[DOSA_TIPS_LONGEST_OP1];
 #pragma HLS ARRAY_PARTITION variable=op1_scratchpad complete
+//#pragma HLS ARRAY_PARTITION variable=op1_scratchpad cyclic factor=512
   quantDtype output_scratchpad[DOSA_TIPS_LONGEST_OUTPUT];
 #pragma HLS ARRAY_PARTITION variable=output_scratchpad complete
   //usedDtype cur_op0[DOSA_TIPS_LONGEST_OP0];
@@ -479,7 +483,7 @@ void pALU(
       //"type cast" op vectors
       for(int i = 0; i < DOSA_TIPS_LONGEST_OP0; i++)
       {
-#pragma HLS unroll
+#pragma HLS unroll factor=512
         if( i >= cur_instr.op0_length )
         {
           op0_scratchpad[i] = 0x0;
@@ -489,7 +493,7 @@ void pALU(
       }
       for(int i = 0; i < DOSA_TIPS_LONGEST_OP1; i++)
       {
-#pragma HLS unroll
+#pragma HLS unroll factor=512
         if( i >= cur_instr.op1_length )
         {
           op1_scratchpad[i] = 0x0;

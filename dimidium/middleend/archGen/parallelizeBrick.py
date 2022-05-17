@@ -18,7 +18,7 @@ from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.lib.util import get_next_larger_dividor
 
 
-__ops_possible_to_paralleize__ = ['nn.conv2d', 'nn.bias_add', 'tanh', 'relu', 'nn.max_pool2d', 'nn.batch_flatten']
+__ops_possible_to_paralleize__ = ['nn.conv2d', 'nn.bias_add', 'tanh', 'nn.relu', 'nn.max_pool2d', 'nn.batch_flatten']
 __min_factor__ = 2
 
 

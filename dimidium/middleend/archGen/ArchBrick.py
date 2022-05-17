@@ -308,6 +308,7 @@ class ArchBrick(object):
                 #     cc.osg.annotate_brick(nb, cc.device)
                 # add fake contract
                 pseudo_contract = BrickContract(self, cc.device, cc.osg, cc.impl_type, [])
+                pseudo_contract.iter_hz = cc.iter_hz / used_factor
                 pseudo_contract.flops_per_iter = cc.flops_per_iter / used_factor
                 pseudo_contract.comp_util_share = cc.comp_util_share / used_factor
                 pseudo_contract.mem_util_share = cc.mem_util_share / used_factor
@@ -496,12 +497,13 @@ class ArchBrick(object):
                 # cf = max(c.comp_util_share, c.mem_util_share) \
                 #      / (dosa_singleton.config.utilization.dosa_xi - max(c.switching_comp_share, c.switching_mem_share))
                 if consider_switching:
-                    cf = (max(c.comp_util_share, c.mem_util_share) + max(c.switching_comp_share, c.switching_mem_share)) \
-                         / dosa_singleton.config.utilization.dosa_xi
+                    cf = round((max(c.comp_util_share, c.mem_util_share) + max(c.switching_comp_share, c.switching_mem_share)) \
+                         / dosa_singleton.config.utilization.dosa_xi, 1)
                 else:
-                    cf = max(c.comp_util_share, c.mem_util_share) / dosa_singleton.config.utilization.dosa_xi
+                    cf = round(max(c.comp_util_share, c.mem_util_share) / dosa_singleton.config.utilization.dosa_xi, 1)
                 if cf < least_split_factor:
                     least_split_factor = cf
+            assert least_split_factor < float('inf')
             self.parallelize(fitting_type, least_split_factor)
             self.update_possible_contracts(consider_switching=False)
         else:
