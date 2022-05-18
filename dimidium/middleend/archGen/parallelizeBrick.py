@@ -34,6 +34,9 @@ def parallelize_ops_of_brick(orig_brick, factor_in, with_inputs=False):
         necessary = False
         for oid in orig_brick.ops:
             op = orig_brick.ops[oid]
+            if with_inputs:
+                if op.dims.inp[1] % factor != 0:
+                    factor = get_next_larger_dividor(op.dims.inp[1], factor)
             if len(op.dims.param) > 0 and op.dims.param[0] % factor != 0:
                 factor = get_next_larger_dividor(op.dims.param[0], factor)
                 necessary = True
@@ -51,6 +54,7 @@ def parallelize_ops_of_brick(orig_brick, factor_in, with_inputs=False):
             if with_inputs and not __compatible_with_splitted_input__[att_i]:
                 print('[DOSA:ParallelizeOpClass:ERROR] Forced to split input of an operation that is not compatible '
                       'with it ({},{}). STOP.'.format(op.global_op_id, op.op_call))
+                exit(1)
             nl = util_class.parallelize(op, factor, with_inputs)
             if __force_to_split_inputs_after_op__[att_i]:
                 with_inputs = True

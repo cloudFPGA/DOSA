@@ -1118,6 +1118,7 @@ class ArchDraft(object):
                     for j in range(0, max_factor):
                         p_brick = nn.bricks[i].parallelized_bricks[j]
                         p_brick.available_contracts = []
+                        p_brick.parallelized_bricks = nn.bricks[i].parallelized_bricks
                         nn.bricks[i].selected_contract.osg.annotate_brick(p_brick,
                                                                           nn.bricks[i].selected_contract.device,
                                                                           filter_impl_types=nn.bricks[i].selected_impl_type)
