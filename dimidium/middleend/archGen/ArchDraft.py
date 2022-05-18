@@ -1102,12 +1102,15 @@ class ArchDraft(object):
                 prev_lb = None
                 for lb in nn.local_brick_iter_gen():
                     if not lb.needs_compute_parallelization \
-                            or lb.compute_parallelization_factor != max_factor \
-                            or lb.local_brick_id != 0:
+                            or lb.compute_parallelization_factor != max_factor:  # \
+                            # or lb.local_brick_id != 0:
                         # TODO: allow also already splitted brick in the middle of a node?
                         # assert prev_lb is not None
                         # TODO: (reactive check later, now it will stop if not possible)
-                        lb.parallelize([lb.selected_contract], max_factor, with_inputs=True)
+                        if prev_lb is None:
+                            lb.parallelize([lb.selected_contract], max_factor, with_inputs=False)
+                        else:
+                            lb.parallelize([lb.selected_contract], max_factor, with_inputs=True)
                     prev_lb = lb
                 my_new_bricks = {}
                 new_nodes = {}

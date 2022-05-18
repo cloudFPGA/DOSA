@@ -19,13 +19,15 @@ from dimidium.lib.util import get_next_larger_dividor
 
 
 __ops_possible_to_paralleize__ = ['nn.conv2d', 'nn.bias_add', 'tanh', 'nn.relu', 'nn.max_pool2d', 'nn.batch_flatten']
+__force_to_split_inputs_after_op__ = [True,        False,      False,  False,       False,            False]
+__compatible_with_splitted_input__ = [False,       True,       True,   True,         True,            True]
 __min_factor__ = 2
 
 
-def parallelize_ops_of_brick(orig_brick, factor, with_inputs=False):
-    if factor < __min_factor__:
-        factor = __min_factor__
-    factor = 2 * round(factor/2)
+def parallelize_ops_of_brick(orig_brick, factor_in, with_inputs=False):
+    if factor_in < __min_factor__:
+        factor_in = __min_factor__
+    factor = 2 * round(factor_in/2)
     # check factor
     necessary = True
     while necessary:
@@ -38,12 +40,20 @@ def parallelize_ops_of_brick(orig_brick, factor, with_inputs=False):
     is_possible = True
     util_class = ParallelizeOpClass()
     new_ops_dict = {}
+    # TODO: overwrite always legal?
+    with_inputs = False
     for oid in orig_brick.ops:
         op = orig_brick.ops[oid]
         if op.op_call not in __ops_possible_to_paralleize__:
             is_possible = False
         else:
+            att_i = __ops_possible_to_paralleize__.index(op.op_call)
+            if with_inputs and not __compatible_with_splitted_input__[att_i]:
+                print('[DOSA:ParallelizeOpClass:ERROR] Forced to split input of an operation that is not compatible '
+                      'with it ({},{}). STOP.'.format(op.global_op_id, op.op_call))
             nl = util_class.parallelize(op, factor, with_inputs)
+            if __force_to_split_inputs_after_op__[att_i]:
+                with_inputs = True
             if nl is None:
                 is_possible = False
             else:
@@ -362,6 +372,8 @@ class ParallelizeOpClass(object):
             if not with_inputs:
                 new_op.dims.inp = orig_op.dims.inp  # inp stays
                 new_op.input_bytes = orig_op.input_bytes
+                new_op.dims.out = orig_op.dims.out
+                new_op.output_bytes = orig_op.output_bytes
             else:
                 new_op.dims.inp = []
                 inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
@@ -374,20 +386,20 @@ class ParallelizeOpClass(object):
                         new_op.dims.inp.append(d)
                         inp_B *= d
                 new_op.input_bytes = int(inp_B)
+                new_op.dims.out = []
+                out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                # for d in orig_op.dims.out:
+                for dp in range(0, len(orig_op.dims.out)):
+                    d = orig_op.dims.out[dp]
+                    if dp == 1:
+                        new_op.dims.out.append(int(d/factor))
+                        out_B *= int(d/factor)
+                    else:
+                        new_op.dims.out.append(d)
+                        out_B *= d
+                new_op.output_bytes = int(out_B)
             new_op.dims.param = []
             new_op.parameter_bytes = 0
-            new_op.dims.out = []
-            out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
-            # for d in orig_op.dims.out:
-            for dp in range(0, len(orig_op.dims.out)):
-                d = orig_op.dims.out[dp]
-                if dp == 1:
-                    new_op.dims.out.append(int(d/factor))
-                    out_B *= int(d/factor)
-                else:
-                    new_op.dims.out.append(d)
-                    out_B *= d
-            new_op.output_bytes = int(out_B)
             new_op.flops = orig_op.flops/factor
             new_op.oi_stream = new_op.flops / new_op.input_bytes
             new_op.oi_engine = new_op.flops / (new_op.input_bytes + new_op.parameter_bytes)

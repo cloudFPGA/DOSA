@@ -10,6 +10,7 @@
 #  *
 #  *
 
+import sys
 import abc
 
 from dimidium.backend.devices.dosa_device import DosaHwClasses
@@ -23,6 +24,8 @@ from dimidium.middleend.archGen.BrickContract import BrickContract
 
 
 class BaseOSG(metaclass=abc.ABCMeta):
+
+    _pseudo_infinity_ = int(sys.maxsize/2)
 
     def __init__(self, name, device_classes: [DosaHwClasses], supported_dtypes: [DosaDtype], impl_types: [BrickImplTypes]):
         self.name = name
