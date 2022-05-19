@@ -112,9 +112,11 @@ class BrickContract(DosaContract):
         self.detailed_FPGA_component_share['DSPs']      = 0.0
         self.detailed_FPGA_wrapper_share = None
         for opc in self.op_contracts:
-            if self.impl_type != opc.impl_type or self.device != opc.device or self.osg != opc.osg:
+            if self.impl_type != opc.impl_type or self.device != opc.device \
+                    or self.osg.name != opc.osg.name:  # TODO: sometimes comparing the osg objects fails
                 print("[DOSA:contracts:ERROR] Trying to combine un-compatible contracts. STOP.")
                 exit(1)
+                # raise
             if opc.iter_hz < self.iter_hz:
                 self.iter_hz = opc.iter_hz
             # if self.osg_intern_id == '':

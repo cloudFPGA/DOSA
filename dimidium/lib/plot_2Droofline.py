@@ -278,7 +278,7 @@ def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft,
             # total_flops += bb.iter_hz/unit
             total_flops += 1
             if bb.max_possible_iter > max_possible_iters:
-                max_possible_iters = bb.max_possible_iter
+                max_possible_iters = float(bb.max_possible_iter)
         else:
             cn = {'name': "{}_{}_engine".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_engine}
             un = {'name': "{}_{}_stream".format(bb.brick_uuid, bb.fn_label), 'oi': bb.oi_stream}
@@ -316,7 +316,7 @@ def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft,
     subtitle = None
     if iter_based:
         subtitle = '(impl. {:.2f} GFLOPS,\ntheor. max.: {:.2f})'\
-            .format(arch_node.used_perf_F / gigaU, arch_node.max_perf_iter_based / gigaU)
+            .format(float(arch_node.used_perf_F / gigaU), float(arch_node.max_perf_iter_based / gigaU))
     perf_dict = arch_node.targeted_hw.get_performance_dict()
     roof_dict = arch_node.targeted_hw.get_roofline_dict()
     if arch_node.selected_hw_type != placeholderHw:

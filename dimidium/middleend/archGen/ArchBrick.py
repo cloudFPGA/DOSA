@@ -76,6 +76,7 @@ class ArchBrick(object):
         self.available_osgs = []
         self.available_contracts = []
         self.still_possible_contracts = []
+        self.still_possible_osgs = []
         self.selected_contract = None
         self.max_possible_iter = -1
         self.possible_hw_types = []
@@ -125,7 +126,7 @@ class ArchBrick(object):
                'possible contr': [], 'selected contr': '',
                'selected impl. type:': repr(self.selected_impl_type),
                'ops': {}}
-        if self.tvm_node is None:
+        if self.tvm_node is None and self.orig_tvm_node is not None:
             res['tvm_node'] = 'Original: ' + str(self.orig_tvm_node)[:100]
         for oi in self.ops:
             o = self.ops[oi]
@@ -460,6 +461,7 @@ class ArchBrick(object):
         still_possible = []
         within_util_exception = []
         fitting_type = []
+        still_possible_osgs = []
         for c in self.available_contracts:
             if self.selected_impl_type != BrickImplTypes.UNDECIDED and c.impl_type != self.selected_impl_type:
                 continue
@@ -487,6 +489,8 @@ class ArchBrick(object):
                 # to big in all cases
                 continue
             still_possible.append(c)
+            if c.osg not in still_possible_osgs:
+                still_possible_osgs.append(c.osg)
         if len(still_possible) == 0 and len(within_util_exception) > 0:
             print('[DOSA:ContrMngt:INFO] Brick {}: Using contract above utilization target, but within exception, '
                   'because no other contract is available.'.format(self.brick_uuid))
@@ -524,6 +528,7 @@ class ArchBrick(object):
                 self.still_possible_contracts = [cur_selected]
         else:
             self.still_possible_contracts = still_possible
+            self.still_possible_osgs = still_possible_osgs
 
     # def update_possible_hw_types(self):
     #     new_possible_hw_types = []

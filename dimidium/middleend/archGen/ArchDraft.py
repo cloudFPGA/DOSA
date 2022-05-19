@@ -838,7 +838,7 @@ class ArchDraft(object):
     #         assert nn.used_mem_util_share < 1.1
     #     return DosaRv.OK
 
-    def legalize(self, verbose=False, consider_switching_first=False):
+    def legalize(self, verbose=False, consider_switching_first=False, contract_look_ahead=0):
         # 0. bandwidth analysis (OSG not yet decided)
         #  including sorting of contracts based on strategy
         #  and filtering of contracts
@@ -892,29 +892,90 @@ class ArchDraft(object):
         # 1. select best of possible contracts
         for nn in self.node_iter_gen():
             # last_osg = None
-            for lb in nn.local_brick_iter_gen():
+            skip_lbs = []
+            assume_osg = None
+            # for lb in nn.local_brick_iter_gen():
+            for bi in nn.bricks:
+                lb = nn.bricks[bi]
+                if lb in skip_lbs:
+                    continue
                 if self.strategy == OptimizationStrategies.RESOURCES:
                     lb.sort_contracts(by_utility=True)
                 else:
                     lb.sort_contracts(by_utility=False)
                 # lb.update_possible_contracts(consider_switching=True, assume_osg=last_osg)
-                lb.update_possible_contracts(consider_switching=True)
+                lb.update_possible_contracts(consider_switching=True, assume_osg=assume_osg)
                 # TODO...how to best approx switching in the beginning?
                 # lb.update_possible_contracts(consider_switching=consider_switching_first)
                 # consider req_iter_hz per Brick to select contract
-                #  choosing contract that is above requirement with least resources
-                selected_contract = lb.get_best_sufficient_contract_with_least_resources(
-                    consider_switching=consider_switching_first)
+                selected_contract = None
+                if contract_look_ahead > 0:
+                    osgs_to_consider = lb.still_possible_osgs
+                    osg_stats = {}
+                    for o in osgs_to_consider:
+                        co = lb.get_best_possible_contract(filter_osg=o)
+                        comp_costs = co.comp_util_share
+                        mem_costs = co.mem_util_share
+                        if o != assume_osg:
+                            comp_costs += co.switching_comp_share
+                            mem_costs += co.switching_mem_share
+                        osg_possible = True
+                        for i in range(1, contract_look_ahead+1):
+                            lac = bi + i
+                            if lac in nn.bricks:
+                                nb = nn.bricks[lac]
+                                nb.update_possible_contracts(consider_switching=False)
+                                nbpoc = nb.get_best_possible_contract(filter_osg=o)
+                                if nbpoc is None:
+                                    osg_possible = False
+                                    break
+                                comp_costs += nbpoc.comp_util_share
+                                mem_costs += nbpoc.mem_util_share
+                            # save intermediate results
+                            if osg_possible and \
+                                    comp_costs < dosa_singleton.config.utilization.dosa_xi \
+                                    and mem_costs < dosa_singleton.config.utilization.dosa_xi:
+                                osg_stats[o] = (comp_costs, mem_costs, co, i)
+                        # save final result
+                        if osg_possible and \
+                                comp_costs < dosa_singleton.config.utilization.dosa_xi \
+                                and mem_costs < dosa_singleton.config.utilization.dosa_xi:
+                            osg_stats[o] = (comp_costs, mem_costs, co, contract_look_ahead)
+                    best_osg = None
+                    best_comp_costs = float('inf')
+                    best_mem_costs = float('inf')
+                    for osg in osg_stats:
+                        osgs = osg_stats[osg]
+                        if osgs[0] < best_comp_costs and osgs[1] < best_mem_costs:
+                            best_osg = osg
+                            best_comp_costs = osgs[0]
+                            best_mem_costs = osgs[1]
+                            selected_contract = osgs[2]
+                    if best_osg is not None:
+                        assume_osg = best_osg
+                        if verbose:
+                            print('[DOSA:archGen:INFO] Assuming {} as OSG for next brick(s)...'.format(assume_osg.name))
+                # for not-look ahead or other failures
+                if selected_contract is None:
+                    #  choosing contract that is above requirement with least resources
+                    selected_contract = lb.get_best_sufficient_contract_with_least_resources(
+                        consider_switching=consider_switching_first)
                 if selected_contract is None:
                     print("[DOSA:archGen:ERROR] couldn't find any valid OSG for brick {}. STOP.".format(lb.brick_uuid))
-                    exit(1)
+                    # exit(1)
+                    return DosaRv.ERROR
                 # lb.set_osg(selected_contract.osg)
                 # lb.selected_contract = selected_contract
                 lb.set_contract(selected_contract)
                 # last_osg = selected_contract.osg
+                if verbose:
+                    print('[DOSA:archGen:INFO] Selecting contract ({}) for brick {}.'.format(repr(selected_contract),
+                                                                                             lb.brick_uuid))
         # ensure all are decided
         for bb in self.brick_iter_gen():
-            assert bb.selected_contract is not None
+            # assert bb.selected_contract is not None
+            if bb.selected_contract is None:
+                return DosaRv.ERROR
         # 2. split nodes based on selected contracts
         orig_nodes_handles = []
         for nn in self.node_iter_gen():
@@ -1049,6 +1110,9 @@ class ArchDraft(object):
                     if lb.compute_parallelization_factor > max_factor:
                         max_factor = lb.compute_parallelization_factor
             if needs_compute_utilization:
+                if verbose:
+                    print("[DOSA:archGen:INFO] Need to split computing operations of node {} with a factor {}."
+                          .format(nn.node_id, max_factor))
                 nn.needs_compute_parallelization = True
                 nn.compute_parallelization_factor = max_factor
                 # check if all are possible
@@ -1068,6 +1132,11 @@ class ArchDraft(object):
                 my_new_bricks = {}
                 new_nodes = {}
                 for i in range(0, nn.bid_cnt):
+                    if len(nn.bricks[i].parallelized_bricks) != max_factor:
+                        print("[DOSA:archGen:ERROR] Node {} needs to be parallelized by factor {}, but "
+                              "brick {} can only be parallelized with a factor {} . STOP."
+                              .format(nn.node_id, max_factor, i, len(nn.bricks[i].parallelized_bricks)))
+                        return DosaRv.ERROR
                     for j in range(0, max_factor):
                         p_brick = nn.bricks[i].parallelized_bricks[j]
                         p_brick.available_contracts = []
@@ -1158,8 +1227,8 @@ class ArchDraft(object):
                     split_factor_up = 2
                 nn.split_vertical(factor=split_factor_up)  # including update of used perf
                 if verbose:
-                    print("[DOSA:archGen:INFO] Splitting node {} vertically, due to ({})."
-                          .format(nn.node_id, reasons_txt))
+                    print("[DOSA:archGen:INFO] Parallelize node {} vertically with factor {}, due to ({})."
+                          .format(nn.node_id, split_factor_up, reasons_txt))
         # 6. merge sequential nodes (no data par, no twins, same targeted_hw) if possible, based on used_perf,
         #  (i.e move bricks after each other)
         for nn in self.node_iter_gen():

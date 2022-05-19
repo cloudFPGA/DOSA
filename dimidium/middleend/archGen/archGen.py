@@ -405,7 +405,13 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
     assert len(draft.fallback_hw_set) >= 1
     draft_list = []
     node_count_list = []   # index equals index in target_hw_set and draft_list
-    parameter_set_list = [{'consider_switching_first': False}, {'consider_switching_first': True}]
+    parameter_set_list = [
+        # {'consider_switching_first': False, 'contract_look_ahead': 0},
+        {'consider_switching_first': True, 'contract_look_ahead': 0},
+        # {'consider_switching_first': False, 'contract_look_ahead': 1},
+        {'consider_switching_first': True, 'contract_look_ahead': 1},
+        {'consider_switching_first': True, 'contract_look_ahead': 2}
+    ]
     for thw in draft.target_hw_set:
         for psl in parameter_set_list:
             # A) for each target hw, create legal draft and count number of nodes
@@ -415,19 +421,23 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
                 nn.set_targeted_hw(thw)  # this includes the generation of the roofline
             # legalize this version
             consider_switching_first = psl['consider_switching_first']
-            rv = tmp_draft.legalize(verbose=verbose, consider_switching_first=consider_switching_first)
+            contract_look_ahead = psl['contract_look_ahead']
+            print("\n[DOSA:archGen:INFO] Attempt to legalize draft with the following parameter set: {}".format(psl))
+            rv = tmp_draft.legalize(verbose=verbose, consider_switching_first=consider_switching_first,
+                                    contract_look_ahead=contract_look_ahead)
             if rv != DosaRv.OK:
                 continue
             # save state
             node_count_list.append(tmp_draft.get_total_nodes_cnt())
             draft_list.append(tmp_draft)
     if len(draft_list) == 0:
-        print("[DOSA:archGen:ERROR] unable to find legal architecture draft. Stop.")
+        print("[DOSA:archGen:ERROR] unable to find any legal architecture draft. Stop.")
         exit(1)
     #  then, select the type of hw with the lowest number of nodes
-    # print(node_count_list)
+    if verbose:
+        print("\n[DOSA:archGen:INFO] Node counts of all legal drafts: {}".format(node_count_list))
     best_version_i = node_count_list.index(min(node_count_list))
-    print("[DOSA:archGen:INFO] choosing draft {}, due to lower node count.".format(best_version_i))
+    print("[DOSA:archGen:INFO] choosing draft {}, due to lowest node count.".format(best_version_i))
     best_draft = draft_list[best_version_i]
     # TODO: add additional cost factor to devices? E.g. if 3 small nodes are cheaper then 1 big one?
     draft = best_draft
