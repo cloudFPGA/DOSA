@@ -118,6 +118,7 @@ class ArchBrick(object):
                'dims': '', 'tvm_node': str(self.tvm_node)[:100], 'req_flops': self.req_flops,
                'req_latency_s': self.req_latency, 'req_iter_hz': self.req_iter_hz, 'iter_hz': float(self.iter_hz),
                'oi_iter': self.oi_iter, 'flops_based_on_iters': float(self.used_flops),
+               'theoretical_max_iter': float(self.max_possible_iter),
                'req_util_comp': self.req_util_comp, 'req_util_mem': self.req_util_mem,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
                # 'possible OSGs': [], 'selected OSG': repr(self.selected_osg),

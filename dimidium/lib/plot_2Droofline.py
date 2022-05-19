@@ -180,7 +180,7 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
             # total_flops += bb.iter_hz/unit
             total_flops += 1
             if bb.max_possible_iter > max_possible_iters:
-                max_possible_iters = bb.max_possible_iter
+                max_possible_iters = float(bb.max_possible_iter)
         else:
             cn = {'name': "{}_engine".format(fn_name), 'oi': bb.oi_engine}
             un = {'name': "{}_stream".format(fn_name), 'oi': bb.oi_stream}
@@ -440,7 +440,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
             else:
                 t_up = upper_limit
             sweet_spot = rf_calc_sweet_spot(ai_list, t_up, roofline_dict['bw_for_sweet_spot'])
-            # print('calculated sweet spot: {}'.format(sweet_spot))
+            print('calculated sweet spot: {}; upper limit: {}'.format(sweet_spot, upper_limit))
         color = 'darkmagenta'
         line_style = 'solid'  # otherwise we see the memory lines...
         plt.hlines(y=upper_limit, xmin=sweet_spot, xmax=ai_list[-1], colors=color, linestyles=line_style, linewidth=MY_WIDTH*1.2, zorder=3)

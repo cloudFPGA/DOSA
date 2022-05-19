@@ -80,6 +80,7 @@ class ArchNode(object):
                'estimations': {'comp_util%': self.used_comp_util_share*100, 'mem_util%': self.used_mem_util_share*100,
                                # 'used_perf%': self.used_perf_share*100},
                                'req_iter_hz': self.req_iter_hz, 'used_iter_hz': float(self.used_iter_hz),
+                               'theoretical_max_iter': float(self.max_iter_hz),
                                'impl_Gflop_eqiv': float(self.used_perf_F / gigaU),
                                'max_Gflop_based_on_impl_eqiv': float(self.max_perf_iter_based / gigaU)},
                'over_utilized_node': self.over_utilized_node,

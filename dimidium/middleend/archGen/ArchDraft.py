@@ -1035,57 +1035,7 @@ class ArchDraft(object):
                     if verbose:
                         print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(bb.brick_uuid) +
                               " since it is an engine with only one operation.")
-        # 4. data parallelization if necessary
-        # TODO: different strategy for resource optimization
-        assert self.strategy != OptimizationStrategies.RESOURCES
-        for nn in self.node_iter_gen():
-            # only nodes with one brick should be affected
-            need_to_split = False
-            reasons_txt = []
-            split_factor = 0
-            for lb in nn.local_brick_iter_gen():
-                # engine and stream
-                rr = nn.roofline.get_region_OIPlane_iter_based(lb.selected_contract.oi_iter, lb.req_iter_hz,
-                                                               lb.selected_contract)
-                if rr == RooflineRegionsOiPlane.ABOVE_TOP or rr == RooflineRegionsOiPlane.ABOVE_BRAM:
-                    nsf = lb.req_iter_hz / lb.selected_contract.iter_hz
-                    if nsf > 1.0:
-                        need_to_split = True
-                        if nsf > split_factor:
-                            reasons_txt.append('exceeded compute budget')
-                            split_factor = nsf
-                if rr != RooflineRegionsOiPlane.IN_HOUSE:
-                    ap_contr_iter = nn.roofline.get_max_perf_at_oi_iter_based(lb.selected_contract.oi_iter,
-                                                                              lb.selected_contract)
-                    ap_stream = nn.roofline.get_max_perf_at_oi(lb.oi_stream)
-                    if rr == RooflineRegionsOiPlane.ABOVE_NETWORK \
-                            and lb.selected_impl_type == BrickImplTypes.ENGINE \
-                            and lb.req_flops > ap_stream:
-                        nsf = lb.req_flops / ap_stream
-                        if nsf > 1.0:
-                            need_to_split = True
-                            if nsf > split_factor:
-                                reasons_txt.append('exceeded network bandwidth budget')
-                                split_factor = nsf
-                    else:
-                        nsf = lb.req_iter_hz / ap_contr_iter
-                        if nsf > 1.0:
-                            need_to_split = True
-                            if nsf > split_factor:
-                                reasons_txt.append('exceeded bandwidth (DRAM or network) budget')
-                                split_factor = nsf
-            if need_to_split:
-                split_factor_up = math.ceil(split_factor)
-                if split_factor_up < 2:
-                    split_factor_up = 2
-                nn.split_vertical(factor=split_factor_up)  # including update of used perf
-                if verbose:
-                    print("[DOSA:archGen:INFO] Splitting node {} vertically, due to ({})."
-                          .format(nn.node_id, reasons_txt))
-        # TODO: do compute paralleization
-        #  or later, if nodes are already sorted?
-        #  pseudo contracts should be the selected contracts...so no "over utilized" node should exist?
-        # 5. compute parallelization if necessary
+        # 4. compute parallelization if necessary
         orig_nodes_handles = []
         for nn in self.node_iter_gen():
             orig_nodes_handles.append(nn)
@@ -1162,6 +1112,53 @@ class ArchDraft(object):
                     self.insert_node(new_nodes[j], nn.node_id + j)
         # two different types of ranks: data-parallelism, compute parallelism --> in update uuids
         self.update_uuids()
+        # 5. data parallelization if necessary
+        # TODO: different strategy for resource optimization
+        assert self.strategy != OptimizationStrategies.RESOURCES
+        for nn in self.node_iter_gen():
+            # only nodes with one brick should be affected
+            need_to_split = False
+            reasons_txt = []
+            split_factor = 0
+            for lb in nn.local_brick_iter_gen():
+                # engine and stream
+                rr = nn.roofline.get_region_OIPlane_iter_based(lb.selected_contract.oi_iter, lb.req_iter_hz,
+                                                               lb.selected_contract)
+                if rr == RooflineRegionsOiPlane.ABOVE_TOP or rr == RooflineRegionsOiPlane.ABOVE_BRAM:
+                    nsf = lb.req_iter_hz / lb.selected_contract.iter_hz
+                    if nsf > 1.0:
+                        need_to_split = True
+                        if nsf > split_factor:
+                            reasons_txt.append('exceeded compute budget')
+                            split_factor = nsf
+                if rr != RooflineRegionsOiPlane.IN_HOUSE:
+                    ap_contr_iter = nn.roofline.get_max_perf_at_oi_iter_based(lb.selected_contract.oi_iter,
+                                                                              lb.selected_contract)
+                    ap_stream = nn.roofline.get_max_perf_at_oi(lb.oi_stream)
+                    if rr == RooflineRegionsOiPlane.ABOVE_NETWORK \
+                            and lb.selected_impl_type == BrickImplTypes.ENGINE \
+                            and lb.req_flops > ap_stream:
+                        nsf = lb.req_flops / ap_stream
+                        if nsf > 1.0:
+                            need_to_split = True
+                            if nsf > split_factor:
+                                reasons_txt.append('exceeded network bandwidth budget')
+                                split_factor = nsf
+                    else:
+                        nsf = lb.req_iter_hz / ap_contr_iter
+                        if nsf > 1.0:
+                            need_to_split = True
+                            if nsf > split_factor:
+                                reasons_txt.append('exceeded bandwidth (DRAM or network) budget')
+                                split_factor = nsf
+            if need_to_split:
+                split_factor_up = math.ceil(split_factor)
+                if split_factor_up < 2:
+                    split_factor_up = 2
+                nn.split_vertical(factor=split_factor_up)  # including update of used perf
+                if verbose:
+                    print("[DOSA:archGen:INFO] Splitting node {} vertically, due to ({})."
+                          .format(nn.node_id, reasons_txt))
         # 6. merge sequential nodes (no data par, no twins, same targeted_hw) if possible, based on used_perf,
         #  (i.e move bricks after each other)
         for nn in self.node_iter_gen():

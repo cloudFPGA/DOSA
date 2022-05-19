@@ -79,7 +79,8 @@ def generate_throughput_plt(arch_draft: ArchDraft, show_deubg=False):
         # don't add up parallel nodes
         if prev_node in nn.parallel_nodes.values():
             # parallel_factor_dict[prev_id] = (len(nn.parallel_nodes), max_throughput_list[-1])
-            parallel_factor_dict[prev_i] = (len(nn.parallel_nodes), predicted_throughput_list[-1], prev_id)
+            # parallel_factor_dict[prev_i] = (len(nn.parallel_nodes), predicted_throughput_list[-1], prev_id)
+            parallel_factor_dict[prev_i] = (len(nn.parallel_nodes), max_throughput_list[-1], prev_id)
             continue
         prev_node = nn
         prev_i = i
@@ -131,7 +132,7 @@ def generate_throughput_plt(arch_draft: ArchDraft, show_deubg=False):
     color = 'tab:grey'
     z = 8
     for e in parallel_factor_dict:
-        y = parallel_factor_dict[e][1] + 300
+        y = parallel_factor_dict[e][1] * 1.2
         pn = parallel_factor_dict[e][0]
         ni = parallel_factor_dict[e][2]
         text = 'Node {} has {} parallel nodes\n(with same throughput)'.format(ni, pn)
@@ -146,7 +147,7 @@ def generate_throughput_plt(arch_draft: ArchDraft, show_deubg=False):
     plt.text(x=0.5, y=arch_draft.target_sps/kiloU*1.15, s=text, color=color,
              fontsize=MY_SIZE, zorder=z+1)
 
-    title = "DOSA Throughput analysis for'{}'\n({})".format(plt_name, target_string)
+    title = "DOSA Throughput analysis for '{}'\n({})".format(plt_name, target_string)
     # handles, labels = plt.gca().get_legend_handles_labels()
     handles = [ln1, ln2, ln3]
     legend = plt.legend(handles=handles, ncol=2, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)

@@ -113,6 +113,7 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
     handles = [ln1, ln2, ln3]
     legend = plt.legend(handles=handles, ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)
     # legend = plt.legend(ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)
+    plt.setp(legend.get_title(), multialignment='center')
     # lns = ln1+ln2+ln3
     # labs = [l.get_label() for l in lns]
     # ax1.legend(lns, labs, loc=0)
@@ -122,5 +123,6 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
     ax1.set_xticks(id_list)
     plt.setp(legend.get_title(), fontsize=MY_SIZE * 1.2)
     # plt.title(title, fontsize=MY_SIZE*1.2)
+    plt.subplots_adjust(top=0.8)
     # plt.tight_layout()
     return plt
