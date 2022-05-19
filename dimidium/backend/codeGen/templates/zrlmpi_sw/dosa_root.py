@@ -58,7 +58,7 @@ def load_user_credentials(json_file):
 
 def get_cluster_data(cluster_id, user_dict):
 
-    print("Requesting cluster data...")
+    print("Requesting FPGA cluster data...")
 
     r1 = requests.get("http://"+__cf_manager_url__+"/clusters/"+str(cluster_id)+"?username={0}&password={1}"
                       .format(user_dict['user'], user_dict['pw']))
@@ -160,7 +160,7 @@ class DosaRoot:
         # print("cluster properties: {} {} {} {}".format(self.pipeline_store_depth, self.minimum_input_batch_size,
         #                                             self.minimum_output_batch_size, self.pipeline_full_batch_size))
 
-    def init_from_cluster(self, cluster_id, host_address, json_file='./user.json'):
+    def init_from_cluster(self, cluster_id, host_address, json_file='./user.json', debug=False):
         _, user_dict = load_user_credentials(json_file)
         self.user_dict = user_dict
         cluster = get_cluster_data(cluster_id, user_dict)
@@ -168,7 +168,11 @@ class DosaRoot:
         self.cluster_id = cluster_id
         number_of_nodes = len(cluster['nodes'])
         slot_ip_list = [0]*number_of_nodes
-        print("Ping all nodes, build ARP table...")
+        print("Initialize ZRLMPI...")
+        ping_cnt = 2
+        if debug:
+            print("Ping all nodes, build ARP table...")
+            ping_cnt = 3
         sw_node_id = 0
         # host_address = 'localhost'
         for node in cluster['nodes']:
@@ -179,7 +183,7 @@ class DosaRoot:
                 # host_address = node['node_ip']
                 slot_ip_list[sw_node_id] = __NON_FPGA_IDENTIFIER__
                 continue
-            subprocess.call(["/usr/bin/ping","-I{}".format(host_address), "-c3", "{0}".format(node['node_ip'])],
+            subprocess.call(["/usr/bin/ping","-I{}".format(host_address), "-c{}".format(ping_cnt), "{0}".format(node['node_ip'])],
                             stdout=subprocess.PIPE, cwd=os.getcwd())
             # print("/usr/bin/ping","-I{}".format(str(host_address)) , "-c3", "{0}".format(node['node_ip']))
             slot_ip_list[node['node_id']] = str(node['node_ip'])
@@ -191,6 +195,7 @@ class DosaRoot:
                 arg_list.append(e)
         # print(arg_list)
         self.init(arg_list)
+        print("...done.")
 
     # def infer(self, x: np.ndarray, output_shape, debug=False):
     def infer_batch(self, x: np.ndarray, output_shape: tuple, debug=False):

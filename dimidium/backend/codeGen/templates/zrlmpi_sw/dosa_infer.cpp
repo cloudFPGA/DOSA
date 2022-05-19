@@ -181,7 +181,9 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
   uint8_t status;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
+#ifdef DEBUG
   printf("[DOSA:INFO] Here is rank %d, size is %d.\n", rank, size);
+#endif
 
 #ifdef WRAPPER_TEST
   mpiCommands[0]          = MPI_INSTR_SEND;
