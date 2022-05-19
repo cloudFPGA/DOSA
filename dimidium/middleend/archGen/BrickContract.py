@@ -17,8 +17,12 @@ from dimidium.lib.util import BrickImplTypes
 from dimidium.middleend.archGen.DosaContract import DosaContract
 
 
-def sort_brick_contracts_by_util(contr_list):
-    nl = sorted(contr_list, key=lambda c: max(c.comp_util_share, c.mem_util_share))
+def sort_brick_contracts_by_util(contr_list, consider_switching=False):
+    if not consider_switching:
+        nl = sorted(contr_list, key=lambda c: max(c.comp_util_share, c.mem_util_share))
+    else:
+        nl = sorted(contr_list, key=lambda c: max(c.comp_util_share + c.switching_comp_share,
+                                                  c.mem_util_share + c.switching_mem_share))
     return nl
 
 

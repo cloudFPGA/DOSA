@@ -430,8 +430,9 @@ class ArchBrick(object):
         return get_best_contract_of_list(self.still_possible_contracts, filter_impl_type, filter_osg, filter_device,
                                          True, skip_entries)
 
-    def get_best_sufficient_contract_with_least_resources(self):
-        possible_by_util = sort_brick_contracts_by_util(self.still_possible_contracts)
+    def get_best_sufficient_contract_with_least_resources(self, consider_switching=False):
+        possible_by_util = sort_brick_contracts_by_util(self.still_possible_contracts,
+                                                        consider_switching=consider_switching)
         # selected_contract = self.get_best_possible_contract()
         if len(possible_by_util) == 0:
             return None

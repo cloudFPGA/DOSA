@@ -838,7 +838,7 @@ class ArchDraft(object):
     #         assert nn.used_mem_util_share < 1.1
     #     return DosaRv.OK
 
-    def legalize(self, verbose=False):
+    def legalize(self, verbose=False, consider_switching_first=False):
         # 0. bandwidth analysis (OSG not yet decided)
         #  including sorting of contracts based on strategy
         #  and filtering of contracts
@@ -898,12 +898,13 @@ class ArchDraft(object):
                 else:
                     lb.sort_contracts(by_utility=False)
                 # lb.update_possible_contracts(consider_switching=True, assume_osg=last_osg)
-                # lb.update_possible_contracts(consider_switching=True)
+                lb.update_possible_contracts(consider_switching=True)
                 # TODO...how to best approx switching in the beginning?
-                lb.update_possible_contracts(consider_switching=False)
+                # lb.update_possible_contracts(consider_switching=consider_switching_first)
                 # consider req_iter_hz per Brick to select contract
                 #  choosing contract that is above requirement with least resources
-                selected_contract = lb.get_best_sufficient_contract_with_least_resources()
+                selected_contract = lb.get_best_sufficient_contract_with_least_resources(
+                    consider_switching=consider_switching_first)
                 if selected_contract is None:
                     print("[DOSA:archGen:ERROR] couldn't find any valid OSG for brick {}. STOP.".format(lb.brick_uuid))
                     exit(1)
@@ -1281,7 +1282,8 @@ class ArchDraft(object):
             if nn.used_comp_util_share > 1:
                 print("[DOSA:archGen:WARNING] node {} has {} compute utilization...implementation may fail"
                       .format(nn.node_id, nn.used_comp_util_share))
-            assert nn.used_mem_util_share < 1.1
+            assert nn.used_comp_util_share < 1.2
+            assert nn.used_mem_util_share < 1.2
         return DosaRv.OK
 
     def update_required_perf(self):
@@ -1478,14 +1480,14 @@ class ArchDraft(object):
         #     del cur_possible_hw_types[cur_possible_hw_types.index(npht)]
         self.possible_hw_types = cur_possible_hw_types
 
-    def build(self):
+    def build(self, verbose=False):
         self.generate_communication()
         for nn in self.node_iter_gen():
             nn.build()
             build_folder_name = nn.build_tool.get_node_folder_name()
         # add to global cluster setup info
         self._generate_cluster_description()
-        self._generate_extended_cluster_description()
+        self._generate_extended_cluster_description(verbose=verbose)
         if dosa_singleton.config.backend.tmux_parallel_build > 0:
             self._generate_tmux_build_script()
 
@@ -1513,26 +1515,36 @@ class ArchDraft(object):
         with open(out_file2, 'w') as of:
             of.write(str(self))
 
-    def _generate_extended_cluster_description(self):
+    def _generate_extended_cluster_description(self, verbose=False):
+        cluster_dict = self.get_extended_cluster_description()
+        out_file = '{}/arch_info.json'.format(dosa_singleton.config.global_build_dir)
+        with open(out_file, 'w') as of:
+            json.dump(cluster_dict, of, indent=4)
+        if verbose:
+            print(json.dumps(cluster_dict, indent=2))
+
+    def get_extended_cluster_description(self):
         num_nodes = self.get_total_nodes_cnt()
         if self.substract_node_0:
             num_nodes += 1
         cluster_dict = {'name': self.name, 'total_nodes': num_nodes, 'nodes': []}
         for nn in self.node_iter_gen():
-            nn_f = nn.build_tool.node_folder_name
+            if nn.build_tool is not None:
+                nn_f = nn.build_tool.node_folder_name
+            else:
+                nn_f = 'None'
             nn_ranks = nn.ranks
             n_hw = nn.selected_hw_type.name
             # ne = {nn_f: nn_ranks}
             node_dict = nn.as_dict()
-            ne = {'folder': nn_f, 'ranks': nn_ranks, 'type': n_hw, 'blocks': node_dict['blocks'], 'bricks': {}}
+            ne = {'folder': nn_f, 'ranks': nn_ranks, 'type': n_hw, 'blocks': node_dict['blocks'], 'bricks': {},
+                  'estimations': node_dict['estimations']}
             for bb in nn.local_brick_iter_gen():
                 bb_sum = bb.as_summary()
                 ne['bricks'][bb.local_brick_id] = bb_sum
             cluster_dict['nodes'].append(ne)
             # cluster_dict['nodes'][nn_f] = nn_ranks
-        out_file = '{}/arch_info.json'.format(dosa_singleton.config.global_build_dir)
-        with open(out_file, 'w') as of:
-            json.dump(cluster_dict, of, indent=4)
+        return cluster_dict
 
     def _generate_tmux_build_script(self):
         os.system('cp {}/../../backend/buildTools/templates/cFBuild1/dosa_build.sh {}/'
