@@ -123,6 +123,8 @@ if __name__ == '__main__':
     print("\t...done.\n")
 
     all_plots = True
+    if archDict['draft'].nid_cnt > 16:
+        all_plots = False
     if show_graphics:
         print("DOSA: Generating and showing roofline...")
         plt = plot_2Droofline.generate_roofline_plt_old(archDict['base_dpl'], target_sps, used_batch,
@@ -140,13 +142,12 @@ if __name__ == '__main__':
                                                          show_ops=True, selected_only=False, print_debug=False)
         plt22 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
                                                      show_ops=True, selected_only=True, print_debug=False)
+        plt23 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
+                                                      show_ops=True, selected_only=True, print_debug=False,
+                                                      iter_based=True)
+        plt8 = plot_3Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
+                                                     print_debug=False)
         if all_plots:
-            plt23 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
-                                                          show_ops=True, selected_only=True, print_debug=False,
-                                                          iter_based=True)
-        if all_plots:
-            plt8 = plot_3Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
-                                                         print_debug=False)
             plt_nodes = []
             for nn in archDict['draft'].node_iter_gen():
                 if nn.skip_in_roofline:

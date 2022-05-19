@@ -217,7 +217,7 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
                                                             arch_draft.get_total_nodes_cnt())
     subtitle = None
     if iter_based:
-        subtitle = '(total impl. {:.2F} GFLOPS)'.format(arch_draft.total_perf_F / gigaU)
+        subtitle = '(total impl. {:.2F} GFLOPS)'.format(float(arch_draft.total_perf_F / gigaU))
     perf_dict = arch_draft.target_hw_set[0].get_performance_dict()
     roof_dict = arch_draft.target_hw_set[0].get_roofline_dict()
     if iter_based:

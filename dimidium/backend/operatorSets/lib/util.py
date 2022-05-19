@@ -66,6 +66,7 @@ def get_avg_util_dict_bytes_based(entries, consider_paramB=False, consider_ops_n
                      'Registers': register_total / divider, 'BRAM': bram_total / divider,
                      'DSPs': dsps_total / divider,
                      # 'latency_lim_per_tensor_cycl': math.ceil(latency_total / ops_cnt),
+                     # 'latency_lim_per_tensor_cycl': latency_total / (input_bytes_for_latency * ops_cnt),
                      'latency_lim_per_tensor_cycl': latency_total / input_bytes_for_latency,
                      'wrapper': {
                          'LUTLOG': wrapper_lutlog_total / divider,

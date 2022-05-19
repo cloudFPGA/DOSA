@@ -96,6 +96,7 @@ class ArchBrick(object):
         self.local_pipeline_store = 0
         self.needs_compute_parallelization = False
         self.parallelized_bricks = None
+        self.orig_tvm_node = None
         self.compute_parallelization_factor = 1
 
     def __repr__(self):
@@ -115,14 +116,16 @@ class ArchBrick(object):
                'parameter_bytes': self.parameter_bytes, 'input_bytes': self.input_bytes,
                'output_bytes': self.output_bytes, 'fn_label': self.fn_label, 'used_dtype': repr(self.used_dtype),
                'dims': '', 'tvm_node': str(self.tvm_node)[:100], 'req_flops': self.req_flops,
-               'req_latency_s': self.req_latency, 'req_iter_hz': self.req_iter_hz, 'iter_hz': self.iter_hz,
-               'oi_iter': self.oi_iter, 'flops_based_on_iters': self.used_flops,
+               'req_latency_s': self.req_latency, 'req_iter_hz': self.req_iter_hz, 'iter_hz': float(self.iter_hz),
+               'oi_iter': self.oi_iter, 'flops_based_on_iters': float(self.used_flops),
                'req_util_comp': self.req_util_comp, 'req_util_mem': self.req_util_mem,
                'input_Bs': self.input_bw_Bs, 'output_Bs': self.output_bw_Bs,
                # 'possible OSGs': [], 'selected OSG': repr(self.selected_osg),
                'possible contr': [], 'selected contr': '',
                'selected impl. type:': repr(self.selected_impl_type),
                'ops': {}}
+        if self.tvm_node is None:
+            res['tvm_node'] = 'Original: ' + str(self.orig_tvm_node)[:100]
         for oi in self.ops:
             o = self.ops[oi]
             res['ops'][oi] = o.as_dict()
@@ -451,7 +454,7 @@ class ArchBrick(object):
                     selected_contract = next_poc
         return selected_contract
 
-    def update_possible_contracts(self, consider_switching=False, assume_osg=None):
+    def update_possible_contracts(self, consider_switching=False, assume_osg=None, force_no_split=False):
         still_possible = []
         within_util_exception = []
         fitting_type = []
@@ -487,25 +490,36 @@ class ArchBrick(object):
                   'because no other contract is available.'.format(self.brick_uuid))
             self.still_possible_contracts = within_util_exception
         elif len(still_possible) == 0 and len(within_util_exception) == 0 and len(fitting_type) > 0:
-            print(
-                '[DOSA:ContrMngt:INFO] Brick {}: Need to parallelize, due to no available contract withing utilization '
-                'bounds.'.format(self.brick_uuid))
-            # if self.brick_uuid is None:
-            #     print('here')
-            least_split_factor = float('inf')
-            for c in fitting_type:
-                # cf = max(c.comp_util_share, c.mem_util_share) \
-                #      / (dosa_singleton.config.utilization.dosa_xi - max(c.switching_comp_share, c.switching_mem_share))
-                if consider_switching:
-                    cf = round((max(c.comp_util_share, c.mem_util_share) + max(c.switching_comp_share, c.switching_mem_share)) \
-                         / dosa_singleton.config.utilization.dosa_xi, 1)
-                else:
-                    cf = round(max(c.comp_util_share, c.mem_util_share) / dosa_singleton.config.utilization.dosa_xi, 1)
-                if cf < least_split_factor:
-                    least_split_factor = cf
-            assert least_split_factor < float('inf')
-            self.parallelize(fitting_type, least_split_factor)
-            self.update_possible_contracts(consider_switching=False)
+            if not force_no_split:
+                print(
+                    '[DOSA:ContrMngt:INFO] Brick {}: Need to parallelize, due to no available contract withing utilization '
+                    'bounds.'.format(self.brick_uuid))
+                # if self.brick_uuid is None:
+                #     print('here')
+                least_split_factor = float('inf')
+                for c in fitting_type:
+                    # cf = max(c.comp_util_share, c.mem_util_share) \
+                    #      / (dosa_singleton.config.utilization.dosa_xi - max(c.switching_comp_share, c.switching_mem_share))
+                    if consider_switching:
+                        cf = round((max(c.comp_util_share, c.mem_util_share) + max(c.switching_comp_share, c.switching_mem_share)) \
+                             / dosa_singleton.config.utilization.dosa_xi, 1)
+                    else:
+                        cf = round(max(c.comp_util_share, c.mem_util_share) / dosa_singleton.config.utilization.dosa_xi, 1)
+                    if cf < least_split_factor:
+                        least_split_factor = cf
+                assert least_split_factor < float('inf')
+                self.parallelize(fitting_type, least_split_factor)
+                self.update_possible_contracts(consider_switching=False)
+            else:
+                cur_selected = None
+                cur_max_util = float('inf')
+                for c in fitting_type:
+                    max_util = max(c.comp_util_share, c.mem_util_share) \
+                               + max(c.switching_comp_share, c.switching_mem_share)
+                    if max_util < cur_max_util:
+                        cur_max_util = max_util
+                        cur_selected = c
+                self.still_possible_contracts = [cur_selected]
         else:
             self.still_possible_contracts = still_possible
 

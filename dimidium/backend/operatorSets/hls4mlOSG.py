@@ -286,7 +286,7 @@ class Hls4mlOSG(BaseOSG):
                                                                                         fallback_ops=None)
             elif 'pad' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_padding, \
-                                          lambda op, thw, it: OperationContract(op, thw, self, it, abs(op.req_iter_hz*BaseOSG._pseudo_infinity_), 0.0,
+                                          lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
                                                                                 0.0, 'dummy op', 0.0, 0.0)
             elif 'bias_add' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_biasAdd, \
@@ -296,11 +296,11 @@ class Hls4mlOSG(BaseOSG):
                                                                                         custom_latency=int(op.dims.inp[-1]/2))
             elif 'flatten' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_flatten, \
-                                          lambda op, thw, it: OperationContract(op, thw, self, it, abs(op.req_iter_hz*BaseOSG._pseudo_infinity_), 0.0,
+                                          lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
                                                                                 0.0, 'dummy op', 0.0, 0.0)
             elif 'dropout' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_dropout, \
-                                          lambda op, thw, it: OperationContract(op, thw, self, it, abs(op.req_iter_hz*BaseOSG._pseudo_infinity_), 0.0,
+                                          lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
                                                                                 0.0, 'dummy op', 0.0, 0.0)
         for e in self.relay2osg:
             if type(e) == dict:
@@ -322,12 +322,12 @@ class Hls4mlOSG(BaseOSG):
                                                                                   custom_latency=int(op.dims.inp[-1]/2))
             elif 'transpose' in e:
                 self.relay2osg[e] = self._generate_hls_transpose, \
-                                    lambda op, thw, it: OperationContract(op, thw, self, it, abs(op.req_iter_hz*BaseOSG._pseudo_infinity_), 0.0,
+                                    lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
                                                                           0.0, 'dummy op', 0.0, 0.0)
                                     # TODO: is transpose really for free in hls4ml?
             elif 'reshape' in e:
                 self.relay2osg[e] = self._generate_hls_reshape, \
-                                    lambda op, thw, it: OperationContract(op, thw, self, it, abs(op.req_iter_hz*BaseOSG._pseudo_infinity_), 0.0,
+                                    lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
                                                                           0.0, 'dummy op', 0.0, 0.0)
         # not covered hls4ml classes:
         #  GarNet, Resize, SeparableConv2D, DepthwiseConv2D

@@ -158,17 +158,17 @@ class BrickContract(DosaContract):
 
     def __repr__(self):
         return "BrickContr({} on {} using {}/{}: {:.2f}/s, {:.2f}c%, {:.2f}m%, switching {:.2f}%c, {:.2f}%m)" \
-            .format(self.brick.fn_label, self.device.name, self.osg.name, self.impl_type, self.iter_hz,
+            .format(self.brick.fn_label, self.device.name, self.osg.name, self.impl_type, float(self.iter_hz),
                     self.comp_util_share*100, self.mem_util_share*100, self.switching_comp_share*100,
                     self.switching_mem_share*100)
 
     def as_dict(self):
-        res = {'osg': str(self.osg.name), 'impl_type': str(self.impl_type), 'iter_hz': self.iter_hz,
+        res = {'osg': str(self.osg.name), 'impl_type': str(self.impl_type), 'iter_hz': float(self.iter_hz),
                'device': self.device.name,
                'comp_share_%:': self.comp_util_share*100, 'mem_share_%': self.mem_util_share*100,
                'switching_comp_share_%': self.switching_comp_share*100,
                'switching_mem_share_%': self.switching_mem_share*100,
-               'oi_iter': self.oi_iter,
+               'oi_iter': float(self.oi_iter),
                'component_utility_detail': {},
                'wrapper_utility_detail': {}}
         fpga_utility = self.device.get_resource_dict()['FPGA_utility']

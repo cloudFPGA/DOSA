@@ -74,7 +74,7 @@ class ArchDraft(object):
         res = {'name': self.name, 'version': self.version, 'strategy': str(self.strategy),
                'batch_size': self.batch_size, 'target_sps': self.target_sps, 'target_latency': self.target_latency,
                'target_resources': self.target_resources,
-               'total_implemented_perf_F': self.total_perf_F, 'cluster_estimated_iter_hz': self.min_iter_hz,
+               'total_implemented_perf_F': float(self.total_perf_F), 'cluster_estimated_iter_hz': float(self.min_iter_hz),
                # 'cluster_estimated_maximum_iter_hz': self.max_perf_iter_based,
                'input': str(self.input_layer), 'output': str(self.output_layer),
                'possible_hw_types': [], 'target_hw_set': [], 'fallback_hw_set': [],
@@ -898,7 +898,9 @@ class ArchDraft(object):
                 else:
                     lb.sort_contracts(by_utility=False)
                 # lb.update_possible_contracts(consider_switching=True, assume_osg=last_osg)
-                lb.update_possible_contracts(consider_switching=True)
+                # lb.update_possible_contracts(consider_switching=True)
+                # TODO...how to best approx switching in the beginning?
+                lb.update_possible_contracts(consider_switching=False)
                 # consider req_iter_hz per Brick to select contract
                 #  choosing contract that is above requirement with least resources
                 selected_contract = lb.get_best_sufficient_contract_with_least_resources()
@@ -1119,10 +1121,11 @@ class ArchDraft(object):
                         p_brick = nn.bricks[i].parallelized_bricks[j]
                         p_brick.available_contracts = []
                         p_brick.parallelized_bricks = nn.bricks[i].parallelized_bricks
+                        p_brick.orig_tvm_node = nn.bricks[i].tvm_node
                         nn.bricks[i].selected_contract.osg.annotate_brick(p_brick,
                                                                           nn.bricks[i].selected_contract.device,
                                                                           filter_impl_types=nn.bricks[i].selected_impl_type)
-                        p_brick.update_possible_contracts(consider_switching=True)
+                        p_brick.update_possible_contracts(consider_switching=True, force_no_split=True)
                         selected_contract = p_brick.get_best_sufficient_contract_with_least_resources()
                         if selected_contract is None:
                             print("[DOSA:archGen:ERROR] couldn't find any valid OSG for PARTIAL brick {}. STOP."

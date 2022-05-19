@@ -459,7 +459,7 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, abs(op.req_iter_hz*BaseOSG._pseudo_infinity_), 0.0, 0.0, 'basis', 0.0, 0.0)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, BaseOSG._pseudo_infinity_, 0.0, 0.0, 'basis', 0.0, 0.0)
         return offer
 
     def _generate_hdl_flatten_instance(self, todo):
@@ -585,7 +585,15 @@ class Haddoc2OSG(BaseOSG):
         wrapper_comp_share = wrapper_share['LUTLOG']  # we know we hardly use DSPs...
         wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
         # using complete latency, so that brick latency is correct
-        latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
+        input_data_width = op.dims.inp[2]  # image_width
+        out_channel_num = op.dims.out[1]  # out_size
+        in_channel_num = op.dims.inp[1]  # previous_layer_size
+        kernel_size = op.dims.param[2]
+        internal_delay = 2 + ((kernel_size-1)*input_data_width) + kernel_size \
+                         + 2 + (kernel_size*kernel_size*in_channel_num)
+        used_cycles = internal_delay + np.prod(op.dims.inp)
+        # latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
+        latency_ns = used_cycles * target_hw.get_performance_dict()['fpga_clk_ns']
         iter_hz = 1 / (latency_ns * units.nanoU)
         offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
                                   'basis', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
@@ -648,7 +656,12 @@ class Haddoc2OSG(BaseOSG):
         # wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
         wrapper_comp_share = wrapper_share['LUTLOG']  # we know we hardly use DSPs...
         wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
-        latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
+        input_data_width = op.dims.inp[2]  # image_width
+        kernel_size = op.tvm_node.attrs.pool_size[0]
+        internal_delay = 1 + input_data_width + kernel_size
+        cycles_used = internal_delay + np.prod(op.dims.inp)
+        # latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
+        latency_ns = cycles_used * target_hw.get_performance_dict()['fpga_clk_ns']
         iter_hz = 1 / (latency_ns * units.nanoU)
         offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
                                   'basis', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)

@@ -86,15 +86,15 @@ def generate_throughput_plt(arch_draft: ArchDraft, show_deubg=False):
         xlist.append(i)
         prev_id = nn.node_id
         id_list.append(nn.node_id)
-        predicted_throughput_list.append(nn.used_iter_hz / kiloU)
-        max_throughput_list.append(nn.max_iter_hz / kiloU)
-        throughput_with_dpl.append((nn.used_iter_hz / kiloU) * nn.data_parallelism_level)
+        predicted_throughput_list.append(float(nn.used_iter_hz / kiloU))
+        max_throughput_list.append(float(nn.max_iter_hz / kiloU))
+        throughput_with_dpl.append(float((nn.used_iter_hz / kiloU) * nn.data_parallelism_level))
         if nn.used_iter_hz / kiloU < y_lower_lim:
-            y_lower_lim = (nn.used_iter_hz / kiloU)
+            y_lower_lim = float(nn.used_iter_hz / kiloU)
         if (nn.max_iter_hz/kiloU) > y_upper_lim:
-            y_upper_lim = nn.max_iter_hz/kiloU
+            y_upper_lim = float(nn.max_iter_hz/kiloU)
         if ((nn.used_iter_hz / kiloU) * nn.data_parallelism_level) > y_upper_lim:
-            y_upper_lim = (nn.used_iter_hz / kiloU) * nn.data_parallelism_level
+            y_upper_lim = float((nn.used_iter_hz / kiloU) * nn.data_parallelism_level)
         i += 1
 
     MY_SIZE = 16
