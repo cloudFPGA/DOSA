@@ -31,6 +31,7 @@ from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane
 from dimidium.middleend.archGen.ArchFilter import OiThresholdFilter, OpCallSameDimFilter
 from dimidium.middleend.archGen.archOpt import merge_bricks_pass, delete_ops_pass
+from dimidium.lib.dosa_exceptions import DosaImpossibleToProceed, DosaInvalidAction
 
 
 def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices,
@@ -423,9 +424,14 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
             consider_switching_first = psl['consider_switching_first']
             contract_look_ahead = psl['contract_look_ahead']
             print("\n[DOSA:archGen:INFO] Attempt to legalize draft with the following parameter set: {}".format(psl))
-            rv = tmp_draft.legalize(verbose=verbose, consider_switching_first=consider_switching_first,
-                                    contract_look_ahead=contract_look_ahead)
+            try:
+                rv = tmp_draft.legalize(verbose=verbose, consider_switching_first=consider_switching_first,
+                                        contract_look_ahead=contract_look_ahead)
+            except DosaImpossibleToProceed:
+                print("[DOSA:archGen:WARNING] Legalization stopped without result.")
+                continue
             if rv != DosaRv.OK:
+                print("[DOSA:archGen:WARNING] Legalization stopped without result.")
                 continue
             # save state
             node_count_list.append(tmp_draft.get_total_nodes_cnt())

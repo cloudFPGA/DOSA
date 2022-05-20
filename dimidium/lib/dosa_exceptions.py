@@ -13,3 +13,7 @@
 class DosaInvalidAction(Exception):
     pass
 
+
+class DosaImpossibleToProceed(Exception):
+    pass
+

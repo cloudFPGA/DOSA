@@ -26,6 +26,7 @@ from dimidium.middleend.archGen.BrickContract import BrickContract, filter_brick
     sort_brick_contracts_by_iter, sort_brick_contracts_by_util, get_best_contract_of_list
 from dimidium.middleend.archGen.DosaContract import DosaContract
 from dimidium.middleend.archGen.parallelizeBrick import parallelize_ops_of_brick
+from dimidium.lib.dosa_exceptions import DosaInvalidAction, DosaImpossibleToProceed
 
 
 class ArchBrick(object):
@@ -96,6 +97,8 @@ class ArchBrick(object):
         self.dims.param = 0
         self.local_pipeline_store = 0
         self.needs_compute_parallelization = False
+        self.max_parallelization_tries = 32
+        self.parallelization_calls = 0
         self.parallelized_bricks = None
         self.orig_tvm_node = None
         self.compute_parallelization_factor = 1
@@ -270,11 +273,16 @@ class ArchBrick(object):
 
     def parallelize(self, contracts_to_consider, factor, with_inputs=False):
         # self.still_possible_contracts = []
+        self.parallelization_calls += 1
+        if self.parallelization_calls > self.max_parallelization_tries:
+            print("[DOSA:ArchBrick:ERROR] Brick {} is forced to parallelize to often. STOP.".format(self.brick_uuid))
+            raise DosaImpossibleToProceed
         used_factor, new_ops_dict = parallelize_ops_of_brick(self, factor * self.compute_parallelization_factor,
                                                              with_inputs=with_inputs)
         if used_factor < 0:
             print("[DOSA:ArchBrick:ERROR] Brick {} is forced to parallelize but can't. STOP.".format(self.brick_uuid))
-            exit(1)
+            raise DosaImpossibleToProceed
+            # exit(1)
         self.compute_parallelization_factor = used_factor  # to progress on recursion
         new_brick_list = []
         for i in range(0, used_factor):
@@ -552,6 +560,13 @@ class ArchBrick(object):
                 self.dims.inp = lb.dims.inp
             self.dims.out = lb.dims.out
             self.dims.param.append(lb.dims.param)
+        # if len(self.dims.param) > 0:
+        #     self.max_parallelization_tries = max(self.dims.param)
+        # elif self.dims.out is not None:
+        #     self.max_parallelization_tries = max(self.dims.out)
+        # else:
+        #     self.max_parallelization_tries = 32
+        self.max_parallelization_tries = 32
 
     def update_util_estimation(self, target_hw: DosaBaseHw):
         share_comp, share_mem = target_hw.get_hw_utilization_tuple(self.req_flops, self.parameter_bytes)
