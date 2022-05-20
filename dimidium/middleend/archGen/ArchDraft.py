@@ -1634,19 +1634,19 @@ class ArchDraft(object):
                 if nn.targeted_hw.hw_class in [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx]:
                     nn_f = nn.build_tool.node_folder_name
                     nn_n = 'node_{:02d}'.format(nn.node_id)
-                    if nn.over_utilized_node:
-                        if first_over_utilized:
-                            cmd = cmd_tmpl_mono.format(nn_f, cur_sleep_cnt)
-                            first_over_utilized = False
-                            first_mono_sleep_cnt = cur_sleep_cnt
-                        else:
-                            if first_mono_sleep_cnt == cur_sleep_cnt:
-                                cmd = cmd_tmpl_mono.format(nn_f, cur_sleep_cnt + sleep_factor)
-                            else:
-                                cmd = cmd_tmpl_mono.format(nn_f, cur_sleep_cnt)
-                        over_utilized_cnt += 1
-                    else:
-                        cmd = cmd_tmpl.format(nn_f, cur_sleep_cnt)
+                    # if nn.over_utilized_node:
+                    #     if first_over_utilized:
+                    #         cmd = cmd_tmpl_mono.format(nn_f, cur_sleep_cnt)
+                    #         first_over_utilized = False
+                    #         first_mono_sleep_cnt = cur_sleep_cnt
+                    #     else:
+                    #         if first_mono_sleep_cnt == cur_sleep_cnt:
+                    #             cmd = cmd_tmpl_mono.format(nn_f, cur_sleep_cnt + sleep_factor)
+                    #         else:
+                    #             cmd = cmd_tmpl_mono.format(nn_f, cur_sleep_cnt)
+                    #     over_utilized_cnt += 1
+                    # else:
+                    cmd = cmd_tmpl.format(nn_f, cur_sleep_cnt)
                     tmux_s = tmux_tmpl.format(w=cur_wi, cmd=cmd, name=nn_n)
                     script_file.write(tmux_s)
                     cur_wi += 1
