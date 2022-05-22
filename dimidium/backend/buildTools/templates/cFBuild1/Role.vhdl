@@ -258,6 +258,7 @@ architecture DosaNode of Role_Themisto is
   --============================================================================
 
   signal sResetApps_n : std_logic;
+  signal sResetApps : std_logic;
   signal sFMC_debug_out : std_logic_vector(15 downto 0) := x"0000";
 
   -- The fantastic Vivado HLS again...
@@ -361,6 +362,8 @@ begin
                       x"D05A";
 
   sResetApps_n <= (not piMMIO_Ly7_Rst) and (piMMIO_Ly7_En);
+  -- sResetApps_n <= (not piMMIO_Ly7_Rst); not sufficient? not all cores have a separate enable during 'boot'
+  sResetApps <= piMMIO_Ly7_Rst or (not piMMIO_Ly7_En);
 
   --################################################################################
   --#    DOSA APPs                                                                 #

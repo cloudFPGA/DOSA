@@ -104,7 +104,9 @@ class Haddoc2Wrapper:
                         flatten_str = 'true'
                     outline += '#define DOSA_HADDOC_OUTPUT_BATCH_FLATTEN {}\n'.format(flatten_str)
                     outline += '#define DOSA_HADDOC_LAYER_CNT {}\n'.format(self.haddoc_op_cnt)
-                    outline += '#define DOSA_HADDOC_VALID_WAIT_CNT {}\n'.format(self.initial_delay)
+                    # outline += '#define DOSA_HADDOC_VALID_WAIT_CNT {}\n'.format(self.initial_delay)
+                    # TODO
+                    outline += '#define DOSA_HADDOC_VALID_WAIT_CNT {}\n'.format(0)
                     enum_def = 'enum ToHaddocEnqStates {RESET0 = 0, WAIT_DRAIN'
                     for b in range(0, self.in_dims[1]):
                         enum_def += ', FILL_BUF_{}'.format(b)

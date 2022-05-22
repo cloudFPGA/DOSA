@@ -332,11 +332,12 @@ class ZrlmpiWrapper(CommunicationWrapper):
             'sMPE_Fifo_MPIFeB_full',
             'sMPE_Fifo_MPIFeB_write',
             'sMPE_Debug',
-            'sZRLMPI_Wrapper_Debug'
+            'sZRLMPI_Wrapper_Debug',
+            'sResetApps_n'
         ]
         width_lines = [64, 8, 1, 1, 1, 64, 1, 1, 8, 1, 64, 8, 1, 1, 1, 64, 1, 1, 8, 1,
                        72, 1, 1, 1, 73, 1, 1, 1, 73, 1, 1, 1, 72, 1, 1, 1, 73, 1, 1, 1, 73, 1, 1, 1,
-                       8, 1, 1, 1, 8, 1, 1, 1, 64, 80]
+                       8, 1, 1, 1, 8, 1, 1, 1, 64, 80, 1]
         assert len(signal_lines) == len(width_lines)
         tcl_tmpl_lines = []
         decl_tmpl_lines = []

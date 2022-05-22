@@ -415,11 +415,11 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('tanh',  op.input_bytes, 0,
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('tanh', op.input_bytes, 0,
                                                                            target_hw, consider_paramB=False)
         # using relu as fallback
         if used_fallback:
-            util_dict, wrapper_dict, _ = self._get_impl_prediction('relu',  op.input_bytes, 0,
+            util_dict, wrapper_dict, _ = self._get_impl_prediction('relu', op.input_bytes, 0,
                                                                    target_hw, consider_paramB=False)
         util_dict['LUTLOG'] *= _part_act_
         util_dict['LUTMEM'] *= _part_act_
@@ -459,7 +459,8 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, BaseOSG._pseudo_infinity_, 0.0, 0.0, 'basis', 0.0, 0.0)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, BaseOSG._pseudo_infinity_, 0.0, 0.0,
+                                  'basis', 0.0, 0.0)
         return offer
 
     def _generate_hdl_flatten_instance(self, todo):
@@ -476,7 +477,8 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
-        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('bias_add', op.input_bytes, op.parameter_bytes,
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('bias_add', op.input_bytes,
+                                                                           op.parameter_bytes,
                                                                            target_hw, consider_paramB=True)
         util_dict['LUTLOG'] *= _part_bias_
         util_dict['LUTMEM'] *= _part_bias_
@@ -516,7 +518,7 @@ class Haddoc2OSG(BaseOSG):
         util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('relu', op.input_bytes, 0,
                                                                            target_hw, consider_paramB=False)
         if used_fallback:
-            util_dict, wrapper_dict, _ = self._get_impl_prediction('tanh',  op.input_bytes, 0,
+            util_dict, wrapper_dict, _ = self._get_impl_prediction('tanh', op.input_bytes, 0,
                                                                    target_hw, consider_paramB=False)
         util_dict['LUTLOG'] *= _part_act_
         util_dict['LUTMEM'] *= _part_act_
@@ -550,7 +552,7 @@ class Haddoc2OSG(BaseOSG):
         return
 
     def _create_unique_layer_name(self, op_name):
-        base_str = op_name.replace('.', '_').replace('/', 'of').replace(' ', '')\
+        base_str = op_name.replace('.', '_').replace('/', 'of').replace(' ', '') \
             .replace(',', '_').replace('-', '__')
         name_cnt = 1
         while base_str in self.existing_layer_names:
@@ -589,8 +591,8 @@ class Haddoc2OSG(BaseOSG):
         out_channel_num = op.dims.out[1]  # out_size
         in_channel_num = op.dims.inp[1]  # previous_layer_size
         kernel_size = op.dims.param[2]
-        internal_delay = 2 + ((kernel_size-1)*input_data_width) + kernel_size \
-                         + 2 + (kernel_size*kernel_size*in_channel_num)
+        internal_delay = 2 + 1 + ((kernel_size - 1) * input_data_width) + kernel_size + 1 \
+                         + 2 + (kernel_size * kernel_size * in_channel_num)
         used_cycles = internal_delay + np.prod(op.dims.inp)
         # latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
         latency_ns = used_cycles * target_hw.get_performance_dict()['fpga_clk_ns']
@@ -638,8 +640,8 @@ class Haddoc2OSG(BaseOSG):
         paramParsing.write_kernel_value(kernel_data, layer_name, nbits, target_fh)
         target_fh.write("----------------------------------------------------------")
         target_fh.write("--------------------------------------------------------\n")
-        internal_delay = 2 + ((kernel_size-1)*input_data_width) + kernel_size \
-                         + 2 + (kernel_size*kernel_size*in_channel_num)
+        internal_delay = 2 + 1 + ((kernel_size - 1) * input_data_width) + kernel_size + 1 \
+                         + 2 + (kernel_size * kernel_size * in_channel_num)
         return op, consumed_opt_ops, internal_delay
 
     def _predict_pool(self, op, target_hw, impl_type):

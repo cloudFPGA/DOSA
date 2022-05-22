@@ -15,7 +15,6 @@ import itertools
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 import multiprocessing
 
 from matplotlib.ticker import MaxNLocator

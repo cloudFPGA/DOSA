@@ -95,7 +95,8 @@ class VhdlEntity:
             add_decl_lines = self.debug_core.get_vhdl_decl()
             map_dict = {
                         'clk': 'piSHL_156_25Clk',
-                        'rst': 'piMMIO_Ly7_Rst',
+                        # 'rst': 'piMMIO_Ly7_Rst',
+                        'rst': 'sResetApps',
                         'rst_n': 'sResetApps_n',
                         'enable': 'piMMIO_Ly7_En'
                         }
@@ -171,7 +172,8 @@ class VhdlEntity:
                                    'out_sig_8': next_signals['to_signals']['8'],
                                    'inst_name': 'DosaNetworkAdapter',
                                    'clk': 'piSHL_156_25Clk',
-                                   'rst': 'piMMIO_Ly7_Rst',
+                                   # 'rst': 'piMMIO_Ly7_Rst',
+                                   'rst': 'sResetApps',
                                    'rst_n': 'sResetApps_n',
                                    'enable': 'piMMIO_Ly7_En'
                                    }
@@ -215,7 +217,8 @@ class VhdlEntity:
                                     'out_sig_8': our_signals['from_signals']['8'],
                                     'inst_name': pc['name'] + '_input_if',
                                     'clk': 'piSHL_156_25Clk',
-                                    'rst': 'piMMIO_Ly7_Rst',
+                                    # 'rst': 'piMMIO_Ly7_Rst',
+                                    'rst': 'sResetApps',
                                     'rst_n': 'sResetApps_n',
                                     'enable': 'piMMIO_Ly7_En'
                                     }
@@ -249,7 +252,8 @@ class VhdlEntity:
                                     'out_sig_8': next_signals['to_signals']['8'],
                                     'inst_name': pc['name'],
                                     'clk': 'piSHL_156_25Clk',
-                                    'rst': 'piMMIO_Ly7_Rst',
+                                    # 'rst': 'piMMIO_Ly7_Rst',
+                                    'rst': 'sResetApps',
                                     'rst_n': 'sResetApps_n',
                                     'enable': 'piMMIO_Ly7_En'
                                     }
@@ -285,7 +289,8 @@ class VhdlEntity:
                                 'out_sig_8': our_signals['from_signals']['8'],
                                 'inst_name': pc['name'] + '_output_if',
                                 'clk': 'piSHL_156_25Clk',
-                                'rst': 'piMMIO_Ly7_Rst',
+                                # 'rst': 'piMMIO_Ly7_Rst',
+                                'rst': 'sResetApps',
                                 'rst_n': 'sResetApps_n',
                                 'enable': 'piMMIO_Ly7_En'
                                 }
