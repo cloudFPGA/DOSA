@@ -592,7 +592,7 @@ class Haddoc2OSG(BaseOSG):
         in_channel_num = op.dims.inp[1]  # previous_layer_size
         kernel_size = op.dims.param[2]
         internal_delay = 2 + 1 + ((kernel_size - 1) * input_data_width) + kernel_size + 1 \
-                         + 2 + (kernel_size * kernel_size * in_channel_num)
+                         + 2 + 1
         used_cycles = internal_delay + np.prod(op.dims.inp)
         # latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
         latency_ns = used_cycles * target_hw.get_performance_dict()['fpga_clk_ns']
@@ -641,7 +641,7 @@ class Haddoc2OSG(BaseOSG):
         target_fh.write("----------------------------------------------------------")
         target_fh.write("--------------------------------------------------------\n")
         internal_delay = 2 + 1 + ((kernel_size - 1) * input_data_width) + kernel_size + 1 \
-                         + 2 + (kernel_size * kernel_size * in_channel_num)
+                         + 2 + 1
         return op, consumed_opt_ops, internal_delay
 
     def _predict_pool(self, op, target_hw, impl_type):

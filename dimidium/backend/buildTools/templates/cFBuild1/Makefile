@@ -42,7 +42,7 @@ assert_env:
 	@#We need to match the case with and without PR
 	@( [ -f ../../cFDK/SRA/LIB/bash/assert_envs.sh ] && ../../cFDK/SRA/LIB/bash/assert_envs.sh ) || ../cFDK/SRA/LIB/bash/assert_envs.sh
 
-Role_$(cFpSRAtype)_OOC.dcp: ./hdl ./tcl/run_pr.tcl ./tcl/xpr_settings_role.tcl | ip  ## builds the Out-Of-Contect (OOC) Design-Checkpoint (dcp) for this Role (default)
+Role_$(cFpSRAtype)_OOC.dcp: ./hdl ./tcl/run_pr.tcl ./tcl/xpr_settings_role.tcl ./.ip_guard ./ip/ip_user_files | ip  ## builds the Out-Of-Contect (OOC) Design-Checkpoint (dcp) for this Role (default)
 	cd ./tcl/; vivado -mode batch -source run_pr.tcl -notrace -log run_pr.log -tclargs -force
 	@touch $@  # to update all timestamps...
 

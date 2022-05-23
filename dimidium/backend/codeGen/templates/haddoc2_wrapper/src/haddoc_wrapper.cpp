@@ -1093,7 +1093,12 @@ void pFromHaddocEnq(
       {
         sHaddocUnitProcessing.read();
       } else {
-        enqueueFSM = CNT_UNTIL_VAILD;
+        if(DOSA_HADDOC_VALID_WAIT_CNT > 0)
+        {
+          enqueueFSM = CNT_UNTIL_VAILD;
+        } else {
+          enqueueFSM = FORWARD2;
+        }
       }
       break;
 
