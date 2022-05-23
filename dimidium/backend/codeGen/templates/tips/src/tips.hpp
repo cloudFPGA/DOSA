@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <stdint.h>
 //#define AP_INT_MAX_W 32768
-#define AP_INT_MAX_W 4096
+//#define AP_INT_MAX_W 4096
 #include "ap_int.h"
 #include "ap_utils.h"
 #include <hls_stream.h>

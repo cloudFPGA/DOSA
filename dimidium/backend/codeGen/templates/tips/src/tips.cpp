@@ -407,7 +407,7 @@ void pALU(
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
 #pragma HLS INLINE off
 //#pragma HLS pipeline II=512
-#pragma HLS DATAFLOW
+//#pragma HLS DATAFLOW
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   static aluFSM aluState = INIT;
 #pragma HLS reset variable=aluState
@@ -425,15 +425,15 @@ void pALU(
   ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> cur_input;
   ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH> cur_output;
   quantDtype input_scratchpad[DOSA_TIPS_LONGEST_INPUT];
-#pragma HLS ARRAY_PARTITION variable=input_scratchpad complete
+//#pragma HLS ARRAY_PARTITION variable=input_scratchpad complete
   quantDtype op0_scratchpad[DOSA_TIPS_LONGEST_OP0];
 //#pragma HLS ARRAY_PARTITION variable=op0_scratchpad complete
-#pragma HLS ARRAY_PARTITION variable=op0_scratchpad cyclic factor=512
+//#pragma HLS ARRAY_PARTITION variable=op0_scratchpad cyclic factor=512
   quantDtype op1_scratchpad[DOSA_TIPS_LONGEST_OP1];
-#pragma HLS ARRAY_PARTITION variable=op1_scratchpad complete
+//#pragma HLS ARRAY_PARTITION variable=op1_scratchpad complete
 //#pragma HLS ARRAY_PARTITION variable=op1_scratchpad cyclic factor=512
   quantDtype output_scratchpad[DOSA_TIPS_LONGEST_OUTPUT];
-#pragma HLS ARRAY_PARTITION variable=output_scratchpad complete
+//#pragma HLS ARRAY_PARTITION variable=output_scratchpad complete
   //usedDtype cur_op0[DOSA_TIPS_LONGEST_OP0];
   std::array<usedDtype, DOSA_TIPS_LONGEST_OP0> cur_op0;
   std::array<usedDtype, DOSA_TIPS_LONGEST_OP1> cur_op1;
@@ -467,7 +467,7 @@ void pALU(
       }
       for(int i = 0; i < DOSA_TIPS_LONGEST_INPUT; i++)
       {
-#pragma HLS unroll
+//#pragma HLS unroll
         if( i >= cur_instr.in_length )
         {
           input_scratchpad[i] = 0x0;
@@ -477,13 +477,13 @@ void pALU(
       }
       for(int i = 0; i < DOSA_TIPS_LONGEST_OUTPUT; i++)
       {
-#pragma HLS unroll
+//#pragma HLS unroll
         output_scratchpad[i] = 0x0;
       }
       //"type cast" op vectors
       for(int i = 0; i < DOSA_TIPS_LONGEST_OP0; i++)
       {
-#pragma HLS unroll factor=512
+//#pragma HLS unroll factor=512
         if( i >= cur_instr.op0_length )
         {
           op0_scratchpad[i] = 0x0;
@@ -493,7 +493,7 @@ void pALU(
       }
       for(int i = 0; i < DOSA_TIPS_LONGEST_OP1; i++)
       {
-#pragma HLS unroll factor=512
+//#pragma HLS unroll factor=512
         if( i >= cur_instr.op1_length )
         {
           op1_scratchpad[i] = 0x0;
@@ -540,7 +540,7 @@ void pALU(
       cur_output = 0x0;
       for(int i = 0; i < DOSA_TIPS_LONGEST_OUTPUT; i++)
       {
-#pragma HLS unroll
+//#pragma HLS unroll
         if( i >= cur_instr.out_length)
         {
           continue;
@@ -620,17 +620,26 @@ void tips_test(
   //-- STATIC DATAFLOW VARIABLES ------------------------------------------
   //streams with depth 1
   static stream<TipsNetworkInstr> sNetworkLoadCmd ("sNetworkLoadCmd");
+#pragma HLS STREAM variable=sNetworkLoadCmd depth=1
   static stream<TipsLoadInstr> sOpLoadCmd ("sOpLoadCmd");
+#pragma HLS STREAM variable=sOpLoadCm depth=1
   static stream<TipsAluInstr> sAluInstr ("sAluInstr");
+#pragma HLS STREAM variable=sAluInstr depth=1
   static stream<ap_uint<DOSA_TIPS_LONGEST_INPUT*DOSA_TIPS_USED_BITWIDTH> > sNetworkInput ("sNetworkInput");
+#pragma HLS STREAM variable=sNetworkInput depth=1
   static stream<TipsAluInstr> sAluInstr_from_op_load ("sAluInstr_from_op_load");
+#pragma HLS STREAM variable=sAluInstr_from_op_loa depth=1
   //static stream<ap_uint<DOSA_TIPS_LONGEST_OP0*DOSA_TIPS_USED_BITWIDTH> >  sOp0 ("sOp0");
   //static stream<usedDtype[DOSA_TIPS_LONGEST_OP0] >  sOp0 ("sOp0");
   static stream<std::array<usedDtype, DOSA_TIPS_LONGEST_OP0> >  sOp0 ("sOp0");
+#pragma HLS STREAM variable=sOp0 depth=1
   //static stream<ap_uint<DOSA_TIPS_LONGEST_OP1*DOSA_TIPS_USED_BITWIDTH> >  sOp1 ("sOp1");
   static stream<std::array<usedDtype, DOSA_TIPS_LONGEST_OP1> >  sOp1 ("sOp1");
+#pragma HLS STREAM variable=sOp1 depth=1
   static stream<TipsNetworkInstr>  sNetworkStoreCmnd ("sNetworkStoreCmnd");
+#pragma HLS STREAM variable=sNetworkStoreCmn depth=1
   static stream<ap_uint<DOSA_TIPS_LONGEST_OUTPUT*DOSA_TIPS_USED_BITWIDTH> >  sNetworkOutput ("sNetworkOutput");
+#pragma HLS STREAM variable=sNetworkOutput depth=1
 
   //-- LOCAL VARIABLES ------------------------------------------------------------
   uint16_t debug0 = 0;

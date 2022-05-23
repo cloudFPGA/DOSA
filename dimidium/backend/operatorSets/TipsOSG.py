@@ -66,6 +66,7 @@ class TipsOSG(BaseOSG):
         self.hls_params.network_alias_addr = 'NETWORK_ALIAS_ADDRESS'
         self.hls_params.accum_alias_addr = 'ACCUM_ALIAS_ADDRESS'
         self.hls_params.no_addr_alias = 'NO_ADDRESS_ALIAS'
+        self._general_max_input_func = lambda op: 1024/get_bitwidth_of_DosaDtype(op.used_dtype)
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
@@ -83,7 +84,7 @@ class TipsOSG(BaseOSG):
                                                            always_consider_input=False)
 
     def _get_impl_prediction(self, op, target_hw, impl_type, consider_paramB=False, fallback_ops=None,
-                             custom_byte_factor=1.0, custom_latency=None, max_param_dim=-1):
+                             custom_byte_factor=1.0, custom_latency=None, max_param_dim=-1, max_input_dim=-1):
         # if impl_type != BrickImplTypes.ENGINE or \
         #         (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
         #     return None
@@ -95,6 +96,13 @@ class TipsOSG(BaseOSG):
                 print("[DOSA:TIPS:INFO] Can't offer an implementation for {}, due to exceeded parameter size."
                       .format(repr(op)))
                 return None
+        if max_input_dim < 0:
+            max_input_dim = self._general_max_input_func(op)
+        op_input_dim = np.prod(op.dims.inp)
+        if op_input_dim > max_input_dim:
+            print("[DOSA:TIPS:INFO] Can't offer an implementation for {}, due to exceeded input size."
+                  .format(repr(op)))
+            return None
         op_str = op.op_call.split('.')[-1]
         dtype_str = 'int8'  # default?
         if op.used_dtype != DosaDtype.UNKNOWN:

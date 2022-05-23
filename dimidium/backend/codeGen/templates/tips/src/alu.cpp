@@ -144,10 +144,22 @@ void dense(
 
   // Do the matrix-vector multiply, column-wise
   // data*weights^T, with m =number of colums of weights
+//Product1: for(int ii = 0; ii < DOSA_TIPS_LONGEST_INPUT; ii++) {
+//#pragma HLS PIPELINE
+//            cache = data[ii];
+//Product2: for(int jj = 0; jj < m; jj++) {
+//            int index = jj*m+ii;
+//            //mult[index] = (((aluAccumDtype) cache) * ((aluAccumDtype) weights[index])) / QUANT_SCALE_BACK_VALUE;
+//            if(index < DOSA_TIPS_LONGEST_OP0)
+//            {
+//              mult[index] = (((aluAccumDtype) cache) * ((aluAccumDtype) weights[index]));
+//            }
+//          }
+//          }
+Product2: for(int jj = 0; jj < m; jj++) {
 Product1: for(int ii = 0; ii < DOSA_TIPS_LONGEST_INPUT; ii++) {
 #pragma HLS PIPELINE
             cache = data[ii];
-Product2: for(int jj = 0; jj < m; jj++) {
             int index = jj*m+ii;
             //mult[index] = (((aluAccumDtype) cache) * ((aluAccumDtype) weights[index])) / QUANT_SCALE_BACK_VALUE;
             if(index < DOSA_TIPS_LONGEST_OP0)
