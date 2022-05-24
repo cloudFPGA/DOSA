@@ -66,7 +66,7 @@ class TipsOSG(BaseOSG):
         self.hls_params.network_alias_addr = 'NETWORK_ALIAS_ADDRESS'
         self.hls_params.accum_alias_addr = 'ACCUM_ALIAS_ADDRESS'
         self.hls_params.no_addr_alias = 'NO_ADDRESS_ALIAS'
-        self._general_max_input_func = lambda op: 1024/get_bitwidth_of_DosaDtype(op.used_dtype)
+        self._general_max_input_func = lambda op: (2048*8)/get_bitwidth_of_DosaDtype(op.used_dtype)
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
