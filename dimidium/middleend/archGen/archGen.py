@@ -289,9 +289,9 @@ def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.E
             # take data parallelism into account
             local_data_par_level = node.data_parallelism_level
             for bb in node.local_brick_iter_gen():
-                cur_perf = bb.calc_flops
+                cur_perf = float(bb.calc_flops)
                 if cur_perf < 0:
-                    cur_perf = bb.req_flops
+                    cur_perf = float(bb.req_flops)
                 selected_impl = bb.selected_impl_type
                 if selected_impl == BrickImplTypes.UNDECIDED:
                     selected_impl = fallback_impl_type
@@ -309,7 +309,7 @@ def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.E
                 cur_local_tp = total_cur_perf / cur_oi
                 req_local_tp = cur_inp * draft.target_sps
                 # local_time = cur_inp / local_tp
-                if float(cur_local_tp)*1.05 < float(req_local_tp):
+                if float(cur_local_tp) < float(req_local_tp):
                     print("[DOSA:archVerify:ERROR] Brick {} does not fulfill local throughput requirement (req: {} current: {} B/s)."
                           .format(repr(bb), req_local_tp, cur_local_tp))
                     return False

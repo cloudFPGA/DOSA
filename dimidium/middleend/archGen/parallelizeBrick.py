@@ -27,7 +27,7 @@ __min_factor__ = 2
 def parallelize_ops_of_brick(orig_brick, factor_in, with_inputs=False):
     if factor_in < __min_factor__:
         factor_in = __min_factor__
-    factor = 2 * round(factor_in/2)
+    factor = 2 * round(np.ceil(factor_in)/2)
     # check factor
     necessary = True
     while necessary:

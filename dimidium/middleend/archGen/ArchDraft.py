@@ -932,20 +932,31 @@ class ArchDraft(object):
                                 comp_costs += nbpoc.comp_util_share
                                 mem_costs += nbpoc.mem_util_share
                             # save intermediate results
+                            if self.strategy == OptimizationStrategies.RESOURCES:
+                                if osg_possible and \
+                                        comp_costs < dosa_singleton.config.utilization.dosa_xi \
+                                        and mem_costs < dosa_singleton.config.utilization.dosa_xi:
+                                    osg_stats[o] = (comp_costs, mem_costs, co, i)
+                            else:
+                                # we go for higher iterations?
+                                if osg_possible:
+                                    osg_stats[o] = (comp_costs, mem_costs, co, i)
+                        # save final result
+                        if self.strategy == OptimizationStrategies.RESOURCES:
                             if osg_possible and \
                                     comp_costs < dosa_singleton.config.utilization.dosa_xi \
                                     and mem_costs < dosa_singleton.config.utilization.dosa_xi:
-                                osg_stats[o] = (comp_costs, mem_costs, co, i)
-                        # save final result
-                        if osg_possible and \
-                                comp_costs < dosa_singleton.config.utilization.dosa_xi \
-                                and mem_costs < dosa_singleton.config.utilization.dosa_xi:
-                            osg_stats[o] = (comp_costs, mem_costs, co, contract_look_ahead)
+                                osg_stats[o] = (comp_costs, mem_costs, co, contract_look_ahead)
+                        else:
+                            # we go for higher iterations?
+                            if osg_possible:
+                                osg_stats[o] = (comp_costs, mem_costs, co, contract_look_ahead)
                     best_osg = None
                     best_comp_costs = float('inf')
                     best_mem_costs = float('inf')
                     for osg in osg_stats:
                         osgs = osg_stats[osg]
+                        # TODO: consider strategies
                         if osgs[0] < best_comp_costs and osgs[1] < best_mem_costs:
                             best_osg = osg
                             best_comp_costs = osgs[0]
@@ -1610,7 +1621,7 @@ class ArchDraft(object):
                   'estimations': node_dict['estimations']}
             for bb in nn.local_brick_iter_gen():
                 bb_sum = bb.as_summary()
-                ne['bricks'][bb.local_brick_id] = bb_sum
+                ne['bricks'][bb.brick_uuid] = bb_sum
             cluster_dict['nodes'].append(ne)
             # cluster_dict['nodes'][nn_f] = nn_ranks
         return cluster_dict
