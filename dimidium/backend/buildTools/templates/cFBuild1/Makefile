@@ -42,7 +42,7 @@ assert_env:
 	@#We need to match the case with and without PR
 	@( [ -f ../../cFDK/SRA/LIB/bash/assert_envs.sh ] && ../../cFDK/SRA/LIB/bash/assert_envs.sh ) || ../cFDK/SRA/LIB/bash/assert_envs.sh
 
-Role_$(cFpSRAtype)_OOC.dcp: ./hdl ./tcl/run_pr.tcl ./tcl/xpr_settings_role.tcl ./.ip_guard ./ip/ip_user_files | ip  ## builds the Out-Of-Contect (OOC) Design-Checkpoint (dcp) for this Role (default)
+Role_$(cFpSRAtype)_OOC.dcp: ./hdl ./tcl/run_pr.tcl ./tcl/xpr_settings_role.tcl .dcp_guard  ## builds the Out-Of-Contect (OOC) Design-Checkpoint (dcp) for this Role (default)
 	cd ./tcl/; vivado -mode batch -source run_pr.tcl -notrace -log run_pr.log -tclargs -force
 	@touch $@  # to update all timestamps...
 
@@ -61,8 +61,9 @@ hls: assert_env dosa_cores  ## starts building all HLS cores
 # HLS_DEPS get's evaluated BEFORE the hls target get's executed, so if a hls core doesn't exist completly (e.g. after a clean)
 # the create_ip_cores.tcl will not be started. 
 # DIRECOTRIES are better order-only-prerequisities
-ip: ./tcl/create_ip_cores.tcl  ./.ip_guard  | hls ./ip/ip_user_files   ## export ROLE HLS cores to Vivado IP direcotry
+.dcp_guard: ./tcl/create_ip_cores.tcl  ./.ip_guard  | hls ./ip/ip_user_files   ## export ROLE HLS cores to Vivado IP direcotry
 	cd ./tcl/ ; vivado -mode batch -source create_ip_cores.tcl -notrace -log create_ip_cores.log 
+	@touch $@
 	@echo ------- DONE ------------------------------------- 
 
 .ip_guard:

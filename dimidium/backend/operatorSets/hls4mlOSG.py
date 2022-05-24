@@ -218,7 +218,7 @@ class Hls4mlOSG(BaseOSG):
                                                                                         fallback_ops=['conv2d',
                                                                                                       'dense'],
                                                                                         custom_byte_factor=1.8,
-                                                                                        max_param_dim=500)
+                                                                                        max_param_dim=400)
             elif 'conv2d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_conv2d, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
@@ -227,7 +227,7 @@ class Hls4mlOSG(BaseOSG):
                                                                                         fallback_ops=['conv1d',
                                                                                                       'dense'],
                                                                                         custom_byte_factor=1.8,
-                                                                                        max_param_dim=500)
+                                                                                        max_param_dim=400)
             elif 'global' in e and 'pool1d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_globalPool1d, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
