@@ -239,7 +239,7 @@ class TipsCore:
                 '    soData_V_tlast_V_write =>    [out_sig_8]  ,\n' +
                 '    debug_out_V =>  s{ip_mod_name}_debug,\n' +
                 '    ap_clk =>  [clk],\n' +
-                '    ap_rst_n =>  [rst_n]\n' +  # no comma
+                '    ap_rst =>  [rst]\n' +  # no comma
                 ');\n')
         inst = tmpl.format(ip_mod_name=self.ip_mod_name)
         # replace [] with {}
