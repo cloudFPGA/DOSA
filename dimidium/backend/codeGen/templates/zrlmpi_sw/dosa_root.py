@@ -255,7 +255,7 @@ class DosaRoot:
             single_output_shape = output_shape[1:]
         output_overhead_length = output_batch_num - expected_num_output
         total_output_shape = [output_batch_num]
-        output_total_length = output_batch_num
+        output_total_length = output_batch_num * self.n_bytes
         for d in single_output_shape:
             total_output_shape.append(d)
             output_total_length *= d
@@ -265,14 +265,14 @@ class DosaRoot:
         c_input = batch_input.ctypes.data_as(ctypes.POINTER(ctypes.c_char))
         c_input_num = ctypes.c_uint32(input_num)
         # +4 to avoid SEGFAULT
-        output_placeholder = bytearray(output_total_length + 4)
-        output_array = self.ctype * (output_total_length + 4)
+        output_placeholder = bytearray(output_total_length + 4*self.n_bytes)
+        output_array = self.ctype * int((output_total_length/self.n_bytes) + 4)
         c_output = output_array.from_buffer(output_placeholder)
         # output_placeholder = self.c_lib.malloc((output_total_length + 4) * ctypes.sizeof(self.ctype))
         c_output = ctypes.cast(c_output, ctypes.POINTER(ctypes.c_char))
         c_output_num = ctypes.c_uint32(output_batch_num)
         if debug:
-            print("[DOSA:DEBUG] c_input size {}; c_input_num: {}; c_output size {}; c_output_num {};".format(len(batch_input)*single_input_length, input_num, output_total_length + 4, output_batch_num))
+            print("[DOSA:DEBUG] c_input size {}; c_input_num: {}; c_output size {}; c_output_num {}; n_bytes {};".format(len(batch_input)*single_input_length, input_num, output_total_length + 4*self.n_bytes, output_batch_num, self.n_bytes))
 
         infer_start = time.time()
 
@@ -291,7 +291,7 @@ class DosaRoot:
 
         output_deserialized = np.frombuffer(output_placeholder, dtype=self.ndtype)
         try:
-            output = np.reshape(output_deserialized[:-4], newshape=total_output_shape)
+            output = np.reshape(output_deserialized[:-4], newshape=total_output_shape)  # -4 is sufficient, due to data-type!
         except Exception as e:
             print('[DOSA:runtime:ERROR] {}.\n'.format(e))
             print(output_deserialized)
