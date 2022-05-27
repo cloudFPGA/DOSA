@@ -257,6 +257,7 @@ architecture DosaNode of Role_Themisto is
   --  SIGNAL DECLARATIONS
   --============================================================================
 
+  signal reset_ff_1 : std_logic;
   signal sResetApps_n : std_logic;
   signal sResetApps : std_logic;
   signal sFMC_debug_out : std_logic_vector(15 downto 0) := x"0000";
@@ -361,9 +362,21 @@ begin
   poSHL_Mmio_RdReg <= sFMC_debug_out when unsigned(sFMC_debug_out) > 0 else
                       x"D05A";
 
-  sResetApps_n <= (not piMMIO_Ly7_Rst) and (piMMIO_Ly7_En);
+  --sResetApps_n <= (not piMMIO_Ly7_Rst) and (piMMIO_Ly7_En);
   -- sResetApps_n <= (not piMMIO_Ly7_Rst); not sufficient? not all cores have a separate enable during 'boot'
-  sResetApps <= piMMIO_Ly7_Rst or (not piMMIO_Ly7_En);
+  --sResetApps <= piMMIO_Ly7_Rst or (not piMMIO_Ly7_En);
+
+  process (piSHL_156_25Clk, piMMIO_Ly7_En, piMMIO_Ly7_Rst)
+  begin
+    if (piMMIO_Ly7_En = '0') or (piMMIO_Ly7_Rst = '1') then
+      reset_ff_1 <= '0';
+      sResetApps_n <= '0';
+    elsif (rising_edge(piSHL_156_25Clk)) then
+      reset_ff_1 <= '1';
+      sResetApps_n <= reset_ff_1;
+    end if;
+  end process;
+  sResetApps <= not sResetApps_n;
 
   --################################################################################
   --#    DOSA APPs                                                                 #
