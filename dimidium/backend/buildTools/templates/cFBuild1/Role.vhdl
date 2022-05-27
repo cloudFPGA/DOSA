@@ -358,14 +358,10 @@ architecture DosaNode of Role_Themisto is
 begin
 
   -- to be use as ROLE VERSION IDENTIFICATION --
-  --poSHL_Mmio_RdReg <= x"D05A";
   poSHL_Mmio_RdReg <= sFMC_debug_out when unsigned(sFMC_debug_out) > 0 else
                       x"D05A";
 
-  --sResetApps_n <= (not piMMIO_Ly7_Rst) and (piMMIO_Ly7_En);
-  -- sResetApps_n <= (not piMMIO_Ly7_Rst); not sufficient? not all cores have a separate enable during 'boot'
-  --sResetApps <= piMMIO_Ly7_Rst or (not piMMIO_Ly7_En);
-
+  -- 'Reset bridge' to stabilize reset signals for the Role
   process (piSHL_156_25Clk, piMMIO_Ly7_En, piMMIO_Ly7_Rst)
   begin
     if (piMMIO_Ly7_En = '0') or (piMMIO_Ly7_Rst = '1') then
