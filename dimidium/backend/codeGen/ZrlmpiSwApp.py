@@ -162,7 +162,7 @@ class ZrlmpiSwApp:
                         word_count = int((mi['count'] + 3) / 4)
                         repeat = mi['repeat']
                         save_cur_data = 'false'
-                        if instr == 'send' and mi['combine'] is not None and mi['combine'] != 'finish':
+                        if mi['instr'] == 'send' and mi['combine'] is not None and mi['combine'] != 'finish':
                             save_cur_data = 'true'
                         outline += tmpl.format(i=prog_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
                                                save_cur_data=save_cur_data, byte_cnt=mi['count'])
