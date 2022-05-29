@@ -30,6 +30,7 @@ def parallelize_ops_of_brick(orig_brick, factor_in, with_inputs=False):
     factor = 2 * round(np.ceil(factor_in)/2)
     # check factor
     necessary = True
+    op_force = '(round to even)'
     while necessary:
         necessary = False
         for oid in orig_brick.ops:
@@ -37,8 +38,10 @@ def parallelize_ops_of_brick(orig_brick, factor_in, with_inputs=False):
             if with_inputs:
                 if op.dims.inp[1] % factor != 0:
                     factor = get_next_larger_dividor(op.dims.inp[1], factor)
+                    op_force = op.op_call
             if len(op.dims.param) > 0 and op.dims.param[0] % factor != 0:
                 factor = get_next_larger_dividor(op.dims.param[0], factor)
+                op_force = op.op_call
                 necessary = True
     is_possible = True
     util_class = ParallelizeOpClass()
@@ -64,6 +67,8 @@ def parallelize_ops_of_brick(orig_brick, factor_in, with_inputs=False):
                 new_ops_dict[oid] = nl
     if not is_possible:
         return -1, None
+    if factor_in != factor:
+        print("[DOSA:parellizeBrick:INFO] updated split factor to {} for op {}.".format(factor, op_force))
     return factor, new_ops_dict
     # # build bricks
     # new_brick_list = []
