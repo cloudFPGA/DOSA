@@ -38,7 +38,7 @@
   "utilization": {
     "xilinx_luts_to_dsp_factor": 578,
     "xilinx_lutram_to_bram_factor": 593750,
-    "max_utilization_fpgas": 0.65,
+    "max_utilization_fpgas": 0.56,
     "utilization_exception": 0.0
   }
 }
