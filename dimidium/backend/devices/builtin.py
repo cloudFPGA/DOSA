@@ -12,14 +12,16 @@
 
 from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
 from dimidium.backend.devices.cf_fmku60_role1 import CfThemisto1
+from dimidium.backend.devices.cF_infinity import CfPseudoFPGA
 from dimidium.backend.devices.vcpu_dummy import VcpuDummy
 
 cF_FMKU60_Themisto_1 = CfThemisto1('cF_FMKU60_Themisto-Role_1')
+cF_Infinity_1 = CfPseudoFPGA('cF_Infinity_FPGA')
 vCPU_x86 = VcpuDummy('CPU_dummy_x86-1')
 
 # TODO: make types and classes extendable
 
-types = [vCPU_x86, cF_FMKU60_Themisto_1]
+types = [vCPU_x86, cF_FMKU60_Themisto_1, cF_Infinity_1]
 
 # types_str = ['vCPU_x86', 'cF_FMKU60_Themisto_1']
 # types_dict = {'vCPU_x86': vCPU_x86, 'cF_FMKU60_Themisto_1': cF_FMKU60_Themisto_1}
@@ -36,9 +38,9 @@ for e in types:
 classes_dict = {}
 classes_dict[DosaHwClasses.UNDECIDED] = []
 classes_dict[DosaHwClasses.CPU_generic] = [vCPU_x86]
-classes_dict[DosaHwClasses.FPGA_generic] = [cF_FMKU60_Themisto_1]
+classes_dict[DosaHwClasses.FPGA_generic] = [cF_FMKU60_Themisto_1, cF_Infinity_1]
 classes_dict[DosaHwClasses.CPU_x86] = [vCPU_x86]
-classes_dict[DosaHwClasses.FPGA_xilinx] = [cF_FMKU60_Themisto_1]
+classes_dict[DosaHwClasses.FPGA_xilinx] = [cF_FMKU60_Themisto_1, cF_Infinity_1]
 
 # dosa_devices = {'types': types, 'types_str': types_str, 'types_dict': types_dict, 'classes_dict': classes_dict}
 

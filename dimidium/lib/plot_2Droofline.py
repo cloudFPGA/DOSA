@@ -215,6 +215,8 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
     plt_name = "{} (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
                                                             str(arch_draft.strategy).split('.')[-1],
                                                             arch_draft.get_total_nodes_cnt())
+    if not selected_only:
+        plt_name = "Operation-wise Roofline analysis for {}".format(arch_draft.name)
     subtitle = None
     if iter_based:
         subtitle = '(total impl. {:.2F} GFLOPS)'.format(float(arch_draft.total_perf_F / gigaU))
