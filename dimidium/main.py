@@ -113,7 +113,8 @@ if __name__ == '__main__':
     print("\t...done.\n")
 
     # TODO: remove temporary guards
-    assert arch_target_devices[0] == builtin_devices.cF_FMKU60_Themisto_1
+    assert (arch_target_devices[0] == builtin_devices.cF_FMKU60_Themisto_1) \
+           or (arch_target_devices[0] == builtin_devices.cF_Infinity_1)
     assert len(arch_target_devices) == 1
     print("DOSA: Generating high-level architecture...")
     archDict = arch_gen(mod, params, used_name, arch_gen_strategy, available_OSGs, available_devices,

@@ -4,7 +4,7 @@
   "build" : {
     "create_rank_0_for_io": true,
     "comm_message_interleaving": 1,
-    "max_buffer_interleaving": 8192,
+    "max_buffer_interleaving": 46080,
     "maximum_pipeline_store_per_node": 5,
     "engine_saving_threshold": 1.5,
     "insert_debug_cores": true,
@@ -38,7 +38,7 @@
   "utilization": {
     "xilinx_luts_to_dsp_factor": 578,
     "xilinx_lutram_to_bram_factor": 593750,
-    "max_utilization_fpgas": 0.56,
+    "max_utilization_fpgas": 0.65,
     "utilization_exception": 0.0
   }
 }
