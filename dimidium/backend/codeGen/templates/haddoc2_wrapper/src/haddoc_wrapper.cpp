@@ -1131,6 +1131,29 @@ void pFromHaddocEnq(
       break;
 
     case FORWARD2:
+      //if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
+      //    && !pi_haddoc_data.empty()
+      //   )
+      //{
+      //  //ignore pi_haddoc_frame_valid?
+      //  //if( *pi_haddoc_data_valid == 0b1 )
+      //  //{
+      //  //input_data = *pi_haddoc_data_vector;
+      //  input_data = pi_haddoc_data.read();
+      //  //read only if able to process
+      //  bool ignore_me = sHaddocUnitProcessing.read();
+      //  printf("pFromHaddocEnq: read 0x%6.6X\n", (uint32_t) input_data);
+      //  sFromHaddocBuffer.write(input_data);
+      //  //}
+      //}
+      //else if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
+      //    && pi_haddoc_data.empty() //yes, empty!
+      //    )
+      //{ // consume one HUP token, so that the fifo doesn't sand
+      //  // and, since sFromHaddocBuffer isn't full, we can do this safely
+      //  bool ignore_me = sHaddocUnitProcessing.read();
+      //  printf("pFromHaddocEnq: read HUP token to avoid sanding...\n");
+      //}
       if ( !sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full()
           && !pi_haddoc_data.empty()
          )
@@ -1142,6 +1165,21 @@ void pFromHaddocEnq(
         input_data = pi_haddoc_data.read();
         //read only if able to process
         bool ignore_me = sHaddocUnitProcessing.read();
+        printf("pFromHaddocEnq: read 0x%6.6X\n", (uint32_t) input_data);
+        sFromHaddocBuffer.write(input_data);
+        //}
+      }
+      //TODO: now, with correct valid signals, we can read all that's valid
+      else if ( sHaddocUnitProcessing.empty() && !sFromHaddocBuffer.full() //yes empty
+          && !pi_haddoc_data.empty()
+         )
+      {
+        //ignore pi_haddoc_frame_valid?
+        //if( *pi_haddoc_data_valid == 0b1 )
+        //{
+        //input_data = *pi_haddoc_data_vector;
+        input_data = pi_haddoc_data.read();
+        //read only if able to process
         printf("pFromHaddocEnq: read 0x%6.6X\n", (uint32_t) input_data);
         sFromHaddocBuffer.write(input_data);
         //}
