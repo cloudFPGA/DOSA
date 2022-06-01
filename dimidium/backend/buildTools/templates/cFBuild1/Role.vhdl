@@ -258,8 +258,10 @@ architecture DosaNode of Role_Themisto is
   --============================================================================
 
   signal reset_ff_1 : std_logic;
+  signal enable_ff_1 : std_logic;
   signal sResetApps_n : std_logic;
   signal sResetApps : std_logic;
+  signal sEnableApps : std_logic;
   signal sFMC_debug_out : std_logic_vector(15 downto 0) := x"0000";
 
   -- The fantastic Vivado HLS again...
@@ -373,6 +375,17 @@ begin
     end if;
   end process;
   sResetApps <= not sResetApps_n;
+  -- same for enable
+  process (piSHL_156_25Clk, piMMIO_Ly7_En)
+  begin
+    if (piMMIO_Ly7_En = '0') then
+      enable_ff_1 <= '0';
+      sEnableApps <= '0';
+    elsif (rising_edge(piSHL_156_25Clk)) then
+      enable_ff_1 <= '1';
+      sEnableApps <= enable_ff_1;
+    end if;
+  end process;
 
   --################################################################################
   --#    DOSA APPs                                                                 #

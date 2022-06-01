@@ -98,7 +98,8 @@ class VhdlEntity:
                         # 'rst': 'piMMIO_Ly7_Rst',
                         'rst': 'sResetApps',
                         'rst_n': 'sResetApps_n',
-                        'enable': 'piMMIO_Ly7_En'
+                        # 'enable': 'piMMIO_Ly7_En'
+                        'enable': 'sEnableApps'
                         }
             add_inst_lines = self.debug_core.get_vhdl_inst_tmpl().format_map(map_dict)
         # 2. add output_if tcl
@@ -175,7 +176,8 @@ class VhdlEntity:
                                    # 'rst': 'piMMIO_Ly7_Rst',
                                    'rst': 'sResetApps',
                                    'rst_n': 'sResetApps_n',
-                                   'enable': 'piMMIO_Ly7_En'
+                                   # 'enable': 'piMMIO_Ly7_En'
+                                   'enable': 'sEnableApps'
                                    }
                     # other signals are static for network adapter
                     new_inst = inst_tmpl.format_map(in_map_dict)
@@ -220,7 +222,8 @@ class VhdlEntity:
                                     # 'rst': 'piMMIO_Ly7_Rst',
                                     'rst': 'sResetApps',
                                     'rst_n': 'sResetApps_n',
-                                    'enable': 'piMMIO_Ly7_En'
+                                    # 'enable': 'piMMIO_Ly7_En'
+                                    'enable': 'sEnableApps'
                                     }
                         new_inst = inst_tmpl.format_map(map_dict)
                         outline += '\n' + new_inst
@@ -255,7 +258,8 @@ class VhdlEntity:
                                     # 'rst': 'piMMIO_Ly7_Rst',
                                     'rst': 'sResetApps',
                                     'rst_n': 'sResetApps_n',
-                                    'enable': 'piMMIO_Ly7_En'
+                                    # 'enable': 'piMMIO_Ly7_En'
+                                    'enable': 'sEnableApps'
                                     }
                         inst_tmpl = pc['inst_tmpl']
                         new_inst = inst_tmpl.format_map(map_dict)
@@ -292,7 +296,8 @@ class VhdlEntity:
                                 # 'rst': 'piMMIO_Ly7_Rst',
                                 'rst': 'sResetApps',
                                 'rst_n': 'sResetApps_n',
-                                'enable': 'piMMIO_Ly7_En'
+                                # 'enable': 'piMMIO_Ly7_En'
+                                'enable': 'sEnableApps'
                                 }
                     new_inst = inst_tmpl.format_map(map_dict)
                     outline += '\n' + new_inst

@@ -3,7 +3,7 @@
   "output_latency": 0,
   "build" : {
     "create_rank_0_for_io": true,
-    "comm_message_interleaving": 1,
+    "comm_message_interleaving": 2,
     "max_buffer_interleaving": 46080,
     "maximum_pipeline_store_per_node": 5,
     "engine_saving_threshold": 1.5,
