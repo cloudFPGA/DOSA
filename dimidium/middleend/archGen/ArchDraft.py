@@ -66,6 +66,8 @@ class ArchDraft(object):
         self.total_perf_F = -1
         self.max_perf_iter_based = -1
         self.min_iter_hz = -1
+        self.total_flops = 0
+        self.total_parameters_bytes = 0
 
     def __repr__(self):
         return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
@@ -75,6 +77,7 @@ class ArchDraft(object):
                'batch_size': self.batch_size, 'target_sps': self.target_sps, 'target_latency': self.target_latency,
                'target_resources': self.target_resources,
                'total_implemented_perf_F': float(self.total_perf_F), 'cluster_estimated_iter_hz': float(self.min_iter_hz),
+               'total_flops': self.total_flops, 'total_parameter_bytes': self.total_parameters_bytes,
                # 'cluster_estimated_maximum_iter_hz': self.max_perf_iter_based,
                'input': str(self.input_layer), 'output': str(self.output_layer),
                'possible_hw_types': [], 'target_hw_set': [], 'fallback_hw_set': [],
@@ -1345,6 +1348,8 @@ class ArchDraft(object):
         # self.update_uuids()
         self.update_required_perf()
         self.total_perf_F = 0
+        self.total_flops = 0
+        self.total_parameters_bytes = 0
         self.max_perf_iter_based = float('inf')
         self.min_iter_hz = float('inf')
         for nn in self.node_iter_gen():
@@ -1364,6 +1369,11 @@ class ArchDraft(object):
                       .format(nn.node_id, nn.used_comp_util_share))
             assert nn.used_comp_util_share < 1.2
             assert nn.used_mem_util_share < 1.2
+        self.total_flops = 0
+        self.total_parameters_bytes = 0
+        for bb in self.brick_iter_gen():
+            self.total_flops += bb.flops
+            self.total_parameters_bytes += bb.parameter_bytes
         return DosaRv.OK
 
     def update_required_perf(self):
@@ -1607,7 +1617,9 @@ class ArchDraft(object):
         num_nodes = self.get_total_nodes_cnt()
         if self.substract_node_0:
             num_nodes += 1
-        cluster_dict = {'name': self.name, 'total_nodes': num_nodes, 'nodes': []}
+        cluster_dict = {'name': self.name, 'total_flops': self.total_flops,
+                        'total_parameter_bytes': self.total_parameters_bytes,
+                        'total_nodes': num_nodes, 'nodes': []}
         for nn in self.node_iter_gen():
             if nn.build_tool is not None:
                 nn_f = nn.build_tool.node_folder_name

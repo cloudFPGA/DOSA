@@ -233,25 +233,25 @@ class Hls4mlOSG(BaseOSG):
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=['pool2d',
-                                                                                                      'pool1d'])
+                                                                                                      'pool1d', 'add'])
             elif 'global' in e and 'pool2d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_globalPool2d, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=['pool2d',
-                                                                                                      'pool1d'])
+                                                                                                      'pool1d', 'add'])
             elif 'pool1d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_pool1d, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=['pool2d',
-                                                                                                      'pool1d'])
+                                                                                                      'pool1d', 'add'])
             elif 'pool2d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_pool2d, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=['pool2d',
-                                                                                                      'pool1d'])
+                                                                                                      'pool1d', 'add'])
             elif 'prelu' in e:
                 self.relay2osg['nn'][e] = self._generatae_hls_prelu, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
