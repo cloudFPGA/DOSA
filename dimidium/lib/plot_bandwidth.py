@@ -53,7 +53,7 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
         target_string += "{} s/req".format(arch_draft.target_latency)
     else:
         target_string += "max {} nodes".format(arch_draft.target_resources)
-    plt_name = "{} (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
+    plt_name = "'{}' (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
                                                             str(arch_draft.strategy).split('.')[-1],
                                                             arch_draft.get_total_nodes_cnt())
 
@@ -92,13 +92,13 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
     ax1.set_xlim(id_list[0], id_list[-1])
     color = 'tab:grey'
     # ax1.set_xlabel('ArchBrick Ids', fontsize=MY_SIZE)
-    ax1.set_xlabel('Computing Operations', fontsize=MY_SIZE)
-    ax1.set_ylabel('Bandwidth in GB/s', fontsize=MY_SIZE, color=color)
+    ax1.set_xlabel('computing operations', fontsize=MY_SIZE)
+    ax1.set_ylabel('bandwidth in GB/s', fontsize=MY_SIZE, color=color)
     color = 'tab:blue'
-    ln1 = ax1.fill_between(id_list, input_B_list, color=color, alpha=alpha, label="input bandwidth per ArchBrick",
+    ln1 = ax1.fill_between(id_list, input_B_list, color=color, alpha=alpha, label="input bandwidth per operation",
                            linewidth=MY_WIDTH)
     color = 'tab:orange'
-    ln2 = ax1.fill_between(id_list, output_B_list, color=color, alpha=alpha, label="output bandwidth per ArchBrick",
+    ln2 = ax1.fill_between(id_list, output_B_list, color=color, alpha=alpha, label="output bandwidth per operation",
                            linewidth=MY_WIDTH)
 
     ax2 = ax1.twinx()
@@ -107,7 +107,7 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
     ln3 = ax2.fill_between(id_list, param_B_list, color=color, alpha=alpha, label="parameter per ArchBrick",
                            linewidth=MY_WIDTH)
 
-    title = "DOSA bandwidth analysis for '{}'\n({})".format(plt_name, target_string)
+    title = "DOSA bandwidth analysis for {}\n({})".format(plt_name, target_string)
     # handles, labels = plt.gca().get_legend_handles_labels()
     handles = [ln1, ln2, ln3]
     legend = plt.legend(handles=handles, ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)

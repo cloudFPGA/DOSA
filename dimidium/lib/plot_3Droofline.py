@@ -183,7 +183,7 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
              'mem_share_stream': total_mem_share_stream/arch_draft.get_total_nodes_cnt(),
              'mem_share_engine': total_mem_share_engine/arch_draft.get_total_nodes_cnt()}
     # print(total)
-    plt_name = "{}\n(draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
+    plt_name = "'{}'\n(draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
                                                             str(arch_draft.strategy).split('.')[-1],
                                                             arch_draft.get_total_nodes_cnt())
     return draw_roofline(plt_name, arch_draft.batch_size, arch_draft.target_hw_set[0].get_performance_dict(),

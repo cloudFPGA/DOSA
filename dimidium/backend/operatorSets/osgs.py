@@ -24,7 +24,7 @@ osg_haddoc2 = Haddoc2OSG()
 osg_tips = TipsOSG()
 
 # builtin_OSGs = [osg_hls4ml, osg_tvmCpu, osg_haddoc2, osg_tips]
-# builtin_OSGs = [osg_hls4ml, osg_tips, osg_haddoc2]
+# builtin_OSGs = [osg_hls4ml]
 builtin_OSGs = [osg_hls4ml, osg_tvmCpu, osg_haddoc2]
 
 

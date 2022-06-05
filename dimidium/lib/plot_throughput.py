@@ -55,7 +55,7 @@ def generate_throughput_plt_nodes(arch_draft: ArchDraft, show_deubg=False):
         target_string += "{} s/req".format(arch_draft.target_latency)
     else:
         target_string += "max {} nodes".format(arch_draft.target_resources)
-    plt_name = "{} (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
+    plt_name = "'{}' (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
                                                             str(arch_draft.strategy).split('.')[-1],
                                                             arch_draft.get_total_nodes_cnt())
 
@@ -147,7 +147,7 @@ def generate_throughput_plt_nodes(arch_draft: ArchDraft, show_deubg=False):
     plt.text(x=0.5, y=arch_draft.target_sps/kiloU*1.15, s=text, color=color,
              fontsize=MY_SIZE, zorder=z+1)
 
-    title = "DOSA Throughput analysis (node-wise) for\n'{}'\n({})".format(plt_name, target_string)
+    title = "DOSA Throughput analysis (node-wise) for\n{}\n({})".format(plt_name, target_string)
     # handles, labels = plt.gca().get_legend_handles_labels()
     handles = [ln1, ln2, ln3]
     legend = plt.legend(handles=handles, ncol=2, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)
@@ -176,7 +176,7 @@ def generate_throughput_plt_bricks(arch_draft: ArchDraft, show_deubg=False):
         target_string += "{} s/req".format(arch_draft.target_latency)
     else:
         target_string += "max {} nodes".format(arch_draft.target_resources)
-    plt_name = "{} (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
+    plt_name = "'{}' (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
                                                             str(arch_draft.strategy).split('.')[-1],
                                                             arch_draft.get_total_nodes_cnt())
 
@@ -249,7 +249,7 @@ def generate_throughput_plt_bricks(arch_draft: ArchDraft, show_deubg=False):
     plt.text(x=0.5, y=arch_draft.target_sps/kiloU*1.15, s=text, color=color,
              fontsize=MY_SIZE, zorder=z+1)
 
-    title = "DOSA Throughput analysis (brick-wise) for\n'{}'\n({})".format(plt_name, target_string)
+    title = "DOSA Throughput analysis (brick-wise) for\n{}\n({})".format(plt_name, target_string)
     # handles, labels = plt.gca().get_legend_handles_labels()
     handles = [ln1]
     legend = plt.legend(handles=handles, ncol=2, bbox_to_anchor=(0.5, 1), loc='lower center', fontsize=MY_SIZE, title=title)
