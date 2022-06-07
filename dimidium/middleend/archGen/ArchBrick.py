@@ -11,6 +11,7 @@
 #  *
 
 import json
+import numpy as np
 from types import SimpleNamespace
 
 from tvm.relay import Expr
@@ -19,7 +20,7 @@ import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.devices.dosa_device import DosaBaseHw
 from dimidium.middleend.archGen.ArchOp import ArchOp
 from dimidium.lib.util import BrickImplTypes
-from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype
+from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype, get_bitwidth_of_DosaDtype
 from dimidium.lib.dtype_converters import get_flops_conv_factor
 from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG, sort_osg_list
 from dimidium.middleend.archGen.BrickContract import BrickContract, filter_brick_contracts_by_impl_type, \
@@ -557,11 +558,14 @@ class ArchBrick(object):
         self.dims.inp = None
         self.dims.out = None
         self.dims.param = []
+        check_params = 0
         for lb in self.local_op_iter_gen():
             if self.dims.inp is None:
                 self.dims.inp = lb.dims.inp
             self.dims.out = lb.dims.out
             self.dims.param.append(lb.dims.param)
+            if len(lb.dims.param) > 0:
+                check_params += np.prod(lb.dims.param)
         # if len(self.dims.param) > 0:
         #     self.max_parallelization_tries = max(self.dims.param)
         # elif self.dims.out is not None:
@@ -569,6 +573,8 @@ class ArchBrick(object):
         # else:
         #     self.max_parallelization_tries = 32
         self.max_parallelization_tries = 32
+        if len(self.dims.param) > 0 and self.parameter_bytes > 0:
+            assert self.parameter_bytes == (check_params * (get_bitwidth_of_DosaDtype(self.used_dtype)/8))
 
     def update_util_estimation(self, target_hw: DosaBaseHw):
         share_comp, share_mem = target_hw.get_hw_utilization_tuple(self.req_flops, self.parameter_bytes)

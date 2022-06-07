@@ -11,12 +11,13 @@
 #  *
 
 import json
+import numpy as np
 from types import SimpleNamespace
 from tvm.relay import Expr
 
 import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.operatorSets.BaseOSG import placeholderOSG, BaseOSG
-from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype
+from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype, get_bitwidth_of_DosaDtype
 from dimidium.lib.dtype_converters import get_flops_conv_factor
 from dimidium.middleend.archGen.OperationContract import OperationContract
 
@@ -101,6 +102,7 @@ class ArchOp(object):
         self.dims.param = dpl_dict['dims']['param']
         if len(self.dims.param) > 0 and type(self.dims.param[0]) is list:
             self.dims.param = self.dims.param[0]
+            assert self.parameter_bytes == (np.prod(self.dims.param) * (get_bitwidth_of_DosaDtype(self.used_dtype)/8))
         self.dims.out = dpl_dict['dims']['out']
         if len(self.dims.out) > 0 and type(self.dims.out[0]) is list:
             self.dims.out = self.dims.out[0]

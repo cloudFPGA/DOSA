@@ -188,7 +188,7 @@ class ZrlmpiSwApp:
                     outline = tmpl.format(total_l=comm_plan_len, pip_store=pipeline_store,
                                           min_in=total_send_repeat, min_out=total_recv_repeat,
                                           jump=self.comm_plan.after_pipeline_full_instr_start,
-                                          full_pip=(1 + dosa_singleton.config.backend.comm_message_interleaving))
+                                          full_pip=dosa_singleton.config.backend.comm_message_interleaving)
                                             # min_l=comm_plan_len
                     outline += '// ATTENTION: currently, only batch-wise inference is supported\n'
                 else:
