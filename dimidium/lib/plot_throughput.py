@@ -113,21 +113,21 @@ def generate_throughput_plt_nodes(arch_draft: ArchDraft, show_deubg=False):
     ax1.set_ylim(y_lower_lim*0.5, y_upper_lim*20)
     ax1.set_yscale('log', base=10)
     color = 'tab:grey'
-    ax1.set_xlabel('Node Ids (FPGAs)', fontsize=MY_SIZE)
-    ax1.set_ylabel('Throughput in Ksamples/s (logarithmic)', fontsize=MY_SIZE)  # , color=color
+    ax1.set_xlabel('node Ids (FPGAs)', fontsize=MY_SIZE)
+    ax1.set_ylabel('throughput in Ksamples/s (logarithmic)', fontsize=MY_SIZE)  # , color=color
     color = 'tab:blue'
     z = 5
     ln1 = ax1.fill_between(xlist, predicted_throughput_list, color=color, alpha=alpha,
-                           label='Implemented/Predicted Throughput per Node', linewidth=MY_WIDTH, zorder=z)
+                           label='implemented/predicted throughput per node', linewidth=MY_WIDTH, zorder=z)
     color = 'tab:orange'
     z = 3
     ln2 = ax1.fill_between(xlist, max_throughput_list, color=color, alpha=alpha,
-                           label="Theoretical Throughput with 100% utilization per Node", linewidth=MY_WIDTH, zorder=z)
+                           label="theoretical throughput with 100% utilization per node", linewidth=MY_WIDTH, zorder=z)
 
     color = 'tab:olive'
     z = 4
     ln3 = ax1.fill_between(xlist, throughput_with_dpl, color=color, alpha=alpha,
-                           label="Implemented/Predicted Throughput with data-parallel nodes", linewidth=MY_WIDTH, zorder=z)
+                           label="implemented/predicted throughput with data-parallel nodes", linewidth=MY_WIDTH, zorder=z)
 
     color = 'tab:grey'
     z = 8
@@ -223,12 +223,12 @@ def generate_throughput_plt_bricks(arch_draft: ArchDraft, show_deubg=False):
     ax1.set_ylim(y_lower_lim*0.5, y_upper_lim*20)
     ax1.set_yscale('log', base=10)
     color = 'tab:grey'
-    ax1.set_xlabel('Computing Operations', fontsize=MY_SIZE)
-    ax1.set_ylabel('Throughput in Ksamples/s (logarithmic)', fontsize=MY_SIZE)  # , color=color
+    ax1.set_xlabel('computing Operations', fontsize=MY_SIZE)
+    ax1.set_ylabel('throughput in Ksamples/s (logarithmic)', fontsize=MY_SIZE)  # , color=color
     color = 'tab:blue'
     z = 5
     ln1 = ax1.fill_between(xlist, predicted_throughput_list, color=color, alpha=alpha,
-                           label='Implemented/Predicted Throughput per Node', linewidth=MY_WIDTH, zorder=z)
+                           label='implemented/predicted throughput per Node', linewidth=MY_WIDTH, zorder=z)
     color = 'tab:orange'
 
     color = 'tab:grey'
@@ -237,7 +237,7 @@ def generate_throughput_plt_bricks(arch_draft: ArchDraft, show_deubg=False):
         y = parallel_factor_dict[e][1] * 1.2
         pn = parallel_factor_dict[e][0]
         ni = parallel_factor_dict[e][2]
-        text = 'Operation {} has {} parallel instances\n(with same throughput)'.format(ni, pn)
+        text = 'operation {} has {} parallel instances\n(with same throughput)'.format(ni, pn)
         plt.text(x=e, y=y, color=color, s=text, fontsize=MY_SIZE * 0.7, ha='left', va='bottom',
                  rotation=90, zorder=z)
 

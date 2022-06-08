@@ -93,7 +93,7 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
     color = 'tab:grey'
     # ax1.set_xlabel('ArchBrick Ids', fontsize=MY_SIZE)
     ax1.set_xlabel('computing operations', fontsize=MY_SIZE)
-    ax1.set_ylabel('bandwidth in GB/s', fontsize=MY_SIZE, color=color)
+    ax1.set_ylabel('bandwidth in GB/s', fontsize=MY_SIZE)
     color = 'tab:blue'
     ln1 = ax1.fill_between(id_list, input_B_list, color=color, alpha=alpha, label="input bandwidth per operation",
                            linewidth=MY_WIDTH)
@@ -103,7 +103,7 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
 
     ax2 = ax1.twinx()
     color = 'tab:olive'
-    ax2.set_ylabel('Parameters in KB', fontsize=MY_SIZE, color=color)
+    ax2.set_ylabel('parameters in KB', fontsize=MY_SIZE)
     ln3 = ax2.fill_between(id_list, param_B_list, color=color, alpha=alpha, label="parameter per ArchBrick",
                            linewidth=MY_WIDTH)
 
