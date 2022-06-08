@@ -1651,7 +1651,7 @@ class ArchDraft(object):
         first_over_utilized = True
         first_mono_sleep_cnt = 0
         over_utilized_cnt = 0
-        sleep_factor = 2
+        sleep_factor = 3
         with open(os.path.abspath(dosa_singleton.config.global_build_dir + '/dosa_build.sh'), 'a') as script_file:
             for nn in self.node_iter_gen():
                 if nn.targeted_hw.hw_class in [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx]:
