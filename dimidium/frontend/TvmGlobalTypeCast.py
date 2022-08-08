@@ -42,8 +42,9 @@ class CorrectionPipeline:
                     return new_v
                 return v
 
-            # def visit_function(self, f):
-            #     return f
+            def visit_function(self, f):
+                new_f = relay.function.Function(params=f.params, body=f.body)
+                return new_f
 
             # def visit_call(self, call):
             #     new_fn = self.visit(call.op)
