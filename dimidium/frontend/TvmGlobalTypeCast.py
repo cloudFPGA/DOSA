@@ -43,7 +43,11 @@ class CorrectionPipeline:
                 return v
 
             def visit_function(self, f):
-                new_f = relay.function.Function(params=f.params, body=f.body)
+                new_params = []
+                for p in f.params:
+                    new_params.append(self.visit(p))
+                new_body = self.visit(f.body)
+                new_f = relay.function.Function(params=new_params, body=new_body)
                 return new_f
 
             # def visit_call(self, call):
