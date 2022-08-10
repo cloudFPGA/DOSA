@@ -45,8 +45,12 @@ class CorrectionPipeline:
 
             def visit_function(self, f):
                 new_params = [self.visit(p) for p in f.params]
+                if hasattr(f, 'ret_type'):
+                    new_rettype = TensorType(f.ret_type.shape, dtype=obj.var_type)
+                else:
+                    new_rettype = None
                 new_body = self.visit(f.body)
-                new_f = relay.function.Function(params=new_params, body=new_body)
+                new_f = relay.function.Function(params=new_params, body=new_body, ret_type=new_rettype)
                 return new_f
 
             def visit_call(self, call):
@@ -64,6 +68,8 @@ class CorrectionPipeline:
                 if hasattr(call.attrs, 'out_dtype') and len(call.attrs.out_dtype) > 0:
                     # my_type = type(call.attrs)
                     # no = my_type()
+                    # ATTENTION: this doesn't work, since copying the handle means (apparently) to point to the very
+                    #  same read-only C object.
                     # no.handle = call.attrs.handle
                     # # no.out_dtype = obj.var_type
                     # for field in call.attrs.list_field_info():
@@ -79,10 +85,14 @@ class CorrectionPipeline:
                         if isinstance(field.name, str) and 'dtype' in field.name:
                             # ATTENTION: the 'str()' is important! Because field.name is of type String,
                             #  the packing (ffi) will fail otherwise!!
+                            # The Error is " Check failed: args.type_codes[i] == kTVMStr (8 vs. 11) :" and arises from
+                            # TVM FFI argument type encoding:
+                            # https://tvm.apache.org/docs/reference/api/doxygen/c__runtime__api_8h.html#a190e81769e805cca153514137a66e793af2b95de1a09ed39055edfe8ef5ea484d
                             n_fields[str(field.name)] = obj.var_type
                         else:
                             # ATTENTION: the 'str()' is important! Because field.name is of type String,
                             #  the packing (ffi) will fail otherwise!!
+                            # (see above)
                             n_fields[str(field.name)] = call.attrs[field.name]
                     # fields = {'units': None}
                     new_attrs = tvm.ir.make_node(attrs_relay_type, **n_fields)
