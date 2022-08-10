@@ -429,9 +429,28 @@ class Hls4mlOSG(BaseOSG):
                                                                                  int_bits * accum_factor)
             else:
                 accum_string = precision_string
+
+        first_used_dtype = arch_block.brick_list[0].used_dtype
+        # input_batch_shape = arch_block.brick_list[0].ops[0].dims.inp
+        if len(arch_block.brick_list[0].ops[0].dims.inp) == 4:
+            # swap to channels_last format
+            input_batch_shape = [0, 0, 0, 0]
+            input_batch_shape[0] = arch_block.brick_list[0].ops[0].dims.inp[0]
+            input_batch_shape[1] = arch_block.brick_list[0].ops[0].dims.inp[2]
+            input_batch_shape[2] = arch_block.brick_list[0].ops[0].dims.inp[3]
+            input_batch_shape[3] = arch_block.brick_list[0].ops[0].dims.inp[1]
+        else:
+            input_batch_shape = arch_block.brick_list[0].ops[0].dims.inp
+        if input_batch_shape[0] != 1:
+            print("[DOSA:OSG:ERROR] hls4ml only supports models with batch_size 1")
+            exit(-1)
+
         # reuse_factor_stream = 1
         # reuse_factor_stream = 4  # TODO
         reuse_factor_stream = 32  # works so far...TODO
+        if np.prod(input_batch_shape) < reuse_factor_stream:
+            # reuse_factor_stream = math.floor(np.prod(input_batch_shape)/2) * 2
+            reuse_factor_stream = 1  # i.e. deactivating? # TODO
         reuse_factor_engine = 2
         precision_dict = {'default': precision_string,
                           'accum': accum_string}
@@ -597,20 +616,6 @@ class Hls4mlOSG(BaseOSG):
         model_arch = {'backend': 'dosa', 'class_name': 'Model',  # 'Model" to emulate TF >=2.3
                       'config': {'input_layers': [], 'layers': [], 'name': project_name, 'output_layers': []}}
 
-        first_used_dtype = arch_block.brick_list[0].used_dtype
-        # input_batch_shape = arch_block.brick_list[0].ops[0].dims.inp
-        if len(arch_block.brick_list[0].ops[0].dims.inp) == 4:
-            # swap to channels_last format
-            input_batch_shape = [0, 0, 0, 0]
-            input_batch_shape[0] = arch_block.brick_list[0].ops[0].dims.inp[0]
-            input_batch_shape[1] = arch_block.brick_list[0].ops[0].dims.inp[2]
-            input_batch_shape[2] = arch_block.brick_list[0].ops[0].dims.inp[3]
-            input_batch_shape[3] = arch_block.brick_list[0].ops[0].dims.inp[1]
-        else:
-            input_batch_shape = arch_block.brick_list[0].ops[0].dims.inp
-        if input_batch_shape[0] != 1:
-            print("[DOSA:OSG:ERROR] hls4ml only supports models with batch_size 1")
-            exit(-1)
         input_layer = {'class_name': 'InputLayer',
                        'config': {'batch_input_shape': input_batch_shape,
                                   # 'dtype': first_used_dtype.name,
@@ -945,7 +950,10 @@ class Hls4mlOSG(BaseOSG):
             layer_config['batch_input_shape'][3] = op.dims.inp[1]
         else:
             layer_config['batch_input_shape'] = op.dims.inp
-        layer_config['units'] = op.tvm_node.attrs.units.value
+        if op.tvm_node.attrs.units is not None:
+            layer_config['units'] = op.tvm_node.attrs.units.value
+        # else: not necessary?
+        #     layer_config['units'] = 0
         layer_config['use_bias'] = False
         # further: name, class_name, activation, use_bias and 'epsilon'?
 
