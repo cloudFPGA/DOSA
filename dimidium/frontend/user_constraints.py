@@ -130,6 +130,9 @@ def parse_uc_dict(path, dosa_devices):
             parsed_constraints['use_extra_accum_dtype'] = True
         else:
             parsed_constraints['use_extra_accum_dtype'] = False
+        if weights_dtype != data_dtype:
+            print('NOT YET IMPLEMENTED: For now, weights and data must have the same data type. Stop.')
+            exit(1)
     else:
         parsed_constraints['overwrite_imported_dtypes'] = False
         parsed_constraints['overwrite_fixed_point_dtypes'] = False
