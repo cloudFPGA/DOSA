@@ -1970,7 +1970,7 @@ void haddoc_wrapper_test(
   //DOSA_ADD_haddoc_buffer_instantiation
 #endif
   static stream<bool> sHaddocUnitProcessing ("sHaddocUnitProcessing");
-  const int haddoc_processing_fifo_depth = HADDOC_AVG_LAYER_LATENCY * DOSA_HADDOC_LAYER_CNT;
+  const int haddoc_processing_fifo_depth = (HADDOC_AVG_LAYER_LATENCY + 1) * DOSA_HADDOC_LAYER_CNT;
   //const int haddoc_processing_fifo_depth = DOSA_HADDOC_VALID_WAIT_CNT + (DOSA_HADDOC_INPUT_FRAME_WIDTH*DOSA_HADDOC_LAYER_CNT);
   #pragma HLS STREAM variable=sHaddocUnitProcessing depth=haddoc_processing_fifo_depth
   static stream<ap_uint<DOSA_HADDOC_OUTPUT_BITDIWDTH> > sFromHaddocBuffer ("sFromHaddocBuffer");

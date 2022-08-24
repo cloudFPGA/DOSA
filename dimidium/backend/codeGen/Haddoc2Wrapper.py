@@ -149,51 +149,61 @@ class Haddoc2Wrapper:
                 #             b1 = 0
                 #         outline += fsm_tmpl.format(b=b, b1=b1)
                 elif 'DOSA_ADD_demux_fsm' in line:
-                    fsm_tmpl = '    case FILL_BUF_{b}:\n' + \
-                               '      if( !siData.empty() && !sToHaddocBuffer_chan{b}.full() && !sToHaddocBuffer_chan{b1}.full() )\n' + \
-                               '      {{\n' + \
-                               '        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();\n' + \
-                               '        uint32_t new_bytes_cnt = extractByteCnt(tmp_read_0);\n' + \
-                               '        if((current_frame_byte_cnt + new_bytes_cnt) >= HADDOC_INPUT_FRAME_BYTE_CNT)\n' + \
-                               '        {{\n' + \
-                               '          uint32_t bytes_to_this_frame = HADDOC_INPUT_FRAME_BYTE_CNT - current_frame_byte_cnt;\n' + \
-                               '          uint32_t bytes_to_next_frame = new_bytes_cnt - bytes_to_this_frame;\n' + \
-                               '          ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> cur_input = tmp_read_0.getTData();\n' + \
-                               '          ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> cur_tkeep = tmp_read_0.getTKeep();\n' + \
-                               '          ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> this_tkeep = 0x0;\n' + \
-                               '          ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> next_tkeep = 0x0;\n' + \
-                               '          for(uint32_t i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)\n' + \
-                               '          {{\n' + \
-                               '            ap_uint<1> cur_tkeep_bit = (ap_uint<1>) (cur_tkeep >> i);\n' + \
-                               '            if(i < bytes_to_this_frame)\n' + \
-                               '            {{\n' + \
-                               '              this_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) cur_tkeep_bit) << i;\n' + \
-                               '            }} else {{\n' + \
-                               '              next_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) cur_tkeep_bit) << i;\n' + \
-                               '            }}\n' + \
-                               '          }}\n' + \
-                               '          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_this =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, this_tkeep, 0);\n' + \
-                               '          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, next_tkeep, 0);\n' + \
-                               '          sToHaddocBuffer_chan{b}.write(tmp_write_this);\n' + \
-                               '          if(bytes_to_next_frame > 0)\n' + \
-                               '          {{\n' + \
-                               '            sToHaddocBuffer_chan{b1}.write(tmp_write_next);\n' + \
-                               '          }}\n' + \
-                               '          current_frame_byte_cnt = bytes_to_next_frame;\n' + \
-                               '          enqueueFSM = FILL_BUF_{b1};\n' + \
-                               '        }} else {{\n' + \
-                               '          current_frame_byte_cnt += new_bytes_cnt;\n' + \
-                               '          tmp_read_0.setTLast(0);\n' + \
-                               '          sToHaddocBuffer_chan{b}.write(tmp_read_0);\n' + \
-                               '        }}\n' + \
-                               '      }}\n' + \
-                               '      break;\n'
-                    outline = ''
-                    for b in range(0, self.in_dims[1]):
-                        b1 = b + 1
-                        if b1 >= self.in_dims[1]:
-                            b1 = 0
-                        outline += fsm_tmpl.format(b=b, b1=b1)
+                    if len(self.in_dims[1]) > 1:
+                        fsm_tmpl = '    case FILL_BUF_{b}:\n' + \
+                                   '      if( !siData.empty() && !sToHaddocBuffer_chan{b}.full() && !sToHaddocBuffer_chan{b1}.full() )\n' + \
+                                   '      {{\n' + \
+                                   '        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();\n' + \
+                                   '        uint32_t new_bytes_cnt = extractByteCnt(tmp_read_0);\n' + \
+                                   '        if((current_frame_byte_cnt + new_bytes_cnt) >= HADDOC_INPUT_FRAME_BYTE_CNT)\n' + \
+                                   '        {{\n' + \
+                                   '          uint32_t bytes_to_this_frame = HADDOC_INPUT_FRAME_BYTE_CNT - current_frame_byte_cnt;\n' + \
+                                   '          uint32_t bytes_to_next_frame = new_bytes_cnt - bytes_to_this_frame;\n' + \
+                                   '          ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> cur_input = tmp_read_0.getTData();\n' + \
+                                   '          ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> cur_tkeep = tmp_read_0.getTKeep();\n' + \
+                                   '          ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> this_tkeep = 0x0;\n' + \
+                                   '          ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> next_tkeep = 0x0;\n' + \
+                                   '          for(uint32_t i = 0; i < WRAPPER_INPUT_IF_BYTES; i++)\n' + \
+                                   '          {{\n' + \
+                                   '            ap_uint<1> cur_tkeep_bit = (ap_uint<1>) (cur_tkeep >> i);\n' + \
+                                   '            if(i < bytes_to_this_frame)\n' + \
+                                   '            {{\n' + \
+                                   '              this_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) cur_tkeep_bit) << i;\n' + \
+                                   '            }} else {{\n' + \
+                                   '              next_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) cur_tkeep_bit) << i;\n' + \
+                                   '            }}\n' + \
+                                   '          }}\n' + \
+                                   '          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_this =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, this_tkeep, 0);\n' + \
+                                   '          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, next_tkeep, 0);\n' + \
+                                   '          sToHaddocBuffer_chan{b}.write(tmp_write_this);\n' + \
+                                   '          if(bytes_to_next_frame > 0)\n' + \
+                                   '          {{\n' + \
+                                   '            sToHaddocBuffer_chan{b1}.write(tmp_write_next);\n' + \
+                                   '          }}\n' + \
+                                   '          current_frame_byte_cnt = bytes_to_next_frame;\n' + \
+                                   '          enqueueFSM = FILL_BUF_{b1};\n' + \
+                                   '        }} else {{\n' + \
+                                   '          current_frame_byte_cnt += new_bytes_cnt;\n' + \
+                                   '          tmp_read_0.setTLast(0);\n' + \
+                                   '          sToHaddocBuffer_chan{b}.write(tmp_read_0);\n' + \
+                                   '        }}\n' + \
+                                   '      }}\n' + \
+                                   '      break;\n'
+                        outline = ''
+                        for b in range(0, self.in_dims[1]):
+                            b1 = b + 1
+                            if b1 >= self.in_dims[1]:
+                                b1 = 0
+                            outline += fsm_tmpl.format(b=b, b1=b1)
+                    else:
+                        outline = '    case FILL_BUF_0:\n' + \
+                                  '      if( !siData.empty() && !sToHaddocBuffer_chan0.full() )\n' + \
+                                  '      {\n' + \
+                                  '        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();\n' + \
+                                  '        tmp_read_0.setTLast(0);\n' + \
+                                  '        sToHaddocBuffer_chan.write(tmp_read_0);\n' + \
+                                  '      }\n' + \
+                                  '      break;\n'
                 elif 'DOSA_ADD_pToHaddocNarrow_X_declaration' in line:
                     template_lines = Path(os.path.join(__filedir__, 'templates/haddoc2_wrapper/src/pToHaddocNarrow_b'
                                                                     '.fstrtmpl')).read_text()
