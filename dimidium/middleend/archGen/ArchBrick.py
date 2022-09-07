@@ -27,7 +27,7 @@ from dimidium.middleend.archGen.BrickContract import BrickContract, filter_brick
     sort_brick_contracts_by_iter, sort_brick_contracts_by_util, get_best_contract_of_list
 from dimidium.middleend.archGen.DosaContract import DosaContract
 from dimidium.middleend.archGen.parallelizeBrick import parallelize_ops_of_brick
-from dimidium.lib.dosa_exceptions import DosaInvalidAction, DosaImpossibleToProceed
+from dimidium.lib.dosa_exceptions import DosaInvalidAction, DosaImpossibleToProceed, DosaChangeArchType
 
 
 class ArchBrick(object):
@@ -474,10 +474,13 @@ class ArchBrick(object):
         within_util_exception = []
         fitting_type = []
         still_possible_osgs = []
+        considered_but_not_possible = []  # for debug
         for c in self.available_contracts:
             if self.selected_impl_type != BrickImplTypes.UNDECIDED and c.impl_type != self.selected_impl_type:
+                considered_but_not_possible.append((c, 'wrong type'))
                 continue
             if len(c.op_contracts) != len(self.ops):
+                considered_but_not_possible.append((c, 'incompatible operations'))
                 continue
             # device is set?
             # osg not relevant?
@@ -487,6 +490,7 @@ class ArchBrick(object):
                 if c.osg == assume_osg:
                     consider_wrapper = False
             if not c.ensure_detailed_utility_fits(consider_wrapper=consider_wrapper):
+                considered_but_not_possible.append((c, 'does not fit detailed utility'))
                 continue
             total_comp_share = c.comp_util_share
             total_mem_share = c.mem_util_share
@@ -498,7 +502,8 @@ class ArchBrick(object):
                 if not (total_comp_share > dosa_singleton.config.utilization.dosa_xi_exception or
                         total_mem_share > dosa_singleton.config.utilization.dosa_xi_exception):
                     within_util_exception.append(c)
-                # to big in all cases
+                # else: to big in all cases
+                considered_but_not_possible.append((c, 'above util threshold (maybe within exception)'))
                 continue
             still_possible.append(c)
             if c.osg not in still_possible_osgs:
@@ -508,38 +513,45 @@ class ArchBrick(object):
                   'because no other contract is available.'.format(self.brick_uuid))
             self.still_possible_contracts = within_util_exception
         elif len(still_possible) == 0 and len(within_util_exception) == 0 and len(fitting_type) > 0:
-            if not force_no_split:
-                # if self.brick_uuid is None:
-                #     print('here')
-                least_split_factor = float('inf')
-                for c in fitting_type:
-                    # cf = max(c.comp_util_share, c.mem_util_share) \
-                    #      / (dosa_singleton.config.utilization.dosa_xi - max(c.switching_comp_share, c.switching_mem_share))
-                    if consider_switching:
-                        cf = round((max(c.comp_util_share, c.mem_util_share) + max(c.switching_comp_share, c.switching_mem_share)) \
-                             / dosa_singleton.config.utilization.dosa_xi, 2)
-                    else:
-                        cf = round(max(c.comp_util_share, c.mem_util_share) / dosa_singleton.config.utilization.dosa_xi, 2)
-                    if 1.0 < cf < 2.0:
-                        cf = 2.0
-                    if 1.0 < cf < least_split_factor:
-                        least_split_factor = cf
-                print(
-                    '[DOSA:ContrMngt:INFO] Brick {}: Need to parallelize, due to no available contract withing utilization '
-                    'bounds (factor {}).'.format(self.brick_uuid, least_split_factor))
-                assert least_split_factor < float('inf')
-                self.parallelize(fitting_type, least_split_factor)
-                self.update_possible_contracts(consider_switching=False)
+            if self.selected_impl_type == BrickImplTypes.ENGINE:
+                # can't parallelize engines to shrink them...
+                print('[DOSA:ContrMngt:INFO] Brick {}: No contract within utilization bounds available for ENGINE type'
+                      .format(self.brick_uuid))
+                self.still_possible_contracts = []
+                raise DosaChangeArchType(BrickImplTypes.ENGINE)
             else:
-                cur_selected = None
-                cur_max_util = float('inf')
-                for c in fitting_type:
-                    max_util = max(c.comp_util_share, c.mem_util_share) \
-                               + max(c.switching_comp_share, c.switching_mem_share)
-                    if max_util < cur_max_util:
-                        cur_max_util = max_util
-                        cur_selected = c
-                self.still_possible_contracts = [cur_selected]
+                if not force_no_split:
+                    # if self.brick_uuid is None:
+                    #     print('here')
+                    least_split_factor = float('inf')
+                    for c in fitting_type:
+                        # cf = max(c.comp_util_share, c.mem_util_share) \
+                        #      / (dosa_singleton.config.utilization.dosa_xi - max(c.switching_comp_share, c.switching_mem_share))
+                        if consider_switching:
+                            cf = round((max(c.comp_util_share, c.mem_util_share) + max(c.switching_comp_share, c.switching_mem_share)) \
+                                 / dosa_singleton.config.utilization.dosa_xi, 2)
+                        else:
+                            cf = round(max(c.comp_util_share, c.mem_util_share) / dosa_singleton.config.utilization.dosa_xi, 2)
+                        if 1.0 < cf < 2.0:
+                            cf = 2.0
+                        if 1.0 < cf < least_split_factor:
+                            least_split_factor = cf
+                    print(
+                        '[DOSA:ContrMngt:INFO] Brick {}: Need to parallelize, due to no available contract withing utilization '
+                        'bounds (factor {}).'.format(self.brick_uuid, least_split_factor))
+                    assert least_split_factor < float('inf')
+                    self.parallelize(fitting_type, least_split_factor)
+                    self.update_possible_contracts(consider_switching=False)
+                else:
+                    cur_selected = None
+                    cur_max_util = float('inf')
+                    for c in fitting_type:
+                        max_util = max(c.comp_util_share, c.mem_util_share) \
+                                   + max(c.switching_comp_share, c.switching_mem_share)
+                        if max_util < cur_max_util:
+                            cur_max_util = max_util
+                            cur_selected = c
+                    self.still_possible_contracts = [cur_selected]
         else:
             self.still_possible_contracts = still_possible
             self.still_possible_osgs = still_possible_osgs

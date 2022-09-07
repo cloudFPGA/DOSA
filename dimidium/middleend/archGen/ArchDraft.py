@@ -26,6 +26,7 @@ from dimidium.backend.devices.builtin import vCPU_x86
 from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane, get_rightmost_roofline_region
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 from dimidium.backend.commLibs.BaseCommLib import placeholderCommLib
+from dimidium.lib.dosa_exceptions import DosaChangeArchType
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
@@ -76,7 +77,8 @@ class ArchDraft(object):
         res = {'name': self.name, 'version': self.version, 'strategy': str(self.strategy),
                'batch_size': self.batch_size, 'target_sps': self.target_sps, 'target_latency': self.target_latency,
                'target_resources': self.target_resources,
-               'total_implemented_perf_F': float(self.total_perf_F), 'cluster_estimated_iter_hz': float(self.min_iter_hz),
+               'total_implemented_perf_F': float(self.total_perf_F),
+               'cluster_estimated_iter_hz': float(self.min_iter_hz),
                'total_flops': self.total_flops, 'total_parameter_bytes': self.total_parameters_bytes,
                # 'cluster_estimated_maximum_iter_hz': self.max_perf_iter_based,
                'input': str(self.input_layer), 'output': str(self.output_layer),
@@ -907,7 +909,23 @@ class ArchDraft(object):
                 else:
                     lb.sort_contracts(by_utility=False)
                 # lb.update_possible_contracts(consider_switching=True, assume_osg=last_osg)
-                lb.update_possible_contracts(consider_switching=True, assume_osg=assume_osg)
+                try:
+                    lb.update_possible_contracts(consider_switching=True, assume_osg=assume_osg)
+                except DosaChangeArchType as int_e:
+                    if verbose:
+                        print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(lb.brick_uuid) +
+                              " since there are no possible Engine implementations available.")
+                    # assert e.not_possible_brick_type == BrickImplTypes.ENGINE
+                    assert len(int_e.args) >= 1 and int_e.args[0] == BrickImplTypes.ENGINE
+                    lb.set_impl_type(BrickImplTypes.STREAM)
+                    # sort again
+                    if self.strategy == OptimizationStrategies.RESOURCES:
+                        lb.sort_contracts(by_utility=True)
+                    else:
+                        lb.sort_contracts(by_utility=False)
+                    # now, without a catch..
+                    lb.update_possible_contracts(consider_switching=True, assume_osg=assume_osg)
+
                 # TODO...how to best approx switching in the beginning?
                 # lb.update_possible_contracts(consider_switching=consider_switching_first)
                 # consider req_iter_hz per Brick to select contract
@@ -923,11 +941,27 @@ class ArchDraft(object):
                             comp_costs += co.switching_comp_share
                             mem_costs += co.switching_mem_share
                         osg_possible = True
-                        for i in range(1, contract_look_ahead+1):
+                        for i in range(1, contract_look_ahead + 1):
                             lac = bi + i
                             if lac in nn.bricks:
                                 nb = nn.bricks[lac]
-                                nb.update_possible_contracts(consider_switching=False)
+                                # in look ahead mode...catching
+                                try:
+                                    nb.update_possible_contracts(consider_switching=False)
+                                except DosaChangeArchType as int_e:
+                                    # since we are in look-ahead mode, we need to modify the impl type in order to take
+                                    # advantage of look-ahead...
+                                    if len(int_e.args) >= 1 and int_e.args[0] == BrickImplTypes.ENGINE:
+                                        nb.set_impl_type(BrickImplTypes.STREAM)
+                                        try:
+                                            nb.update_possible_contracts(consider_switching=False)
+                                        except DosaChangeArchType as int_e:
+                                            # again...we stop
+                                            osg_possible = False
+                                            break
+                                    else:
+                                        osg_possible = False
+                                        break
                                 nbpoc = nb.get_best_possible_contract(filter_osg=o)
                                 if nbpoc is None:
                                     osg_possible = False
@@ -1072,11 +1106,11 @@ class ArchDraft(object):
                         turn_engine_to_stream_list.extend(cur_engine_set)
                     else:
                         cur_engine_len = len(cur_engine_set)
-                        if lowest_iter_hz/cur_engine_len < highest_iter_req:
+                        if lowest_iter_hz / cur_engine_len < highest_iter_req:
                             print(('[DOSA:archGen:INFO] Engine set {} with len {} of node {} does not fulfill ' +
                                    'performance requirement: Combined iteration of {} while {} are required. Will be ' +
                                    'turned into Streams.').format(cur_engine_set, cur_engine_len, nn.node_id,
-                                                                  lowest_iter_hz/cur_engine_len, highest_iter_req)
+                                                                  lowest_iter_hz / cur_engine_len, highest_iter_req)
                                   )
                         turn_engine_to_stream_list.extend(cur_engine_set)
                         # else: is fine
@@ -1134,7 +1168,7 @@ class ArchDraft(object):
                 for lb in nn.local_brick_iter_gen():
                     if not lb.needs_compute_parallelization \
                             or lb.compute_parallelization_factor != max_factor:  # \
-                            # or lb.local_brick_id != 0:
+                        # or lb.local_brick_id != 0:
                         # TODO: allow also already splitted brick in the middle of a node?
                         # assert prev_lb is not None
                         # TODO: (reactive check later, now it will stop if not possible)
@@ -1158,7 +1192,8 @@ class ArchDraft(object):
                         p_brick.orig_tvm_node = nn.bricks[i].tvm_node
                         nn.bricks[i].selected_contract.osg.annotate_brick(p_brick,
                                                                           nn.bricks[i].selected_contract.device,
-                                                                          filter_impl_types=nn.bricks[i].selected_impl_type)
+                                                                          filter_impl_types=nn.bricks[
+                                                                              i].selected_impl_type)
                         p_brick.update_possible_contracts(consider_switching=True, force_no_split=True)
                         selected_contract = p_brick.get_best_sufficient_contract_with_least_resources()
                         if selected_contract is None:
@@ -1382,7 +1417,7 @@ class ArchDraft(object):
                 print(
                     "[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint \
                     target_sps ({}). Stop."
-                        .format(self.strategy, self.target_sps))
+                    .format(self.strategy, self.target_sps))
                 return DosaRv.ERROR
             # optimizing towards throughput
             target_throughput = self.target_sps * self.sample_size_B
@@ -1411,7 +1446,7 @@ class ArchDraft(object):
                 print(
                     "[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint \
                      target_latency ({}). Stop."
-                        .format(self.strategy, self.target_latency))
+                    .format(self.strategy, self.target_latency))
                 return DosaRv.ERROR
             # first, try with 1/N distribution
             # consider communication latency
@@ -1447,7 +1482,7 @@ class ArchDraft(object):
                 print(
                     "[DOSA:archGen:ERROR] Optimization strategy ({}) does not fit target numbers in constraint \
                     target_resources ({}). Stop."
-                        .format(self.strategy, self.target_resources))
+                    .format(self.strategy, self.target_resources))
                 return DosaRv.ERROR
             # find max resources in flops
             max_resources = 0
@@ -1754,4 +1789,3 @@ class ArchDraft(object):
                     prev_node = nn
                 nn.generate_communication(self.selected_comm_lib, pipeline_store_until_now)
                 last_pipeline_store = nn.total_pipeline_store
-

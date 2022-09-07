@@ -17,3 +17,8 @@ class DosaInvalidAction(Exception):
 class DosaImpossibleToProceed(Exception):
     pass
 
+
+class DosaChangeArchType(Exception):
+    pass
+
+
