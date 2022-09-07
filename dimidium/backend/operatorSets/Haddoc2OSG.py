@@ -140,7 +140,7 @@ class Haddoc2OSG(BaseOSG):
             elif 'dropout' in e:
                 self.relay2osg['nn'][e] = self._generate_hdl_dropout_instance, self._predict_flatten_drop
         for e in self.relay2osg:
-            if type(e) == dict:
+            if type(self.relay2osg[e]) == dict:
                 continue
             elif 'tanh' in e:
                 self.relay2osg[e] = self._generate_hdl_tanh_instance, self._predict_tanh

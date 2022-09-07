@@ -303,7 +303,7 @@ class Hls4mlOSG(BaseOSG):
                                           lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
                                                                                 0.0, 'dummy op', 0.0, 0.0)
         for e in self.relay2osg:
-            if type(e) == dict:
+            if type(self.relay2osg[e]) == dict:
                 continue
             if ('tan' in e or 'sin' in e or 'cos' in e) and 'is' not in e:
                 self.relay2osg[e] = self._generate_hls_act, \

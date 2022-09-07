@@ -347,6 +347,9 @@ class ArchBrick(object):
             self.req_flops_stream = -1
             self.req_util_mem = self.req_util_mem_engine
             self.req_util_comp = self.req_util_comp_engine
+        if self.parallelized_bricks is not None:
+            for pb in self.parallelized_bricks:
+                pb.set_impl_type(it)
 
     def get_oi_selected_impl(self, fallback_impl_type=BrickImplTypes.ENGINE):
         if self.selected_impl_type == BrickImplTypes.STREAM:

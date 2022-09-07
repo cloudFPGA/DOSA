@@ -223,7 +223,7 @@ class TipsOSG(BaseOSG):
                                                                                         custom_byte_factor=0,
                                                                                         custom_latency=1)
         for e in self.relay2osg:
-            if type(e) == dict:
+            if type(self.relay2osg[e]) == dict:
                 continue
             elif 'add' in e:
                 self.relay2osg[e] = self._parse_biasAdd, \
