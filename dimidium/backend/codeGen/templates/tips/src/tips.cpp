@@ -307,6 +307,7 @@ void pLoadOpDual(
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
 #pragma HLS INLINE off
 //#pragma HLS pipeline //II=1
+#pragma HLS pipeline II=alu_op_pipeline_ii
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   //-- STATIC VARIABLES -----------------------------------------------------
 #ifdef TIPS_TEST
@@ -407,6 +408,7 @@ void pALU(
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
 #pragma HLS INLINE off
 //#pragma HLS pipeline II=512
+#pragma HLS pipeline II=alu_op_pipeline_ii
 //#pragma HLS DATAFLOW
   //-- STATIC VARIABLES (with RESET) ------------------------------------------
   static aluFSM aluState = INIT;

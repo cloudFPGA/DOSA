@@ -131,6 +131,8 @@ class TipsCore:
                     outline += '#define DOSA_TIPS_ADDR_SPACE_LENGTH {}\n'.format(self.addr_space_length)
                     outline += 'typedef {} aluAccumDtype;\n'.format(self.accum_dtype_string)
                     outline += '#define DOSA_TIPS_ALU_ACCUM_BITWIDTH {}\n'.format(self.accum_bitw)
+                    outline += 'const int alu_op_pipeline_ii = {};\n'.format(max(self.longest_op0, self.longest_op1,
+                                                                                 self.longest_input, self.longest_output))
                 else:
                     outline = line
                 out_file.write(outline)

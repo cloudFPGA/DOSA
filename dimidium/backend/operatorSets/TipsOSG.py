@@ -75,6 +75,8 @@ class TipsOSG(BaseOSG):
         self.util_db = {}
         compl_list = []
         for e in my_util:
+            if 'IGNORE' in e['comment']:
+                continue
             if e['device'] not in self.util_db:
                 self.util_db[e['device']] = [e]
             else:

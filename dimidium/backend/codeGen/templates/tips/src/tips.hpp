@@ -50,6 +50,7 @@ typedef ap_fixed<32,26, AP_RND_CONV, AP_SAT_SYM> aluAccumDtype;
 //#define DEBUG_ALU_ACCUM_FRACTIONAL_BITS 2
 #define DOSA_TIPS_ALU_ACCUM_BITWIDTH 32
 //#define DOSA_TIPS_ALU_BACK_CAST_BIT_SHIFT 5
+const int alu_op_pipeline_ii = 12;  //max(OP0,OP1,INPUT,OUTPUT)
 #endif
 
 //DOSA_REMOVE_STOP
