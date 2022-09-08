@@ -27,7 +27,7 @@ osg_vta = VtaOSG()
 
 
 builtin_OSGs = [osg_hls4ml, osg_tvmCpu, osg_haddoc2, osg_tips, osg_vta]
-# builtin_OSGs = [osg_hls4ml]
+# builtin_OSGs = [osg_tips]
 # builtin_OSGs = [osg_hls4ml, osg_tvmCpu, osg_haddoc2]
 
 

@@ -14,6 +14,8 @@ import numpy as np
 import tvm
 import tvm.relay as relay
 import math
+from tvm.ir.type import TupleType
+from tvm.ir.tensor_type import TensorType
 
 from dimidium.lib.util import replace_deep, dtype_to_size_b, bit_to_dtype
 from dimidium.lib.units import config_bits_per_byte
@@ -136,9 +138,16 @@ class OiPipeline:
                         # TODO use p.checked_type.dtype instead of size_b?
                         bw_type = None
                         if hasattr(p, 'checked_type'):
-                            bw_type = p.checked_type
-                            bw_tmp = dtype_to_size_b(p.checked_type.dtype)
-                            used_dtype = p.checked_type.dtype
+                            if type(p.checked_type) is TensorType:
+                                bw_type = p.checked_type
+                                bw_tmp = dtype_to_size_b(p.checked_type.dtype)
+                                used_dtype = p.checked_type.dtype
+                            elif type(p.checked_type) is TupleType:
+                                # TODO: necessary?
+                                # take the first one, should be similar
+                                bw_type = p.checked_type.fields[0]
+                                bw_tmp = dtype_to_size_b(p.checked_type.fields[0].dtype)
+                                used_dtype = p.checked_type.fields[0].dtype
                         elif hasattr(p, 'type_annotation'):
                             bw_type = p.type_annotation
                             bw_tmp = dtype_to_size_b(p.type_annotation.dtype)

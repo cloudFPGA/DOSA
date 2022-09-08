@@ -309,7 +309,7 @@ def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.E
                 cur_local_tp = total_cur_perf / cur_oi
                 req_local_tp = cur_inp * draft.target_sps
                 # local_time = cur_inp / local_tp
-                if float(cur_local_tp) < float(req_local_tp):
+                if (float(cur_local_tp) + 1) < float(req_local_tp):
                     print("[DOSA:archVerify:ERROR] Brick {} does not fulfill local throughput requirement (req: {} current: {} B/s)."
                           .format(repr(bb), req_local_tp, cur_local_tp))
                     return False
