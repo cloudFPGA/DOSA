@@ -11,6 +11,7 @@
 #  *
 import json
 
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.lib.units import kiloU
 from dimidium.lib.util import BrickImplTypes
@@ -50,10 +51,13 @@ def get_best_contract_of_list(contr_list, filter_impl_type=None, filter_osg=None
         if filter_device is not None and c.device != filter_device:
             continue
         if consider_util:
-            if c.comp_util_share > 1.0:
+            if c.comp_util_share > dosa_singleton.config.utilization.dosa_xi_exception or \
+                    c.mem_util_share > dosa_singleton.config.utilization.dosa_xi_exception:
                 continue
-            if c.mem_util_share > 1.0:
-                continue
+            # if c.comp_util_share > 1.0:
+            #     continue
+            # if c.mem_util_share > 1.0:
+            #     continue
         if consider_min_iter is not None and c.iter_hz < consider_min_iter:
             continue
         # else...hit
