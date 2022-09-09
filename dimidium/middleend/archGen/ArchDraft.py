@@ -1620,6 +1620,12 @@ class ArchDraft(object):
     #     for nn in self.node_iter_gen():
     #         nn.synth()
 
+    def write_info(self, verbose=False):
+        for nn in self.node_iter_gen():
+            nn.build(only_folders=True)
+        self._generate_cluster_description()
+        self._generate_extended_cluster_description(verbose=verbose)
+
     def _generate_cluster_description(self):
         num_nodes = self.get_total_nodes_cnt()
         if self.substract_node_0:

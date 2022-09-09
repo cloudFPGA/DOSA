@@ -351,10 +351,12 @@ class ArchNode(object):
                 new_container = EngineContainer(ab)
                 self.engine_container_refs.append(new_container)
 
-    def build(self):
+    def build(self, only_folders=False):
         if self.build_tool is None:
             self.build_tool = self.selected_hw_type.create_build_tool(self.node_id)
             self.build_tool.create_build_dir(self.node_id)
+        if only_folders:
+            return
         assert self.comm_plan is not None and self.used_comm_lib is not None
         self.used_comm_lib.build(self.comm_plan, self.build_tool)
         # first, build engines
