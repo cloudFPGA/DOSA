@@ -18,6 +18,8 @@ import numpy as np
 import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.commLibs.BaseCommLib import BaseCommLib
 from dimidium.lib.util import OptimizationStrategies, BrickImplTypes, DosaRv
+from dimidium.middleend.archGen.ArchFilter import MergeBrickContrFilter
+from dimidium.middleend.archGen.archOpt import merge_bricks_pass
 from dimidium.middleend.archGen.ArchNode import ArchNode
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.middleend.archGen.ArchOp import ArchOp
@@ -69,6 +71,7 @@ class ArchDraft(object):
         self.min_iter_hz = -1
         self.total_flops = 0
         self.total_parameters_bytes = 0
+        self.max_brick_uuid = -1
 
     def __repr__(self):
         return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
@@ -855,9 +858,11 @@ class ArchDraft(object):
                 else:
                     lb.sort_contracts(by_utility=False)
                 best_stream = lb.get_best_available_contract(filter_impl_type=BrickImplTypes.STREAM, consider_util=True,
-                                                             filter_device=nn.targeted_hw)
+                                                             filter_device=nn.targeted_hw,
+                                                             consider_min_iter=lb.req_iter_hz)
                 best_engine = lb.get_best_available_contract(filter_impl_type=BrickImplTypes.ENGINE, consider_util=True,
-                                                             filter_device=nn.targeted_hw)
+                                                             filter_device=nn.targeted_hw,
+                                                             consider_min_iter=lb.req_iter_hz)
                 if best_engine is None:
                     lb.set_impl_type(BrickImplTypes.STREAM)
                     if verbose:
@@ -899,15 +904,16 @@ class ArchDraft(object):
             # last_osg = None
             skip_lbs = []
             assume_osg = None
+            prev_contract = None
             # for lb in nn.local_brick_iter_gen():
             for bi in nn.bricks:
                 lb = nn.bricks[bi]
                 if lb in skip_lbs:
                     continue
                 if self.strategy == OptimizationStrategies.RESOURCES:
-                    lb.sort_contracts(by_utility=True)
+                    lb.sort_contracts(by_utility=True, previous_contract=prev_contract)
                 else:
-                    lb.sort_contracts(by_utility=False)
+                    lb.sort_contracts(by_utility=False, previous_contract=prev_contract)
                 # lb.update_possible_contracts(consider_switching=True, assume_osg=last_osg)
                 try:
                     lb.update_possible_contracts(consider_switching=True, assume_osg=assume_osg)
@@ -920,9 +926,9 @@ class ArchDraft(object):
                     lb.set_impl_type(BrickImplTypes.STREAM)
                     # sort again
                     if self.strategy == OptimizationStrategies.RESOURCES:
-                        lb.sort_contracts(by_utility=True)
+                        lb.sort_contracts(by_utility=True, previous_contract=prev_contract)
                     else:
-                        lb.sort_contracts(by_utility=False)
+                        lb.sort_contracts(by_utility=False, previous_contract=prev_contract)
                     # now, without a catch..
                     lb.update_possible_contracts(consider_switching=True, assume_osg=assume_osg)
 
@@ -966,8 +972,21 @@ class ArchDraft(object):
                                 if nbpoc is None:
                                     osg_possible = False
                                     break
-                                comp_costs += nbpoc.comp_util_share
-                                mem_costs += nbpoc.mem_util_share
+                                if co.impl_type == BrickImplTypes.ENGINE and nbpoc.impl_type == BrickImplTypes.ENGINE:
+                                    # both are engine, so we can consider shared costs...
+                                    # TODO: use get_costs_of_contract_extension instead?
+                                    pseudo_brick = ArchBrick()
+                                    pseudo_brick.used_dtype = co.brick.used_dtype
+                                    op_list = list(co.brick.ops.values())
+                                    op_list.extend(list(nbpoc.brick.ops.values()))
+                                    pseudo_brick.reconstruct_from_op_list(op_list)
+                                    o.annotate_brick(pseudo_brick, co.device)
+                                    new_contract = pseudo_brick.available_contracts[0]
+                                    comp_costs += (new_contract.comp_util_share - co.comp_util_share)
+                                    mem_costs += (new_contract.mem_util_share - co.mem_util_share)
+                                else:
+                                    comp_costs += nbpoc.comp_util_share
+                                    mem_costs += nbpoc.mem_util_share
                             # save intermediate results
                             if self.strategy == OptimizationStrategies.RESOURCES:
                                 if osg_possible and \
@@ -1019,11 +1038,18 @@ class ArchDraft(object):
                 if verbose:
                     print('[DOSA:archGen:INFO] Selecting contract ({}) for brick {}.'.format(repr(selected_contract),
                                                                                              lb.brick_uuid))
+                if not selected_contract.is_contract_to_be_merged:
+                    prev_contract = selected_contract
         # ensure all are decided
         for bb in self.brick_iter_gen():
             # assert bb.selected_contract is not None
             if bb.selected_contract is None:
                 return DosaRv.ERROR
+        # TODO: merge engine bricks?
+        #  also consider in contract selection the number of OSGs if node-numer is equal?
+        #  consider required iter-hz
+        merge_engine_bricks_filter = MergeBrickContrFilter()
+        merge_bricks_pass(self, merge_engine_bricks_filter)
         # 2. split nodes based on selected contracts
         orig_nodes_handles = []
         for nn in self.node_iter_gen():
@@ -1096,16 +1122,17 @@ class ArchDraft(object):
         self.update_uuids()
         for nn in self.node_iter_gen():
             cur_engine_set = []
+            cur_engine_set_ops_cnt = 0
             turn_engine_to_stream_list = []
             highest_iter_req = -1
             lowest_iter_hz = float('inf')
             for bi in range(0, nn.bid_cnt):
                 bb = nn.bricks[bi]
                 if bb.selected_impl_type == BrickImplTypes.STREAM:
-                    if len(cur_engine_set) < 2:
+                    if cur_engine_set_ops_cnt < 2:
                         turn_engine_to_stream_list.extend(cur_engine_set)
                     else:
-                        cur_engine_len = len(cur_engine_set)
+                        cur_engine_len = cur_engine_set_ops_cnt
                         if lowest_iter_hz / cur_engine_len < highest_iter_req:
                             print(('[DOSA:archGen:INFO] Engine set {} with len {} of node {} does not fulfill ' +
                                    'performance requirement: Combined iteration of {} while {} are required. Will be ' +
@@ -1124,8 +1151,9 @@ class ArchDraft(object):
                 if bb.iter_hz < lowest_iter_hz:
                     lowest_iter_hz = bb.iter_hz
                 cur_engine_set.append(bi)
+                cur_engine_set_ops_cnt += len(bb.ops)
             # last time
-            if len(cur_engine_set) < 2:
+            if cur_engine_set_ops_cnt < 2:
                 turn_engine_to_stream_list.extend(cur_engine_set)
             for bi in turn_engine_to_stream_list:
                 bb = nn.bricks[bi]
@@ -1577,6 +1605,7 @@ class ArchDraft(object):
             nn.inp_ranks = np.array(nn.inp_ranks).T.tolist()
             nn.out_ranks = np.array(nn.out_ranks).T.tolist()
             nn.parallel_ranks = np.array(nn.parallel_ranks).T.tolist()
+        self.max_brick_uuid = next_buuid - 1
         return
 
     # def update_possible_osgs(self):
@@ -1652,6 +1681,7 @@ class ArchDraft(object):
         with open(out_file, 'w') as of:
             json.dump(cluster_dict, of, indent=4)
         if verbose:
+            print("\n[VERBOSE] best draft found:")
             print(json.dumps(cluster_dict, indent=2))
 
     def get_extended_cluster_description(self):

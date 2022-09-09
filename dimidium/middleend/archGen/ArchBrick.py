@@ -9,7 +9,7 @@
 #  *        Class of the architectural bricks for DOSA
 #  *
 #  *
-
+import copy
 import json
 import numpy as np
 from types import SimpleNamespace
@@ -190,8 +190,11 @@ class ArchBrick(object):
             total_params += op.parameter_bytes
             self.output_bytes = op.output_bytes
             self.add_arch_op(op)
-        self.oi_engine = (total_uinp + total_params) / total_flops
-        self.oi_stream = total_uinp / total_flops
+        # TODO: use total_uinp?
+        # self.oi_engine = (total_uinp + total_params) / total_flops
+        # self.oi_stream = total_uinp / total_flops
+        self.oi_engine = (self.input_bytes + total_params) / total_flops
+        self.oi_stream = self.input_bytes / total_flops
         self.flops = total_flops
         self.parameter_bytes = total_params
         self.update_dims()
@@ -205,11 +208,17 @@ class ArchBrick(object):
     def set_tvm_args(self, tvm_arg_dict):
         self.tvm_args = tvm_arg_dict
 
-    def add_arch_op(self, op: ArchOp):
+    def add_arch_op(self, op: ArchOp, update_counters=False):
         o_id = self.oid_cnt
         self.oid_cnt += 1
         op.set_local_op_id(o_id)
         self.ops[o_id] = op
+        if update_counters:
+            self.parameter_bytes += op.parameter_bytes
+            self.flops += op.flops
+            self.output_bytes = op.output_bytes
+            self.oi_engine = (self.input_bytes + self.parameter_bytes) / self.flops
+            self.oi_stream = self.input_bytes / self.flops
         already_considered_contr = []
         for opc in op.possible_contracts:
             for my_contr in self.available_contracts:
@@ -423,7 +432,7 @@ class ArchBrick(object):
         assert contr.brick == self
         self.available_contracts.append(contr)
 
-    def sort_contracts(self, by_utility=False):
+    def sort_contracts(self, by_utility=False, previous_contract=None):
         """sort possible and available contracts by performance (default) or by used utility"""
         if not by_utility:
             self.available_contracts = sort_brick_contracts_by_iter(self.available_contracts)
@@ -431,12 +440,26 @@ class ArchBrick(object):
         else:
             self.available_contracts = sort_brick_contracts_by_util(self.available_contracts)
             self.still_possible_contracts = sort_brick_contracts_by_util(self.still_possible_contracts)
+        if previous_contract is not None:
+            tmp_contr = self.get_best_available_contract(filter_osg=previous_contract.osg,
+                                                         filter_device=previous_contract.device)
+            new_comp_util, new_mem_util, new_iter_hz = previous_contract.osg.get_costs_of_contract_extension(
+                previous_contract, self, previous_contract.device)
+            if tmp_contr is not None and new_comp_util > -1 and new_mem_util > -1 and \
+                    new_comp_util < tmp_contr.comp_util_share and new_mem_util < tmp_contr.mem_util_share:
+                new_contr = copy.deepcopy(tmp_contr)
+                new_contr.comp_util_share = new_comp_util
+                new_contr.mem_util_share = new_mem_util
+                new_contr.iter_hz = new_iter_hz
+                new_contr.is_contract_to_be_merged = True
+                self.available_contracts.insert(0, new_contr)
+                self.still_possible_contracts.insert(0, new_contr)
 
     def get_best_available_contract(self, filter_impl_type=None, filter_osg=None, filter_device=None,
-                                    consider_util=False, skip_entries=0):
+                                    consider_util=False, skip_entries=0, consider_min_iter=None):
         # assume sorted
         return get_best_contract_of_list(self.available_contracts, filter_impl_type, filter_osg, filter_device,
-                                         consider_util, skip_entries)
+                                         consider_util, skip_entries, consider_min_iter)
 
     def get_best_possible_contract(self, filter_impl_type=None, filter_osg=None, filter_device=None, skip_entries=0):
         # assume sorted
@@ -574,11 +597,13 @@ class ArchBrick(object):
         self.dims.out = None
         self.dims.param = []
         check_params = 0
+        op_params_sum = 0
         for lb in self.local_op_iter_gen():
             if self.dims.inp is None:
                 self.dims.inp = lb.dims.inp
             self.dims.out = lb.dims.out
             self.dims.param.append(lb.dims.param)
+            op_params_sum += lb.parameter_bytes
             if len(lb.dims.param) > 0:
                 check_params += np.prod(lb.dims.param)
         # if len(self.dims.param) > 0:
@@ -634,7 +659,8 @@ class ArchBrick(object):
             self.req_util_comp_engine = share_comp
         self.tmp_osg = tmp_best.osg
         max_util = max(share_comp + self.switching_comp_share, share_mem + self.switching_mem_share)
-        max_iter = (1.0 / max_util) * self.iter_hz
-        self.max_possible_iter = max_iter
+        if max_util > 0 and not tmp_best.is_contract_to_be_merged:
+            max_iter = (1.0 / max_util) * self.iter_hz
+            self.max_possible_iter = max_iter
         self.local_pipeline_store = tmp_best.osg.pipeline_tensor_store
         # self.input_bw_Bs / (self.selected_contract.device.get_performance_dict()['bw_netw_gBs'] * gigaU * 0.25 * 0.5)

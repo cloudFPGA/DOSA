@@ -24,11 +24,11 @@ from dimidium.middleend.archGen.BrickContract import BrickContract
 
 
 class BaseOSG(metaclass=abc.ABCMeta):
-
     # _pseudo_infinity_ = int(sys.maxsize/1000)
     _pseudo_infinity_ = 65535
 
-    def __init__(self, name, device_classes: [DosaHwClasses], supported_dtypes: [DosaDtype], impl_types: [BrickImplTypes]):
+    def __init__(self, name, device_classes: [DosaHwClasses], supported_dtypes: [DosaDtype],
+                 impl_types: [BrickImplTypes]):
         self.name = name
         self.device_classes = device_classes
         self.possible_impl_types = impl_types
@@ -102,7 +102,7 @@ class BaseOSG(metaclass=abc.ABCMeta):
     #         print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
     #         return False
 
-    def annotate_brick(self, brick_node, target_hw, filter_impl_types=None):
+    def annotate_brick(self, brick_node, target_hw, filter_impl_types=None, return_instead_annotate=False):
         supported_complete = True
         contr_list = [[]]
         if target_hw.hw_class in self.device_classes and \
@@ -111,7 +111,7 @@ class BaseOSG(metaclass=abc.ABCMeta):
                 if filter_impl_types is not None and impl_type != filter_impl_types:
                     continue
                 for op in brick_node.local_op_iter_gen():
-                    op_c = self.annotate_op(op, target_hw, impl_type)
+                    op_c = self.annotate_op(op, target_hw, impl_type, dont_annotate=return_instead_annotate)
                     if op_c is not None:
                         if isinstance(op_c, list):
                             # contr_list.extend(op_c)
@@ -129,9 +129,12 @@ class BaseOSG(metaclass=abc.ABCMeta):
                         if len(cl) < all_length:
                             continue
                         brick_contr = BrickContract(brick_node, target_hw, self, impl_type, cl)
+                        if return_instead_annotate:
+                            return brick_contr
                         brick_node.add_possible_contract(brick_contr)
+        return None
 
-    def annotate_op(self, op, target_hw, impl_type):
+    def annotate_op(self, op, target_hw, impl_type, dont_annotate=False):
         """checks if the given relay op is supported by this OSG, creates a contract and returns it"""
         is_supported, op_info = self.get_op_info(op.op_call)
         if not is_supported:
@@ -140,7 +143,7 @@ class BaseOSG(metaclass=abc.ABCMeta):
         if (not callable(osg_func)) and (not isinstance(osg_func, bool) or (not osg_func)):
             return None
         list_of_contr = get_contr_func(op, target_hw, impl_type)
-        if list_of_contr is not None:
+        if list_of_contr is not None and not dont_annotate:
             if isinstance(list_of_contr, list):
                 for poc in list_of_contr:
                     op.add_possible_contract(poc)
@@ -172,6 +175,25 @@ class BaseOSG(metaclass=abc.ABCMeta):
         else:
             print("[DOSA:OSG:ERROR] {} is not a valid relay op.".format(op_str_list))
             return False, None
+
+    def get_costs_of_contract_extension(self, contract, add_brick, target_hw):
+        """assumes a contract exists and states what it costs additionally to extend it and the new performance"""
+        assert contract.osg == self
+        if contract.impl_type == BrickImplTypes.STREAM:
+            # it costs linearly?
+            new_brick_contr = self.annotate_brick(add_brick, target_hw, return_instead_annotate=True)
+            if new_brick_contr is None:
+                return -1, -1, -1
+            return new_brick_contr.comp_util_share, new_brick_contr.mem_util_share, \
+                   min(contract.iter_hz, new_brick_contr.iter_hz)
+        elif contract.impl_type == BrickImplTypes.ENGINE:
+            return self._get_dyn_costs(contract, add_brick, target_hw)
+        return -1, -1, -1
+
+    def _get_dyn_costs(self, contract, add_brick, target_hw):
+        """will be overwritten by engine OSGs"""
+        print("[DOSA:OSG:ERROR] SHOULD NOT BE REACHED.")
+        return -1, -1, -1
 
     def _get_osg_func(self, op_call):
         if 'nn.' in op_call[0:3]:

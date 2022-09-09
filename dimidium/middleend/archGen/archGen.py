@@ -410,6 +410,9 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
     assert len(draft.fallback_hw_set) >= 1
     draft_list = []
     node_count_list = []   # index equals index in target_hw_set and draft_list
+    max_brick_count_list = []
+    # TODO: also consider osg count?
+    predicted_iter_list = []
     parameter_set_list = [
         # {'consider_switching_first': False, 'contract_look_ahead': 0},
         {'consider_switching_first': True, 'contract_look_ahead': 0},
@@ -439,6 +442,8 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
                 continue
             # save state
             node_count_list.append(tmp_draft.get_total_nodes_cnt())
+            max_brick_count_list.append(tmp_draft.max_brick_uuid)
+            predicted_iter_list.append(tmp_draft.min_iter_hz)
             draft_list.append(tmp_draft)
     if len(draft_list) == 0:
         print("[DOSA:archGen:ERROR] unable to find any legal architecture draft. Stop.")
@@ -446,8 +451,18 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
     #  then, select the type of hw with the lowest number of nodes
     if verbose:
         print("\n[DOSA:archGen:INFO] Node counts of all legal drafts: {}".format(node_count_list))
-    best_version_i = node_count_list.index(min(node_count_list))
-    print("[DOSA:archGen:INFO] choosing draft {}, due to lowest node count.".format(best_version_i))
+        print("[DOSA:archGen:INFO] Brick counts of all legal drafts: {}".format(max_brick_count_list))
+        print("[DOSA:archGen:INFO] Predicted iterations/s of all legal drafts: {}".format(predicted_iter_list))
+    if min(node_count_list) != max(node_count_list):
+        best_version_i = node_count_list.index(min(node_count_list))
+        print("[DOSA:archGen:INFO] choosing draft {}, due to lowest node count.".format(best_version_i))
+    # TODO: switch criteria?
+    elif min(max_brick_count_list) != max(max_brick_count_list):
+        best_version_i = max_brick_count_list.index(min(max_brick_count_list))
+        print("[DOSA:archGen:INFO] choosing draft {}, due to lowest brick count.".format(best_version_i))
+    else:
+        best_version_i = predicted_iter_list.index(max(predicted_iter_list))
+        print("[DOSA:archGen:INFO] choosing draft {}, due to highest iteration/s prediction.".format(best_version_i))
     best_draft = draft_list[best_version_i]
     # TODO: add additional cost factor to devices? E.g. if 3 small nodes are cheaper then 1 big one?
     draft = best_draft

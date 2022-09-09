@@ -70,3 +70,22 @@ class OpCallSameDimFilter(ArchFilter):
                 return True
         return False
 
+
+class MergeBrickContrFilter(ArchFilter):
+    """Matches operations of a list where input and output dimensions are same"""
+
+    def __init__(self, consider_pseudo_contracts=False):
+        self.consider_pseudo_contracts = consider_pseudo_contracts
+
+    def match_brick(self, brick: ArchBrick):
+        if brick.selected_contract is not None:
+            if brick.selected_contract.is_contract_to_be_merged:
+                return True
+            if self.consider_pseudo_contracts and brick.selected_contract.is_pseudo_contract:
+                return True
+        return False
+
+    def match_op(self, op: ArchOp):
+        print("[DOSA:Filter:ERROR] Can't filter Bricks with op calls")
+        return False
+

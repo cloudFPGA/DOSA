@@ -185,6 +185,18 @@ class TipsOSG(BaseOSG):
                                   'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
         return offer
 
+    def _get_dyn_costs(self, contract, add_brick, target_hw):
+        pseudo_brick = ArchBrick()
+        pseudo_brick.used_dtype = contract.brick.used_dtype
+        op_list = list(contract.brick.ops.values())
+        op_list.extend(list(add_brick.ops.values()))
+        pseudo_brick.reconstruct_from_op_list(op_list)
+        self.annotate_brick(pseudo_brick, contract.device)
+        new_contract = pseudo_brick.available_contracts[0]
+        comp_costs = (new_contract.comp_util_share - contract.comp_util_share)
+        mem_costs = (new_contract.mem_util_share - contract.mem_util_share)
+        return comp_costs, mem_costs, new_contract.iter_hz
+
     def init(self, dosa_hw_classes_dict, priority_internal):
         self.priority_internal = priority_internal
         self.select_dosa_hw_types(dosa_hw_classes_dict)

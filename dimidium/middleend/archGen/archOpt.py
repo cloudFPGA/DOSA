@@ -13,11 +13,11 @@
 import copy
 
 import dimidium.lib.singleton as dosa_singleton
-from dimidium.middleend.archGen.ArchDraft import ArchDraft
+# from dimidium.middleend.archGen.ArchDraft import ArchDraft
 from dimidium.middleend.archGen.ArchFilter import ArchFilter
 
 
-def append_bricks_pass(input_draft: ArchDraft, arch_filter: ArchFilter, work_on_copy=False):
+def append_bricks_pass(input_draft, arch_filter: ArchFilter, work_on_copy=False):
     """append operations to previous bricks"""
     if work_on_copy:
         # without is faster
@@ -56,7 +56,7 @@ def append_bricks_pass(input_draft: ArchDraft, arch_filter: ArchFilter, work_on_
     return arch_draft
 
 
-def merge_bricks_pass(input_draft: ArchDraft, arch_filter: ArchFilter, work_on_copy=False):
+def merge_bricks_pass(input_draft, arch_filter: ArchFilter, work_on_copy=False):
     """merge brick to previous bricks"""
     if work_on_copy:
         # without is faster
@@ -77,7 +77,7 @@ def merge_bricks_pass(input_draft: ArchDraft, arch_filter: ArchFilter, work_on_c
         if arch_filter.match_brick(bb) and prev_bb is not None:
             for op in bb.local_op_iter_gen():
                 op.original_brick_tvm_handle = bb.tvm_node
-                prev_bb.add_arch_op(op)
+                prev_bb.add_arch_op(op, update_counters=True)
             bis_to_del.append(bi)
         else:
             prev_bb = bb
@@ -87,7 +87,7 @@ def merge_bricks_pass(input_draft: ArchDraft, arch_filter: ArchFilter, work_on_c
     return arch_draft
 
 
-def delete_ops_pass(input_draft: ArchDraft, arch_filter: ArchFilter, work_on_copy=False):
+def delete_ops_pass(input_draft, arch_filter: ArchFilter, work_on_copy=False):
     """delete ops of bricks if filter matches"""
     if work_on_copy:
         # without is faster

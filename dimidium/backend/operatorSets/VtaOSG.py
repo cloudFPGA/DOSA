@@ -119,6 +119,14 @@ class VtaOSG(BaseOSG):
                                   'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
         return offer
 
+    def _get_dyn_costs(self, contract, add_brick, target_hw):
+        min_iter_hz = contract.iter_hz
+        for op in add_brick.local_op_iter_gen():
+            op_c = self.annotate_op(op, target_hw, BrickImplTypes.ENGINE, dont_annotate=True)
+            if op_c.iter_hz < min_iter_hz:
+                min_iter_hz = op_c.iter_hz
+        return 0.0, 0.0, min_iter_hz
+
     def init(self, dosa_hw_classes_dict, priority_internal):
         with open(__db_path__, 'r') as infile:
             util_data = json.load(infile)

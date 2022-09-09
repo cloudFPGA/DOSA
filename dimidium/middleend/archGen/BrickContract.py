@@ -40,7 +40,7 @@ def filter_brick_contracts_by_impl_type(contr_list, selected_impl_type):
 
 
 def get_best_contract_of_list(contr_list, filter_impl_type=None, filter_osg=None, filter_device=None,
-                              consider_util=False, skip_entries=0):
+                              consider_util=False, skip_entries=0, consider_min_iter=None):
     cur_entry_found = 0
     for c in contr_list:
         if filter_impl_type is not None and c.impl_type != filter_impl_type:
@@ -54,6 +54,8 @@ def get_best_contract_of_list(contr_list, filter_impl_type=None, filter_osg=None
                 continue
             if c.mem_util_share > 1.0:
                 continue
+        if consider_min_iter is not None and c.iter_hz < consider_min_iter:
+            continue
         # else...hit
         if cur_entry_found >= skip_entries:
             return c
@@ -95,6 +97,7 @@ class BrickContract(DosaContract):
         self.detailed_FPGA_wrapper_share['BRAM']      = 0.0
         self.detailed_FPGA_wrapper_share['DSPs']      = 0.0
         self.is_pseudo_contract = False
+        self.is_contract_to_be_merged = False
         self._combine_op_contracts()
 
     def _combine_op_contracts(self):
