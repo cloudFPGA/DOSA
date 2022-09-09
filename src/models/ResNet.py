@@ -1,6 +1,4 @@
-import torch
 from torch import nn
-from cifar10 import data_loader
 
 
 class ResidualBlock(nn.Module):

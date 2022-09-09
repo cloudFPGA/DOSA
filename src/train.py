@@ -11,7 +11,6 @@ def train(model, epochs, train_loader, valid_loader, criterion, optimizer):
     # Training loop
     for epoch in range(epochs):
         for i, (images, labels) in enumerate(train_loader):
-            print(i, epoch)
             images = images.to(device)
             labels = labels.to(device)
 
@@ -38,7 +37,8 @@ def train(model, epochs, train_loader, valid_loader, criterion, optimizer):
             labels = labels.to(device)
             outputs = model(images)
             _, predicted = torch.max(outputs.data, 1)
-            total += (predicted == labels).sum().item()
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
             del images, labels, outputs
 
         print('Accuracy for the network on the {} validation images: {} %'.format(5000, 100 * correct / total))
