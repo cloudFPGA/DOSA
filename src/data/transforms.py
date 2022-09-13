@@ -21,6 +21,6 @@ transforms = {
 
     'mnist': transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.1307], std=[0.3081])
+        # transforms.Normalize(mean=[0.1307], std=[0.3081])
     ])
 }
