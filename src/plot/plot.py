@@ -8,7 +8,7 @@ def plot_loss(loss, export_path=None):
     ax = fig.gca()
     ax.plot(loss)
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.title('loss per epoch')
+    plt.title('loss')
     fig.show()
 
     if export_path is not None:
