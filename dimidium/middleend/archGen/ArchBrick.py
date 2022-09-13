@@ -153,6 +153,41 @@ class ArchBrick(object):
         ret = self.as_dict()
         return json.dumps(ret, indent=2)
 
+    def copy(self):
+        """fast way to return an independent fresh copy (not all lists are copied)"""
+        # to be faster than deepcopy
+        # NOT overwriting __copy__
+        nab = copy.copy(self)
+        nab.tvm_node = self.tvm_node
+        nab.dims = copy.copy(self.dims)
+        nab.ops = {}
+        for oi in self.ops:
+            o = self.ops[oi]
+            # no = copy.copy(o)
+            no = o.copy()
+            nab.ops[oi] = no
+        nab.possible_osgs = []
+        for poosg in self.possible_osgs:
+            nposg = copy.copy(poosg)
+            nab.possible_osgs.append(nposg)
+        nab.available_osgs = []
+        for poosg in self.available_osgs:
+            nposg = copy.copy(poosg)
+            nab.available_osgs.append(nposg)
+        nab.available_contracts = []
+        for poosg in self.available_contracts:
+            nposg = copy.copy(poosg)
+            nab.available_contracts.append(nposg)
+        nab.still_possible_contracts = []
+        nab.still_possible_osgs = []
+        nab.selected_contract = None
+        nab.max_possible_iter = -1
+        nab.possible_hw_types = []
+        for poosg in self.possible_hw_types:
+            nposg = copy.copy(poosg)
+            nab.possible_hw_types.append(nposg)
+        return nab
+
     def local_op_iter_gen(self):
         for oi in self.ops:
             o = self.ops[oi]

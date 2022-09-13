@@ -9,7 +9,7 @@
 #  *        Class containing one DOSA node
 #  *
 #  *
-
+import copy
 import json
 
 import dimidium.lib.singleton as dosa_singleton
@@ -107,6 +107,41 @@ class ArchNode(object):
     def __str__(self):
         ret = self.as_dict()
         return json.dumps(ret, indent=2)
+
+    def copy(self):
+        """fast way to return an independent fresh copy (not all lists are copied)"""
+        # to be faster than deepcopy
+        # NOT overwriting __copy__
+        nan = copy.copy(self)
+        nan.roofline = copy.copy(self.roofline)
+        nan.bricks = {}
+        for bi in self.bricks:
+            bb = self.bricks[bi]
+            nbb = bb.copy()  # not copy.copy...
+            nan.bricks[bi] = nbb
+        # resetting some lists...
+        nan.predecessors = []
+        nan.successors = []
+        nan.ranks = []
+        nan.inp_ranks = [[]]
+        nan.out_ranks = [[]]
+        nan.parallel_ranks = [[]]  # list of list, to preserve dpl information
+        nan.possible_hw_types = []
+        for pht in self.possible_hw_types:
+            npht = copy.copy(pht)
+            nan.possible_hw_types.append(npht)
+        nan.selected_hw_type = placeholderHw
+        nan.arch_block_list = []
+        for abr in self.arch_block_list:
+            nabr = copy.copy(abr)
+            nan.arch_block_list.append(nabr)
+        nan.engine_container_refs = []
+        for ecr in self.engine_container_refs:
+            necr = copy.copy(ecr)
+            nan.engine_container_refs.append(necr)
+        # TODO: copy parallel nodes?
+        nan.parallel_nodes = {}
+        return nan
 
     def add_brick(self, brick: ArchBrick, new_bid=None):
         if new_bid is None:

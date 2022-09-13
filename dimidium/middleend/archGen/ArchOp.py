@@ -9,7 +9,7 @@
 #  *        Class of the architectural operation that are part of DOSA bricks
 #  *
 #  *
-
+import copy
 import json
 import numpy as np
 from types import SimpleNamespace
@@ -80,6 +80,18 @@ class ArchOp(object):
     def __str__(self):
         ret = self.as_dict()
         return json.dumps(ret, indent=2)
+
+    def copy(self):
+        # to be faster than deepcopy
+        # NOT overwriting __copy__
+        naop = copy.copy(self)
+        naop.tvm_node = self.tvm_node
+        naop.dims = copy.copy(self.dims)
+        naop.possible_contracts = []
+        for poc in self.possible_contracts:
+            npoc = copy.copy(poc)
+            naop.possible_contracts.append(npoc)
+        return naop
 
     def from_dpl_dict(self, dpl_dict):
         self.name = dpl_dict['name']

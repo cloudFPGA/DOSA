@@ -9,7 +9,7 @@
 #  *        Class containing one version of a DOSA architectural draft
 #  *
 #  *
-
+import copy
 import os
 import math
 import json
@@ -109,6 +109,42 @@ class ArchDraft(object):
     def __str__(self):
         ret = self.as_dict()
         return json.dumps(ret, indent=2)
+
+    def copy(self):
+        """fast way to return an independent fresh copy (not all lists are copied)"""
+        # to be faster than deepcopy
+        # NOT overwriting __copy__
+        nad = copy.copy(self)
+        nad.main_tvm_mod = self.main_tvm_mod
+        nad.main_tvm_params = self.main_tvm_params
+        nad.nodes = {}
+        for ni in self.nodes:
+            nn = self.nodes[ni]
+            nnn = nn.copy()  # not copy.copy...
+            nad.nodes[ni] = nnn
+        nad.target_hw_set = []
+        for thw in self.target_hw_set:
+            nthw = copy.copy(thw)
+            nad.target_hw_set.append(nthw)
+        nad.fallback_hw_set = []
+        for thw in self.fallback_hw_set:
+            nthw = copy.copy(thw)
+            nad.fallback_hw_set.append(nthw)
+        nad.tmp_notes = self.tmp_notes.copy()
+        nad.possible_hw_types = []
+        for thw in self.possible_hw_types:
+            nthw = copy.copy(thw)
+            nad.possible_hw_types.append(nthw)
+        nad.all_selected_hw_types = []
+        for thw in self.all_selected_hw_types:
+            nthw = copy.copy(thw)
+            nad.all_selected_hw_types.append(nthw)
+        nad.possible_comm_libs = []
+        for thw in self.possible_comm_libs:
+            nthw = copy.copy(thw)
+            nad.possible_comm_libs.append(nthw)
+        nad.selected_comm_lib = placeholderCommLib
+        return nad
 
     def add_node(self, node: ArchNode):
         # bstr = self._bstr_fmt_.format(self.bid_cnt)

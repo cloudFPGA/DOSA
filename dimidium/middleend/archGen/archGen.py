@@ -133,7 +133,6 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
         print("[DOSA:archGen:ERROR] Draft {} is not valid.".format(annotated_draft.name))
         exit(1)
 
-
     find_best_start = time.time()
     best_draft = find_best_draft(annotated_draft, verbose=verbose)
     find_best_end = time.time()
@@ -423,7 +422,8 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
     for thw in draft.target_hw_set:
         for psl in parameter_set_list:
             # A) for each target hw, create legal draft and count number of nodes
-            tmp_draft = copy.deepcopy(draft)
+            # tmp_draft = copy.deepcopy(draft)
+            tmp_draft = draft.copy()
             # populate first target hw
             for nn in tmp_draft.node_iter_gen():
                 nn.set_targeted_hw(thw)  # this includes the generation of the roofline
