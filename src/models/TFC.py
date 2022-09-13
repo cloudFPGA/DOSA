@@ -3,9 +3,27 @@ from torch import nn
 dropout = 0.2
 in_features = 28 * 28
 
+
 class TFC(nn.Sequential):
     def __init__(self, hidden1, hidden2, hidden3):
         super(TFC, self).__init__(
+            nn.Linear(in_features, hidden1),
+            nn.ReLU(),
+            nn.Linear(hidden1, hidden2),
+            nn.ReLU(),
+            nn.Linear(hidden2, hidden3),
+            nn.ReLU(),
+            nn.Linear(hidden3, 10)
+        )
+
+    def forward(self, input):
+        input = input.reshape((-1, in_features))
+        return super(TFC, self).forward(input)
+
+
+class TFCBrevitas(nn.Sequential):
+    def __init__(self, hidden1, hidden2, hidden3):
+        super(TFCBrevitas, self).__init__(
             nn.Dropout(dropout),
 
             nn.Linear(in_features, hidden1),
@@ -27,5 +45,5 @@ class TFC(nn.Sequential):
         )
 
     def forward(self, input):
-        input = input.reshape((-1, 28 * 28))
-        return super(TFC, self).forward(input)
+        input = input.reshape((-1, in_features))
+        return super(TFCBrevitas, self).forward(input)
