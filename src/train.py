@@ -8,6 +8,7 @@ def train(model, epochs, train_loader, valid_loader, criterion, optimizer):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
 
+    losses = []
     # Training loop
     for epoch in range(epochs):
         for i, (images, labels) in enumerate(train_loader):
@@ -26,7 +27,7 @@ def train(model, epochs, train_loader, valid_loader, criterion, optimizer):
             torch.cuda.empty_cache()
             gc.collect()
 
-        print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch + 1, epochs, loss.item()))
+        losses.append(loss.item())
 
     # Validation
     with torch.no_grad():
@@ -42,3 +43,5 @@ def train(model, epochs, train_loader, valid_loader, criterion, optimizer):
             del images, labels, outputs
 
         print('Accuracy for the network on the {} validation images: {} %'.format(5000, 100 * correct / total))
+
+    return losses
