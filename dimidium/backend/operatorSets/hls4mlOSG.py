@@ -325,7 +325,7 @@ class Hls4mlOSG(BaseOSG):
                                     lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
                                                                           0.0, 'dummy op', 0.0, 0.0)
                                     # TODO: is transpose really for free in hls4ml?
-            elif 'reshape' in e:
+            elif 'reshape' in e or 'expand_dims' in e or 'squeeze' in e:
                 self.relay2osg[e] = self._generate_hls_reshape, \
                                     lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
                                                                           0.0, 'dummy op', 0.0, 0.0)

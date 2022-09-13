@@ -290,8 +290,9 @@ class OiPipeline:
                     attrs = call.attrs
 
                 # correct param dims
-                if len(data_dim) == 2 and len(param_dim) == 0:
-                    param_dim = data_dim[1]
+                # TODO: NO, this is invalid...e.g. 'add' call
+                # if len(data_dim) == 2 and len(param_dim) == 0:
+                #     param_dim = data_dim[1]
 
                 if not function_call:
                     oi_cmpl, oi_uinp, flop_total = obj.oiCalc.calc(call.op.name, data_dim, param_dim, out_dim, attrs,

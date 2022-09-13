@@ -52,6 +52,7 @@ def parallelize_ops_of_brick(orig_brick, factor_in, with_inputs=False):
         op = orig_brick.ops[oid]
         if op.op_call not in __ops_possible_to_paralleize__:
             is_possible = False
+            print("[DOSA:ParallelizeOpClass:INFO] Operation {} can't be parallelized.".format(op.op_call))
         else:
             att_i = __ops_possible_to_paralleize__.index(op.op_call)
             if with_inputs and not __compatible_with_splitted_input__[att_i]:

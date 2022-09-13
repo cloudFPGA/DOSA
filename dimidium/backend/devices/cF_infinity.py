@@ -58,11 +58,11 @@ class CfPseudoFPGA(DosaBaseHw):
         # cur_role_dsps      = 1080
 
         # FOR EVALUATION OF OSGs
-        cur_role_lutlog    = 111360 * 100   # LUT CLB == LUT as LOGIC (if unused)
-        cur_role_registers = 222720 * 100
-        cur_role_lutmem    = 56160  * 100
-        cur_role_brams     = 360    * 100
-        cur_role_dsps      = 1080   * 100
+        cur_role_lutlog    = 111360 * 1000   # LUT CLB == LUT as LOGIC (if unused)
+        cur_role_registers = 222720 * 1000
+        cur_role_lutmem    = 56160  * 1000
+        cur_role_brams     = 360    * 1000
+        cur_role_dsps      = 1080   * 1000
 
         # MPE, DNA & DBG Cores
         dbg_lutlog    = 7374

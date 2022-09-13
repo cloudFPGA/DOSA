@@ -66,6 +66,14 @@ def init_singleton(config_dict):
     config.utilization.dosa_xi_exception = float(config_dict['utilization']['max_utilization_fpgas']) + \
                                            float(config_dict['utilization']['utilization_exception'])
 
+    config.dse = SimpleNamespace()
+    config.dse.allow_throughput_degradation = bool(config_dict['dse']['allow_throughput_degradation'])
+    config.dse.allowed_throughput_degradation = 0.0
+    if config.dse.allow_throughput_degradation:
+        config.dse.allowed_throughput_degradation = float(config_dict['dse']['allowed_throughput_degradation'])
+        print("[DOSA:config:INFO] Allowing a degredation of the throughput of {} from the targeted throughput."
+              .format(config.dse.allowed_throughput_degradation))
+
     is_initiated = True
     return 0
 

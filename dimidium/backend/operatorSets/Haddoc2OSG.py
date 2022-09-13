@@ -648,6 +648,8 @@ class Haddoc2OSG(BaseOSG):
         if impl_type != BrickImplTypes.STREAM or \
                 (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
             return None
+        if 'global_avg_pool' in op.op_call:
+            return None
         util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('max_pool2d', op.input_bytes, 0,
                                                                            target_hw, consider_paramB=False)
         proc_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], util_dict)

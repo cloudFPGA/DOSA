@@ -899,6 +899,15 @@ class ArchDraft(object):
                 best_engine = lb.get_best_available_contract(filter_impl_type=BrickImplTypes.ENGINE, consider_util=True,
                                                              filter_device=nn.targeted_hw,
                                                              consider_min_iter=lb.req_iter_hz)
+                if best_engine is None and best_stream is None:
+                    # we have a problem...drop min ite requirement
+                    if verbose:
+                        print("[DOSA:archGen:INFO] No contract of Brick {} fulfills min_iter, relaxing requirement."
+                              .format(lb.brick_uuid))
+                    best_stream = lb.get_best_available_contract(filter_impl_type=BrickImplTypes.STREAM, consider_util=True,
+                                                             filter_device=nn.targeted_hw)
+                    best_engine = lb.get_best_available_contract(filter_impl_type=BrickImplTypes.ENGINE, consider_util=True,
+                                                             filter_device=nn.targeted_hw)
                 if best_engine is None:
                     lb.set_impl_type(BrickImplTypes.STREAM)
                     if verbose:
@@ -1064,7 +1073,8 @@ class ArchDraft(object):
                     selected_contract = lb.get_best_sufficient_contract_with_least_resources(
                         consider_switching=consider_switching_first)
                 if selected_contract is None:
-                    print("[DOSA:archGen:ERROR] couldn't find any valid OSG for brick {}. STOP.".format(lb.brick_uuid))
+                    print("[DOSA:archGen:ERROR] couldn't find any valid OSG for brick {} ({}). STOP."
+                          .format(lb.brick_uuid, lb.ext_repr()))
                     # exit(1)
                     return DosaRv.ERROR
                 # lb.set_osg(selected_contract.osg)
@@ -1121,6 +1131,7 @@ class ArchDraft(object):
                     #                 cur_mem_share > dosa_singleton.config.utilization.dosa_xi)):
                     if cur_comp_share > dosa_singleton.config.utilization.dosa_xi or \
                             cur_mem_share > dosa_singleton.config.utilization.dosa_xi:
+                        old_i = i
                         if i == 0:
                             i = 1
                             # to use monolithic nodes as best as possible, more than one op if possible
@@ -1136,11 +1147,14 @@ class ArchDraft(object):
                                     i = j
                                 else:
                                     break
+                        verbose_msg = "local id of new first brick {}, {}"\
+                            .format(old_i, cur_node.bricks[old_i].ext_repr())
                         new_node = cur_node.split_horizontal(i)  # including update_used_perf_util
                         all_new_nodes.append(new_node)
                         if verbose:
                             print("[DOSA:archGen:INFO] Splitting node {} horizontally, ".format(cur_node.node_id) +
-                                  "due to exceeded compute resource budget.")
+                                  "due to exceeded compute resource budget ({})."
+                                  .format(verbose_msg))
                         cur_node = new_node
                         break
             if len(all_new_nodes) > 0:
@@ -1261,8 +1275,8 @@ class ArchDraft(object):
                         p_brick.update_possible_contracts(consider_switching=True, force_no_split=True)
                         selected_contract = p_brick.get_best_sufficient_contract_with_least_resources()
                         if selected_contract is None:
-                            print("[DOSA:archGen:ERROR] couldn't find any valid OSG for PARTIAL brick {}. STOP."
-                                  .format(p_brick.brick_uuid))
+                            print("[DOSA:archGen:ERROR] couldn't find any valid OSG for PARTIAL brick {} ({}). STOP."
+                                  .format(p_brick.brick_uuid, p_brick.ext_repr()))
                             exit(1)
                         p_brick.set_contract(selected_contract)
                         if j == 0:
@@ -1312,7 +1326,8 @@ class ArchDraft(object):
                     if nsf > 1.0:
                         need_to_split = True
                         if nsf > split_factor:
-                            reasons_txt.append('exceeded compute budget')
+                            reasons_txt.append('exceeded compute budget (caused by {} on brick {})'
+                                               .format(repr(lb.selected_contract), repr(lb)))
                             split_factor = nsf
                 if rr != RooflineRegionsOiPlane.IN_HOUSE:
                     ap_contr_iter = nn.roofline.get_max_perf_at_oi_iter_based(lb.selected_contract.oi_iter,
@@ -1726,6 +1741,7 @@ class ArchDraft(object):
             num_nodes += 1
         cluster_dict = {'name': self.name, 'total_flops': self.total_flops,
                         'total_parameter_bytes': self.total_parameters_bytes,
+                        'predicted_performance': self.min_iter_hz,
                         'total_nodes': num_nodes, 'nodes': []}
         for nn in self.node_iter_gen():
             if nn.build_tool is not None:

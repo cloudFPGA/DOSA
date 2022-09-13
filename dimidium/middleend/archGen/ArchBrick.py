@@ -105,7 +105,14 @@ class ArchBrick(object):
         self.compute_parallelization_factor = 1
 
     def __repr__(self):
-        return "ArchBrick({}, {})".format(self.local_brick_id, self.name)
+        if self.brick_uuid is None:
+            return "ArchBrick(l{}, {})".format(self.local_brick_id, self.name)
+        else:
+            return "ArchBrick({}, {})".format(self.brick_uuid, self.name)
+
+    def ext_repr(self):
+        summary = self.as_summary()
+        return "ArchBrick({}, {}, ({}))".format(self.brick_uuid, self.name, summary['op_calls'])
 
     def as_summary(self):
         res = {'name': self.name, 'brick_uuid': self.brick_uuid,
@@ -325,7 +332,8 @@ class ArchBrick(object):
         used_factor, new_ops_dict = parallelize_ops_of_brick(self, factor * self.compute_parallelization_factor,
                                                              with_inputs=with_inputs)
         if used_factor < 0:
-            print("[DOSA:ArchBrick:ERROR] Brick {} is forced to parallelize but can't. STOP.".format(self.brick_uuid))
+            print("[DOSA:ArchBrick:ERROR] Brick {} is forced to parallelize but can't ({}). STOP."
+                  .format(self.brick_uuid, repr(self.ops)))
             raise DosaImpossibleToProceed
             # exit(1)
         self.compute_parallelization_factor = used_factor  # to progress on recursion
