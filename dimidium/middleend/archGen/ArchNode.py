@@ -262,7 +262,7 @@ class ArchNode(object):
         total_mem_per = 0
         total_switching_comp_share = 0
         total_switching_mem_share = 0
-        total_flops_tmp = 0
+        total_flops_tmp = 0.0
         all_flops_valid = True
         cur_osg = None
         total_tensor_store = 0
@@ -280,7 +280,7 @@ class ArchNode(object):
                 if lb.iter_hz < min_iter_hz_impl:
                     min_iter_hz_impl = lb.iter_hz
                 if lb.used_flops > 0:
-                    total_flops_tmp += lb.used_flops
+                    total_flops_tmp += float(lb.used_flops)
                     total_tensor_store += lb.local_pipeline_store
                 else:
                     all_flops_valid = False
