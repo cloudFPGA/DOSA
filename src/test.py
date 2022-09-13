@@ -19,5 +19,5 @@ def test(model, test_loader):
             correct += (predicted == labels).sum().item()
             del images, labels, outputs
 
-    print('Accuracy of the network on the {} test images: {} %'.format(len(test_loader), 100 * correct / total))
+    print('Accuracy of the network on the {} test images: {} %'.format(total, 100 * correct / total))
 
