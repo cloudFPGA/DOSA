@@ -9,7 +9,7 @@ class TFC(nn.Sequential):
             nn.Dropout(dropout),
 
             nn.Linear(in_features, hidden1),
-            nn.BatchNorm1d(in_features),
+            nn.BatchNorm1d(hidden1),
             nn.Dropout(p=dropout),
             nn.ReLU(),
 
