@@ -58,11 +58,20 @@ class CfPseudoFPGA(DosaBaseHw):
         # cur_role_dsps      = 1080
 
         # FOR EVALUATION OF OSGs
-        cur_role_lutlog    = 111360 * 1000   # LUT CLB == LUT as LOGIC (if unused)
-        cur_role_registers = 222720 * 1000
-        cur_role_lutmem    = 56160  * 1000
-        cur_role_brams     = 360    * 1000
-        cur_role_dsps      = 1080   * 1000
+        # cur_role_lutlog    = 111360 * 100   # LUT CLB == LUT as LOGIC (if unused)
+        # cur_role_registers = 222720 * 100
+        # cur_role_lutmem    = 56160  * 100
+        # cur_role_brams     = 360    * 100
+        # cur_role_dsps      = 1080   * 100
+
+        # MIMIC VU37P
+        # https://docs.xilinx.com/v/u/en-US/ds890-ultrascale-overview
+        cur_role_lutlog    = 1303680 * 0.8 * 1000  # LUT CLB == LUT as LOGIC (if unused)
+        cur_role_registers = 2607360 * 0.8 * 1000
+        cur_role_lutmem    = 687191  * 0.8 * 1000  # calculating with 56bit / lutmem
+        cur_role_brams     = (2016 + 960*8) * 0.8 * 1000   # bram + uram, where uram has 8times the capacity
+        cur_role_dsps      = 9024   * 0.8 * 1000
+
 
         # MPE, DNA & DBG Cores
         dbg_lutlog    = 7374
@@ -124,12 +133,12 @@ class CfPseudoFPGA(DosaBaseHw):
         cF_mantle_dsp48_gflops = 938.0 * config_dosa_flops_per_dsp_xilinx_fpgas * freq_fpga_ghz
 
         # DRAM bandwidth
-        self.b_s_fpga_ddr_gBs = 10.0  # 10GB/s (one memory bank of FMKU60)
+        self.b_s_fpga_ddr_gBs = 10.0 * 10 # 10GB/s (one memory bank of FMKU60)
 
         # b_s_mantle_ddr_gBs = 75.5/8  # based on Xilinx measurements
 
         # BRAM bandwidth
-        fpga_brams = 1080
+        # fpga_brams = 1080
         # big_role_brams = 351
         # role6_brams = 348
         self.bram = role8_brams
@@ -158,7 +167,7 @@ class CfPseudoFPGA(DosaBaseHw):
         # b_s_mantle_lutram_gBs = (small_role_lutram_available_B / (1/freq_fpga)) / gigaU
 
         # network bandwidth
-        self.b_s_fpga_eth_gBs = 10.0 / 8.0  # 10Gbe
+        self.b_s_fpga_eth_gBs = (10.0 / 8.0) * 10  # 10Gbe
         # b_s_mantle_eth_gBs = 9.87 / 8.0
 
         # utilization

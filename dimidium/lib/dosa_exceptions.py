@@ -22,3 +22,7 @@ class DosaChangeArchType(Exception):
     pass
 
 
+class DosaConstraintFail(Exception):
+    pass
+
+

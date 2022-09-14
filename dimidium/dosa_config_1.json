@@ -1,0 +1,48 @@
+{
+  "input_latency": 0,
+  "output_latency": 0,
+  "build" : {
+    "create_rank_0_for_io": true,
+    "comm_message_interleaving": 2,
+    "max_buffer_interleaving": 46080,
+    "maximum_pipeline_store_per_node": 5,
+    "engine_saving_threshold": 1.5,
+    "insert_debug_cores": true,
+    "generate_testbenchs": 0,
+    "parallel_builds_tmux": 3,
+    "start_from_clean_build": false
+  },
+  "dtypes" : {
+    "default_flops_conv_factor": 1.0,
+    "flops_base_type": "float32",
+    "flops_base_str": "FLOPS/s for float32",
+    "flops_per_dsp_xilinx_fpgas": 0.5
+  },
+  "dosa_learning": {
+    "kappa": 1.0,
+    "lambda" : {
+      "fallback": 1.0,
+      "float32": 1.0,
+      "float16": 1.0,
+      "int32": 1.0,
+      "int16": 1.0,
+      "uint8": 1.0,
+      "int8": 1.0,
+      "double": 1.0
+    },
+    "mu": {
+      "compute": 1.1,
+      "memory": 1.3
+    }
+  },
+  "utilization": {
+    "xilinx_luts_to_dsp_factor": 578,
+    "xilinx_lutram_to_bram_factor": 593750,
+    "max_utilization_fpgas": 0.99,
+    "utilization_exception": 0.0
+  },
+  "dse": {
+    "allow_throughput_degradation": true,
+    "allowed_throughput_degradation": 0.1
+  }
+}

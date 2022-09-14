@@ -9,6 +9,7 @@
 #  *        Class of implementation contracts offered by OSGs within a Brick
 #  *
 #  *
+import copy
 import json
 
 import dimidium.lib.singleton as dosa_singleton
@@ -203,6 +204,19 @@ class BrickContract(DosaContract):
             wrapper_util_detail['INFO'] = "no wrapper present"
         res['wrapper_utility_detail'] = wrapper_util_detail
         return res
+
+    def copy(self):
+        """fast way to return an independent fresh copy (not all lists are copied)"""
+        nbc = copy.copy(self)
+        if self.detailed_FPGA_component_share is not None:
+            nbc.detailed_FPGA_component_share = self.detailed_FPGA_component_share.copy()
+        if self.detailed_FPGA_wrapper_share is not None:
+            nbc.detailed_FPGA_wrapper_share = self.detailed_FPGA_wrapper_share.copy()
+        nbc.op_contracts = []
+        for opc in self.op_contracts:
+            nopc = copy.copy(opc)
+            nbc.op_contracts.append(nopc)
+        return nbc
 
     def __str__(self):
         ret = self.as_dict()

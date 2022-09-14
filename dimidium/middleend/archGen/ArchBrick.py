@@ -183,7 +183,8 @@ class ArchBrick(object):
             nab.available_osgs.append(nposg)
         nab.available_contracts = []
         for poosg in self.available_contracts:
-            nposg = copy.copy(poosg)
+            # nposg = copy.copy(poosg)
+            nposg = poosg.copy()
             nab.available_contracts.append(nposg)
         nab.still_possible_contracts = []
         nab.still_possible_osgs = []
@@ -693,7 +694,7 @@ class ArchBrick(object):
         self.req_util_comp = share_comp
         self.req_util_mem = share_mem
         self.iter_hz = tmp_best.iter_hz
-        self.calc_flops = float(self.iter_hz * self.flops)
+        self.calc_flops = float(float(self.iter_hz) * float(self.flops))
         if self.selected_impl_type == BrickImplTypes.STREAM:
             self.req_util_mem_stream = share_mem
             self.req_util_comp_stream = share_comp

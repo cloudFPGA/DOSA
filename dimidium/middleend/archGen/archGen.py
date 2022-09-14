@@ -31,7 +31,7 @@ from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane
 from dimidium.middleend.archGen.ArchFilter import OiThresholdFilter, OpCallSameDimFilter
 from dimidium.middleend.archGen.archOpt import merge_bricks_pass, delete_ops_pass
-from dimidium.lib.dosa_exceptions import DosaImpossibleToProceed, DosaInvalidAction
+from dimidium.lib.dosa_exceptions import DosaImpossibleToProceed, DosaInvalidAction, DosaConstraintFail
 
 
 def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices,
@@ -444,7 +444,7 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
             try:
                 rv = tmp_draft.legalize(verbose=verbose, consider_switching_first=consider_switching_first,
                                         contract_look_ahead=contract_look_ahead)
-            except DosaImpossibleToProceed:
+            except (DosaImpossibleToProceed, DosaConstraintFail):
                 print("[DOSA:archGen:WARNING] Legalization stopped without result.")
                 continue
             if rv != DosaRv.OK:
@@ -472,7 +472,10 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
         print("[DOSA:archGen:INFO] choosing draft {}, due to lowest brick count.".format(best_version_i))
     else:
         best_version_i = predicted_iter_list.index(max(predicted_iter_list))
-        print("[DOSA:archGen:INFO] choosing draft {}, due to highest iteration/s prediction.".format(best_version_i))
+        if len(predicted_iter_list) > 1:
+            print("[DOSA:archGen:INFO] choosing draft {}, due to highest iteration/s prediction.".format(best_version_i))
+        else:
+            print("[DOSA:archGen:INFO] choosing draft {}.".format(best_version_i))
     best_draft = draft_list[best_version_i]
     # TODO: add additional cost factor to devices? E.g. if 3 small nodes are cheaper then 1 big one?
     draft = best_draft

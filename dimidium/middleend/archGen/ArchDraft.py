@@ -28,7 +28,7 @@ from dimidium.backend.devices.builtin import vCPU_x86
 from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane, get_rightmost_roofline_region
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
 from dimidium.backend.commLibs.BaseCommLib import placeholderCommLib
-from dimidium.lib.dosa_exceptions import DosaChangeArchType
+from dimidium.lib.dosa_exceptions import DosaChangeArchType, DosaConstraintFail
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
@@ -1105,9 +1105,10 @@ class ArchDraft(object):
             all_new_nodes = []
             cur_node = nn
             # while cur_node.used_comp_util_share > 1:
-            while cur_node.over_utilized_node \
+            while (cur_node.over_utilized_node \
                     or cur_node.used_comp_util_share > dosa_singleton.config.utilization.dosa_xi \
-                    or cur_node.used_mem_util_share > dosa_singleton.config.utilization.dosa_xi:
+                    or cur_node.used_mem_util_share > dosa_singleton.config.utilization.dosa_xi) \
+                    and cur_node.bid_cnt > 1:
                 cur_comp_share = 0
                 cur_mem_share = 0
                 cur_osg = None
@@ -1481,8 +1482,10 @@ class ArchDraft(object):
             if nn.used_comp_util_share > 1:
                 print("[DOSA:archGen:WARNING] node {} has {} compute utilization...implementation may fail"
                       .format(nn.node_id, nn.used_comp_util_share))
-            assert nn.used_comp_util_share < 1.2
-            assert nn.used_mem_util_share < 1.2
+            # assert nn.used_comp_util_share < 1.2
+            # assert nn.used_mem_util_share < 1.2
+            if nn.used_comp_util_share > 1.2 or nn.used_mem_util_share > 1.2:
+                raise DosaConstraintFail
         self.total_flops = 0
         self.total_parameters_bytes = 0
         for bb in self.brick_iter_gen():
@@ -1739,9 +1742,9 @@ class ArchDraft(object):
         num_nodes = self.get_total_nodes_cnt()
         if self.substract_node_0:
             num_nodes += 1
-        cluster_dict = {'name': self.name, 'total_flops': self.total_flops,
-                        'total_parameter_bytes': self.total_parameters_bytes,
-                        'predicted_performance': self.min_iter_hz,
+        cluster_dict = {'name': self.name, 'total_flops': float(self.total_flops),
+                        'total_parameter_bytes': int(self.total_parameters_bytes),
+                        'predicted_performance': float(self.min_iter_hz),
                         'total_nodes': num_nodes, 'nodes': []}
         for nn in self.node_iter_gen():
             if nn.build_tool is not None:
