@@ -2,6 +2,9 @@ import torch
 
 
 def test(model, test_loader):
+    # switch to evaluate mode
+    model.eval()
+
     # run on GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
