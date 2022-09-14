@@ -49,18 +49,18 @@ class Trainer(object):
                 torch.cuda.empty_cache()
                 gc.collect()
             
-            print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch + 1, epochs, loss.item()))
+            print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch + 1, epochs, loss.item()), flush=True)
             self.losses.append(loss.item())
 
             if epoch % save_freq == 0:
                 self.__checkpoint__(epoch)
 
         self.__checkpoint__(epochs-1)
-        self.__validate__()
+        self.validate()
 
         return self.losses
 
-    def __validate__(self):
+    def validate(self):
         self.model.eval()
         with torch.no_grad():
             correct = 0
@@ -74,7 +74,7 @@ class Trainer(object):
                 correct += (predicted == labels).sum().item()
                 del images, labels, outputs
 
-            print('Accuracy for the network on the {} validation images: {} %'.format(5000, 100 * correct / total))
+            print('Accuracy for the network on the {} validation images: {} %'.format(5000, 100 * correct / total), flush=True)
 
     def __checkpoint__(self, epoch):
         torch.save({
