@@ -961,7 +961,9 @@ class ArchDraft(object):
                     lb.sort_contracts(by_utility=False, previous_contract=prev_contract)
                 # lb.update_possible_contracts(consider_switching=True, assume_osg=last_osg)
                 try:
-                    lb.update_possible_contracts(consider_switching=True, assume_osg=assume_osg)
+                    # TODO: how to decide for another device later?
+                    lb.update_possible_contracts(consider_switching=True, assume_osg=assume_osg,
+                                                 assume_device=nn.targeted_hw)
                 except DosaChangeArchType as int_e:
                     if verbose:
                         print("[DOSA:archGen:INFO] Setting ImplType of Brick {} to STREAM,".format(lb.brick_uuid) +
@@ -975,7 +977,8 @@ class ArchDraft(object):
                     else:
                         lb.sort_contracts(by_utility=False, previous_contract=prev_contract)
                     # now, without a catch..
-                    lb.update_possible_contracts(consider_switching=True, assume_osg=assume_osg)
+                    lb.update_possible_contracts(consider_switching=True, assume_osg=assume_osg,
+                                                 assume_device=nn.targeted_hw)
 
                 # TODO...how to best approx switching in the beginning?
                 # lb.update_possible_contracts(consider_switching=consider_switching_first)
@@ -998,14 +1001,15 @@ class ArchDraft(object):
                                 nb = nn.bricks[lac]
                                 # in look ahead mode...catching
                                 try:
-                                    nb.update_possible_contracts(consider_switching=False)
+                                    nb.update_possible_contracts(consider_switching=False, assume_device=nn.targeted_hw)
                                 except DosaChangeArchType as int_e:
                                     # since we are in look-ahead mode, we need to modify the impl type in order to take
                                     # advantage of look-ahead...
                                     if len(int_e.args) >= 1 and int_e.args[0] == BrickImplTypes.ENGINE:
                                         nb.set_impl_type(BrickImplTypes.STREAM)
                                         try:
-                                            nb.update_possible_contracts(consider_switching=False)
+                                            nb.update_possible_contracts(consider_switching=False,
+                                                                         assume_device=nn.targeted_hw)
                                         except DosaChangeArchType as int_e:
                                             # again...we stop
                                             osg_possible = False
@@ -1095,7 +1099,7 @@ class ArchDraft(object):
         #  also consider in contract selection the number of OSGs if node-numer is equal?
         #  consider required iter-hz
         merge_engine_bricks_filter = MergeBrickContrFilter()
-        merge_bricks_pass(self, merge_engine_bricks_filter)
+        merge_bricks_pass(self, merge_engine_bricks_filter, verbose=verbose)
         # 2. split nodes based on selected contracts
         orig_nodes_handles = []
         for nn in self.node_iter_gen():
@@ -1354,6 +1358,10 @@ class ArchDraft(object):
                 split_factor_up = math.ceil(split_factor)
                 if split_factor_up < 2:
                     split_factor_up = 2
+                if split_factor_up > dosa_singleton.config.dse.max_vertical_split:
+                    print("[DOSA:archGen:ERROR] Vertically split factor of {} is above limit {}."
+                          .format(split_factor_up, dosa_singleton.config.dse.max_vertical_split))
+                    raise DosaConstraintFail
                 nn.split_vertical(factor=split_factor_up)  # including update of used perf
                 if verbose:
                     print("[DOSA:archGen:INFO] Parallelize node {} vertically with factor {}, due to ({})."
@@ -1436,6 +1444,7 @@ class ArchDraft(object):
                                                                                                    nn.node_id))
                             return DosaRv.ERROR
         # ensure, all HW is decided and select them
+        # TODO: obsolte, since we filter for targeted_hw?
         selected_hw_types = []
         for nn in self.node_iter_gen():
             assert nn.selected_hw_type != placeholderHw

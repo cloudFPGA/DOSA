@@ -73,12 +73,12 @@ class VtaOSG(BaseOSG):
             dtype_str = repr(op.used_dtype)
 
         # utilization costs are constant
-        util_dict = {}
-        util_dict['LUTLOG'] = self.util_db[self.used_config]['LUTLOG']
-        util_dict['LUTMEM'] = self.util_db[self.used_config]['LUTMEM']
-        util_dict['Registers'] = self.util_db[self.used_config]['Registers']
-        util_dict['BRAM'] = self.util_db[self.used_config]['BRAM']
-        util_dict['DSPs'] = self.util_db[self.used_config]['DSPs']
+        base_dict = {}
+        base_dict['LUTLOG'] = self.util_db[self.used_config]['LUTLOG']
+        base_dict['LUTMEM'] = self.util_db[self.used_config]['LUTMEM']
+        base_dict['Registers'] = self.util_db[self.used_config]['Registers']
+        base_dict['BRAM'] = self.util_db[self.used_config]['BRAM']
+        base_dict['DSPs'] = self.util_db[self.used_config]['DSPs']
         peak_flops = self.util_db[self.used_config]['peak_flops']
         peak_bw_Bs = self.util_db[self.used_config]['peak_bw_Bs']
         base_dtype = self.util_db[self.used_config]['dtype']
@@ -94,9 +94,9 @@ class VtaOSG(BaseOSG):
         adapted_peak_perf = peak_flops * perf_adapt_factor * self.peak_performance_factor
         max_perf_flops = rf_attainable_performance(op.oi_engine, adapted_peak_perf, peak_bw_Bs)
 
-        util_dict['latency_lim_per_tensor_cycl'] = 'UNKNOWN'
+        base_dict['latency_lim_per_tensor_cycl'] = 'UNKNOWN'
         if custom_latency is None:
-            if op.flops == 0 or max_perf_flops < 0.001:
+            if op.flops == 0 or max_perf_flops < 0.000001:
                 iter_hz = adapted_peak_perf
             else:
                 iter_hz = max_perf_flops / op.flops
@@ -105,27 +105,36 @@ class VtaOSG(BaseOSG):
             iter_hz = 1 / (latency_ns * units.nanoU)
 
         wrapper_dict = {'LUTLOG': 0.0, 'LUTMEM': 0.0, 'Registers': 0.0, 'BRAM': 0.0, 'DSPs': 0.0}
+        util_dict = {'LUTLOG': 0.0, 'LUTMEM': 0.0, 'Registers': 0.0, 'BRAM': 0.0, 'DSPs': 0.0}
 
         fpga_utility = target_hw.get_resource_dict()['FPGA_utility']
-        proc_share = get_share_of_FPGA_resources(fpga_utility, util_dict)
+        base_share = get_share_of_FPGA_resources(fpga_utility, base_dict)
         wrapper_share = wrapper_dict
+        proc_share = util_dict
         # proc_comp_share = (proc_share['LUTLOG'] + proc_share['DSPs']) / 2
-        proc_comp_share = proc_share['LUTLOG']  # we know we hardly use DSPs..
+        base_comp_share = base_share['LUTLOG']  # we know we hardly use DSPs..
         # proc_mem_share = (proc_share['LUTMEM'] + proc_share['Registers'] + proc_share['BRAM']) / 3
-        proc_mem_share = max(proc_share['LUTMEM'], proc_share['Registers'], proc_share['BRAM'])
+        base_mem_share = max(base_share['LUTMEM'], base_share['Registers'], base_share['BRAM'])
+        proc_comp_share = 0
+        proc_mem_share = 0
         wrapper_comp_share = 0
         wrapper_mem_share = 0
         offer = OperationContract(op, target_hw, self, BrickImplTypes.ENGINE, iter_hz, proc_comp_share, proc_mem_share,
-                                  'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
+                                  'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share,
+                                  base_comp_share, base_mem_share, base_share, adapted_peak_perf, peak_bw_Bs)
         return offer
 
     def _get_dyn_costs(self, contract, add_brick, target_hw):
-        min_iter_hz = contract.iter_hz
+        # rough calculation
+        combined_iter_hz = contract.iter_hz
+        num_ops = contract.num_ops
         for op in add_brick.local_op_iter_gen():
+            num_ops += 1
             op_c = self.annotate_op(op, target_hw, BrickImplTypes.ENGINE, dont_annotate=True)
-            if op_c.iter_hz < min_iter_hz:
-                min_iter_hz = op_c.iter_hz
-        return 0.0, 0.0, min_iter_hz
+            combined_iter_hz += op_c.iter_hz
+        avg_iter_hz = combined_iter_hz/num_ops  # to get a rough estimate of "iter_hz" roof
+        max_iter_hz = avg_iter_hz/num_ops  # single threaded mode
+        return 0.0, 0.0, max_iter_hz
 
     def init(self, dosa_hw_classes_dict, priority_internal):
         with open(__db_path__, 'r') as infile:

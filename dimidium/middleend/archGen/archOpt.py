@@ -56,7 +56,7 @@ def append_bricks_pass(input_draft, arch_filter: ArchFilter, work_on_copy=False)
     return arch_draft
 
 
-def merge_bricks_pass(input_draft, arch_filter: ArchFilter, work_on_copy=False):
+def merge_bricks_pass(input_draft, arch_filter: ArchFilter, work_on_copy=False, verbose=False):
     """merge brick to previous bricks"""
     if work_on_copy:
         # without is faster
@@ -75,10 +75,19 @@ def merge_bricks_pass(input_draft, arch_filter: ArchFilter, work_on_copy=False):
         # bb = nn.bricks[bi]
         bb = original_bb_handles[bi]
         if arch_filter.match_brick(bb) and prev_bb is not None:
+            if verbose:
+                print("[DOSA:archOpt:INFO] Merging brick {} into previous brick {}.".format(repr(bb), repr(prev_bb)))
             for op in bb.local_op_iter_gen():
                 op.original_brick_tvm_handle = bb.tvm_node
                 prev_bb.add_arch_op(op, update_counters=True)
             bis_to_del.append(bi)
+            # is done in arch_op
+            # if prev_bb.selected_contract is not None:
+            #     # updating also contracts
+            #     sosg = prev_bb.selected_contract.osg
+            #     prev_bb.available_contracts = []
+            #     sosg.annotate_brick(prev_bb, prev_bb.selected_contract.device)
+            #     prev_bb.selected_contract = prev_bb.available_contracts[0]
         else:
             prev_bb = bb
     bis_to_del.reverse()

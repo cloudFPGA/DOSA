@@ -137,9 +137,9 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     best_draft = find_best_draft(annotated_draft, verbose=verbose)
     find_best_end = time.time()
 
-    check_annot_start_2 = time.time()
-    still_valid = check_annotations(best_draft)
-    check_annot_end_2 = time.time()
+    # check_annot_start_2 = time.time()
+    # still_valid = check_annotations(best_draft)
+    # check_annot_end_2 = time.time()
     if not still_valid:
         print("[DOSA:archGen:ERROR] Draft {} is not valid.".format(annotated_draft.name))
         exit(1)
@@ -206,7 +206,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
                      'creating_annotations_time_s': annotating_draft_end - annotating_draft_start,
                      'check_annotations_time_1_s': check_annot_end_1 - check_annot_start_1,
                      'find_best_draft_time_s': find_best_end - find_best_start,
-                     'check_annotations_time_2_s': check_annot_end_2 - check_annot_start_2,
+                     # 'check_annotations_time_2_s': check_annot_end_2 - check_annot_start_2,
                      'build_total_time_s': build_stop - build_start}
                      #, 'synth_total_time_s': synth_stop - synth_start}
         ret['profiling'] = prof_dict
@@ -467,15 +467,21 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
         best_version_i = node_count_list.index(min(node_count_list))
         print("[DOSA:archGen:INFO] choosing draft {}, due to lowest node count.".format(best_version_i))
     # TODO: switch criteria?
-    elif min(max_brick_count_list) != max(max_brick_count_list):
+    elif min(predicted_iter_list) != max(predicted_iter_list):
+        best_version_i = predicted_iter_list.index(max(predicted_iter_list))
+        print("[DOSA:archGen:INFO] choosing draft {}, due to highest iteration/s prediction.".format(best_version_i))
+    else:
         best_version_i = max_brick_count_list.index(min(max_brick_count_list))
         print("[DOSA:archGen:INFO] choosing draft {}, due to lowest brick count.".format(best_version_i))
-    else:
-        best_version_i = predicted_iter_list.index(max(predicted_iter_list))
-        if len(predicted_iter_list) > 1:
-            print("[DOSA:archGen:INFO] choosing draft {}, due to highest iteration/s prediction.".format(best_version_i))
-        else:
-            print("[DOSA:archGen:INFO] choosing draft {}.".format(best_version_i))
+    # elif min(max_brick_count_list) != max(max_brick_count_list):
+    #     best_version_i = max_brick_count_list.index(min(max_brick_count_list))
+    #     print("[DOSA:archGen:INFO] choosing draft {}, due to lowest brick count.".format(best_version_i))
+    # else:
+    #     best_version_i = predicted_iter_list.index(max(predicted_iter_list))
+    #     if len(predicted_iter_list) > 1:
+    #         print("[DOSA:archGen:INFO] choosing draft {}, due to highest iteration/s prediction.".format(best_version_i))
+    #     else:
+    #         print("[DOSA:archGen:INFO] choosing draft {}.".format(best_version_i))
     best_draft = draft_list[best_version_i]
     # TODO: add additional cost factor to devices? E.g. if 3 small nodes are cheaper then 1 big one?
     draft = best_draft

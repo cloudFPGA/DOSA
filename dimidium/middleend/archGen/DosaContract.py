@@ -19,9 +19,10 @@ class DosaContract(metaclass=abc.ABCMeta):
         self.device = device
         self.osg = osg
         self.impl_type = impl_type
-        self.iter_hz = iter_hz
+        self.iter_hz = float(iter_hz)
         self.comp_util_share = comp_util_share
         self.mem_util_share = mem_util_share
         self.oi_iter = -1
+        self.num_ops = -1
 
 

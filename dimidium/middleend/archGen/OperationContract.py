@@ -19,9 +19,12 @@ class OperationContract(DosaContract):
     #              iter_hz: float, comp_util_share: float, mem_util_share: float, internal_id: str):
     def __init__(self, op, device, osg, impl_type, iter_hz: float, comp_util_share: float, mem_util_share: float,
                  internal_id: str, switching_comp_share: float, switching_mem_share: float, detailed_FPGA_res=None,
-                 detailed_FPGA_wrapper=None):
+                 detailed_FPGA_wrapper=None,
+                 engine_base_comp_share=-1, engine_base_mem_share=-1, detailed_FPGA_engine_base=None,
+                 engine_max_ops=-1, engine_limiting_bw_Bs=-1):
         super().__init__(device, osg, impl_type, iter_hz, comp_util_share, mem_util_share)
         self.op = op
+        self.num_ops = 1
         # self.device = device
         # self.osg = osg
         # self.impl_type = impl_type
@@ -38,6 +41,11 @@ class OperationContract(DosaContract):
         self.switching_mem_share = switching_mem_share
         self.detailed_FPGA_component_share = detailed_FPGA_res
         self.detailed_FPGA_wrapper_share = detailed_FPGA_wrapper
+        self.detailed_FPGA_engine_base_share = detailed_FPGA_engine_base
+        self.engine_base_comp_share = engine_base_comp_share
+        self.engine_base_mem_share = engine_base_mem_share
+        self.engine_max_ops = engine_max_ops
+        self.engine_limiting_bw_Bs = engine_limiting_bw_Bs
         # TODO: add wrapper_latency? add 1-batch latency?
 
     def __repr__(self):

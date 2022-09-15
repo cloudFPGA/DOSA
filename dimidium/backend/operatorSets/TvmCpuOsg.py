@@ -9,7 +9,7 @@
 #  *        DOSA OSG to execute TVM operations on CPU
 #  *
 #  *
-
+from dimidium.lib import units
 from dimidium.lib.util import deep_update, BrickImplTypes
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
@@ -38,8 +38,12 @@ class TvmCpuOsg(BaseOSG):
     def _get_contr_offer(self, op, target_hw, impl_type):
         if impl_type != BrickImplTypes.ENGINE:
             return None
+
+        limit_bw_Bs = target_hw.get_performance_dict()['bw_dram_gBs'] * units.gigaU
+        limit_flops = target_hw.get_performance_dict()['cpu_gflops'] * units.gigaU
         placeholder_contr = OperationContract(op, target_hw, self, impl_type, 1, 1.0, 1.0,
-                                              "not-yet-implemented", 0.0, 0.0)
+                                              "not-yet-implemented", 0.0, 0.0,
+                                              engine_limiting_bw_Bs=limit_bw_Bs, engine_max_ops=limit_flops)
         return placeholder_contr
 
     def build_block(self, arch_block, build_tool, selected_contracts):

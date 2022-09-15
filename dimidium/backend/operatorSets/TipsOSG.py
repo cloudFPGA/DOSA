@@ -67,6 +67,7 @@ class TipsOSG(BaseOSG):
         self.hls_params.accum_alias_addr = 'ACCUM_ALIAS_ADDRESS'
         self.hls_params.no_addr_alias = 'NO_ADDRESS_ALIAS'
         self._general_max_input_func = lambda op: (2048*8)/get_bitwidth_of_DosaDtype(op.used_dtype)
+        self.base_dict = {}
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
@@ -84,6 +85,13 @@ class TipsOSG(BaseOSG):
             compl_list.append(e)
         self.avg_util_dict = get_avg_util_dict_bytes_based(compl_list, consider_paramB=True, consider_ops_num=True,
                                                            always_consider_input=False)
+        bytes_total = 64 # as base
+        self.base_dict['LUTLOG'] = self.avg_util_dict['LUTLOG'] * bytes_total
+        self.base_dict['LUTMEM'] = self.avg_util_dict['LUTMEM'] * bytes_total
+        self.base_dict['Registers'] = self.avg_util_dict['Registers'] * bytes_total
+        self.base_dict['BRAM'] = self.avg_util_dict['BRAM'] * bytes_total
+        self.base_dict['DSPs'] = self.avg_util_dict['DSPs'] * bytes_total
+        # self.base_dict['latency_lim_per_tensor_cycl'] = self.avg_util_dict['latency_lim_per_tensor_cycl'] * bytes_total
 
     def _get_impl_prediction(self, op, target_hw, impl_type, consider_paramB=False, fallback_ops=None,
                              custom_byte_factor=1.0, custom_latency=None, max_param_dim=-1, max_input_dim=-1):
@@ -150,11 +158,17 @@ class TipsOSG(BaseOSG):
             # bytes_total += op.parameter_bytes
             bytes_total = op.parameter_bytes
         bytes_total *= custom_byte_factor
-        util_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
-        util_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
-        util_dict['Registers'] = res_dict['Registers'] * bytes_total
-        util_dict['BRAM'] = res_dict['BRAM'] * bytes_total
-        util_dict['DSPs'] = res_dict['DSPs'] * bytes_total
+        # util_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
+        # util_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
+        # util_dict['Registers'] = res_dict['Registers'] * bytes_total
+        # util_dict['BRAM'] = res_dict['BRAM'] * bytes_total
+        # util_dict['DSPs'] = res_dict['DSPs'] * bytes_total
+        # substract the basis, but not getting negative
+        util_dict['LUTLOG'] = max(res_dict['LUTLOG'] * bytes_total - self.base_dict['LUTLOG'], 0)
+        util_dict['LUTMEM'] = max(res_dict['LUTMEM'] * bytes_total - self.base_dict['LUTMEM'], 0)
+        util_dict['Registers'] = max(res_dict['Registers'] * bytes_total - self.base_dict['Registers'], 0)
+        util_dict['BRAM'] = max(res_dict['BRAM'] * bytes_total - self.base_dict['BRAM'], 0)
+        util_dict['DSPs'] = max(res_dict['DSPs'] * bytes_total - self.base_dict['DSPs'], 0)
         util_dict['latency_lim_per_tensor_cycl'] = res_dict['latency_lim_per_tensor_cycl'] \
                                                    * op.input_bytes
                                                     # * op.parameter_bytes
@@ -175,14 +189,22 @@ class TipsOSG(BaseOSG):
         # wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
         # wrapper_mem_share = max(wrapper_share['LUTMEM'], wrapper_share['Registers'], wrapper_share['BRAM'])
         wrapper_mem_share = 0
+        base_share = get_share_of_FPGA_resources(fpga_utility, self.base_dict)
+        base_comp_share = base_share['LUTLOG']  # we know we hardly use DSPs..
+        base_mem_share = max(base_share['LUTMEM'], base_share['Registers'], base_share['BRAM'])
+        limit_bw_Bs = target_hw.get_performance_dict()['bw_dram_gBs'] * units.gigaU
+
         if custom_latency is None:
             latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
             iter_hz = 1 / (latency_ns * units.nanoU)
         else:
             latency_ns = custom_latency * target_hw.get_performance_dict()['fpga_clk_ns']
             iter_hz = 1 / (latency_ns * units.nanoU)
+        adapted_peak_performance = op.flops * iter_hz
+
         offer = OperationContract(op, target_hw, self, BrickImplTypes.ENGINE, iter_hz, proc_comp_share, proc_mem_share,
-                                  'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
+                                  'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share,
+                                  base_comp_share, base_mem_share, base_share, adapted_peak_performance, limit_bw_Bs)
         return offer
 
     def _get_dyn_costs(self, contract, add_brick, target_hw):

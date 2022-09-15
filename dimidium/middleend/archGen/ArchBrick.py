@@ -260,11 +260,13 @@ class ArchBrick(object):
             self.parameter_bytes += op.parameter_bytes
             self.flops += op.flops
             self.output_bytes = op.output_bytes
-            self.oi_engine = (self.input_bytes + self.parameter_bytes) / self.flops
-            self.oi_stream = self.input_bytes / self.flops
+            self.oi_engine = self.flops / (self.input_bytes + self.parameter_bytes)
+            self.oi_stream = self.flops / self.input_bytes
         already_considered_contr = []
         for opc in op.possible_contracts:
-            for my_contr in self.available_contracts:
+            for my_contr in self.available_contracts + [self.selected_contract]:
+                if my_contr is None:
+                    continue
                 # if my_contr.osg_intern_id == opc.osg_intern_id and \
                 #         my_contr.osg == opc.osg and my_contr.impl_type == opc.impl_type and \
                 #         my_contr.device == opc.device:
@@ -496,8 +498,9 @@ class ArchBrick(object):
                 new_contr.mem_util_share = new_mem_util
                 new_contr.iter_hz = new_iter_hz
                 new_contr.is_contract_to_be_merged = True
-                self.available_contracts.insert(0, new_contr)
-                self.still_possible_contracts.insert(0, new_contr)
+                if new_contr.iter_hz >= self.req_iter_hz:
+                    self.available_contracts.insert(0, new_contr)
+                    self.still_possible_contracts.insert(0, new_contr)
 
     def get_best_available_contract(self, filter_impl_type=None, filter_osg=None, filter_device=None,
                                     consider_util=False, skip_entries=0, consider_min_iter=None):
@@ -536,7 +539,8 @@ class ArchBrick(object):
                     selected_contract = next_poc
         return selected_contract
 
-    def update_possible_contracts(self, consider_switching=False, assume_osg=None, force_no_split=False):
+    def update_possible_contracts(self, consider_switching=False, assume_osg=None, force_no_split=False,
+                                  assume_device=None):
         still_possible = []
         within_util_exception = []
         fitting_type = []
@@ -545,6 +549,9 @@ class ArchBrick(object):
         for c in self.available_contracts:
             if self.selected_impl_type != BrickImplTypes.UNDECIDED and c.impl_type != self.selected_impl_type:
                 considered_but_not_possible.append((c, 'wrong type'))
+                continue
+            if assume_device is not None and c.device != assume_device:
+                considered_but_not_possible.append((c, 'wrong target device'))
                 continue
             if len(c.op_contracts) != len(self.ops):
                 considered_but_not_possible.append((c, 'incompatible operations'))

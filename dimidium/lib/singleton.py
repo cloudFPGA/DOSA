@@ -74,6 +74,8 @@ def init_singleton(config_dict):
         print("[DOSA:config:INFO] Allowing a degredation of the throughput of {} from the targeted throughput."
               .format(config.dse.allowed_throughput_degradation))
 
+    config.dse.max_vertical_split = 500
+
     is_initiated = True
     return 0
 
