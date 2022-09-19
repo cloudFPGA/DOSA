@@ -5,12 +5,13 @@ import torch
 class Trainer(object):
     checkpoint_path = '.checkpoint.pt'
 
-    def __init__(self, model, train_loader, valid_loader, criterion, optimizer):
+    def __init__(self, model, train_loader, valid_loader, criterion, optimizer, scheduler=None):
         self.model = model
         self.train_loader = train_loader
         self.valid_loader = valid_loader
         self.criterion = criterion
         self.optimizer = optimizer
+        self.scheduler = scheduler
         self.losses = []
         self.epoch = 0
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -23,7 +24,7 @@ class Trainer(object):
         self.epoch = checkpoint['epoch'] + 1
         print('Restoring after epoch {}.'.format(self.epoch))
 
-    def train(self, epochs, save_freq: int=100):
+    def train(self, epochs):
         # Set to training mode
         self.model.train()
         self.criterion.train()
@@ -48,14 +49,15 @@ class Trainer(object):
                 del images, labels, outputs
                 torch.cuda.empty_cache()
                 gc.collect()
-            
+
+            if self.scheduler is not None:
+                self.scheduler.step()
+
             print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch + 1, epochs, loss.item()), flush=True)
             self.losses.append(loss.item())
 
-            if epoch % save_freq == 0:
-                self.__checkpoint__(epoch)
+            self.__checkpoint__(epoch)
 
-        self.__checkpoint__(epochs-1)
         self.validate()
 
         return self.losses
@@ -74,7 +76,8 @@ class Trainer(object):
                 correct += (predicted == labels).sum().item()
                 del images, labels, outputs
 
-            print('Accuracy for the network on the {} validation images: {} %'.format(5000, 100 * correct / total), flush=True)
+            print('Accuracy for the network on the {} validation images: {} %'.format(5000, 100 * correct / total),
+                  flush=True)
 
     def __checkpoint__(self, epoch):
         torch.save({
