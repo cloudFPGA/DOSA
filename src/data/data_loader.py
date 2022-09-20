@@ -10,12 +10,13 @@ def data_loader(data_dir,
                 dataset,
                 batch_size,
                 num_elements=None,
-                valid_size=0.1,
+                valid_size=0.01,
                 shuffle=True,
                 test=False
                 ):
     dataset = dataset.lower()
-    transform = transforms[dataset]
+    suffix = '_test' if test else '_train'
+    transform = transforms[dataset + suffix]
     data = get_dataset(data_dir, dataset, test, transform)
 
     num_elements = num_elements if num_elements is not None else len(data)

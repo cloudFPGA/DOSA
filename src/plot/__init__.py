@@ -1,1 +1,1 @@
-from .plot import  plot_loss
+from .plot import *

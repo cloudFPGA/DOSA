@@ -13,14 +13,18 @@ class Trainer(object):
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.losses = []
+        self.accuracies = []
         self.epoch = 0
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     def restore_from_checkpoint(self):
-        checkpoint = torch.load(Trainer.checkpoint_path)
+        checkpoint = torch.load(Trainer.checkpoint_path, map_location=self.device)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.__optim_to_device__()
+        self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
         self.losses = checkpoint['losses'].tolist()
+        self.accuracies = checkpoint['accuracies'].tolist()
         self.epoch = checkpoint['epoch'] + 1
         print('Restoring after epoch {}.'.format(self.epoch))
 
@@ -52,15 +56,13 @@ class Trainer(object):
 
             if self.scheduler is not None:
                 self.scheduler.step()
-
-            print('Epoch [{}/{}], Loss: {:.4f}'.format(epoch + 1, epochs, loss.item()), flush=True)
+            
+            accuracy = self.validate()
             self.losses.append(loss.item())
-
+            self.accuracies.append(accuracy)
+            
+            print('Epoch [{}], Loss: {:.4f}, Accuracy: {}%'.format(epoch + 1, loss.item(), accuracy), flush=True)
             self.__checkpoint__(epoch)
-
-        self.validate()
-
-        return self.losses
 
     def validate(self):
         self.model.eval()
@@ -75,14 +77,22 @@ class Trainer(object):
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
                 del images, labels, outputs
-
-            print('Accuracy for the network on the {} validation images: {} %'.format(5000, 100 * correct / total),
-                  flush=True)
-
+            
+            return 100 * correct / total
+        
     def __checkpoint__(self, epoch):
         torch.save({
             'epoch': epoch,
             'losses': torch.FloatTensor(self.losses),
+            'accuracies':torch.FloatTensor(self.accuracies),
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
+            'scheduler_state_dict': None if self.scheduler is None else self.scheduler.state_dict(),
         }, Trainer.checkpoint_path)
+        
+    def __optim_to_device__(self):
+        if torch.cuda.is_available():
+            for state in self.optimizer.state.values():
+                for k, v in state.items():
+                    if torch.is_tensor(v):
+                        state[k] = v.cuda()
