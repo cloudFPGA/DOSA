@@ -22,10 +22,11 @@
 #  *
 #  *     Description:
 #  *       Makefile to build the current ROLE.
-#  * 
+#  *       === MODIFIED for cFBuild1 in DOSA ===
+#  *
 #  *     Synopsis:
 #  *       make [target]  (use 'make help' to list the targets)
-#  * 
+#  *
 
 
 
@@ -42,7 +43,8 @@ assert_env:
 	@#We need to match the case with and without PR
 	@( [ -f ../../cFDK/SRA/LIB/bash/assert_envs.sh ] && ../../cFDK/SRA/LIB/bash/assert_envs.sh ) || ../cFDK/SRA/LIB/bash/assert_envs.sh
 
-Role_$(cFpSRAtype)_OOC.dcp: ./hdl ./tcl/run_pr.tcl ./tcl/xpr_settings_role.tcl .dcp_guard  ## builds the Out-Of-Contect (OOC) Design-Checkpoint (dcp) for this Role (default)
+# cFBuild has always a Role.vhdl
+Role_$(cFpSRAtype)_OOC.dcp: ./hdl ./tcl/run_pr.tcl ./tcl/xpr_settings_role.tcl .dcp_guard  ./hdl/Role.vhdl  ## builds the Out-Of-Contect (OOC) Design-Checkpoint (dcp) for this Role (default)
 	cd ./tcl/; vivado -mode batch -source run_pr.tcl -notrace -log run_pr.log -tclargs -force
 	@touch $@  # to update all timestamps...
 

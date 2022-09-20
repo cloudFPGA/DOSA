@@ -48,7 +48,7 @@ def set_size(w, h, ax=None):
 
 
 def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, x_min, x_max, z_order=5, y_min=0.1,
-                 show_labels=True, print_debug=False, iter_based=False):
+                 show_labels=True, print_debug=False, iter_based=False, text_place='left'):
     if iter_based:
         text_height_values = [6.5, 12.0, 5.5, 10.0, 18.0]
     else:
@@ -70,7 +70,8 @@ def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, 
             text_y_shift_factor = 1.0
             if len(e['name']) > 15:
                 text_y_shift_factor = 50.0
-            plt.text(x=e['oi']*1.02, y=next(th)*text_y_shift_factor, s=e['name'], color=color, fontsize=font_size, ha='left', va='top',
+            plt.text(x=e['oi']*1.02, y=next(th)*text_y_shift_factor, s=e['name'], color=color, fontsize=font_size,
+                     ha=text_place, va='top',
                      rotation=90)
 
 
@@ -377,9 +378,12 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
 
     # plots
     # fig, ax1 = plt.subplots()
-    MY_SIZE = 16
-    MY_SIZE_SMALL = 15
-    MY_WIDTH = 1.6
+    # MY_SIZE = 16
+    MY_SIZE = 26
+    # MY_SIZE_SMALL = 15
+    MY_SIZE_SMALL = MY_SIZE * 0.6
+    # MY_WIDTH = 1.6
+    MY_WIDTH = 2.0
     # line_style = 'dotted'
     line_style = 'solid'
     if iter_based:
@@ -396,8 +400,10 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     if perf_dict['type'] in [str(DosaHwClasses.FPGA_xilinx), str(DosaHwClasses.FPGA_generic)]:
         is_fpga = True
         upper_limit = perf_dict['dsp48_gflops']
+        ylim_max = upper_limit * 12
         if iter_based:
             upper_limit = perf_dict['max_iter']
+            # adapt ylim not for iter_based, to better compare them
         p_fpga_ddr_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_dram_gBs']) for x in ai_list]
         p_fpga_bram_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_bram_gBs']) for x in ai_list]
         p_fpga_network_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_netw_gBs']) for x in ai_list]
@@ -493,7 +499,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # color2 = 'mediumspringgreen'
     color2 = 'firebrick'
     line_style = 'dashed'
-    font_factor = 0.8
+    # font_factor = 0.8
+    font_factor = 0.6
     marker1 = 'P'
     marker2 = 'D'
     # alt_marker = '*'
@@ -532,7 +539,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
 
     draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, ylim_max, cmpl_list,
                  ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug,
-                 iter_based=iter_based)
+                 iter_based=iter_based, text_place='right')
     draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, ylim_max, uinp_list,
                  ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug,
                  iter_based=iter_based)
@@ -635,15 +642,17 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         subtitle_legend = mpl.lines.Line2D([], [], marker=9, linestyle='None', color='white', label=subtitle)
         handles.append(subtitle_legend)
 
-    title = "DOSA Roofline for {}".format(used_name)
-    # title = "Roofline for {}".format(used_name)  # for publication
-    legend = plt.legend(handles=handles, ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)
+    # title = "DOSA Roofline for {}".format(used_name)
+    title = "Roofline for {}".format(used_name)  # for publication
+    legend = plt.legend(handles=handles, ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE_SMALL, title=title)
     plt.grid(True, which="major", ls="-", color='0.89')
     plt.tick_params(axis='both', which='both', labelsize=MY_SIZE)
-    plt.setp(legend.get_title(), fontsize=MY_SIZE*1.2)
+    # plt.setp(legend.get_title(), fontsize=MY_SIZE*1.2)
+    plt.setp(legend.get_title(), fontsize=MY_SIZE)
 
     # set_size(8, 5.5)
     plt.subplots_adjust(top=0.8)
+    # plt.subplots_adjust(top=0.67)
     # plt.tight_layout()
     return plt
 
