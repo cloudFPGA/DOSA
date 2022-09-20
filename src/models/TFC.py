@@ -7,7 +7,7 @@ in_features = 28 * 28
 class TFC(nn.Sequential):
     def __init__(self, hidden1, hidden2, hidden3):
         super(TFC, self).__init__(
-            nn.Dropout(dropout),
+            nn.Dropout(p=dropout),
 
             nn.Linear(in_features, hidden1),
             nn.BatchNorm1d(hidden1),
@@ -27,6 +27,6 @@ class TFC(nn.Sequential):
             nn.Linear(hidden3, 10)
         )
 
-    def forward(self, input):
-        input = input.reshape((-1, in_features))
-        return super(TFC, self).forward(input)
+    def forward(self, x):
+        x = x.reshape((-1, in_features))
+        return super(TFC, self).forward(x)
