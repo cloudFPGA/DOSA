@@ -88,6 +88,7 @@ def rf_attainable_performance(i, P_max, b_s):
 
 
 def rf_calc_sweet_spot(oi_list, roof_F, b_s):
+    # granularity = oi_list[1] - oi_list[0]
     for oi in oi_list:
         if b_s * oi >= roof_F:
             return oi

@@ -52,7 +52,8 @@ def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, 
     if iter_based:
         text_height_values = [6.5, 12.0, 5.5, 10.0, 18.0]
     else:
-        text_height_values = [0.65, 1.20, 0.55, 1.00, 1.80]
+        # text_height_values = [0.65, 1.20, 0.55, 1.00, 1.80]
+        text_height_values = [0.65, 0.8, 0.55, 1.00, 1.2]
     th = itertools.cycle(text_height_values)
     for e in oi_list:
         if e['oi'] > x_max or e['oi'] < x_min:
@@ -69,7 +70,7 @@ def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, 
         if show_labels:
             text_y_shift_factor = 1.0
             if len(e['name']) > 15:
-                text_y_shift_factor = 50.0
+                text_y_shift_factor = 100.0
             plt.text(x=e['oi']*1.02, y=next(th)*text_y_shift_factor, s=e['name'], color=color, fontsize=font_size,
                      ha=text_place, va='top',
                      rotation=90)
@@ -107,9 +108,10 @@ def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8, print_d
             alt_y.append(ny)
         else:
             y.append(ny)
-    plt.scatter(x=x, y=y, marker=marker, color=color, zorder=z_order)
+    s = [200 for i in range(len(x))]
+    plt.scatter(x=x, y=y, s=s, marker=marker, color=color, zorder=z_order)
     if alt_marker is not None and len(alt_x) > 0:
-        plt.scatter(x=alt_x, y=alt_y, marker=alt_marker, color=color, zorder=z_order+2)
+        plt.scatter(x=alt_x, y=alt_y, s=s, marker=alt_marker, color=color, zorder=z_order+2)
         return True
     return False
 
@@ -213,7 +215,7 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
             cmpl_list2.append(cn2)
             uinp_list2.append(un2)
     total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
-    plt_name = "'{}' (draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
+    plt_name = "'{}'\n(draft: {}, opt: {}, #nodes: {})".format(arch_draft.name, arch_draft.version,
                                                             str(arch_draft.strategy).split('.')[-1],
                                                             arch_draft.get_total_nodes_cnt())
     if not selected_only:
@@ -242,7 +244,8 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
         perf_dict['bw_lutram_gBs'] *= af
         # perf_dict['unit'] = unit
     return draw_roofline(plt_name, arch_draft.batch_size, perf_dict, roof_dict, target_string, cmpl_list, uinp_list,
-                         cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug, iter_based, subtitle)
+                         cmpl_list2, uinp_list2, total, show_splits, show_labels, print_debug, iter_based, subtitle,
+                         draw_markers=False)
 
 
 def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft, show_splits=True, show_labels=True,
@@ -314,7 +317,7 @@ def generate_roofline_for_node_plt(arch_node: ArchNode, parent_draft: ArchDraft,
             cmpl_list2.append(cn2)
             uinp_list2.append(un2)
     total = {'flops': total_flops, 'para_B': total_param_B, 'uinp_B': total_uinp_B}
-    plt_name = "'{}' (draft: {}, node: {}, dpl: {}, opt: {})".format(parent_draft.name, parent_draft.version,
+    plt_name = "'{}'\n(draft: {}, node: {}, dpl: {}, opt: {})".format(parent_draft.name, parent_draft.version,
                                                           arch_node.get_node_id(), arch_node.data_parallelism_level,
                                                           str(parent_draft.strategy).split('.')[-1])
     subtitle = None
@@ -357,9 +360,12 @@ def generate_roofline_plt_old(detailed_analysis, target_sps, used_batch, used_na
 
 
 def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string, cmpl_list, uinp_list, cmpl_list2, uinp_list2,
-                  total, show_splits=True, show_labels=True, print_debug=False, iter_based=False, subtitle=None):
+                  total, show_splits=True, show_labels=True, print_debug=False, iter_based=False, subtitle=None,
+                  draw_markers=True):
     # Arithmetic intensity vector
     if iter_based:
+        # ai_list_very_very_very_small = np.arange(0.000005, 0.0001, 0.0000001)
+        # ai_list_very_very_small = np.arange(0.0001, 0.001, 0.0000001)
         ai_list_very_very_very_small = np.arange(0.00001, 0.0001, 0.00001)
         ai_list_very_very_small = np.arange(0.0001, 0.001, 0.0001)
         ai_list_very_small = np.arange(0.001, 0.01, 0.001)
@@ -370,8 +376,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         ai_list = np.concatenate((ai_list_very_very_very_small, ai_list_very_very_small, ai_list_very_small,
                                   ai_list_small, ai_list_middle))
     else:
-        ai_list_very_small = np.arange(0.001, 0.01, 0.001)
-        ai_list_small = np.arange(0.01, 1, 0.01)
+        ai_list_very_small = np.arange(0.001, 0.01, 0.00001)
+        ai_list_small = np.arange(0.01, 1, 0.0001)
         ai_list_middle = np.arange(1, 1500, 0.1)
         ai_list_big = np.arange(1501, 10100, 1)
         ai_list = np.concatenate((ai_list_very_small, ai_list_small, ai_list_middle, ai_list_big))
@@ -400,9 +406,10 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     if perf_dict['type'] in [str(DosaHwClasses.FPGA_xilinx), str(DosaHwClasses.FPGA_generic)]:
         is_fpga = True
         upper_limit = perf_dict['dsp48_gflops']
-        ylim_max = upper_limit * 12
         if iter_based:
             upper_limit = perf_dict['max_iter']
+        else:
+            ylim_max = upper_limit * 12
             # adapt ylim not for iter_based, to better compare them
         p_fpga_ddr_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_dram_gBs']) for x in ai_list]
         p_fpga_bram_max = [rf_attainable_performance(x, upper_limit, perf_dict['bw_bram_gBs']) for x in ai_list]
@@ -414,10 +421,15 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         # p_fpga_network_mantle = [rf_attainable_performance(x, upper_limit, b_s_mantle_eth_gBs) for x in ai_list]
         # p_fpga_lutram_mantle = [rf_attainable_performance(x, upper_limit, b_s_mantle_lutram_gBs) for x in ai_list]
 
-        plt.plot(ai_list, p_fpga_lutram_max, color='tab:orange', linewidth=MY_WIDTH, label='current Role LUTRAM bandwidth', linestyle=line_style, zorder=1)
-        plt.plot(ai_list, p_fpga_ddr_max, color='tab:red', linewidth=MY_WIDTH, label='current Role DRAM bandwidth', linestyle=line_style, zorder=1)
-        plt.plot(ai_list, p_fpga_bram_max, color='tab:blue', linewidth=MY_WIDTH, label='current Role BRAM bandwidth', linestyle=line_style, zorder=1)
-        plt.plot(ai_list, p_fpga_network_max, color='tab:green', linewidth=MY_WIDTH, label='current Role network bandwidth', linestyle=line_style, zorder=1)
+        # plt.plot(ai_list, p_fpga_lutram_max, color='tab:orange', linewidth=MY_WIDTH, label='current Role LUTRAM bandwidth', linestyle=line_style, zorder=1)
+        # plt.plot(ai_list, p_fpga_ddr_max, color='tab:red', linewidth=MY_WIDTH, label='current Role DRAM bandwidth', linestyle=line_style, zorder=1)
+        # plt.plot(ai_list, p_fpga_bram_max, color='tab:blue', linewidth=MY_WIDTH, label='current Role BRAM bandwidth', linestyle=line_style, zorder=1)
+        # plt.plot(ai_list, p_fpga_network_max, color='tab:green', linewidth=MY_WIDTH, label='current Role network bandwidth', linestyle=line_style, zorder=1)
+        plt.plot(ai_list, p_fpga_lutram_max, color='tab:orange', linewidth=MY_WIDTH, label='LUTRAM bandwidth', linestyle=line_style, zorder=1)
+        plt.plot(ai_list, p_fpga_ddr_max, color='tab:red', linewidth=MY_WIDTH, label='DRAM bandwidth', linestyle=line_style, zorder=1)
+        plt.plot(ai_list, p_fpga_bram_max, color='tab:blue', linewidth=MY_WIDTH, label='BRAM bandwidth', linestyle=line_style, zorder=1)
+        plt.plot(ai_list, p_fpga_network_max, color='tab:green', linewidth=MY_WIDTH, label='network bandwidth', linestyle=line_style, zorder=1)
+        # plt.plot(ai_list, p_fpga_network_max, color='tab:green', linewidth=MY_WIDTH, label='I/O bandwidth', linestyle=line_style, zorder=1)
 
         # line_style = 'solid'
         # plt.plot(ai_list, p_fpga_lutram_mantle, color='bisque', linewidth=MY_WIDTH, label='Mantle LUTRAM bandwidth', linestyle=line_style, zorder=1)
@@ -454,8 +466,9 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         line_style = 'solid'  # otherwise we see the memory lines...
         plt.hlines(y=upper_limit, xmin=sweet_spot, xmax=ai_list[-1], colors=color, linestyles=line_style, linewidth=MY_WIDTH*1.2, zorder=3)
         # text = "{0:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE, {})".format(upper_limit)
-        text = "{:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE, {})"\
-            .format(upper_limit, dosa_singleton.config.dtype.dosa_flops_explanation_str)
+        # text = "{:.2f} GFLOPS/s theoretical DSP peak performance (for ROLE, {})" \
+        text = "{:.2f} GFLOPS/s theoretical DSP peak performance ({})" \
+                    .format(upper_limit, dosa_singleton.config.dtype.dosa_flops_explanation_str)
         if iter_based:
             text = "{:.2f} Kiter/s theoretical ROLE peak performance (application specific)" \
                 .format(upper_limit)
@@ -463,10 +476,10 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         text_space = 10
         xpos = sweet_spot
         if xpos < 0.01:
-            xpos = 0.01
+            xpos = 0.005
             if iter_based:
                 xpos = 0.001
-        plt.text(x=xpos, y=upper_limit+text_space, s=text, color=color, fontsize=MY_SIZE_SMALL)
+        plt.text(x=xpos, y=upper_limit+text_space, s=text, color=color, fontsize=MY_SIZE*0.8)
     elif perf_dict['type'] in [str(DosaHwClasses.CPU_x86), str(DosaHwClasses.CPU_generic)]:
         upper_limit = perf_dict['cpu_gflops']
         if iter_based:
@@ -499,8 +512,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # color2 = 'mediumspringgreen'
     color2 = 'firebrick'
     line_style = 'dashed'
-    # font_factor = 0.8
-    font_factor = 0.6
+    font_factor = 0.8
+    # font_factor = 0.6
     marker1 = 'P'
     marker2 = 'D'
     # alt_marker = '*'
@@ -544,22 +557,23 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
                  ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug,
                  iter_based=iter_based)
 
-    used_alt_1 = draw_oi_marker(plt, color, marker1, cmpl_list2, ai_list[0], ai_list[-1], print_debug=print_debug,
-                                alt_marker=alt_marker)
-    used_alt_2 = draw_oi_marker(plt, color2, marker2, uinp_list2, ai_list[0], ai_list[-1], print_debug=print_debug,
-                                alt_marker=alt_marker)
-    marker1_text = 'req. perf. f. Engine arch. (w/ {}, batch {})'.format(target_string, used_batch)
-    marker1_legend = mpl.lines.Line2D([], [], color=color, marker=marker1, linestyle='None', markersize=10,
-                                      label=marker1_text)
-    marker2_text = 'req. perf. f. Stream arch. (w/ {}, batch {})'.format(target_string, used_batch)
-    marker2_legend = mpl.lines.Line2D([], [], color=color2, marker=marker2, linestyle='None', markersize=10,
-                                      label=marker2_text)
-    if used_alt_2 or used_alt_1:
-        marker3_text = 'implemented performance'
-        marker3_legend = mpl.lines.Line2D([], [], color='black', marker=alt_marker, linestyle='None', markersize=10,
-                                      label=marker3_text)
-    else:
-        marker3_legend = None
+    if draw_markers:
+        used_alt_1 = draw_oi_marker(plt, color, marker1, cmpl_list2, ai_list[0], ai_list[-1], print_debug=print_debug,
+                                    alt_marker=alt_marker)
+        used_alt_2 = draw_oi_marker(plt, color2, marker2, uinp_list2, ai_list[0], ai_list[-1], print_debug=print_debug,
+                                    alt_marker=alt_marker)
+        marker1_text = 'req. performance Engine arch. (w/ {}, batch {})'.format(target_string, used_batch)
+        marker1_legend = mpl.lines.Line2D([], [], color=color, marker=marker1, linestyle='None', markersize=10,
+                                          label=marker1_text)
+        marker2_text = 'req. performance Stream arch. (w/ {}, batch {})'.format(target_string, used_batch)
+        marker2_legend = mpl.lines.Line2D([], [], color=color2, marker=marker2, linestyle='None', markersize=10,
+                                          label=marker2_text)
+        if used_alt_2 or used_alt_1:
+            marker3_text = 'implemented performance'
+            marker3_legend = mpl.lines.Line2D([], [], color='black', marker=alt_marker, linestyle='None', markersize=10,
+                                          label=marker3_text)
+        else:
+            marker3_legend = None
 
     # color3 = 'orchid'
     color3 = 'aqua'
@@ -632,11 +646,12 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # if 'unit' in perf_dict:
 
     handles, labels = plt.gca().get_legend_handles_labels()
-    handles.append(marker1_legend)
-    handles.append(marker2_legend)
+    if draw_markers:
+        handles.append(marker1_legend)
+        handles.append(marker2_legend)
 
-    if marker3_legend is not None:
-        handles.append(marker3_legend)
+        if marker3_legend is not None:
+            handles.append(marker3_legend)
     if subtitle is not None:
         # plt.plot([], [], ' ', label=subtitle)
         subtitle_legend = mpl.lines.Line2D([], [], marker=9, linestyle='None', color='white', label=subtitle)
@@ -644,7 +659,10 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
 
     # title = "DOSA Roofline for {}".format(used_name)
     title = "Roofline for {}".format(used_name)  # for publication
-    legend = plt.legend(handles=handles, ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE_SMALL, title=title)
+    ncol = 3
+    if not draw_markers:
+        ncol = 4
+    legend = plt.legend(handles=handles, ncol=ncol, bbox_to_anchor=(0.5, 1), loc='lower center', fontsize=MY_SIZE_SMALL, title=title)
     plt.grid(True, which="major", ls="-", color='0.89')
     plt.tick_params(axis='both', which='both', labelsize=MY_SIZE)
     # plt.setp(legend.get_title(), fontsize=MY_SIZE*1.2)

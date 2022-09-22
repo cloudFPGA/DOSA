@@ -192,7 +192,9 @@ class CfThemisto1(DosaBaseHw):
         # ret = {'sweet_spot': 0.081}  # old DSP calc
         # ret = {'sweet_spot': 0.1566}  # for BRAM
         # ret = {'sweet_spot': 0.0100}  # for LUTRAM
-        ret = {'sweet_spot': 0.00199}  # for LUTRAM
+        # ret = {'sweet_spot': 0.00199}  # for LUTRAM
+        ret = {'sweet_spot': 0.00123}  # for LUTRAM
+        # ret['bw_for_sweet_spot'] = self.b_s_fpga_lutram_gBs * gigaU
         # TODO: calculate dynamically respecting kappa
         return ret
 
