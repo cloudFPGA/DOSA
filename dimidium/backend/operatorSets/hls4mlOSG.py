@@ -468,9 +468,9 @@ class Hls4mlOSG(BaseOSG):
         hls_model_config = {'OutputDir': used_dir_path, 'ProjectName': project_name, 'Backend': 'Vivado',
                             'XilinxPart': build_tool.target_device.part_string, 'Board': None,
                             'ClockPeriod': build_tool.target_device.clock_period_ns,
-                            # 'IOType': 'io_stream',  # the interface is then even more weired... (or does not compile)
+                            'IOType': 'io_stream',  # the interface is then even more weired... (or does not compile)
                             # 'IOType': 'io_parallel',  # TODO
-                            'IOType': 'io_serial',  # is deprecated from version 0.5.0, but is the only one working
+                            # 'IOType': 'io_serial',  # is deprecated from version 0.5.0, but is the only one working
                             'HLSConfig': hls_config}  # ,
         # 'KerasJson': 'KERAS_3layer.json', 'KerasH5': 'KERAS_3layer_weights.h5'}  # TODO
 
