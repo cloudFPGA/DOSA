@@ -64,6 +64,20 @@ class ArchOp(object):
     def __repr__(self):
         return "ArchOp({})".format(self.op_call)
 
+    def __eq__(self, other):
+        # need to implement equality due to creation of copies etc.
+        if isinstance(other, ArchOp):
+            return (other.dims == self.dims and other.flops == self.flops and
+                    other.flops_conv_factor == self.flops_conv_factor and other.input_bytes == self.input_bytes and
+                    other.output_bytes == self.output_bytes and other.parameter_bytes == self.parameter_bytes
+                    and other.layer_name == self.layer_name and other.name == self.name and
+                    other.oi_engine == self.oi_engine and other.oi_stream == self.oi_stream
+                    and other.op_call == self.op_call and other.parent_fn == self.parent_fn
+                    and other.selected_contract == self.selected_contract and other.req_iter_hz == self.req_iter_hz and
+                    other.used_dtype == self.used_dtype and other.tvm_args == self.tvm_args)
+            # NOT comparing op_ids and tvm_handle
+        return NotImplemented
+
     def as_dict(self):
         res = {'name': self.name, 'dims': '', 'local_id': self.local_op_id, 'global_id': self.global_op_id,
                'oi_engine': self.oi_engine, 'oi_stream': self.oi_stream, 'flops': self.flops,
