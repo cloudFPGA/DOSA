@@ -1,0 +1,81 @@
+void pToAccelNarrow_{b}(
+  stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >    &sTohls4ml_parallelBuffer_chanX,
+  stream<ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH> >   &sTohls4ml_parallelPixelChain_chanX
+  )
+{{
+  //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+  //-- STATIC VARIABLES (with RESET) ------------------------------------------
+  static threeStatesFSM narrowFSM = RESET3;
+#pragma HLS reset variable=narrowFSM
+  static ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> cur_read;
+#pragma HLS reset variable=cur_read
+  static ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> cur_tkeep;
+#pragma HLS reset variable=cur_tkeep
+  //-- LOCAL VARIABLES ------------------------------------------------------
+  bool not_empty = false;
+
+  switch(narrowFSM)
+  {{
+    default:
+    case RESET3:
+      cur_read = 0x0;
+      cur_tkeep = 0x0;
+      if(!sTohls4ml_parallelBuffer_chanX.empty())
+      {{
+        sTohls4ml_parallelBuffer_chanX.read();
+        not_empty = true;
+      }}
+      if(!not_empty)
+      {{
+        narrowFSM = FORWARD3;
+      }}
+      break;
+
+    case FORWARD3:
+      if(!sTohls4ml_parallelBuffer_chanX.empty() && !sTohls4ml_parallelPixelChain_chanX.full())
+      {{
+        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = sTohls4ml_parallelBuffer_chanX.read();
+        cur_read = tmp_read_0.getTData();
+        cur_tkeep = tmp_read_0.getTKeep();
+        if(cur_tkeep > 0)
+        {{
+          ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH> cur_tkeep_bit = (ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH>) cur_tkeep;
+          ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH> cur_pixel = (ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH>) cur_read;
+          if(cur_tkeep_bit > 0)
+          {{
+            //if not --> process in next state, additional delay not dramatic since all pixels are buffered in parallel
+            sTohls4ml_parallelPixelChain_chanX.write(cur_pixel);
+          }}
+          cur_read >>= DOSA_hls4ml_parallel_GENERAL_BITWIDTH;
+          cur_tkeep >>= DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH;
+          if(cur_tkeep > 0)
+          {{
+            narrowFSM = BACKLOG3;
+          }}
+        }}
+      }}
+      break;
+
+    case BACKLOG3:
+      if(!sTohls4ml_parallelPixelChain_chanX.full())
+      {{
+        ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH> cur_tkeep_bit = (ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH>) cur_tkeep;
+        ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH> cur_pixel = (ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH>) cur_read;
+        if(cur_tkeep_bit > 0)
+        {{
+          //if not --> process in next state, additional delay not dramatic since all pixels are buffered in parallel
+          sTohls4ml_parallelPixelChain_chanX.write(cur_pixel);
+        }}
+        cur_read >>= DOSA_hls4ml_parallel_GENERAL_BITWIDTH;
+        cur_tkeep >>= DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH;
+        if(cur_tkeep == 0)
+        {{
+          narrowFSM = FORWARD3;
+        }}
+      }}
+      break;
+  }}
+}}
+

@@ -468,8 +468,8 @@ class Hls4mlOSG(BaseOSG):
         hls_model_config = {'OutputDir': used_dir_path, 'ProjectName': project_name, 'Backend': 'Vivado',
                             'XilinxPart': build_tool.target_device.part_string, 'Board': None,
                             'ClockPeriod': build_tool.target_device.clock_period_ns,
-                            'IOType': 'io_stream',  # the interface is then even more weired... (or does not compile)
-                            # 'IOType': 'io_parallel',  # TODO
+                            # 'IOType': 'io_stream',  # the interface is then even more weired... (or does not compile)
+                            'IOType': 'io_parallel',  # TODO
                             # 'IOType': 'io_serial',  # is deprecated from version 0.5.0, but is the only one working
                             'HLSConfig': hls_config}  # ,
         # 'KerasJson': 'KERAS_3layer.json', 'KerasH5': 'KERAS_3layer_weights.h5'}  # TODO
@@ -747,10 +747,17 @@ class Hls4mlOSG(BaseOSG):
         build_tool.add_tcl_entry(if_axis_tcl)
 
         wrapper_dir_path = build_tool.add_ip_dir('{}_wrapper'.format(arch_block.block_uuid))
-        block_wrapper = Hls4mlWrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_last_op.dims.out,
+        if hls_model_config['IOType'] == 'io_serial':
+            block_wrapper = Hls4mlWrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_last_op.dims.out,
                                       get_bitwidth_of_DosaDtype(wrapper_first_brick.used_dtype),
                                       get_bitwidth_of_DosaDtype(wrapper_last_brick.used_dtype),
                                       if_in_bitw, if_out_bitw, wrapper_dir_path)
+        elif hls_model_config['IOType'] == 'io_parallel':
+            block_wrapper = TODO
+        else:
+            # io_stream
+            print("[DOSA:OSG:ERROR] Hls4mlOSG supports currently only 'io_serial' or 'io_parallel'. STOP.")
+            exit(-1)
         block_wrapper.generate()
         build_tool.add_makefile_entry(wrapper_dir_path, 'all')
         wrapper_inst_tcl = block_wrapper.get_tcl_lines_wrapper_inst()
