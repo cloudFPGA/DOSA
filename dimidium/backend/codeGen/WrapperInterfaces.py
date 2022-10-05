@@ -36,14 +36,17 @@ def get_fifo_name(name):
 
 class WrapperInterface(metaclass=abc.ABCMeta):
 
-    def __init__(self, mod_name, bw_s, target_hw, depth=wrapper_interface_default_depth):
+    def __init__(self, mod_name, bw_s, target_hw, depth=wrapper_interface_default_depth, bitwidth=None):
         self.name = get_fifo_name(mod_name)
         self.bw_s = bw_s
         self.depth = depth
         if self.depth < __wrapper_min_depth__:
             self.depth = __wrapper_min_depth__
         self.target_hw = target_hw
-        self.bitwidth = self._get_wrapper_interface_bitwidth()
+        if bitwidth is None:
+            self.bitwidth = self._get_wrapper_interface_bitwidth()
+        else:
+            self.bitwidth = bitwidth
 
     def _get_wrapper_interface_bitwidth(self):
         for bit_w in __available_interface_bitwidth__:

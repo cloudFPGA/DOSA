@@ -19,6 +19,7 @@ import tvm.relay
 import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.buildTools.BaseBuild import BaseHwBuild, HwBuildTopVhdl
 from dimidium.backend.codeGen.Hls4mlWrapper import Hls4mlWrapper
+from dimidium.backend.codeGen.Hls4mlWrapper_Parallel import Hls4mlWrapper_Parallel
 from dimidium.backend.codeGen.WrapperInterfaces import InterfaceAxisFifo, wrapper_default_interface_bitwidth
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
@@ -264,13 +265,15 @@ class Hls4mlOSG(BaseOSG):
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=['prelu',
                                                                                                       'softmax'],
-                                                                                        custom_latency=int(op.dims.inp[-1]/2))
+                                                                                        custom_latency=int(
+                                                                                            op.dims.inp[-1] / 2))
             elif 'softmax' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_softmax, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=['prelu', 'relu'],
-                                                                                        custom_latency=int(op.dims.inp[-1]/2))
+                                                                                        custom_latency=int(
+                                                                                            op.dims.inp[-1] / 2))
             elif 'dense' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_dense, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
@@ -286,21 +289,25 @@ class Hls4mlOSG(BaseOSG):
                                                                                         fallback_ops=None)
             elif 'pad' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_padding, \
-                                          lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
+                                          lambda op, thw, it: OperationContract(op, thw, self, it,
+                                                                                BaseOSG._pseudo_infinity_, 0.0,
                                                                                 0.0, 'dummy op', 0.0, 0.0)
             elif 'bias_add' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_biasAdd, \
                                           lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                         consider_paramB=False,
                                                                                         fallback_ops=None,
-                                                                                        custom_latency=int(op.dims.inp[-1]/2))
+                                                                                        custom_latency=int(
+                                                                                            op.dims.inp[-1] / 2))
             elif 'flatten' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_flatten, \
-                                          lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
+                                          lambda op, thw, it: OperationContract(op, thw, self, it,
+                                                                                BaseOSG._pseudo_infinity_, 0.0,
                                                                                 0.0, 'dummy op', 0.0, 0.0)
             elif 'dropout' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_dropout, \
-                                          lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
+                                          lambda op, thw, it: OperationContract(op, thw, self, it,
+                                                                                BaseOSG._pseudo_infinity_, 0.0,
                                                                                 0.0, 'dummy op', 0.0, 0.0)
         for e in self.relay2osg:
             if type(self.relay2osg[e]) == dict:
@@ -310,24 +317,28 @@ class Hls4mlOSG(BaseOSG):
                                     lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                   consider_paramB=True,
                                                                                   fallback_ops=['tan', 'sin', 'cos'],
-                                                                                  custom_latency=int(op.dims.inp[-1]/2))
+                                                                                  custom_latency=int(
+                                                                                      op.dims.inp[-1] / 2))
             elif 'add' in e or 'sub' in e or 'mul' in e or 'avg' in e \
-                 or 'max' in e or 'min' in e or 'concat' in e or 'sum' in e:
+                    or 'max' in e or 'min' in e or 'concat' in e or 'sum' in e:
                 self.relay2osg[e] = self._generate_hls_merge, \
                                     lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                                   consider_paramB=False,
                                                                                   fallback_ops=['add', 'sub', 'mul',
                                                                                                 'avg', 'max', 'min',
                                                                                                 'concat', 'sum'],
-                                                                                  custom_latency=int(op.dims.inp[-1]/2))
+                                                                                  custom_latency=int(
+                                                                                      op.dims.inp[-1] / 2))
             elif 'transpose' in e:
                 self.relay2osg[e] = self._generate_hls_transpose, \
-                                    lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
+                                    lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_,
+                                                                          0.0,
                                                                           0.0, 'dummy op', 0.0, 0.0)
-                                    # TODO: is transpose really for free in hls4ml?
+                # TODO: is transpose really for free in hls4ml?
             elif 'reshape' in e or 'expand_dims' in e or 'squeeze' in e:
                 self.relay2osg[e] = self._generate_hls_reshape, \
-                                    lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_, 0.0,
+                                    lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_,
+                                                                          0.0,
                                                                           0.0, 'dummy op', 0.0, 0.0)
         # not covered hls4ml classes:
         #  GarNet, Resize, SeparableConv2D, DepthwiseConv2D
@@ -749,11 +760,16 @@ class Hls4mlOSG(BaseOSG):
         wrapper_dir_path = build_tool.add_ip_dir('{}_wrapper'.format(arch_block.block_uuid))
         if hls_model_config['IOType'] == 'io_serial':
             block_wrapper = Hls4mlWrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_last_op.dims.out,
-                                      get_bitwidth_of_DosaDtype(wrapper_first_brick.used_dtype),
-                                      get_bitwidth_of_DosaDtype(wrapper_last_brick.used_dtype),
-                                      if_in_bitw, if_out_bitw, wrapper_dir_path)
+                                          get_bitwidth_of_DosaDtype(wrapper_first_brick.used_dtype),
+                                          get_bitwidth_of_DosaDtype(wrapper_last_brick.used_dtype),
+                                          if_in_bitw, if_out_bitw, wrapper_dir_path)
         elif hls_model_config['IOType'] == 'io_parallel':
-            block_wrapper = TODO
+            block_wrapper = Hls4mlWrapper_Parallel(arch_block.block_uuid, wrapper_first_op.dims.inp,
+                                                   wrapper_last_op.dims.out,
+                                                   get_bitwidth_of_DosaDtype(wrapper_first_brick.used_dtype),
+                                                   get_bitwidth_of_DosaDtype(wrapper_last_brick.used_dtype),
+                                                   if_in_bitw, if_out_bitw, wrapper_dir_path,
+                                                   len(arch_block.brick_list))
         else:
             # io_stream
             print("[DOSA:OSG:ERROR] Hls4mlOSG supports currently only 'io_serial' or 'io_parallel'. STOP.")

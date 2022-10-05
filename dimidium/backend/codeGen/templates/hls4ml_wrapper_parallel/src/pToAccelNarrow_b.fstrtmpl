@@ -1,6 +1,6 @@
 void pToAccelNarrow_{b}(
   stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >    &sTohls4ml_parallelBuffer_chanX,
-  stream<ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH> >   &sTohls4ml_parallelPixelChain_chanX
+  stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> >   &sTohls4ml_parallelPixelChain_chanX
   )
 {{
   //-- DIRECTIVES FOR THIS PROCESS ------------------------------------------
@@ -41,15 +41,15 @@ void pToAccelNarrow_{b}(
         cur_tkeep = tmp_read_0.getTKeep();
         if(cur_tkeep > 0)
         {{
-          ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH> cur_tkeep_bit = (ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH>) cur_tkeep;
-          ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH> cur_pixel = (ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH>) cur_read;
+          ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP_WIDTH> cur_tkeep_bit = (ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP_WIDTH>) cur_tkeep;
+          ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> cur_pixel = (ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH>) cur_read;
           if(cur_tkeep_bit > 0)
           {{
             //if not --> process in next state, additional delay not dramatic since all pixels are buffered in parallel
             sTohls4ml_parallelPixelChain_chanX.write(cur_pixel);
           }}
-          cur_read >>= DOSA_hls4ml_parallel_GENERAL_BITWIDTH;
-          cur_tkeep >>= DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH;
+          cur_read >>= DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH;
+          cur_tkeep >>= DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP_WIDTH;
           if(cur_tkeep > 0)
           {{
             narrowFSM = BACKLOG3;
@@ -61,15 +61,15 @@ void pToAccelNarrow_{b}(
     case BACKLOG3:
       if(!sTohls4ml_parallelPixelChain_chanX.full())
       {{
-        ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH> cur_tkeep_bit = (ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH>) cur_tkeep;
-        ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH> cur_pixel = (ap_uint<DOSA_hls4ml_parallel_GENERAL_BITWIDTH>) cur_read;
+        ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP_WIDTH> cur_tkeep_bit = (ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP_WIDTH>) cur_tkeep;
+        ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> cur_pixel = (ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH>) cur_read;
         if(cur_tkeep_bit > 0)
         {{
           //if not --> process in next state, additional delay not dramatic since all pixels are buffered in parallel
           sTohls4ml_parallelPixelChain_chanX.write(cur_pixel);
         }}
-        cur_read >>= DOSA_hls4ml_parallel_GENERAL_BITWIDTH;
-        cur_tkeep >>= DOSA_hls4ml_parallel_GENERAL_BITWIDTH_TKEEP_WIDTH;
+        cur_read >>= DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH;
+        cur_tkeep >>= DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP_WIDTH;
         if(cur_tkeep == 0)
         {{
           narrowFSM = FORWARD3;
