@@ -155,7 +155,9 @@ class Hls4mlWrapper_Parallel:
                         outline += '    stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >    &sTohls4ml_parallelBuffer_chan{},\n'.format(
                             b)
                 elif 'DOSA_ADD_demux_fsm' in line:
-                    if len(self.in_dims[1]) > 1:
+                    # if len(self.in_dims[1]) > 1:
+                    # TODO
+                    if self.in_dims[1] > 1:
                         fsm_tmpl = '    case FILL_BUF_{b}:\n' + \
                                    '      if( !siData.empty() && !sTohls4ml_parallelBuffer_chan{b}.full() && !sTohls4ml_parallelBuffer_chan{b1}.full() )\n' + \
                                    '      {{\n' + \
@@ -212,7 +214,7 @@ class Hls4mlWrapper_Parallel:
                                   '      break;\n'
                 elif 'DOSA_ADD_pTohls4ml_parallelNarrow_X_declaration' in line:
                     template_lines = Path(
-                        os.path.join(__filedir__, 'templates/hls4ml_parallel2_wrapper/src/pToAccelNarrow_b'
+                        os.path.join(__filedir__, 'templates/hls4ml_wrapper_parallel/src/pToAccelNarrow_b'
                                                   '.fstrtmpl')).read_text()
                     outline = ''
                     for b in range(0, self.in_dims[1]):
@@ -270,7 +272,7 @@ class Hls4mlWrapper_Parallel:
                             .format(b=b)
                 elif 'DOSA_ADD_pFromhls4ml_parallelWiden_X_declaration' in line:
                     template_lines = Path(
-                        os.path.join(__filedir__, 'templates/hls4ml_parallel2_wrapper/src/pFromAccelWiden_b'
+                        os.path.join(__filedir__, 'templates/hls4ml_wrapper_parallel/src/pFromAccelWiden_b'
                                                   '.fstrtmpl')).read_text()
                     outline = ''
                     for b in range(0, self.out_dims[1]):
@@ -500,11 +502,11 @@ class Hls4mlWrapper_Parallel:
                     }
         global_map_dict['out_sig_0'] = map_dict['in_sig_0']
         global_map_dict['out_sig_1'] = map_dict['in_sig_1']
-        global_map_dict['out_sig_1n'] = map_dict['in_sig_1n']
+        global_map_dict['out_sig_1n'] = map_dict['in_sig_1_n']
         global_map_dict['out_sig_2'] = map_dict['in_sig_2']
         global_map_dict['a_in_sig_0'] = map_dict['out_sig_0']
         global_map_dict['a_in_sig_1'] = map_dict['out_sig_1']
-        global_map_dict['a_in_sig_1n'] = map_dict['out_sig_1n']
+        global_map_dict['a_in_sig_1n'] = map_dict['out_sig_1_n']
         global_map_dict['a_in_sig_2'] = map_dict['out_sig_2']
         decl += inst_tmpl.format_map(map_dict)
         our_signals = self.from_accel_fifo.get_vhdl_signal_dict()
@@ -525,11 +527,11 @@ class Hls4mlWrapper_Parallel:
                     }
         global_map_dict['in_sig_0'] = map_dict['out_sig_0']
         global_map_dict['in_sig_1'] = map_dict['out_sig_1']
-        global_map_dict['in_sig_1n'] = map_dict['out_sig_1n']
+        global_map_dict['in_sig_1n'] = map_dict['out_sig_1_n']
         global_map_dict['in_sig_2'] = map_dict['out_sig_2']
         global_map_dict['a_out_sig_0'] = map_dict['in_sig_0']
         global_map_dict['a_out_sig_1'] = map_dict['in_sig_1']
-        global_map_dict['a_out_sig_1n'] = map_dict['in_sig_1n']
+        global_map_dict['a_out_sig_1n'] = map_dict['in_sig_1_n']
         global_map_dict['a_out_sig_2'] = map_dict['in_sig_2']
         decl += inst_tmpl.format_map(map_dict)
         decl += '\n'

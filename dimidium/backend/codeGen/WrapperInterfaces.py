@@ -201,7 +201,7 @@ class InterfaceVectorFifo(WrapperInterface):
             sn = signal_dict['from_signals'][k]
             sw = width_dict['from_signals'][k]
             tcl_l = 'CONFIG.C_PROBE{i}_WIDTH {{' + str(sw) + '}}\n'
-            decl_l = '; probe{n}    : in  std_logic_vector( ' + str(sw - 1) + ' downto 0)\\\n'  # semicolon at begin
+            decl_l = '; probe{i}    : in  std_logic_vector( ' + str(sw - 1) + ' downto 0)\\\n'  # semicolon at begin
             if sw == 1:
                 inst_l = ', probe{i}(0)   =>   ' + sn + '\n'  # comma at begin
             else:
