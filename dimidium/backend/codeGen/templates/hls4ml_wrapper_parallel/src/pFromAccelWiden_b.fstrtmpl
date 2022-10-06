@@ -1,4 +1,4 @@
-void pFromAccel_Widen_{b}(
+void pFromAccelWiden_{b}(
     stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> >    &sFromhls4ml_parallelBuffer_chanX,
     stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chanX
     )

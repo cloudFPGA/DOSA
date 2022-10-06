@@ -336,7 +336,7 @@ class Hls4mlWrapper_Parallel:
                     outline += '\n'
                 elif 'DOSA_ADD_pTohls4ml_parallelNarrow_X_instantiate' in line:
                     outline = ''
-                    tmpl = '  pTohls4ml_parallelNarrow_{b}(sTohls4ml_parallelBuffer_chan{b}, sTohls4ml_parallelPixelChain_chan{b});\n'
+                    tmpl = '  pToAccelNarrow_{b}(sTohls4ml_parallelBuffer_chan{b}, sTohls4ml_parallelPixelChain_chan{b});\n'
                     for b in range(0, self.in_dims[1]):
                         outline += tmpl.format(b=b)
                     outline += '\n'
@@ -357,7 +357,7 @@ class Hls4mlWrapper_Parallel:
                     outline += '\n'
                 elif 'DOSA_ADD_pFromhls4ml_parallelWiden_X_instantiate' in line:
                     outline = ''
-                    tmpl = '  pFromhls4ml_parallelWiden_{b}(sFromhls4ml_parallelBuffer_chan{b}, sOutBuffer_chan{b});\n'
+                    tmpl = '  pFromAccelWiden_{b}(sFromhls4ml_parallelBuffer_chan{b}, sOutBuffer_chan{b});\n'
                     for b in range(0, self.out_dims[1]):
                         outline += tmpl.format(b=b)
                     outline += '\n'
