@@ -36,10 +36,18 @@ class Hls4mlWrapper_Parallel:
         self.block_id = block_id
         self.in_dims = in_dims
         self.out_dims = out_dims
-        self.acc_in_bitw = _ceil_to_next_byte_bitw(acc_in_bitw)
-        self.acc_out_bitw = _ceil_to_next_byte_bitw(acc_out_bitw)
-        assert self.acc_out_bitw == self.acc_in_bitw  # TODO: support different data types per layer
-        self.general_bitw = self.acc_in_bitw
+        # self.acc_in_bitw = _ceil_to_next_byte_bitw(acc_in_bitw)
+        # self.acc_out_bitw = _ceil_to_next_byte_bitw(acc_out_bitw)
+        if len(in_dims) >= 2:
+            self.acc_in_bitw = acc_in_bitw * in_dims[1]
+        else:
+            self.acc_in_bitw = acc_in_bitw * in_dims[0]
+        if len(out_dims) >= 2:
+            self.acc_out_bitw = acc_out_bitw * out_dims[1]
+        else:
+            self.acc_out_bitw = acc_out_bitw * out_dims[0]
+        assert acc_out_bitw == acc_in_bitw  # TODO: support different data types per layer
+        self.general_bitw = acc_in_bitw
         self.if_in_bitw = if_in_bitw
         self.if_out_bitw = if_out_bitw
         self.out_dir_path = out_dir_path
@@ -397,7 +405,7 @@ class Hls4mlWrapper_Parallel:
                 '    const_size_in_1 : OUT STD_LOGIC_VECTOR (15 downto 0);\n' +
                 '    const_size_in_1_ap_vld : OUT STD_LOGIC;\n' +
                 '    const_size_out_1 : OUT STD_LOGIC_VECTOR (15 downto 0);\n' +
-                '    const_size_out_1_ap_vld : OUT STD_LOGIC );\n' +
+                '    const_size_out_1_ap_vld : OUT STD_LOGIC\n' +  # no ; at the end
                 '  );\n' +
                 'end component HLS4ML_ArchBlock_{block_id};\n')
         decl += '\n'
@@ -429,7 +437,7 @@ class Hls4mlWrapper_Parallel:
                  '    pi_hls4ml_parallel_data_V_V_read : OUT STD_LOGIC;\n' +
                  '    debug_out_V : OUT STD_LOGIC_VECTOR (63 downto 0);\n' +
                  '    ap_clk : IN STD_LOGIC;\n' +
-                 '    ap_rst_n : IN STD_LOGIC;\n' +
+                 '    ap_rst : IN STD_LOGIC;\n' +  # this time reset...why ever
                  '    debug_out_V_ap_vld : OUT STD_LOGIC);\n' +
                  'end component {ip_mod_name};\n')
         decl += '\n'
@@ -480,7 +488,7 @@ class Hls4mlWrapper_Parallel:
                 '    debug_out_V =>  s{ip_mod_name}_debug,\n' +
                 # '    debug_out_V =>  open,\n' +
                 '    ap_clk =>  [clk],\n' +
-                '    ap_rst_n =>  [rst_n]\n' +
+                '    ap_rst =>  [rst]\n' +  # this time not rst_n...
                 # '    debug_out_V_ap_vld =>  \n' +  # no comma
                 ');\n')
         decl += '\n'
@@ -549,7 +557,7 @@ class Hls4mlWrapper_Parallel:
                  # '    const_size_out_1_ap_vld => open,\n' +
                  '    ap_clk => [clk],\n' +
                  # '    ap_start => [enable],\n' +
-                 '    ap_rst_n => [rst_n]\n' +  # no comma
+                 '    ap_rst => [rst]\n' +  # no comma
                  # '    ap_done => open,\n' +
                  # '    ap_ready => open,\n' +
                  # '    ap_idle => open\n' +  # no comma
