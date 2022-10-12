@@ -1,7 +1,7 @@
 import torch
 
 
-def test(model, test_loader):
+def test(model, test_loader, neval_batches=None):
     # switch to evaluate mode
     model.eval()
 
@@ -12,8 +12,11 @@ def test(model, test_loader):
     with torch.no_grad():
         correct = 0
         total = 0
+        iteration = 0
 
         for images, labels in test_loader:
+            if neval_batches is not None and ++iteration >= neval_batches:
+                break
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images)
@@ -22,5 +25,6 @@ def test(model, test_loader):
             correct += (predicted == labels).sum().item()
             del images, labels, outputs
 
-    print('Accuracy of the network on the {} test images: {} %'.format(total, 100 * correct / total), flush=True)
-
+    print('Accuracy of the network on the {} test images: {} %'.format(total,
+                                                                       None if total == 0 else 100 * correct / total),
+          flush=True)
