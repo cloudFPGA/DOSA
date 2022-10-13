@@ -22,6 +22,7 @@ class DosaDtype(Enum):
     int8    = 5
     uint8   = 6
     double  = 7
+    int4    = 8
 
     def __repr__(self):
         return DosaDtype_to_string(self)
@@ -45,6 +46,8 @@ def convert_tvmDtype_to_DosaDtype(dtype):
     elif dtype == 'uint8':
         # TODO: catch also uint below 8 here?
         return DosaDtype.uint8
+    elif dtype == 'int4':
+        return DosaDtype.int4
     return DosaDtype.UNKNOWN
     # return DosaDtype.float32  # default?
 
@@ -64,6 +67,8 @@ def get_bitwidth_of_DosaDtype(dtype: DosaDtype) -> int:
         return 8
     if dtype == DosaDtype.double:
         return 64
+    if dtype == DosaDtype.int4:
+        return 4
     # unkown, take default
     return 32
 
@@ -83,6 +88,8 @@ def DosaDtype_to_string(dtype: DosaDtype) -> str:
         return 'uint8'
     if dtype == DosaDtype.double:
         return 'double'
+    if dtype == DosaDtype.int4:
+        return 'int4'
     return 'unknown'
 
 

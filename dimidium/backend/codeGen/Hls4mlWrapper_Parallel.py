@@ -399,9 +399,9 @@ class Hls4mlWrapper_Parallel:
                 '    input_0_V_dout : IN STD_LOGIC_VECTOR ({acc_inw_sub} downto 0);\n' +
                 '    input_0_V_empty_n : IN STD_LOGIC;\n' +
                 '    input_0_V_read : OUT STD_LOGIC;\n' +
-                '    output_0_V_din : OUT STD_LOGIC_VECTOR ({acc_outw_sub} downto 0);\n' +
-                '    output_0_V_full_n : IN STD_LOGIC;\n' +
-                '    output_0_V_write : OUT STD_LOGIC;\n' +
+                '    output_0_0_V_din : OUT STD_LOGIC_VECTOR ({acc_outw_sub} downto 0);\n' +
+                '    output_0_0_V_full_n : IN STD_LOGIC;\n' +
+                '    output_0_0_V_write : OUT STD_LOGIC;\n' +
                 '    const_size_in_1 : OUT STD_LOGIC_VECTOR (15 downto 0);\n' +
                 '    const_size_in_1_ap_vld : OUT STD_LOGIC;\n' +
                 '    const_size_out_1 : OUT STD_LOGIC_VECTOR (15 downto 0);\n' +
@@ -548,9 +548,9 @@ class Hls4mlWrapper_Parallel:
                  '    input_0_V_dout    => {a_in_sig_0},\n' +
                  '    input_0_V_empty_n => {a_in_sig_1n},\n' +
                  '    input_0_V_read    => {a_in_sig_2},\n' +
-                 '    output_0_V_din    => {a_out_sig_0},\n' +
-                 '    output_0_V_full_n => {a_out_sig_1n},\n' +
-                 '    output_0_V_write  => {a_out_sig_2},\n' +
+                 '    output_0_0_V_din    => {a_out_sig_0},\n' +
+                 '    output_0_0_V_full_n => {a_out_sig_1n},\n' +
+                 '    output_0_0_V_write  => {a_out_sig_2},\n' +
                  # '    const_size_in_1 => open,\n' +
                  # '    const_size_out_1 => open,\n' +
                  # '    const_size_in_1_ap_vld => open,\n' +
