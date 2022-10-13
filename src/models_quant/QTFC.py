@@ -50,11 +50,9 @@ class QTFC(nn.Module):
         # first layer
         self.features.append(qnn.QuantLinear(in_features, hidden1, bias=True,
                                              weight_quant=Int8WeightPerTensorFloat,
-                                             input_quant=Int8ActPerTensorFloat,
                                              bias_quant=Int8Bias,
                                              output_quant=Int8ActPerTensorFloat,
                                              return_quant_tensor=True))
-        self.features.append(qnn.QuantIdentity(act_quant=Int8ActPerTensorFloat, return_quant_tensor=True))
         self.features.append(nn.Dropout(p=dropout))
         self.features.append(qnn.QuantReLU(return_quant_tensor=True))
 
@@ -64,7 +62,6 @@ class QTFC(nn.Module):
                                              bias_quant=Int8Bias,
                                              output_quant=Int8ActPerTensorFloat,
                                              return_quant_tensor=True))
-        self.features.append(qnn.QuantIdentity(act_quant=Int8ActPerTensorFloat, return_quant_tensor=True))
         self.features.append(nn.Dropout(p=dropout))
         self.features.append(qnn.QuantReLU(return_quant_tensor=True))
 
@@ -74,12 +71,15 @@ class QTFC(nn.Module):
                                              bias_quant=Int8Bias,
                                              output_quant=Int8ActPerTensorFloat,
                                              return_quant_tensor=True))
-        self.features.append(qnn.QuantIdentity(act_quant=Int8ActPerTensorFloat, return_quant_tensor=True))
         self.features.append(nn.Dropout(p=dropout))
         self.features.append(qnn.QuantReLU(return_quant_tensor=True))
 
         # output layer
-        self.features.append(qnn.QuantLinear(hidden3, 10, bias=True))
+        self.features.append(qnn.QuantLinear(hidden3, 10, bias=True,
+                                             weight_quant=Int8WeightPerTensorFloat,
+                                             bias_quant=Int8Bias,
+                                             output_quant=None,
+                                             return_quant_tensor=False))
 
     def forward(self, x):
         x = x.reshape((-1, in_features))
