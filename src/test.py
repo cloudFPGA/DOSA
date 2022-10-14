@@ -1,7 +1,26 @@
 import torch
 
 
-def test(model, test_loader, neval_batches=None):
+def calibrate(model, test_loader, num_steps=1):
+    # brevitas requires the model to be in training mode in order to be able to perform calibration
+    model.train()
+
+    # run on GPU if available
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+
+    count = 0
+    for images, _ in test_loader:
+        if count >= num_steps:
+            break
+        images = images.to(device)
+        model(images)
+
+
+def test(model, test_loader, calibration_steps=None):
+    if calibration_steps is not None and calibration_steps > 0:
+        calibrate(model, test_loader, calibration_steps)
+
     # switch to evaluate mode
     model.eval()
 
@@ -12,11 +31,8 @@ def test(model, test_loader, neval_batches=None):
     with torch.no_grad():
         correct = 0
         total = 0
-        iteration = 0
 
         for images, labels in test_loader:
-            if neval_batches is not None and ++iteration >= neval_batches:
-                break
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images)
