@@ -1,6 +1,6 @@
 from torch import nn
 import brevitas.nn as qnn
-from brevitas.inject.defaults import Uint8ActPerTensorFloat, Int8WeightPerTensorFloat, Int8Bias
+from brevitas.inject.defaults import Int8ActPerTensorFloat, Int8WeightPerTensorFloat, Int8Bias
 from brevitas import config
 
 from .quant_model import QuantModel
@@ -14,14 +14,14 @@ in_features = 28 * 28
 class QTFC(QuantModel):
     def __init__(self, hidden1, hidden2, hidden3):
         super(QTFC, self).__init__()
-        self.features.append(qnn.QuantIdentity(act_quant=Uint8ActPerTensorFloat, return_quant_tensor=True))
+        self.features.append(qnn.QuantIdentity(act_quant=Int8ActPerTensorFloat, return_quant_tensor=True))
         self.features.append(nn.Dropout(p=dropout))
 
         # first layer
         self.features.append(qnn.QuantLinear(in_features, hidden1, bias=True,
                                              weight_quant=Int8WeightPerTensorFloat,
                                              bias_quant=Int8Bias,
-                                             output_quant=Uint8ActPerTensorFloat,
+                                             output_quant=Int8ActPerTensorFloat,
                                              return_quant_tensor=True))
         self.features.append(nn.Dropout(p=dropout))
         self.features.append(qnn.QuantReLU(return_quant_tensor=True))
@@ -30,7 +30,7 @@ class QTFC(QuantModel):
         self.features.append(qnn.QuantLinear(hidden1, hidden2, bias=True,
                                              weight_quant=Int8WeightPerTensorFloat,
                                              bias_quant=Int8Bias,
-                                             output_quant=Uint8ActPerTensorFloat,
+                                             output_quant=Int8ActPerTensorFloat,
                                              return_quant_tensor=True))
         self.features.append(nn.Dropout(p=dropout))
         self.features.append(qnn.QuantReLU(return_quant_tensor=True))
@@ -39,7 +39,7 @@ class QTFC(QuantModel):
         self.features.append(qnn.QuantLinear(hidden2, hidden3, bias=True,
                                              weight_quant=Int8WeightPerTensorFloat,
                                              bias_quant=Int8Bias,
-                                             output_quant=Uint8ActPerTensorFloat,
+                                             output_quant=Int8ActPerTensorFloat,
                                              return_quant_tensor=True))
         self.features.append(nn.Dropout(p=dropout))
         self.features.append(qnn.QuantReLU(return_quant_tensor=True))

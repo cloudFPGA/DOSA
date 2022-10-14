@@ -1,7 +1,7 @@
 import torch
 
 
-def calibrate(model, test_loader, num_steps=1):
+def calibrate(model, test_loader, num_steps=1, seed=None):
     # brevitas requires the model to be in training mode in order to be able to perform calibration
     model.train()
 
@@ -9,18 +9,20 @@ def calibrate(model, test_loader, num_steps=1):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
 
+    # set seed for reproducibility
+    if seed is not None:
+        torch.manual_seed(seed)
+
     count = 0
     for images, _ in test_loader:
         if count >= num_steps:
             break
         images = images.to(device)
         model(images)
+        count += 1
 
 
-def test(model, test_loader, calibration_steps=None):
-    if calibration_steps is not None and calibration_steps > 0:
-        calibrate(model, test_loader, calibration_steps)
-
+def test(model, test_loader):
     # switch to evaluate mode
     model.eval()
 
