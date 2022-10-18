@@ -1,9 +1,22 @@
 import torch
 
 
-def calibrate(model, test_loader, num_steps=1, seed=None):
-    # brevitas requires the model to be in training mode in order to be able to perform calibration
+def controlled_calibrate(model, data):
     model.train()
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+
+    if not isinstance(data, list):
+        data = [data]
+
+    for images in data:
+        images = images.to(device)
+        model(images)
+
+
+def calibrate(model, test_loader, num_steps=1, seed=None):
+    model.eval()
 
     # run on GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

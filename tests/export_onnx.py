@@ -10,7 +10,7 @@ from src.data import data_loader
 from src.test import test
 
 from src.models.full_precision.TFC import TFC
-from src.models.quantized.QTFC import QTFC
+from src.models.quantized.QTFC.QTFC import QTFC
 
 # Prepare MNIST dataset
 test_loader_mnist = data_loader(data_dir='../data', dataset='MNIST', batch_size=100, test=True)

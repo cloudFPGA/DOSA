@@ -1,2 +1,0 @@
-from .torch_static_quant_model import StaticQuantModel
-from .models_parallel_inference import ModelsParallelDebug

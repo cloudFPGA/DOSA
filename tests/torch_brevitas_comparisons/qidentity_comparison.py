@@ -23,35 +23,18 @@ import torch
 from torch import nn
 from torch.quantization.qconfig import QConfig
 from torch.quantization.observer import MinMaxObserver
-from tests.utils.torch_static_quant_model import StaticQuantModel
+from tests.torch_brevitas_comparisons.utils import StaticQuantModel
 import copy
 
 # Try to obtain the exact same results for pytorch and brevitas int8 quantization
 
 custom_torch_config = QConfig(
-    activation=MinMaxObserver.with_args(dtype=torch.quint8, qscheme=torch.per_tensor_symmetric),
+    activation=MinMaxObserver.with_args(dtype=torch.quint8, qscheme=torch.per_tensor_affine),
     weight=MinMaxObserver.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_symmetric, reduce_range=True)
 )
 
 
-# class CustomBrevitasConfig(ExtendedInjector):
-#     proxy_class = ActQuantProxyFromInjector
-#     tensor_quant = RescalingIntQuant
-#
-#     int_quant = IntQuant
-#     narrow_range = False
-#     signed = False
-#     float_to_int_impl = RoundSte
-#
-#     scaling_impl = RuntimeStatsScaling
-#     bit_width_impl = BitWidthConst
-#     zero_point_impl = ZeroZeroPoint
-#     scaling_stats_impl = AbsMinMax
-#     scaling_per_output_channel = False
-#     restrict_scaling_type = IntScaling
-#     bit_width = 8
-
-class CustomBrevitasConfig(ParamFromRuntimePercentileScaling, PerTensorFloatScaling8bit, ActQuantSolver):
+class CustomBrevitasConfig(ActQuantSolver):
     # quant type
     quant_type = QuantType.INT
     bit_width_impl_type = BitWidthImplType.CONST
@@ -111,7 +94,7 @@ def prepare_simple_brevitas_quant_identity(data_loader):
 
 
 # ======= Main =======
-test_loader_mnist = data_loader(data_dir='../data', dataset='MNIST', batch_size=1, test=True)
+test_loader_mnist = data_loader(data_dir='../../data', dataset='MNIST', batch_size=1, test=True)
 
 torch.manual_seed(42)
 calibration_data = next(iter(test_loader_mnist))[0]
