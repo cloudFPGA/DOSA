@@ -4,8 +4,7 @@ import torch
 from torch import nn
 
 from src import calibrate
-from src.models.quantized import QTFC
-from src.test import controlled_calibrate
+from src.models.quantized.quant_model import QuantModel
 
 
 class StaticQuantModel(nn.Module):
@@ -20,6 +19,23 @@ class StaticQuantModel(nn.Module):
         x = self.model_fp32(x)
         x = self.dequant(x)
         return x
+
+
+def controlled_calibrate(model, data):
+    if isinstance(model, QuantModel):
+        model.calibrate()
+    else:
+        model.eval()
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+
+    if not isinstance(data, list):
+        data = [data]
+
+    for images in data:
+        images = images.to(device)
+        model(images)
 
 
 def prepare_torch_qlayer(fp_model, qconfig, data_loader=None, calibration_data=None, fusion_list=None):
@@ -58,3 +74,6 @@ def prepare_brevitas_qmodel(fp_model, brevitas_model, data_loader=None, calibrat
 def prepare_brevitas_qlayer(fp_layer, brev_layer, calibration_data):
     brev_layer.load_state_dict(fp_layer.state_dict())
     controlled_calibrate(brev_layer, calibration_data)
+
+
+

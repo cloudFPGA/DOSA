@@ -1,22 +1,13 @@
 import torch
 
-
-def controlled_calibrate(model, data):
-    model.train()
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
-
-    if not isinstance(data, list):
-        data = [data]
-
-    for images in data:
-        images = images.to(device)
-        model(images)
+from src.models.quantized.quant_model import QuantModel
 
 
 def calibrate(model, test_loader, num_steps=1, seed=None):
-    model.eval()
+    if isinstance(model, QuantModel):
+        model.calibrate()
+    else:
+        model.eval()
 
     # run on GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

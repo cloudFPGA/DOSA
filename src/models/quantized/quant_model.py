@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 import torch
 from brevitas.quant_tensor import QuantTensor
 from torch import nn
-import src.models_processing.model_iterator as iterator
-from src.models_processing.brevitas_nn_modules_index import weight_layers_all
+import src.model_processing.model_iterator as iterator
+from src.model_processing.brevitas_nn_modules_index import weight_layers_all
 
 
 class QuantModel(nn.Module, ABC):
@@ -36,13 +36,13 @@ class QuantModel(nn.Module, ABC):
         return self.features.__str__()
 
     def get_quant_description(self):
-        modules = iterator.QuantModelIterator(self)
+        it = iterator.QuantModelIterator(self)
         x = torch.randn(self.input_shape())
         self.eval()
 
         value = self._get_name() + '(\n'
 
-        name, module = modules.named_next()
+        name, module = it.named_next()
         while module is not None:
             if name and name.find('.') < 0:
                 value += '    (' + name + '): '
@@ -55,7 +55,27 @@ class QuantModel(nn.Module, ABC):
                     value += 'output scale: {}, '.format(x.scale.item())
                     value += 'output zero-point: {}, '.format(x.zero_point.item())
                 value += ')\n'
-            name, module = modules.named_next()
+            name, module = it.named_next()
 
         value += ')'
         return value
+
+    def calibrate(self):
+        self.eval()
+        it = iterator.QuantModelIterator(self)
+        module = it.find_next_act_quant_module()
+        while module is not None:
+            module.train()
+            module = it.find_next_act_quant_module()
+
+    def calibrating(self):
+        it = iterator.QuantModelIterator(self)
+        module = next(it)
+        while module is not None:
+            if module.training:
+               return True
+            module = next(it)
+        return False
+
+
+

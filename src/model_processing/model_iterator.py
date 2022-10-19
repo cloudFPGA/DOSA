@@ -50,6 +50,15 @@ class QuantModelIterator(ModelIterator):
     def reset(self):
         self.modules_it = self.model.features.named_modules()
 
+    def find_next_act_quant_module(self):
+        while True:
+            module = next(self)
+            if module is None:
+                return None
+            if hasattr(module, 'act_quant') or hasattr(module, 'input_quant') or hasattr(module, 'output_quant'):
+                return module
+        return module
+
 
 class FullPrecisionModelIterator(ModelIterator):
     """Iterates over the modules of a full precision model"""
