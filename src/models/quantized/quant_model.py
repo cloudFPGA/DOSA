@@ -47,13 +47,17 @@ class QuantModel(nn.Module, ABC):
             if name and name.find('.') < 0:
                 value += '    (' + name + '): '
                 value += module._get_name() + '('
-                if type(module).__name__ in weight_layers_all:
+
+                is_weight_layer = type(module).__name__ in weight_layers_all
+                if is_weight_layer:
                     value += 'weight scale: {}, '.format(module.quant_weight().scale.item())
-                    value += 'weight zero-point: {}, '.format(module.quant_weight().zero_point.item())
+                    value += 'weight zero-point: {}'.format(module.quant_weight().zero_point.item())
                 x = module(x)
                 if isinstance(x, QuantTensor):
+                    if is_weight_layer:
+                        value += ', '
                     value += 'output scale: {}, '.format(x.scale.item())
-                    value += 'output zero-point: {}, '.format(x.zero_point.item())
+                    value += 'output zero-point: {}'.format(x.zero_point.item())
                 value += ')\n'
             name, module = it.named_next()
 

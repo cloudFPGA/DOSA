@@ -2,7 +2,7 @@ from brevitas.inject.enum import QuantType, BitWidthImplType, FloatToIntImplType
     RestrictValueType
 from brevitas.quant.solver import ActQuantSolver
 
-from src.models.quantized import QTFC, QTFCAffineQuantAct
+from src.models.quantized import QTFC, QTFCShiftedQuantAct
 from src.test import test
 from src.data import data_loader
 from src.model_processing import FullPrecisionModelIterator
@@ -18,7 +18,7 @@ from tests.torch_brevitas_comparisons.utils import prepare_torch_qlayer, prepare
 
 custom_torch_config = QConfig(
     activation=MinMaxObserver.with_args(dtype=torch.quint8, qscheme=torch.per_tensor_affine),
-    weight=MinMaxObserver.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_symmetric, reduce_range=False)
+    weight=MinMaxObserver.with_args(dtype=torch.qint8, qscheme=torch.per_tensor_symmetric, reduce_range=True)
 )
 
 
@@ -35,7 +35,8 @@ mod_it.force_bias_zero()
 fp_model.eval()
 
 # full precision accuracy
-# test(fp_model, test_loader_mnist)
+print("Full Precision:")
+test(fp_model, test_loader_mnist)
 
 calibration_data = torch.zeros(1, 1, 28, 28)
 calibration_data[0, 0, 0, 1] = 1.0
@@ -43,14 +44,14 @@ calibration_data[0, 0, 0, 1] = 1.0
 # torch QuantIdentity scale and zero-point
 fusion_list = [['1', '2'], ['5', '6'], ['9', '10']]
 torch_quant_model = prepare_torch_qlayer(fp_model, custom_torch_config, data_loader=calibration_loader_mnist,
-                                         calibration_data=None, fusion_list=fusion_list)
+                                         calibration_data=None, fusion_list=fusion_list, num_steps=300)
 print("Torch quantized TFC:")
 test(torch_quant_model, test_loader_mnist)
 
 # brevitas QuantIdentity scale and zero-point
 brevitas_quant_model = QTFC(64, 64, 64)
 prepare_brevitas_qmodel(fp_model, brevitas_quant_model, data_loader=calibration_loader_mnist,
-                        calibration_data=None)
+                        calibration_data=None, num_steps=300)
 
 print("Brevitas quantized TFC:")
 test(brevitas_quant_model, test_loader_mnist)

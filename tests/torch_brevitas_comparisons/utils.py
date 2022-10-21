@@ -38,7 +38,7 @@ def controlled_calibrate(model, data):
         model(images)
 
 
-def prepare_torch_qlayer(fp_model, qconfig, data_loader=None, calibration_data=None, fusion_list=None):
+def prepare_torch_qlayer(fp_model, qconfig, data_loader=None, calibration_data=None, fusion_list=None, num_steps=1):
     fp_model.eval()
     model_fp_fused = copy.deepcopy(fp_model)
 
@@ -54,7 +54,7 @@ def prepare_torch_qlayer(fp_model, qconfig, data_loader=None, calibration_data=N
     torch.ao.quantization.prepare(torch_qmodel, inplace=True)
 
     if calibration_data is None:
-        calibrate(torch_qmodel, data_loader, num_steps=1, seed=42)
+        calibrate(torch_qmodel, data_loader, num_steps=num_steps, seed=42)
     else:
         controlled_calibrate(torch_qmodel, calibration_data)
 
@@ -62,11 +62,11 @@ def prepare_torch_qlayer(fp_model, qconfig, data_loader=None, calibration_data=N
     return torch_qmodel
 
 
-def prepare_brevitas_qmodel(fp_model, brevitas_model, data_loader=None, calibration_data=None):
+def prepare_brevitas_qmodel(fp_model, brevitas_model, data_loader=None, calibration_data=None, num_steps=1):
     brevitas_model.load_model_state_dict(fp_model)
 
     if calibration_data is None:
-        calibrate(brevitas_model, data_loader, num_steps=1, seed=42)
+        calibrate(brevitas_model, data_loader, num_steps=num_steps, seed=42)
     else:
         controlled_calibrate(brevitas_model, calibration_data)
 
