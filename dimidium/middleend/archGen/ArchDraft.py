@@ -1153,8 +1153,10 @@ class ArchDraft(object):
                                     i = j
                                 else:
                                     break
-                        verbose_msg = "local id of new first brick {}, {}"\
-                            .format(old_i, cur_node.bricks[old_i].ext_repr())
+                        verbose_msg = "local id of new first brick {}, {}; comp_share: {}, mem_share: {}"\
+                            .format(old_i, cur_node.bricks[old_i].ext_repr(),
+                                    cur_comp_share - cur_node.bricks[i].req_util_comp,
+                                    cur_mem_share - cur_node.bricks[i].req_util_mem)
                         new_node = cur_node.split_horizontal(i)  # including update_used_perf_util
                         all_new_nodes.append(new_node)
                         if verbose:
@@ -1250,7 +1252,7 @@ class ArchDraft(object):
                 # check if all are possible
                 prev_lb = None
                 used_factor = 1
-                override_old_factor=False
+                override_old_factor = False
                 while used_factor != max_factor:
                     for lb in nn.local_brick_iter_gen():
                         if not lb.needs_compute_parallelization \
@@ -1293,7 +1295,6 @@ class ArchDraft(object):
                         print("[DOSA:archGen:ERROR] Node {} needs to be parallelized by factor {}, but "
                               "brick {} can only be parallelized with a factor {} . STOP."
                               .format(nn.node_id, max_factor, i, len(nn.bricks[i].parallelized_bricks)))
-                        # TODO: instead, split node again horizontally, if it is possible to group into compatible parallelization counts
                         return DosaRv.ERROR
                     for j in range(0, max_factor):
                         p_brick = nn.bricks[i].parallelized_bricks[j]

@@ -383,7 +383,10 @@ class ArchBrick(object):
                 #     cc.osg.annotate_brick(nb, cc.device)
                 # add fake contract
                 pseudo_contract = BrickContract(self, cc.device, cc.osg, cc.impl_type, [])
-                pseudo_contract.iter_hz = cc.iter_hz / used_factor
+                if cc.impl_type == BrickImplTypes.ENGINE:
+                    pseudo_contract.iter_hz = cc.iter_hz / used_factor
+                else:
+                    pseudo_contract.iter_hz = cc.iter_hz
                 pseudo_contract.flops_per_iter = cc.flops_per_iter / used_factor
                 pseudo_contract.comp_util_share = cc.comp_util_share / used_factor
                 pseudo_contract.mem_util_share = cc.mem_util_share / used_factor

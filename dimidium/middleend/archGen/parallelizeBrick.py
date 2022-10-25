@@ -27,20 +27,36 @@ __min_factor__ = 2
 def parallelize_ops_of_brick(orig_brick, factor_in, with_inputs=False):
     if factor_in < __min_factor__:
         factor_in = __min_factor__
-    factor = 2 * round(np.ceil(factor_in)/2)
+    # factor = 2 * round(np.ceil(factor_in)/2)
+    factor = round(np.ceil(factor_in))
+    # op_force = '(round to even)'
+    op_force = '(round to ceil)'
     # check factor
     necessary = True
-    op_force = '(round to even)'
+    not_possible_factors = []
     while necessary:
         necessary = False
         for oid in orig_brick.ops:
             op = orig_brick.ops[oid]
             if with_inputs:
                 if op.dims.inp[1] % factor != 0:
-                    factor = get_next_larger_dividor(op.dims.inp[1], factor)
+                    not_possible_factors.append(factor)
+                    factor = get_next_larger_dividor(op.dims.inp[1], factor, not_possible_factors=not_possible_factors)
+                    if factor == -1:
+                        print("[DOSA:ParallelizeOpClass:ERROR] Unable to find possible split factor for op {}, dims: {}"
+                              ", factors tried {}, requested {} (input considered).".format(repr(op), op.dims,
+                                                                                            not_possible_factors,
+                                                                                            factor_in))
+                        return -1, None
                     op_force = op.op_call
             if len(op.dims.param) > 0 and op.dims.param[0] % factor != 0:
-                factor = get_next_larger_dividor(op.dims.param[0], factor)
+                not_possible_factors.append(factor)
+                factor = get_next_larger_dividor(op.dims.param[0], factor, not_possible_factors=not_possible_factors)
+                if factor == -1:
+                    print("[DOSA:ParallelizeOpClass:ERROR] Unable to find possible split factor for op {}, dims: {}"
+                          ", factors tried {}, requested {}.".format(repr(op), op.dims, not_possible_factors,
+                                                                     factor_in))
+                    return -1, None
                 op_force = op.op_call
                 necessary = True
     is_possible = True

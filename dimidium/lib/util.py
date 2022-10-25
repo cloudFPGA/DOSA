@@ -123,9 +123,13 @@ def my_lcm(a, b):
 
 
 # https://stackoverflow.com/questions/57154745/how-to-find-nearest-divisor-to-given-value-with-modulo-zero
-def get_next_larger_dividor(n, near):
+def get_next_larger_dividor(n, near, not_possible_factors=None, max_tries=100):
+    if max_tries <= 0:
+        return -1
     nn = np.divide(n, np.linspace(1, np.ceil(n / near), int(np.ceil(n / near))))
     bd = int(nn[nn % 1 == 0][-1])
+    if not_possible_factors is not None and bd in not_possible_factors:
+        return get_next_larger_dividor(n, near+1, not_possible_factors, max_tries=max_tries-1)
     return bd
 
 
