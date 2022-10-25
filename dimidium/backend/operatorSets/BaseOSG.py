@@ -127,6 +127,8 @@ class BaseOSG(metaclass=abc.ABCMeta):
                     all_length = len(contr_list[0])
                     for cl in contr_list:
                         if len(cl) < all_length:
+                            # TODO: instead: make combinations?
+                            #  but then: maybe some options are not compatible with each other?
                             continue
                         brick_contr = BrickContract(brick_node, target_hw, self, impl_type, cl)
                         if return_instead_annotate:

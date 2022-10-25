@@ -185,20 +185,45 @@ class Hls4mlOSG(BaseOSG):
                                   'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
         offer_list = [offer]
         if not used_fallback:
-            proc_share['LUTLOG'] *= 0.5
-            proc_share['LUTMEM'] *= 0.5
-            proc_share['Registers'] *= 0.5
-            proc_share['BRAM'] *= 0.5
-            proc_share['DSPs'] *= 0.5
+            updated_proc_share = {}
+            updated_proc_share['LUTLOG'] = proc_share['LUTLOG'] * 0.5
+            updated_proc_share['LUTMEM'] = proc_share['LUTLOG'] * 0.5
+            updated_proc_share['Registers'] = proc_share['LUTLOG'] * 0.5
+            updated_proc_share['BRAM'] = proc_share['LUTLOG'] * 0.5
+            updated_proc_share['DSPs'] = proc_share['LUTLOG'] * 0.5
             # util_dict['latency_lim_per_tensor_cycl'] *= 2
             # wrapper stays
             offer_05 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.5,
                                          proc_comp_share * 0.5,
                                          proc_mem_share * 0.5, 'conf:mult_limit=0.5', wrapper_comp_share,
                                          wrapper_mem_share,
-                                         proc_share, wrapper_share)
-            # TODO
-            # offer_list.append(offer_05)
+                                         updated_proc_share, wrapper_share)
+            offer_list.append(offer_05)
+        updated_proc_share = {}
+        updated_proc_share['LUTLOG'] = proc_share['LUTLOG'] * 0.5
+        updated_proc_share['LUTMEM'] = proc_share['LUTLOG'] * 0.5
+        updated_proc_share['Registers'] = proc_share['LUTLOG'] * 0.5
+        updated_proc_share['BRAM'] = proc_share['LUTLOG'] * 0.5
+        updated_proc_share['DSPs'] = proc_share['LUTLOG'] * 0.5
+        offer_05_2 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.5,
+                                       proc_comp_share * 0.5,
+                                       proc_mem_share * 0.5, 'conf:reuse_factor=2', wrapper_comp_share,
+                                       wrapper_mem_share,
+                                       updated_proc_share, wrapper_share)
+        offer_list.append(offer_05_2)
+
+        updated_proc_share = {}
+        updated_proc_share['LUTLOG'] = proc_share['LUTLOG'] * 0.25
+        updated_proc_share['LUTMEM'] = proc_share['LUTLOG'] * 0.25
+        updated_proc_share['Registers'] = proc_share['LUTLOG'] * 0.25
+        updated_proc_share['BRAM'] = proc_share['LUTLOG'] * 0.25
+        updated_proc_share['DSPs'] = proc_share['LUTLOG'] * 0.25
+        offer_025 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.25,
+                                      proc_comp_share * 0.25,
+                                      proc_mem_share * 0.25, 'conf:reuse_factor=4', wrapper_comp_share,
+                                      wrapper_mem_share,
+                                      updated_proc_share, wrapper_share)
+        offer_list.append(offer_025)
         # TODO: add alternative offers
         #  e.g. with alternative reuse factor?
         return offer_list
@@ -459,10 +484,26 @@ class Hls4mlOSG(BaseOSG):
         # reuse_factor_stream = 1
         # reuse_factor_stream = 4  # TODO
         reuse_factor_stream = 32  # works so far...TODO
+        reuse_factor_temp = reuse_factor_stream
+        for op_c in selected_contracts:
+            if op_c.osg_intern_id[0:5] == 'conf:':
+                conf_str = op_c.osg_intern_id[5:]
+                conf_list = conf_str.split(';')
+                for c in conf_list:
+                    if 'reuse_factor' in c:
+                        rft = float(c.split('=')[1]) * reuse_factor_stream
+                        if rft > reuse_factor_temp:
+                            reuse_factor_temp = rft
+                        print("[DOSA:hls4mlOSG:INFO] Using adapting reuse factor by {}.".format(reuse_factor_temp))
+        reuse_factor_stream = reuse_factor_temp
+
         if np.prod(input_batch_shape) < reuse_factor_stream:
             # reuse_factor_stream = math.floor(np.prod(input_batch_shape)/2) * 2
             reuse_factor_stream = 1  # i.e. deactivating? # TODO
+            print("[DOSA:hls4mlOSG:INFO] Small input, using reuse_factor {}.".format(reuse_factor_stream))
+
         reuse_factor_engine = 2
+
         precision_dict = {'default': precision_string,
                           'accum': accum_string}
         hls_config = {'Model': {
@@ -671,7 +712,7 @@ class Hls4mlOSG(BaseOSG):
                     for c in conf_list:
                         if 'mult_limit' in c:
                             mult_limit_factor = float(c.split('=')[1])
-                            print("[DOSA:OSG:INFO] Using adapted mult_limit_factor {}.".format(mult_limit_factor))
+                            print("[DOSA:hls4mlOSG:INFO] Using adapted mult_limit_factor {}.".format(mult_limit_factor))
 
                 if wrapper_first_op is None:
                     wrapper_first_op = op

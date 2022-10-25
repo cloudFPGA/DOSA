@@ -49,9 +49,9 @@ class OperationContract(DosaContract):
         # TODO: add wrapper_latency? add 1-batch latency?
 
     def __repr__(self):
-        return "OpContr({} on {} using {}/{}: {:.2f}/s, {:.2f}c%, {:.2f}m%)"\
+        return "OpContr({} on {} using {}/{}: {:.2f}/s, {:.2f}c%, {:.2f}m%, {})"\
             .format(self.op.op_call, self.device.name, self.osg.name, self.impl_type, self.iter_hz,
-                    self.comp_util_share*100, self.mem_util_share*100)
+                    self.comp_util_share*100, self.mem_util_share*100, self.osg_intern_id[0:9])
 
 
 

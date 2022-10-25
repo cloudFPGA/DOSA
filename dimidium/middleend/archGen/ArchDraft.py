@@ -1267,6 +1267,7 @@ class ArchDraft(object):
                         print("[DOSA:archGen:ERROR] Node {} needs to be parallelized by factor {}, but "
                               "brick {} can only be parallelized with a factor {} . STOP."
                               .format(nn.node_id, max_factor, i, len(nn.bricks[i].parallelized_bricks)))
+                        # TODO: instead, split node again horizontally, if it is possible to group into compatible parallelization counts
                         return DosaRv.ERROR
                     for j in range(0, max_factor):
                         p_brick = nn.bricks[i].parallelized_bricks[j]
