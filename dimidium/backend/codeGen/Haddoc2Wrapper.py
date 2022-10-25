@@ -149,7 +149,8 @@ class Haddoc2Wrapper:
                 #             b1 = 0
                 #         outline += fsm_tmpl.format(b=b, b1=b1)
                 elif 'DOSA_ADD_demux_fsm' in line:
-                    if len(self.in_dims[1]) > 1:
+                    if (isinstance(self.in_dims[1], list) and len(self.in_dims[1]) > 1) or \
+                           (isinstance(self.in_dims[1], int) and self.in_dims[1] > 1):
                         fsm_tmpl = '    case FILL_BUF_{b}:\n' + \
                                    '      if( !siData.empty() && !sToHaddocBuffer_chan{b}.full() && !sToHaddocBuffer_chan{b1}.full() )\n' + \
                                    '      {{\n' + \

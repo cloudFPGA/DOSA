@@ -485,16 +485,17 @@ class Hls4mlOSG(BaseOSG):
         # reuse_factor_stream = 4  # TODO
         reuse_factor_stream = 32  # works so far...TODO
         reuse_factor_temp = reuse_factor_stream
-        for op_c in selected_contracts:
-            if op_c.osg_intern_id[0:5] == 'conf:':
-                conf_str = op_c.osg_intern_id[5:]
-                conf_list = conf_str.split(';')
-                for c in conf_list:
-                    if 'reuse_factor' in c:
-                        rft = float(c.split('=')[1]) * reuse_factor_stream
-                        if rft > reuse_factor_temp:
-                            reuse_factor_temp = rft
-                        print("[DOSA:hls4mlOSG:INFO] Using adapting reuse factor by {}.".format(reuse_factor_temp))
+        for bb_c in selected_contracts:
+            for op_c in bb_c.op_contracts:
+                if op_c.osg_intern_id[0:5] == 'conf:':
+                    conf_str = op_c.osg_intern_id[5:]
+                    conf_list = conf_str.split(';')
+                    for c in conf_list:
+                        if 'reuse_factor' in c:
+                            rft = float(c.split('=')[1]) * reuse_factor_stream
+                            if rft > reuse_factor_temp:
+                                reuse_factor_temp = rft
+                            print("[DOSA:hls4mlOSG:INFO] Using adapting reuse factor by {}.".format(reuse_factor_temp))
         reuse_factor_stream = reuse_factor_temp
 
         if np.prod(input_batch_shape) < reuse_factor_stream:
