@@ -882,7 +882,8 @@ class ArchDraft(object):
     #         assert nn.used_mem_util_share < 1.1
     #     return DosaRv.OK
 
-    def legalize(self, verbose=False, consider_switching_first=False, contract_look_ahead=0):
+    def legalize(self, verbose=False, consider_switching_first=False, contract_look_ahead=0,
+                 relax_utilization_check=False):
         # 0. bandwidth analysis (OSG not yet decided)
         #  including sorting of contracts based on strategy
         #  and filtering of contracts
@@ -1248,18 +1249,43 @@ class ArchDraft(object):
                 nn.compute_parallelization_factor = max_factor
                 # check if all are possible
                 prev_lb = None
-                for lb in nn.local_brick_iter_gen():
-                    if not lb.needs_compute_parallelization \
-                            or lb.compute_parallelization_factor != max_factor:  # \
-                        # or lb.local_brick_id != 0:
-                        # TODO: allow also already splitted brick in the middle of a node?
-                        # assert prev_lb is not None
-                        # TODO: (reactive check later, now it will stop if not possible)
-                        if prev_lb is None:
-                            lb.parallelize([lb.selected_contract], max_factor, with_inputs=False)
+                used_factor = 1
+                override_old_factor=False
+                while used_factor != max_factor:
+                    for lb in nn.local_brick_iter_gen():
+                        if not lb.needs_compute_parallelization \
+                                or lb.compute_parallelization_factor != max_factor:  # \
+                            # or lb.local_brick_id != 0:
+                            # TODO: allow also already splitted brick in the middle of a node?
+                            # assert prev_lb is not None
+                            # TODO: (reactive check later, now it will stop if not possible)
+                            if prev_lb is None:
+                                used_factor = lb.parallelize([lb.selected_contract], max_factor, with_inputs=False,
+                                                             verbose=verbose, override_old_factor=override_old_factor)
+                            else:
+                                used_factor = lb.parallelize([lb.selected_contract], max_factor, with_inputs=True,
+                                                             verbose=verbose, override_old_factor=override_old_factor)
+                            if used_factor < max_factor:
+                                print("[DOSA:archGen:ERROR] Node {} needs to be parallelized by factor {}, but "
+                                      "brick {} can only be parallelized with a factor {} . STOP."
+                                      .format(nn.node_id, max_factor, lb.brick_uuid, used_factor))
+                                return DosaRv.ERROR
                         else:
-                            lb.parallelize([lb.selected_contract], max_factor, with_inputs=True)
-                    prev_lb = lb
+                            # to stop while loop
+                            used_factor = max_factor
+                        if used_factor > max_factor:
+                            max_factor = used_factor
+                            if verbose:
+                                print("[DOSA:archGen:INFO] Need to update the split factor of computing operations of "
+                                      "node {} to use factor {}."
+                                      .format(nn.node_id, max_factor))
+                            used_factor = 1
+                            override_old_factor = True
+                        prev_lb = lb
+                    if verbose and override_old_factor:
+                        print(f"[DOSA:archGen:DEBUG] Convergence of split factors within node {nn.node_id}... "
+                              f"used_factor: {used_factor}; max_factor: {max_factor};")
+                    override_old_factor = True
                 my_new_bricks = {}
                 new_nodes = {}
                 for i in range(0, nn.bid_cnt):
@@ -1490,11 +1516,13 @@ class ArchDraft(object):
             # assert nn.used_comp_util_share < 1.1
             # TODO
             if nn.used_comp_util_share > 1:
-                print("[DOSA:archGen:WARNING] node {} has {} compute utilization...implementation may fail"
+                print("[DOSA:archGen:WARNING] Node {} has {} compute utilization...implementation may fail"
                       .format(nn.node_id, nn.used_comp_util_share))
             # assert nn.used_comp_util_share < 1.2
             # assert nn.used_mem_util_share < 1.2
-            if nn.used_comp_util_share > 1.2 or nn.used_mem_util_share > 1.2:
+            if (not relax_utilization_check) and (nn.used_comp_util_share > 1.2 or nn.used_mem_util_share > 1.2):
+                print("[DOSA:archGen:ERROR] Node {} is over utilized (compute: {}, mem: {})."
+                      .format(nn.node_id, nn.used_comp_util_share, nn.used_mem_util_share))
                 raise DosaConstraintFail
         self.total_flops = 0
         self.total_parameters_bytes = 0

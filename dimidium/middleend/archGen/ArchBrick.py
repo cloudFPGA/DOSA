@@ -326,12 +326,14 @@ class ArchBrick(object):
         self.reconstruct_from_op_list(op_list_staying)
         new_brick.reconstruct_from_op_list(op_list_new)
 
-    def parallelize(self, contracts_to_consider, factor, with_inputs=False):
+    def parallelize(self, contracts_to_consider, factor, with_inputs=False, verbose=True, override_old_factor=False):
         # self.still_possible_contracts = []
         self.parallelization_calls += 1
         if self.parallelization_calls > self.max_parallelization_tries:
             print("[DOSA:ArchBrick:ERROR] Brick {} is forced to parallelize to often. STOP.".format(self.brick_uuid))
             raise DosaImpossibleToProceed
+        if override_old_factor:
+            self.compute_parallelization_factor = 1
         used_factor, new_ops_dict = parallelize_ops_of_brick(self, factor * self.compute_parallelization_factor,
                                                              with_inputs=with_inputs)
         if used_factor < 0:
@@ -339,6 +341,10 @@ class ArchBrick(object):
                   .format(self.brick_uuid, repr(self.ops)))
             raise DosaImpossibleToProceed
             # exit(1)
+        if (used_factor != (factor * self.compute_parallelization_factor)) and verbose:
+            print("[DOSA:ArchBrick:INFO] Brick {} has to parallelize with factor {}, but was requested "
+                  "to use factor {}.".format(self.brick_uuid, used_factor, (factor * self.compute_parallelization_factor)))
+
         self.compute_parallelization_factor = used_factor  # to progress on recursion
         new_brick_list = []
         for i in range(0, used_factor):
@@ -389,6 +395,7 @@ class ArchBrick(object):
                 pseudo_contract.is_pseudo_contract = True
                 self.add_possible_contract(pseudo_contract)
         self.needs_compute_parallelization = True
+        return used_factor
 
     def set_impl_type(self, it: BrickImplTypes):
         self.selected_impl_type = it

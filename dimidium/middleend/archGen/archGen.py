@@ -424,10 +424,10 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
     predicted_iter_list = []
     parameter_set_list = [
         # {'consider_switching_first': False, 'contract_look_ahead': 0},
-        {'consider_switching_first': True, 'contract_look_ahead': 0},
-        # {'consider_switching_first': False, 'contract_look_ahead': 1},
-        {'consider_switching_first': True, 'contract_look_ahead': 1},
-        {'consider_switching_first': True, 'contract_look_ahead': 2}
+        {'consider_switching_first': True, 'contract_look_ahead': 0, 'relax_utilization_check': False},
+        # {'consider_switching_first': False, 'contract_look_ahead': 1, 'relax_utilization_check': False},
+        {'consider_switching_first': True, 'contract_look_ahead': 1, 'relax_utilization_check': False},
+        {'consider_switching_first': True, 'contract_look_ahead': 2, 'relax_utilization_check': True}
     ]
     for thw in draft.target_hw_set:
         for psl in parameter_set_list:
@@ -440,10 +440,12 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
             # legalize this version
             consider_switching_first = psl['consider_switching_first']
             contract_look_ahead = psl['contract_look_ahead']
+            relax_utilization_check = psl['relax_utilization_check']
             print("\n[DOSA:archGen:INFO] Attempt to legalize draft with the following parameter set: {}".format(psl))
             try:
                 rv = tmp_draft.legalize(verbose=verbose, consider_switching_first=consider_switching_first,
-                                        contract_look_ahead=contract_look_ahead)
+                                        contract_look_ahead=contract_look_ahead,
+                                        relax_utilization_check=relax_utilization_check)
             except (DosaImpossibleToProceed, DosaConstraintFail):
                 print("[DOSA:archGen:WARNING] Legalization stopped without result.")
                 continue
