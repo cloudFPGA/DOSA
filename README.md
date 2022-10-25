@@ -60,10 +60,10 @@ t.b.c....
 Git submodules
 --------------
 
-- `hls4ml` in `dimidium/backend/3rd_party_libs/`
-- `haddoc2` in `dimidium/backend/3rd_party_libs/`
-- `cFDK` in `dimidium/backend/buildTools/lib/`
-- `cFCreate` in `dimidium/backend/buildTools/lib/`
+- `hls4ml` in `dimidium/backend/third_party_libs/`
+- `haddoc2` in `dimidium/backend/third_party_libs/`
+- `cFDK` in `dimidium/backend/buildTools/lib/cFBuild1/`
+- `cFCreate` in `dimidium/backend/buildTools/lib/cFBuild1/`
 - `ZRLMPI` in `dimidium/backend/codeGen/templates/`
 
 
