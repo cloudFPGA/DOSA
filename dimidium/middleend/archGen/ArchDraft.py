@@ -72,6 +72,7 @@ class ArchDraft(object):
         self.total_flops = 0
         self.total_parameters_bytes = 0
         self.max_brick_uuid = -1
+        self.total_time_dse_seconds = 'N/A'
 
     def __repr__(self):
         return "ArchDraft({}, {}, {})".format(self.name, self.version, self.strategy)
@@ -88,7 +89,7 @@ class ArchDraft(object):
                'possible_hw_types': [], 'target_hw_set': [], 'fallback_hw_set': [],
                'possible_comm_libs': [], 'selected_comm_lib': repr(self.selected_comm_lib),
                'main_tvm_mod': str(self.main_tvm_mod)[:100], 'main_tvm_params': str(self.main_tvm_params)[:100],
-               'total_nodes': len(self.nodes),
+               'total_nodes': len(self.nodes), 'total_time_DSE': self.total_time_dse_seconds,
                'nodes': {}}
         for thw in self.target_hw_set:
             tn = type(thw).__name__
@@ -1783,7 +1784,8 @@ class ArchDraft(object):
             num_nodes += 1
         cluster_dict = {'name': self.name, 'total_flops': float(self.total_flops),
                         'total_parameter_bytes': int(self.total_parameters_bytes),
-                        'predicted_performance': float(self.min_iter_hz),
+                        'predicted_performance_iter_hz': float(self.min_iter_hz),
+                        'total_dse_time_s': self.total_time_dse_seconds,
                         'total_nodes': num_nodes, 'nodes': []}
         for nn in self.node_iter_gen():
             if nn.build_tool is not None:

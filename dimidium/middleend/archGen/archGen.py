@@ -152,7 +152,8 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     #     with open('./out.json', 'w') as of:
     #         of.write(str(best_draft))
     #     # print("\n[DEBUG] ...trying to build...")
-
+    dse_time_seconds = find_best_end - tvm_pass_start
+    best_draft.total_time_dse_seconds = f'{dse_time_seconds:.2f}'
     print("\nDOSA: Found best and valid draft, generating architecture and software in {}...\n"
           .format(dosa_singleton.config.global_build_dir))
     build_start = time.time()
@@ -206,6 +207,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
                      'creating_annotations_time_s': annotating_draft_end - annotating_draft_start,
                      'check_annotations_time_1_s': check_annot_end_1 - check_annot_start_1,
                      'find_best_draft_time_s': find_best_end - find_best_start,
+                     'dse_time': dse_time_seconds,
                      # 'check_annotations_time_2_s': check_annot_end_2 - check_annot_start_2,
                      'build_total_time_s': build_stop - build_start}
                      #, 'synth_total_time_s': synth_stop - synth_start}
