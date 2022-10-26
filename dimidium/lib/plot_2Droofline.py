@@ -48,35 +48,84 @@ def set_size(w, h, ax=None):
 
 
 def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, x_min, x_max, z_order=5, y_min=0.1,
-                 show_labels=True, print_debug=False, iter_based=False, text_place='left'):
+                 show_labels=True, print_debug=False, iter_based=False, text_place='left', paper_mode=False):
     if iter_based:
         text_height_values = [6.5, 12.0, 5.5, 10.0, 18.0]
+        if paper_mode:
+            text_height_values = [3, 6.5, 4, 5.5, 2]
     else:
         # text_height_values = [0.65, 1.20, 0.55, 1.00, 1.80]
         text_height_values = [0.65, 0.8, 0.55, 1.00, 1.2]
+    text_font_height_factor = 0.35
+    used_text_positions_x = []
+    used_text_positions_y = []
     th = itertools.cycle(text_height_values)
     for e in oi_list:
         if e['oi'] > x_max or e['oi'] < x_min:
             if print_debug:
                 print("[DOSA:roofline] Warning: required OI {} of {} out of range, correcting it to borders."
                       .format(e['oi'], e['name']))
-            # continue
+            if paper_mode:
+                continue
             if e['oi'] > x_max:
                 e['oi'] = x_max
             else:
                 e['oi'] = x_min
+        if paper_mode and 'split' in e['name']:
+            continue
         plt.vlines(x=e['oi'], ymin=y_min, ymax=y_max, colors=color, linestyles=line_style, linewidth=line_width,
                    zorder=z_order)  # , label=e['name'])
         if show_labels:
             text_y_shift_factor = 1.0
             if len(e['name']) > 15:
-                text_y_shift_factor = 100.0
-            plt.text(x=e['oi']*1.02, y=next(th)*text_y_shift_factor, s=e['name'], color=color, fontsize=font_size,
+                if iter_based:
+                    text_y_shift_factor = 10.0
+                else:
+                    text_y_shift_factor = 100.0
+            if iter_based and len(e['name']) > 30:
+                text_y_shift_factor = 50.0
+            tx = e['oi']*1.02
+            ty = next(th)*text_y_shift_factor
+            collision = True
+            arrow_needed = False
+            if len(used_text_positions_x) == 0:
+                collision = False
+            while collision:
+                pot_collisions = min(used_text_positions_x, key=lambda x: abs(x-tx))
+                collision = False
+                # if text_place == 'right':
+                # TODO: always check both?
+                tx2 = tx*(1-text_font_height_factor)
+                if tx2 <= pot_collisions <= tx:
+                    collision = True
+                # else:
+                tx2 = tx*(1+text_font_height_factor)
+                if tx <= pot_collisions <= tx2:
+                    collision = True
+                if collision:
+                    print("text collision detected")
+                    # going rightwards by default?
+                    tx *= ((1+text_font_height_factor) * 1.1)
+                    arrow_needed = True
+                    if tx >= x_max:
+                        collision = False
+            used_text_positions_x.append(tx)
+            used_text_positions_y.append(ty)
+            to = plt.text(x=tx, y=ty, s=e['name'], color=color, fontsize=font_size,
                      ha=text_place, va='top',
                      rotation=90)
+            if arrow_needed:
+                ax = tx * 1.1
+                ay = ty * 0.4
+                # ay = abs(to.clipbox.y1 - to.clipbox.y0) / 2
+                # plt.arrow(ax, ay, -abs(ax - e['oi']), 0, color='grey', linewidth=line_width * 0.8, zorder=z_order+2,
+                #           head_width=0.01*ax, head_length=0.01*ax, length_includes_head=True)
+                plt.annotate("", xy=(e['oi'], ay), xytext=(ax, ay), arrowprops=dict(arrowstyle="->"),
+                             color='grey', zorder=z_order+2)
 
 
-def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8, print_debug=False, alt_marker=None):
+def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8, print_debug=False, alt_marker=None,
+                   paper_mode=False):
     x = []
     y = []
     alt_x = []
@@ -86,11 +135,14 @@ def draw_oi_marker(plt, color, marker, oi_list, x_min, x_max, z_order=8, print_d
             if print_debug:
                 print("[DOSA:roofline] Warning: required OI {} of {} out of range, correcting it to borders."
                       .format(e['oi'], e['name']))
-            # continue
+            if paper_mode:
+                continue
             if e['oi'] > x_max:
                 e['oi'] = x_max
             else:
                 e['oi'] = x_min
+        if paper_mode and 'split' in e['name']:
+            continue
         if alt_marker is not None and 'IMPL' in e['name']:
             alt_x.append(e['oi'])
         else:
@@ -224,6 +276,7 @@ def generate_roofline_plt(arch_draft: ArchDraft, show_splits=False, show_labels=
     subtitle = None
     if iter_based:
         subtitle = '(total impl. {:.2F} GFLOPS)'.format(float(arch_draft.total_perf_F / gigaU))
+        plt_name = "'{}' (iterations/s-based analysis)".format(arch_draft.name)
     perf_dict = arch_draft.target_hw_set[0].get_performance_dict()
     roof_dict = arch_draft.target_hw_set[0].get_roofline_dict()
     if iter_based:
@@ -362,6 +415,8 @@ def generate_roofline_plt_old(detailed_analysis, target_sps, used_batch, used_na
 def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string, cmpl_list, uinp_list, cmpl_list2, uinp_list2,
                   total, show_splits=True, show_labels=True, print_debug=False, iter_based=False, subtitle=None,
                   draw_markers=True):
+    # to beautify for papers
+    paper_mode = False
     # Arithmetic intensity vector
     if iter_based:
         # ai_list_very_very_very_small = np.arange(0.000005, 0.0001, 0.0000001)
@@ -408,6 +463,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         upper_limit = perf_dict['dsp48_gflops']
         if iter_based:
             upper_limit = perf_dict['max_iter']
+            ylim_max = upper_limit * 12
         else:
             ylim_max = upper_limit * 12
             # adapt ylim not for iter_based, to better compare them
@@ -478,7 +534,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         if xpos < 0.01:
             xpos = 0.005
             if iter_based:
-                xpos = 0.001
+                # xpos = 0.001
+                xpos = 0.0001
         plt.text(x=xpos, y=upper_limit+text_space, s=text, color=color, fontsize=MY_SIZE*0.8)
     elif perf_dict['type'] in [str(DosaHwClasses.CPU_x86), str(DosaHwClasses.CPU_generic)]:
         upper_limit = perf_dict['cpu_gflops']
@@ -550,18 +607,26 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     # text = 'Particle Methods'
     # plt.text(x=oai*1.1, y=marker_line-55, s=text, color=color, fontsize=MY_SIZE*font_factor, ha='left', va='top')
 
+    draw_x_min = ai_list[0]
+    if paper_mode:
+        cmpl_list = cmpl_list[:10]
+        cmpl_list = cmpl_list[:10]
+        uinp_list2 = uinp_list2[:10]
+        uinp_list2 = uinp_list2[:10]
+        if not iter_based:
+            draw_x_min = 0.1
     draw_oi_list(plt, color, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, ylim_max, cmpl_list,
-                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug,
-                 iter_based=iter_based, text_place='right')
+                 draw_x_min, ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug,
+                 iter_based=iter_based, text_place='right', paper_mode=paper_mode)
     draw_oi_list(plt, color2, line_style, MY_SIZE*font_factor, MY_WIDTH*1.2, ylim_max, uinp_list,
-                 ai_list[0], ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug,
-                 iter_based=iter_based)
+                 draw_x_min, ai_list[-1], y_min=-0.1, show_labels=show_labels, print_debug=print_debug,
+                 iter_based=iter_based, paper_mode=paper_mode)
 
     if draw_markers:
-        used_alt_1 = draw_oi_marker(plt, color, marker1, cmpl_list2, ai_list[0], ai_list[-1], print_debug=print_debug,
-                                    alt_marker=alt_marker)
-        used_alt_2 = draw_oi_marker(plt, color2, marker2, uinp_list2, ai_list[0], ai_list[-1], print_debug=print_debug,
-                                    alt_marker=alt_marker)
+        used_alt_1 = draw_oi_marker(plt, color, marker1, cmpl_list2, draw_x_min, ai_list[-1], print_debug=print_debug,
+                                    alt_marker=alt_marker, paper_mode=paper_mode)
+        used_alt_2 = draw_oi_marker(plt, color2, marker2, uinp_list2, draw_x_min, ai_list[-1], print_debug=print_debug,
+                                    alt_marker=alt_marker, paper_mode=paper_mode)
         marker1_text = 'req. performance Engine arch. (w/ {}, batch {})'.format(target_string, used_batch)
         marker1_legend = mpl.lines.Line2D([], [], color=color, marker=marker1, linestyle='None', markersize=10,
                                           label=marker1_text)
@@ -577,14 +642,19 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
 
     # color3 = 'orchid'
     color3 = 'aqua'
-    text_y = 1
+    # text_y = 1
+    text_y = 0.3
+    text_ha = 'left'
+    if paper_mode:
+        text_ha = 'right'
     if iter_based:
-        text_y = 10
+        text_y = 0.98
+        text_ha = 'left'
     oai_avg = total['flops'] / (total['uinp_B'] + total['para_B'])
     plt.vlines(x=oai_avg, ymin=-0.1, ymax=upper_limit, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
                zorder=8)
     text = 'Engine avg.'
-    plt.text(x=oai_avg*1.02, y=text_y, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
+    plt.text(x=oai_avg*1.02, y=text_y, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha=text_ha, va='top',
              rotation=90, zorder=8)
     if print_debug:
         print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg, used_name))
@@ -592,7 +662,7 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     plt.vlines(x=oai_avg2, ymin=-0.1, ymax=upper_limit, colors=color3, linestyles=line_style, linewidth=MY_WIDTH*1.2,
                zorder=8)
     text = 'Stream avg.'
-    plt.text(x=oai_avg2*1.02, y=text_y, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha='left', va='top',
+    plt.text(x=oai_avg2*1.02, y=text_y, s=text, color=color3, fontsize=MY_SIZE*font_factor, ha=text_ha, va='top',
              rotation=90, zorder=8)
     if print_debug:
         print("[DOSA:roofline] Info: {} at {} ({}).".format(text, oai_avg2, used_name))
