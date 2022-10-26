@@ -202,7 +202,7 @@ class Haddoc2Wrapper:
                                   '      {\n' + \
                                   '        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();\n' + \
                                   '        tmp_read_0.setTLast(0);\n' + \
-                                  '        sToHaddocBuffer_chan.write(tmp_read_0);\n' + \
+                                  '        sToHaddocBuffer_chan0.write(tmp_read_0);\n' + \
                                   '      }\n' + \
                                   '      break;\n'
                 elif 'DOSA_ADD_pToHaddocNarrow_X_declaration' in line:
