@@ -1,5 +1,5 @@
 from brevitas.core.function_wrapper import TensorClamp
-from brevitas.quant import IntBias, Int8Bias
+from brevitas.quant import Int8Bias, Int8ActPerTensorFloat, Int8WeightPerTensorFloat
 from brevitas.quant.base import *
 from brevitas.quant.solver.weight import WeightQuantSolver
 from brevitas.quant.solver.bias import BiasQuantSolver
@@ -7,18 +7,37 @@ from brevitas.quant.solver.act import ActQuantSolver
 from brevitas.quant.solver.trunc import TruncQuantSolver
 
 
-class Int8ActPerTensorFloatMax(
-    IntQuant, MaxStatsScaling, PerTensorFloatScaling8bit, ActQuantSolver):
-    pass
+class Int7ActPerTensorFloat(Int8ActPerTensorFloat):
+    bit_width = 7
 
 
-class Int5ActPerTensorFloat(
-    IntQuant, ParamFromRuntimePercentileScaling, PerTensorFloatScaling8bit, ActQuantSolver):
+class Int7WeightPerTensorFloat(Int8WeightPerTensorFloat):
+    bit_width = 7
+
+
+class Int7Bias(Int8Bias):
+    bit_width = 7
+    requires_input_bit_width = False
+
+
+class Int6ActPerTensorFloat(Int8ActPerTensorFloat):
+    bit_width = 6
+
+
+class Int6WeightPerTensorFloat(Int8WeightPerTensorFloat):
+    bit_width = 6
+
+
+class Int6Bias(Int8Bias):
+    bit_width = 6
+    requires_input_bit_width = False
+
+
+class Int5ActPerTensorFloat(Int8ActPerTensorFloat):
     bit_width = 5
 
 
-class Int5WeightPerTensorFloat(
-    NarrowIntQuant, MaxStatsScaling, PerTensorFloatScaling8bit, WeightQuantSolver):
+class Int5WeightPerTensorFloat(Int8WeightPerTensorFloat):
     bit_width = 5
 
 

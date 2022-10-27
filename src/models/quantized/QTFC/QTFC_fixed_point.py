@@ -2,7 +2,7 @@ from brevitas.quant import *
 from torch import nn
 import brevitas.nn as qnn
 
-from src.models.quantized import QTFC
+from src.models.quantized.QTFC.QTFC import QTFC
 from src.models.quantized.quant_model import QuantModel
 from src.quantizers import *
 

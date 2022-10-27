@@ -57,7 +57,6 @@ class QuantModelIterator(ModelIterator):
                 return None
             if hasattr(module, 'act_quant') or hasattr(module, 'input_quant') or hasattr(module, 'output_quant'):
                 return module
-        return module
 
 
 class FullPrecisionModelIterator(ModelIterator):

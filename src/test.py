@@ -50,3 +50,5 @@ def test(model, test_loader):
     print('Accuracy of the network on the {} test images: {} %'.format(total,
                                                                        None if total == 0 else 100 * correct / total),
           flush=True)
+
+    return None if total == 0 else 100 * correct / total

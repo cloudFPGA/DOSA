@@ -49,9 +49,11 @@ class QuantModel(nn.Module, ABC):
                 value += module._get_name() + '('
 
                 is_weight_layer = type(module).__name__ in weight_layers_all
-                if is_weight_layer:
-                    value += 'weight scale: {}, '.format(module.quant_weight().scale.item())
-                    value += 'weight zero-point: {}'.format(module.quant_weight().zero_point.item())
+                if is_weight_layer and module.quant_weight() is not None:
+                    wscale = module.quant_weight().scale
+                    wzero_point = module.quant_weight().zero_point
+                    value += 'weight scale: {}, '.format(wscale.item() if wscale is not None else None)
+                    value += 'weight zero-point: {}'.format(wzero_point.item() if wzero_point is not None else None)
                 x = module(x)
                 if isinstance(x, QuantTensor):
                     if is_weight_layer:
