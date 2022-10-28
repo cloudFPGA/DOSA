@@ -13,6 +13,7 @@ class QuantModel(nn.Module, ABC):
     def __init__(self):
         super(QuantModel, self).__init__()
         self.features = nn.ModuleList()
+        self.calibrating = False
 
     @abstractmethod
     def input_shape(self):
@@ -66,22 +67,22 @@ class QuantModel(nn.Module, ABC):
         value += ')'
         return value
 
+    def eval(self):
+        self.calibrating = False
+        super().eval()
+
+    def train(self, mode: bool = True):
+        self.calibrating = False
+        super().train(mode)
+
     def calibrate(self):
         self.eval()
+        self.calibrating = True
         it = iterator.QuantModelIterator(self)
         module = it.find_next_act_quant_module()
         while module is not None:
             module.train()
             module = it.find_next_act_quant_module()
-
-    def calibrating(self):
-        it = iterator.QuantModelIterator(self)
-        module = next(it)
-        while module is not None:
-            if module.training:
-               return True
-            module = next(it)
-        return False
 
 
 

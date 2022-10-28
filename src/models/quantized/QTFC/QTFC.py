@@ -21,6 +21,7 @@ class QTFC(QuantModel):
                  bias_quant=None,
                  output_quant=None):
         return_quant_tensor = False if act_quant is None else True
+        quantize_relu = act_quant is not None
 
         if not isinstance(act_quant, list):
             act_quant = [act_quant] * QTFC.num_quantidd
@@ -46,7 +47,10 @@ class QTFC(QuantModel):
         self.features.append(nn.BatchNorm1d(hidden1))
         self.features.append(qnn.QuantIdentity(act_quant=act_quant[1], return_quant_tensor=return_quant_tensor))
         self.features.append(nn.Dropout(p=dropout))
-        self.features.append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor))
+        if quantize_relu:
+            self.features.append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor))
+        else:
+            self.features.append(qnn.QuantReLU(act_quant=None, return_quant_tensor=return_quant_tensor))
 
         # second layer
         self.features.append(qnn.QuantLinear(hidden1, hidden2, bias=True, return_quant_tensor=False,
@@ -56,7 +60,10 @@ class QTFC(QuantModel):
         self.features.append(nn.BatchNorm1d(hidden2))
         self.features.append(qnn.QuantIdentity(act_quant=act_quant[2], return_quant_tensor=return_quant_tensor))
         self.features.append(nn.Dropout(p=dropout))
-        self.features.append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor))
+        if quantize_relu:
+            self.features.append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor))
+        else:
+            self.features.append(qnn.QuantReLU(act_quant=None, return_quant_tensor=return_quant_tensor))
 
         # third layer
         self.features.append(qnn.QuantLinear(hidden2, hidden3, bias=True, return_quant_tensor=False,
@@ -66,7 +73,10 @@ class QTFC(QuantModel):
         self.features.append(nn.BatchNorm1d(hidden3))
         self.features.append(qnn.QuantIdentity(act_quant=act_quant[3], return_quant_tensor=return_quant_tensor))
         self.features.append(nn.Dropout(p=dropout))
-        self.features.append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor))
+        if quantize_relu:
+            self.features.append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor))
+        else:
+            self.features.append(qnn.QuantReLU(act_quant=None, return_quant_tensor=return_quant_tensor))
 
         # output layer
         self.features.append(qnn.QuantLinear(hidden3, 10, bias=True, return_quant_tensor=False,
