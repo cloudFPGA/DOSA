@@ -24,8 +24,8 @@ fp_model.eval()
 
 # ======================= Uncomment one of below lines ======================
 # Full precision: (bias zeroed: 98.14%, bias: 98.12%)
-brevitas_quant_model = quantized.QTFC(64, 64, 64)  # (98.14 %, 98.12%)
-# brevitas_quant_model = quantized.QTFCInt8(64, 64, 64)  # (98.09 %, 98.10%)
+# brevitas_quant_model = quantized.QTFC(64, 64, 64)  # (98.14 %, 98.12%)
+brevitas_quant_model = quantized.QTFCInt8(64, 64, 64)  # (98.09 %, 98.10%)
 # brevitas_quant_model = quantized.QTFCShiftedQuantAct(64, 64, 64)  # (98.13 %, 98.14%)
 # brevitas_quant_model = quantized.QTFCFixedPoint8(64, 64, 64)  # (98.08%, 98.09%)
 # brevitas_quant_model = quantized.QTFCInt5(64, 64, 64)  # (97.99%, 98.0%)
@@ -36,12 +36,14 @@ brevitas_quant_model = quantized.QTFC(64, 64, 64)  # (98.14 %, 98.12%)
 prepare_brevitas_qmodel(fp_model, brevitas_quant_model, data_loader=calibration_loader_mnist, num_steps=300)
 
 print('\n ----------------------------------------------------\n')
-print(brevitas_quant_model.get_quant_description())
+# print(brevitas_quant_model.get_quant_description())
 print('\n ----------------------------------------------------\n')
 
 # accuracies
 print('--- Full Precision accuracy ---')
-test(fp_model, test_loader_mnist)
+# test(fp_model, test_loader_mnist)
 
 print('\n--- Quantized model accuracy ---')
-test(brevitas_quant_model, test_loader_mnist)
+# test(brevitas_quant_model, test_loader_mnist)
+
+brevitas_quant_model.collect_stats(test_loader_mnist, 10)

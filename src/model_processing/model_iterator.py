@@ -20,14 +20,6 @@ class ModelIterator(ABC):
     def named_next(self):
         return next(self.modules_it, (None, None))
 
-    def find_next_module_of_type(self, target_type):
-        while True:
-            module = next(self)
-            if module is None:
-                return None
-            if isinstance(module, target_type):
-                return module
-
     def force_bias_zero(self):
         """force the model bias to be zero (useful for debugging)"""
         self.reset()
@@ -38,6 +30,24 @@ class ModelIterator(ABC):
                     module.bias.fill_(0.0)
             module = next(self)
         self.reset()
+
+    def find_next_module_of_type(self, target_type, return_name=False):
+        while True:
+            name, module = self.named_next()
+            if module is None:
+                return (None, None) if return_name else None
+            if isinstance(module, target_type):
+                return (name, module) if return_name else module
+
+    def find_next_weight_module(self, return_name=False):
+        while True:
+            name, module = self.named_next()
+            if module is None:
+                return (None, None) if return_name else None
+
+            module_type_name = type(module).__name__
+            if module_type_name in weight_layers_all:
+                return (name, module) if return_name else module
 
 
 class QuantModelIterator(ModelIterator):
@@ -50,13 +60,30 @@ class QuantModelIterator(ModelIterator):
     def reset(self):
         self.modules_it = self.model.features.named_modules()
 
-    def find_next_act_quant_module(self):
+    def next_main_module(self, return_name=False):
+        name, module = self.named_next()
+        while module is not None:
+            if name and name.find('.') < 0:
+                return (name, module) if return_name else module
+            name, module = self.named_next()
+        return (None, None) if return_name else None
+
+    def find_next_act_quant_module(self, return_name=False):
         while True:
-            module = next(self)
+            name, module = self.named_next()
             if module is None:
-                return None
+                return (None, None) if return_name else None
             if hasattr(module, 'act_quant') or hasattr(module, 'input_quant') or hasattr(module, 'output_quant'):
-                return module
+                return (name, module) if return_name else module
+
+    def set_cache_inference_quant_bias(self, cache_inference_quant_bias):
+        """force the model bias to be zero (useful for debugging)"""
+        self.reset()
+        module = self.find_next_act_quant_module()
+        while module is not None:
+            module.cache_inference_quant_bias = True
+            module = self.find_next_act_quant_module()
+        self.reset()
 
 
 class FullPrecisionModelIterator(ModelIterator):
@@ -69,13 +96,13 @@ class FullPrecisionModelIterator(ModelIterator):
     def reset(self):
         self.modules_it = self.model.named_modules()
 
-    def find_next_stateful_quantizable_module(self):
+    def find_next_stateful_quantizable_module_with_quantized_type(self, return_name=False):
         while True:
-            module = next(self)
+            name, module = self.named_next()
             if module is None:
-                return None, None
+                return (None, None, None) if return_name else (None, None)
 
-            module_name = type(module).__name__
-            corresponding_quant_type = brevitas_translation_stateful_layers.get(module_name, None)
+            module_type_name = type(module).__name__
+            corresponding_quant_type = brevitas_translation_stateful_layers.get(module_type_name, None)
             if corresponding_quant_type is not None:
-                return module, corresponding_quant_type
+                return (name, module, corresponding_quant_type) if return_name else (module, corresponding_quant_type)

@@ -86,9 +86,7 @@ class QTFC(QuantModel):
 
     def forward(self, x):
         x = x.reshape((-1, in_features))
-        for module in self.features:
-            x = module(x)
-        return x
+        return QuantModel.forward(self, x)
 
     def input_shape(self):
         return 1, 28 * 28
