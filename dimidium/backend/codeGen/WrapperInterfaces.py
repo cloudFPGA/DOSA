@@ -159,10 +159,10 @@ class InterfaceVectorFifo(WrapperInterface):
         signal_dict['to_signals']['1_n'] = 'sTo{}_full_n'.format(self.name)
         signal_dict['to_signals']['1'] = 'sTo{}_full'.format(self.name)
         signal_dict['to_signals']['2'] = 'sTo{}_write'.format(self.name)
-        signal_dict['from_signals']['0'] = 'sTo{}_dout'.format(self.name)
-        signal_dict['from_signals']['1_n'] = 'sTo{}_empty_n'.format(self.name)
-        signal_dict['from_signals']['1'] = 'sTo{}_empty'.format(self.name)
-        signal_dict['from_signals']['2'] = 'sTo{}_read'.format(self.name)
+        signal_dict['from_signals']['0'] = 'sFrom{}_dout'.format(self.name)
+        signal_dict['from_signals']['1_n'] = 'sFrom{}_empty_n'.format(self.name)
+        signal_dict['from_signals']['1'] = 'sFrom{}_empty'.format(self.name)
+        signal_dict['from_signals']['2'] = 'sFrom{}_read'.format(self.name)
         return signal_dict
 
     def _get_vhdl_signal_width_dict(self):

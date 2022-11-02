@@ -22,6 +22,9 @@
 #include "../../lib/axi_utils.hpp"
 #include "../../lib/interface_utils.hpp"
 
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
 using namespace hls;
 
 
@@ -66,8 +69,10 @@ enum Fromhls4ml_parallelDeqStates {RESET1 = 0, READ_BUF_0, READ_BUF_1, READ_BUF_
 //#define WRAPPTER_OUTPUT_TKEEP_PER_WORDS ( bitCntToTKeep(ap_uint<(DOSA_WRAPPER_OUTPUT_IF_BITWIDTH+7)/8> DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH) )
 
 //as constants for HLS pragmas
-const uint32_t cnn_input_frame_size = (CNN_INPUT_FRAME_SIZE);
-const uint32_t cnn_output_frame_size = (CNN_OUTPUT_FRAME_SIZE);
+//const uint32_t cnn_input_frame_size = (CNN_INPUT_FRAME_SIZE);
+//const uint32_t cnn_output_frame_size = (CNN_OUTPUT_FRAME_SIZE);
+const uint32_t cnn_input_frame_size = (MAX(CNN_INPUT_FRAME_SIZE, 32)); //since we use it as stream depth
+const uint32_t cnn_output_frame_size = (MAX(CNN_OUTPUT_FRAME_SIZE, 32)); //since we use it as tream depth
 const uint32_t wrapper_output_if_hls4ml_parallel_words_cnt_ceil = (WRAPPER_OUTPUT_IF_HLS4ML_PARALLEL_WORDS_CNT_CEIL);
 
 
