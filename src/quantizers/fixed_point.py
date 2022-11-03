@@ -1,17 +1,17 @@
-from brevitas.core.function_wrapper.ops_ste import CeilSte
-from brevitas.core.scaling import PowerOfTwoIntScaling
-from brevitas.core.restrict_val import PowerOfTwoRestrictValue
-from brevitas.quant.solver.weight import WeightQuantSolver
-from brevitas.quant.solver.bias import BiasQuantSolver
-from brevitas.quant.solver.act import ActQuantSolver
-from brevitas.quant.base import *
+from brevitas.quant import Int8WeightPerTensorFixedPoint, Int8ActPerTensorFixedPoint
 
 
-class Int5WeightPerTensorFixedPoint(
-    NarrowIntQuant, MaxStatsScaling, PerTensorPoTScaling8bit, WeightQuantSolver):
+class Int5WeightPerTensorFixedPoint(Int8WeightPerTensorFixedPoint):
     bit_width = 5
 
 
-class Int5ActPerTensorFixedPoint(
-    IntQuant, ParamFromRuntimePercentileScaling, PerTensorPoTScaling8bit, ActQuantSolver):
+class Int5ActPerTensorFixedPoint(Int8ActPerTensorFixedPoint):
     bit_width = 5
+
+
+class Int4WeightPerTensorFixedPoint(Int8WeightPerTensorFixedPoint):
+    bit_width = 4
+
+
+class Int4ActPerTensorFixedPoint(Int8ActPerTensorFixedPoint):
+    bit_width = 4

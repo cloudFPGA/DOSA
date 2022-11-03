@@ -44,3 +44,16 @@ class Int5WeightPerTensorFloat(Int8WeightPerTensorFloat):
 class Int5Bias(Int8Bias):
     bit_width = 5
     requires_input_bit_width = False
+
+
+class Int4ActPerTensorFloat(Int8ActPerTensorFloat):
+    bit_width = 4
+
+
+class Int4WeightPerTensorFloat(Int8WeightPerTensorFloat):
+    bit_width = 4
+
+
+class Int4Bias(Int8Bias):
+    bit_width = 4
+    requires_input_bit_width = False

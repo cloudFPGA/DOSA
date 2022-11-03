@@ -4,8 +4,8 @@ import torch
 from brevitas.quant_tensor import QuantTensor
 from torch import nn
 import src.model_processing.model_iterator as iterator
-from src.model_processing.brevitas_nn_modules_index import weight_layers_all
-from torch.utils.tensorboard import SummaryWriter
+from src.model_processing.model_statistics import ModelStatsObserver
+from src.model_processing.modules_repertory import weight_layers_all
 
 
 class QuantModel(nn.Module, ABC):
@@ -14,18 +14,12 @@ class QuantModel(nn.Module, ABC):
     def __init__(self):
         super(QuantModel, self).__init__()
         self.features = nn.ModuleList()
-        self.stats = {}
-        self.__writer = SummaryWriter(log_dir='../runs/' + self.__class__.__name__ + '/')
-        self.__collecting_stats = False
-        self.__collecting_stats_per_channel = False
+        self.stats_observer = ModelStatsObserver(self)
 
     def __str__(self):
         return self.features.__str__()
 
     def forward(self, x):
-        if self.__collecting_stats:
-            return self.__collect_stats_forward(x)
-
         for module in self.features:
             x = module(x)
         return x
@@ -56,20 +50,8 @@ class QuantModel(nn.Module, ABC):
             module.train()
             module = it.find_next_act_quant_module()
 
-    def collect_stats(self, data_loader, num_iterations=30, per_channel=False):
-        self.eval()
-        self.__collecting_stats = True
-        self.__collecting_stats_per_channel = per_channel
-        it = iterator.QuantModelIterator(self)
-        it.set_cache_inference_quant_bias(True)
-
-        self.__writer.add_graph(self, next(iter(data_loader))[0])
-        self.__collect_stats_activations(data_loader, num_iterations)
-        self.__collect_stats_weights_and_bias()
-
-        self.__collecting_stats = False
-        self.__write_stats()
-        self.__writer.close()
+    def collect_stats(self, data_loader, num_iterations=30, per_channel=False, seed=45):
+        self.stats_observer.collect_stats(data_loader, num_iterations, per_channel, seed)
 
     def get_quant_description(self):
         it = iterator.QuantModelIterator(self)
@@ -109,79 +91,3 @@ class QuantModel(nn.Module, ABC):
                 return True
             module = next(it)
         return False
-
-    def __collect_stats_weights_and_bias(self):
-        it = iterator.QuantModelIterator(self)
-        name, module = it.find_next_weight_module(return_name=True)
-        while module is not None:
-            weights = self.__prepare_weights_bias_stats_tensors(module.quant_weight())
-            bias = self.__prepare_weights_bias_stats_tensors(module.quant_bias())
-
-            dict_entry_name_weights = 'weights/(' + name + '): ' + type(module).__name__
-            dict_entry_name_bias = 'bias/(' + name + '): ' + type(module).__name__
-            self.stats[dict_entry_name_weights] = weights
-            self.stats[dict_entry_name_bias] = bias
-
-            name, module = it.find_next_weight_module(return_name=True)
-
-    def __collect_stats_activations(self, data_loader, num_iterations):
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.to(device)
-        count = 0
-        for values, _ in data_loader:
-            if count >= num_iterations:
-                break
-            values = values.to(device)
-            self.forward(values)
-            count += 1
-
-    def __collect_stats_forward(self, x):
-        it = iterator.QuantModelIterator(self)
-        name, module = it.next_main_module(return_name=True)
-        while name is not None:
-            x = module(x)
-
-            dict_entry_name = 'activations/(' + name + '): ' + type(module).__name__
-            x_acc = self.stats.get(dict_entry_name, torch.empty(0))
-            x_stats = self.__prepare_activation_stats_tensors(x, x_acc, per_channel=self.__collecting_stats_per_channel)
-            self.stats[dict_entry_name] = x_stats
-
-            name, module = it.next_main_module(return_name=True)
-        return x
-
-    def __write_stats(self):
-        for output_name, values in self.stats.items():
-            if not isinstance(values, list):
-                self.__writer.add_histogram(tag=output_name, values=values, global_step=0, bins='auto')
-            else:
-                for i in range(len(list)):
-                    self.__writer.add_histogram(tag=output_name, values=values, global_step=i, bins='auto')
-
-    @staticmethod
-    def __prepare_activation_stats_tensors(x, x_acc, per_channel=False):
-        x_res = x.detach()
-        if isinstance(x_res, QuantTensor):
-            x_res = x.value
-        x_res = x_res.detach()
-        if per_channel:
-            x_res = torch.transpose(x_res, 0, 1)
-            x_res = x_res.view(x_res.shape[0], -1)
-            concat = torch.cat((x_acc, x_res), 1)
-
-            per_channel_tensors = []
-            for i in range(concat.shape[0]):
-                per_channel_tensors.append(concat[i].flatten())
-            return per_channel_tensors
-        return torch.cat((x_acc, x_res.flatten()), 0)
-
-    @staticmethod
-    def __prepare_weights_bias_stats_tensors(p, per_channel=False):
-        p_res = p.detach()
-        if isinstance(p_res, QuantTensor):
-            p_res = p_res.value
-        if per_channel:
-            per_channel_tensors = []
-            for i in range(p_res.shape[0]):
-                per_channel_tensors.append(p_res[i].flatten())
-            return per_channel_tensors
-        return p_res.flatten()

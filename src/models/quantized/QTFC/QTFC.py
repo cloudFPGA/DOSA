@@ -4,16 +4,14 @@ from torch import nn
 from src.models.quantized.quant_model import QuantModel
 
 
-dropout = 0.2
-in_features = 28 * 28
-
-
 class QTFC(QuantModel):
     """
-    Base class of QTFC, per default not quantized and therefore acts as a wrapper for regular model
-    """
+        Base class of QTFC, per default not quantized and therefore acts as a wrapper for regular model
+        """
     num_quantidd = 4
     num_linear = 4
+    dropout = 0.2
+    in_features = 28 * 28
 
     def __init__(self, hidden1, hidden2, hidden3,
                  act_quant=None,
@@ -37,16 +35,16 @@ class QTFC(QuantModel):
 
         super(QTFC, self).__init__()
         self.features.append(qnn.QuantIdentity(act_quant=act_quant[0], return_quant_tensor=return_quant_tensor))
-        self.features.append(nn.Dropout(p=dropout))
+        self.features.append(nn.Dropout(p=QTFC.dropout))
 
         # first layer
-        self.features.append(qnn.QuantLinear(in_features, hidden1, bias=True, return_quant_tensor=False,
+        self.features.append(qnn.QuantLinear(QTFC.in_features, hidden1, bias=True, return_quant_tensor=False,
                                              weight_quant=weight_quant[0],
                                              bias_quant=bias_quant[0],
                                              output_quant=output_quant[0]))
         self.features.append(nn.BatchNorm1d(hidden1))
         self.features.append(qnn.QuantIdentity(act_quant=act_quant[1], return_quant_tensor=return_quant_tensor))
-        self.features.append(nn.Dropout(p=dropout))
+        self.features.append(nn.Dropout(p=QTFC.dropout))
         if quantize_relu:
             self.features.append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor))
         else:
@@ -59,7 +57,7 @@ class QTFC(QuantModel):
                                              output_quant=output_quant[1]))
         self.features.append(nn.BatchNorm1d(hidden2))
         self.features.append(qnn.QuantIdentity(act_quant=act_quant[2], return_quant_tensor=return_quant_tensor))
-        self.features.append(nn.Dropout(p=dropout))
+        self.features.append(nn.Dropout(p=QTFC.dropout))
         if quantize_relu:
             self.features.append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor))
         else:
@@ -72,7 +70,7 @@ class QTFC(QuantModel):
                                              output_quant=output_quant[2]))
         self.features.append(nn.BatchNorm1d(hidden3))
         self.features.append(qnn.QuantIdentity(act_quant=act_quant[3], return_quant_tensor=return_quant_tensor))
-        self.features.append(nn.Dropout(p=dropout))
+        self.features.append(nn.Dropout(p=QTFC.dropout))
         if quantize_relu:
             self.features.append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor))
         else:
@@ -85,8 +83,8 @@ class QTFC(QuantModel):
                                              output_quant=output_quant[3]))
 
     def forward(self, x):
-        x = x.reshape((-1, in_features))
+        x = x.reshape((-1, QTFC.in_features))
         return QuantModel.forward(self, x)
 
     def input_shape(self):
-        return 1, 28 * 28
+        return 1, QTFC.in_features

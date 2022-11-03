@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import torch
 
-from .brevitas_nn_modules_index import weight_layers_all, brevitas_translation_stateful_layers
+from .modules_repertory import weight_layers_all, brevitas_translation_stateful_layers
 
 
 class ModelIterator(ABC):
@@ -77,13 +77,13 @@ class QuantModelIterator(ModelIterator):
                 return (name, module) if return_name else module
 
     def set_cache_inference_quant_bias(self, cache_inference_quant_bias):
-        """force the model bias to be zero (useful for debugging)"""
         self.reset()
         module = self.find_next_act_quant_module()
         while module is not None:
-            module.cache_inference_quant_bias = True
+            module.cache_inference_quant_bias = cache_inference_quant_bias
             module = self.find_next_act_quant_module()
         self.reset()
+        pass
 
 
 class FullPrecisionModelIterator(ModelIterator):

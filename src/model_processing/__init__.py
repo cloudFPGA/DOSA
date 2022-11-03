@@ -1,2 +1,2 @@
 from .model_iterator import QuantModelIterator, FullPrecisionModelIterator
-from .brevitas_nn_modules_index import brevitas_translation_weight_layers
+from .modules_repertory import brevitas_translation_weight_layers

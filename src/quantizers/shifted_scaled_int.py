@@ -1,6 +1,5 @@
-from brevitas.core.function_wrapper import TensorClamp
-from brevitas.quant.base import *
-from brevitas.quant.solver.weight import WeightQuantSolver
-from brevitas.quant.solver.bias import BiasQuantSolver
-from brevitas.quant.solver.act import ActQuantSolver
-from brevitas.quant.solver.trunc import TruncQuantSolver
+from brevitas.quant import ShiftedUint8ActPerTensorFloat
+
+
+class ShiftedUint4ActPerTensorFloat(ShiftedUint8ActPerTensorFloat):
+    bit_width = 4

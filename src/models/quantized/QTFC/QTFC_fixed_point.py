@@ -35,3 +35,16 @@ class QTFCFixedPoint5(QTFC):
                                               weight_quant=Int5WeightPerTensorFixedPoint,
                                               bias_quant=Int5Bias)
 
+
+class QTFCFixedPoint4(QTFC):
+    """
+    Activations: fixed-point 8
+    Weights: fixed-point 8
+    Bias: int5 (naturally fixed point, because of how Int8Bias is implemented)
+    """
+    def __init__(self, hidden1, hidden2, hidden3):
+        super(QTFCFixedPoint4, self).__init__(hidden1, hidden2, hidden3,
+                                              act_quant=Int4ActPerTensorFixedPoint,
+                                              weight_quant=Int4WeightPerTensorFixedPoint,
+                                              bias_quant=Int4Bias)
+

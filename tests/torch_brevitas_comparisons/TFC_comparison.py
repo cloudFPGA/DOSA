@@ -2,7 +2,7 @@ from brevitas.inject.enum import QuantType, BitWidthImplType, FloatToIntImplType
     RestrictValueType
 from brevitas.quant.solver import ActQuantSolver
 
-from src.models.quantized import QTFC, QTFCShiftedQuantAct
+from src.models.quantized import QTFC, QTFCShiftedQuantAct8
 from src.test import test
 from src.data import data_loader
 from src.model_processing import FullPrecisionModelIterator

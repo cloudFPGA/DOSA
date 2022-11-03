@@ -28,4 +28,17 @@ class QTFCInt5(QTFC):
                                        bias_quant=Int5Bias)
 
 
+class QTFCInt4(QTFC):
+    """
+    Activations: int5, symmetric
+    Weights: int5, symmetric,
+    Bias: int5, symmetric
+    """
+    def __init__(self, hidden1, hidden2, hidden3):
+        super(QTFCInt4, self).__init__(hidden1, hidden2, hidden3,
+                                       act_quant=Int4ActPerTensorFloat,
+                                       weight_quant=Int4WeightPerTensorFloat,
+                                       bias_quant=Int4Bias)
+
+
 
