@@ -15,3 +15,11 @@ class Int4WeightPerTensorFixedPoint(Int8WeightPerTensorFixedPoint):
 
 class Int4ActPerTensorFixedPoint(Int8ActPerTensorFixedPoint):
     bit_width = 4
+
+
+class Int3WeightPerTensorFixedPoint(Int8WeightPerTensorFixedPoint):
+    bit_width = 3
+
+
+class Int3ActPerTensorFixedPoint(Int8ActPerTensorFixedPoint):
+    bit_width = 3

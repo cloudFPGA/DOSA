@@ -2,8 +2,7 @@ import torch
 from brevitas.quant_tensor import QuantTensor
 from torch.utils.tensorboard import SummaryWriter
 
-from src.model_processing import QuantModelIterator
-from src.model_processing import modules_repertory
+from src.model_processing import QuantModelIterator, modules_repertory
 
 
 class ModelStatsObserver:
