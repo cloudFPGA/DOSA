@@ -8,10 +8,10 @@ from tests.torch_brevitas_comparisons.utils import prepare_brevitas_qmodel
 
 # Prepare datasets
 torch.manual_seed(0)
-test_loader_mnist = data_loader(data_dir='../../data', dataset='MNIST', batch_size=100, test=True)
+test_loader_mnist = data_loader(data_dir='../data', dataset='MNIST', batch_size=100, test=True)
 
 torch.manual_seed(0)
-calibration_loader_mnist, _ = data_loader(data_dir='../../data', dataset='MNIST', batch_size=1, test=False)
+calibration_loader_mnist, _ = data_loader(data_dir='../data', dataset='MNIST', batch_size=1, test=False)
 
 fp_model = TFC(64, 64, 64)
 fp_model.load_state_dict(torch.load('../models/TFC.pt', map_location=torch.device('cpu')))
