@@ -25,7 +25,7 @@ class ModelIterator(ABC):
         self.reset()
         module = next(self)
         while module is not None:
-            if type(module).__name__ in weight_layers_all:
+            if type(module).__name__ in weight_layers_all and module.bias is not None:
                 with torch.no_grad():
                     module.bias.fill_(0.0)
             module = next(self)
