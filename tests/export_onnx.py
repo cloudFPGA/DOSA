@@ -1,33 +1,32 @@
 import torch
 
-import os
-import sys
-
-src_path = os.path.abspath('../')
-sys.path.insert(0, src_path)
-
-from src.data import data_loader
-from src.test import test
-
+from src import data_loader, test
+from src.model_processing import FullPrecisionModelIterator
 from src.models.full_precision.TFC import TFC
-from src.models.quantized.QTFC.QTFC import QTFC
+from src.models.quantized import QTFCInt8
+import brevitas.onnx as bo
+
 
 # Prepare MNIST dataset
+torch.manual_seed(0)
 test_loader_mnist = data_loader(data_dir='../data', dataset='MNIST', batch_size=100, test=True)
 
-model = TFC(64, 64, 64)
-model.load_state_dict(torch.load('../models/TFC.pt', map_location=torch.device('cpu')))
+fp_model = TFC(64, 64, 64)
+fp_model.load_state_dict(torch.load('../models/TFC.pt', map_location=torch.device('cpu')))
 
-from brevitas import config
+# force bias to zero
+it = FullPrecisionModelIterator(fp_model)
+it.force_bias_zero()
+fp_model.eval()
 
-config.IGNORE_MISSING_KEYS = True
-brevitas_qmodel = QTFC(64, 64, 64)
-brevitas_qmodel.load_model_state_dict(model)
+q_model = QTFCInt8(64, 64, 64)
+q_model.load_model_state_dict(fp_model)
 
-test(brevitas_qmodel, test_loader_mnist)
+# test model
+test(q_model, test_loader_mnist)
 
-from brevitas.export import StdQOpONNXManager
+# export onnx
+q_model.cpu()
+bo.export_finn_onnx(q_model, (1, 1, 28, 28), '../models/QTFCInt8.onnx')
 
-StdQOpONNXManager.export(brevitas_qmodel,
-                         input_shape=(100, 1, 28, 28),
-                         export_path='../models/{}.onnx'.format('TFF.quant_brevitas.onnx'))
+
