@@ -20,6 +20,8 @@ class QTFC(QuantModule):
                  bias_quant=None,
                  output_quant=None,
                  bit_width=None):
+        super(QTFC, self).__init__()
+        
         return_quant_tensor = False if act_quant is None else True
         quantize_relu = act_quant is not None
 
@@ -35,7 +37,6 @@ class QTFC(QuantModule):
         if not isinstance(output_quant, list):
             output_quant = [output_quant] * QTFC.num_linear
 
-        super(QTFC, self).__init__()
         self.features.append(qnn.QuantIdentity(act_quant=act_quant[0], return_quant_tensor=return_quant_tensor))
         self.features.append(nn.Dropout(p=QTFC.dropout))
 
