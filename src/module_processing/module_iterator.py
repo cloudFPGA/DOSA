@@ -4,9 +4,9 @@ import torch
 from .modules_repertory import weight_layers_all, brevitas_translation_stateful_layers
 
 
-class ModelIterator(ABC):
-    def __init__(self, model):
-        self.model = model
+class ModuleIterator(ABC):
+    def __init__(self, module):
+        self.module = module
         self.modules_it = None
 
     @abstractmethod
@@ -21,7 +21,7 @@ class ModelIterator(ABC):
         return next(self.modules_it, (None, None))
 
     def force_bias_zero(self):
-        """force the model bias to be zero (useful for debugging)"""
+        """force the module's bias to be zero (useful for debugging)"""
         self.reset()
         module = next(self)
         while module is not None:
@@ -50,15 +50,15 @@ class ModelIterator(ABC):
                 return (name, module) if return_name else module
 
 
-class QuantModelIterator(ModelIterator):
-    """Iterates over the modules of a quantized model"""
+class QuantModuleIterator(ModuleIterator):
+    """Iterates over the modules of a quantized module"""
 
-    def __init__(self, model):
-        super(QuantModelIterator, self).__init__(model)
-        self.modules_it = self.model.features.named_modules()
+    def __init__(self, module):
+        super(QuantModuleIterator, self).__init__(module)
+        self.modules_it = self.module.features.named_modules()
 
     def reset(self):
-        self.modules_it = self.model.features.named_modules()
+        self.modules_it = self.module.features.named_modules()
 
     def next_main_module(self, return_name=False):
         name, module = self.named_next()
@@ -86,15 +86,15 @@ class QuantModelIterator(ModelIterator):
         pass
 
 
-class FullPrecisionModelIterator(ModelIterator):
-    """Iterates over the modules of a full precision model"""
+class FullPrecisionModuleIterator(ModuleIterator):
+    """Iterates over the modules of a full precision module"""
 
-    def __init__(self, model):
-        super(FullPrecisionModelIterator, self).__init__(model)
-        self.modules_it = self.model.named_modules()
+    def __init__(self, module):
+        super(FullPrecisionModuleIterator, self).__init__(module)
+        self.modules_it = self.module.named_modules()
 
     def reset(self):
-        self.modules_it = self.model.named_modules()
+        self.modules_it = self.module.named_modules()
 
     def find_next_stateful_quantizable_module_with_quantized_type(self, return_name=False):
         while True:

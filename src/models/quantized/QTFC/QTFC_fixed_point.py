@@ -3,7 +3,7 @@ from torch import nn
 import brevitas.nn as qnn
 
 from src.models.quantized.QTFC.QTFC import QTFC
-from src.models.quantized.quant_model import QuantModel
+from src.models.quantized.quant_module import QuantModule
 from src.quantizers import *
 
 dropout = 0.2

@@ -1,13 +1,14 @@
 from brevitas import nn as qnn
 from torch import nn
 
-from src.models.quantized.quant_model import QuantModel
+from src.models.quantized.quant_module import QuantModule
 
 
-class QTFC(QuantModel):
+class QTFC(QuantModule):
     """
-        Base class of QTFC, per default not quantized and therefore acts as a wrapper for regular model
-        """
+    Base class for quantized TFC, per default not quantized and therefore acts as a wrapper for the full precision
+    pytorch model
+    """
     num_quantidd = 4
     num_linear = 4
     dropout = 0.2
@@ -85,7 +86,7 @@ class QTFC(QuantModel):
 
     def forward(self, x):
         x = x.reshape((-1, QTFC.in_features))
-        return QuantModel.forward(self, x)
+        return QuantModule.forward(self, x)
 
     def input_shape(self):
         return 1, QTFC.in_features

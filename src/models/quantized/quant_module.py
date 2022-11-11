@@ -3,18 +3,18 @@ from abc import ABC, abstractmethod
 import torch
 from brevitas.quant_tensor import QuantTensor
 from torch import nn
-import src.model_processing.model_iterator as iterator
-from src.model_processing.model_statistics import ModelStatsObserver
-from src.model_processing.modules_repertory import weight_layers_all
+import src.module_processing.module_iterator as iterator
+from src.module_processing.module_statistics import ModuleStatsObserver
+from src.module_processing.modules_repertory import weight_layers_all
 
 
-class QuantModel(nn.Module, ABC):
-    """Represents a model quantized with Brevitas"""
+class QuantModule(nn.Module, ABC):
+    """Represents a module quantized with Brevitas"""
 
     def __init__(self):
-        super(QuantModel, self).__init__()
+        super(QuantModule, self).__init__()
         self.features = nn.ModuleList()
-        self.stats_observer = ModelStatsObserver(self)
+        self.stats_observer = ModuleStatsObserver(self)
 
     def __str__(self):
         return self.features.__str__()
@@ -28,12 +28,12 @@ class QuantModel(nn.Module, ABC):
     def input_shape(self):
         pass
 
-    def load_model_state_dict(self, fp_model):
+    def load_module_state_dict(self, fp_module):
         from brevitas import config
         config.IGNORE_MISSING_KEYS = True
 
-        fp_modules = iterator.FullPrecisionModelIterator(fp_model)
-        quant_modules = iterator.QuantModelIterator(self)
+        fp_modules = iterator.FullPrecisionModuleIterator(fp_module)
+        quant_modules = iterator.QuantModuleIterator(self)
 
         fp_layer, q_target_type = fp_modules.find_next_stateful_quantizable_module_with_quantized_type()
         while fp_layer is not None:
@@ -44,7 +44,7 @@ class QuantModel(nn.Module, ABC):
 
     def calibrate(self):
         self.eval()
-        it = iterator.QuantModelIterator(self)
+        it = iterator.QuantModuleIterator(self)
         module = it.find_next_act_quant_module()
         while module is not None:
             module.train()
@@ -54,7 +54,7 @@ class QuantModel(nn.Module, ABC):
         self.stats_observer.collect_stats(data_loader, num_iterations, per_channel, seed)
 
     def get_quant_description(self):
-        it = iterator.QuantModelIterator(self)
+        it = iterator.QuantModuleIterator(self)
         x = torch.randn(self.input_shape())
         self.eval()
 
@@ -84,7 +84,7 @@ class QuantModel(nn.Module, ABC):
         return value
 
     def calibrating(self):
-        it = iterator.QuantModelIterator(self)
+        it = iterator.QuantModuleIterator(self)
         module = next(it)
         while module is not None:
             if module.training:

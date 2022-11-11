@@ -1,10 +1,10 @@
 import torch
 
-from src.models.quantized.quant_model import QuantModel
+from src.models.quantized.quant_module import QuantModule
 
 
 def calibrate(model, test_loader, num_steps=1, seed=None):
-    if isinstance(model, QuantModel):
+    if isinstance(model, QuantModule):
         model.calibrate()
     else:
         model.eval()

@@ -2,17 +2,17 @@ import torch
 from brevitas.quant_tensor import QuantTensor
 from torch.utils.tensorboard import SummaryWriter
 
-from src.model_processing import QuantModelIterator, modules_repertory
+from src.module_processing import QuantModuleIterator, modules_repertory
 
 
-class ModelStatsObserver:
-    def __init__(self, model):
-        self.writer = SummaryWriter(log_dir='../runs/' + model.__class__.__name__ + '/')
-        self.model = model
+class ModuleStatsObserver:
+    def __init__(self, module):
+        self.writer = SummaryWriter(log_dir='../runs/' + module.__class__.__name__ + '/')
+        self.module = module
         self.stats = {}
 
     def collect_stats(self, data_loader, num_iterations=30, per_channel=False, write_to_tensorboard=True, seed=45):
-        self.model.eval()
+        self.module.eval()
 
         self.__collect_weights_stats(per_channel)
         self.__collect_act_bias_stats(data_loader, num_iterations, per_channel, seed)
@@ -30,23 +30,23 @@ class ModelStatsObserver:
         self.writer.close()
 
     def __collect_weights_stats(self, per_channel):
-        it = QuantModelIterator(self.model)
+        it = QuantModuleIterator(self.module)
         name, module = it.find_next_weight_module(return_name=True)
         while module is not None:
-            weights = ModelStatsObserver.__prepare_stats_tensor(tensor=module.quant_weight(),
-                                                                accumulation_tensor=torch.empty(0),
-                                                                per_channel=per_channel,
-                                                                has_batch=False)
-            entry_name = ModelStatsObserver.__entry_name('weights', name, module)
+            weights = ModuleStatsObserver.__prepare_stats_tensor(tensor=module.quant_weight(),
+                                                                 accumulation_tensor=torch.empty(0),
+                                                                 per_channel=per_channel,
+                                                                 has_batch=False)
+            entry_name = ModuleStatsObserver.__entry_name('weights', name, module)
             self.stats[entry_name] = weights
             name, module = it.find_next_weight_module(return_name=True)
 
     def __collect_act_bias_stats(self, data_loader, num_iterations, per_channel, seed):
-        it = QuantModelIterator(self.model)
+        it = QuantModuleIterator(self.module)
         it.set_cache_inference_quant_bias(True)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model.to(device)
+        self.module.to(device)
 
         count = 0
         torch.manual_seed(seed)
@@ -58,9 +58,9 @@ class ModelStatsObserver:
             count += 1
 
     def __collect_act_bias_stats_single_pass(self, x, per_channel):
-        x = x.reshape(-1, self.model.input_shape()[1])
+        x = x.reshape(-1, self.module.input_shape()[1])
 
-        it = QuantModelIterator(self.model)
+        it = QuantModuleIterator(self.module)
         name, module = it.next_main_module(return_name=True)
         while name is not None:
             x = module(x)
@@ -74,21 +74,21 @@ class ModelStatsObserver:
             name, module = it.next_main_module(return_name=True)
 
     def __collect_module_act_stats(self, activations, module_name, module, per_channel):
-        a_entry_name = ModelStatsObserver.__entry_name('activations', module_name, module)
+        a_entry_name = ModuleStatsObserver.__entry_name('activations', module_name, module)
         a_accumulator = self.stats.get(a_entry_name, torch.empty(0))
-        activations = ModelStatsObserver.__prepare_stats_tensor(tensor=activations,
-                                                                accumulation_tensor=a_accumulator,
-                                                                per_channel=per_channel,
-                                                                has_batch=True)
+        activations = ModuleStatsObserver.__prepare_stats_tensor(tensor=activations,
+                                                                 accumulation_tensor=a_accumulator,
+                                                                 per_channel=per_channel,
+                                                                 has_batch=True)
         self.stats[a_entry_name] = activations
 
     def __collect_module_bias_stats(self, module_name, module, per_channel):
-        b_entry_name = ModelStatsObserver.__entry_name('bias', module_name, module)
+        b_entry_name = ModuleStatsObserver.__entry_name('bias', module_name, module)
         b_accumulator = self.stats.get(b_entry_name, torch.empty(0))
-        bias = ModelStatsObserver.__prepare_stats_tensor(tensor=module.quant_bias(),
-                                                         accumulation_tensor=b_accumulator,
-                                                         per_channel=per_channel,
-                                                         has_batch=False)
+        bias = ModuleStatsObserver.__prepare_stats_tensor(tensor=module.quant_bias(),
+                                                          accumulation_tensor=b_accumulator,
+                                                          per_channel=per_channel,
+                                                          has_batch=False)
         self.stats[b_entry_name] = bias
 
     @staticmethod

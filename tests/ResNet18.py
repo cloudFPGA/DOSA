@@ -1,7 +1,7 @@
 import torch
 
 from src import data_loader, test
-from src.model_processing import FullPrecisionModelIterator
+from src.module_processing import FullPrecisionModuleIterator
 from src.models.full_precision import ResNet18
 from src.models import quantized
 from tests.torch_brevitas_comparisons.utils import prepare_brevitas_qmodel

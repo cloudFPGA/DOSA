@@ -1,7 +1,7 @@
 import torch
 
 from src import data_loader, test
-from src.model_processing import FullPrecisionModelIterator
+from src.module_processing import FullPrecisionModuleIterator
 from src.models.full_precision import TFC
 from src.models import quantized
 from tests.torch_brevitas_comparisons.utils import prepare_brevitas_qmodel
@@ -17,7 +17,7 @@ fp_model = TFC(64, 64, 64)
 fp_model.load_state_dict(torch.load('../models/TFC.pt', map_location=torch.device('cpu')))
 
 # force bias to zero
-it = FullPrecisionModelIterator(fp_model)
+it = FullPrecisionModuleIterator(fp_model)
 it.force_bias_zero()
 fp_model.eval()
 

@@ -4,7 +4,7 @@ import torch
 from torch import nn
 
 from src import calibrate
-from src.models.quantized.quant_model import QuantModel
+from src.models.quantized.quant_module import QuantModule
 
 
 class StaticQuantModel(nn.Module):
@@ -22,7 +22,7 @@ class StaticQuantModel(nn.Module):
 
 
 def controlled_calibrate(model, data):
-    if isinstance(model, QuantModel):
+    if isinstance(model, QuantModule):
         model.calibrate()
     else:
         model.eval()
@@ -63,7 +63,7 @@ def prepare_torch_qlayer(fp_model, qconfig, data_loader=None, calibration_data=N
 
 
 def prepare_brevitas_qmodel(fp_model, brevitas_model, data_loader=None, calibration_data=None, num_steps=1):
-    brevitas_model.load_model_state_dict(fp_model)
+    brevitas_model.load_module_state_dict(fp_model)
 
     if calibration_data is None:
         calibrate(brevitas_model, data_loader, num_steps=num_steps, seed=42)

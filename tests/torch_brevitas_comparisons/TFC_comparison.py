@@ -5,7 +5,7 @@ from brevitas.quant.solver import ActQuantSolver
 from src.models.quantized import QTFC, QTFCShiftedQuantAct8
 from src.test import test
 from src.data import data_loader
-from src.model_processing import FullPrecisionModelIterator
+from src.module_processing import FullPrecisionModuleIterator
 from src.models.full_precision import TFC
 
 import torch
@@ -30,7 +30,7 @@ fp_model = TFC(64, 64, 64)
 fp_model.load_state_dict(torch.load('../../models/TFC.pt', map_location=torch.device('cpu')))
 
 # force bias to zero
-mod_it = FullPrecisionModelIterator(fp_model)
+mod_it = FullPrecisionModuleIterator(fp_model)
 mod_it.force_bias_zero()
 fp_model.eval()
 
