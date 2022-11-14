@@ -2,7 +2,7 @@ from brevitas.quant_tensor import QuantTensor
 
 from .module_iterator import QuantModuleIterator
 from .modules_repertory import weight_layers_all
-from src.utils import Reshape
+from src.utils import Reshape, pad_left
 
 
 def describe_module(module, x=None):
@@ -51,7 +51,7 @@ def describe_quant_module(module, x):
     while module is not None:
         module_description = '(' + name + '): '
         module_description += describe_module(module, x)
-        # TODO shift right
+        module_description = pad_left(module_description, 4)
         value += module_description
         x = module(x)
         name, module = it.next_main_module(return_name=True)
