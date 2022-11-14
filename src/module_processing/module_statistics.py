@@ -58,8 +58,6 @@ class ModuleStatsObserver:
             count += 1
 
     def __collect_act_bias_stats_single_pass(self, x, per_channel):
-        x = x.reshape(-1, self.module.input_shape()[1])
-
         it = QuantModuleIterator(self.module)
         name, module = it.next_main_module(return_name=True)
         while name is not None:
