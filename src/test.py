@@ -18,11 +18,11 @@ def calibrate(model, test_loader, num_steps=1, seed=None):
         torch.manual_seed(seed)
 
     count = 0
-    for images, _ in test_loader:
+    for features, _ in test_loader:
         if count >= num_steps:
             break
-        images = images.to(device)
-        model(images)
+        features = features.to(device)
+        model(features)
         count += 1
 
 
@@ -38,16 +38,16 @@ def test(model, test_loader):
         correct = 0
         total = 0
 
-        for images, labels in test_loader:
-            images = images.to(device)
+        for features, labels in test_loader:
+            features = features.to(device)
             labels = labels.to(device)
-            outputs = model(images)
+            outputs = model(features)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            del images, labels, outputs
+            del features, labels, outputs
 
-    print('Accuracy of the network on the {} test images: {} %'.format(total,
+    print('Accuracy of the network on the {} test data: {} %'.format(total,
                                                                        None if total == 0 else 100 * correct / total),
           flush=True)
 
