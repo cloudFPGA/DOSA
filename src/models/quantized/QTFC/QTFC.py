@@ -8,7 +8,7 @@ from src.utils import Reshape
 class QTFC(QuantModule):
     """
     Base class for quantized TFC, per default not quantized and therefore acts as a wrapper for the full precision
-    pytorch model
+    model
     """
     num_quantidd = 4
     num_linear = 4
@@ -39,7 +39,7 @@ class QTFC(QuantModule):
             output_quant = [output_quant] * QTFC.num_linear
 
         # reshape layer
-        self._append(Reshape((-1, QTFC.in_features)))
+        self._append(Reshape(lambda x: (-1, QTFC.in_features)))
 
         self._append(qnn.QuantIdentity(act_quant=act_quant[0], return_quant_tensor=return_quant_tensor))
         self._append(nn.Dropout(p=QTFC.dropout))

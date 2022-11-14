@@ -17,13 +17,14 @@ def describe_module(module, x=None):
 
     # default case: any other type of module
     value += module._get_name() + '('
+    x_output = None
     if x is not None:
-        x = module(x)
+        x_output = module(x)
 
     # reshape module
     if isinstance(module, Reshape):
         value += ', ' if value_not_empty else ''
-        value += describe_reshape_module(module)
+        value += describe_reshape_module(module, x)
         value_not_empty = True
 
     # weight layer
@@ -35,7 +36,7 @@ def describe_module(module, x=None):
     # quant output
     if isinstance(x, QuantTensor):
         value += ', ' if value_not_empty else ''
-        value += describe_quant_output_module(module, x)
+        value += describe_quant_output_module(module, x_output)
         value_not_empty = True
 
     value += ')\n'
@@ -77,5 +78,5 @@ def describe_quant_output_module(module, x):
     return value
 
 
-def describe_reshape_module(module):
-    return 'target shape: {}'.format(module.shape)
+def describe_reshape_module(module, x):
+    return 'target shape: {}'.format(module.shape(x))
