@@ -1,9 +1,6 @@
-from brevitas import nn as qnn
 from brevitas.quant import *
-from torch import nn
-import brevitas.nn as qnn
 
-from src.models.quantized import QTFC
+from .QTFC import QTFC
 from src.quantizers import ShiftedUint4ActPerTensorFloat, Int4WeightPerTensorFloat, Int4Bias
 
 dropout = 0.2

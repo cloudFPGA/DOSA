@@ -1,6 +1,6 @@
 from brevitas.quant import SignedTernaryActPerTensorConst, SignedTernaryWeightPerTensorConst
 
-from src.models.quantized import QTFC
+from .QTFC import QTFC
 from src.quantizers import Int3Bias
 
 
