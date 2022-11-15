@@ -16,11 +16,12 @@ calibration_loader_mnist, _ = data_loader(data_dir='../data', dataset='MNIST', b
 fp_model = TFC(64, 64, 64)
 fp_model.load_state_dict(torch.load('../models/TFC.pt', map_location=torch.device('cpu')))
 
-# force bias to zero
-it = FullPrecisionModuleIterator(fp_model)
-# it.force_bias_zero()
-fp_model.eval()
 
+# ------------------ Uncomment to force model bias to zero ------------------
+# it = FullPrecisionModuleIterator(fp_model)
+# it.force_bias_zero()
+# fp_model.eval()
+# ---------------------------------------------------------------------------
 
 # ======================= Uncomment one of below lines ======================
 # Full precision: (bias zeroed: 98.14%, bias: 98.12%)
@@ -49,11 +50,12 @@ print('\n ----------------------------------------------------\n')
 
 # accuracies
 print('--- Full Precision accuracy ---')
-# test(fp_model, test_loader_mnist)
+test(fp_model, test_loader_mnist)
 
 print('\n--- Quantized model accuracy ---')
 test(brevitas_quant_model, test_loader_mnist)
 
 # Collect statistics
-# brevitas_quant_model.collect_stats(test_loader_mnist, 10)
+print('Collecting statistics...')
+brevitas_quant_model.collect_stats(test_loader_mnist, 10)
 
