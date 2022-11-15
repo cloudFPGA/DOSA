@@ -27,7 +27,7 @@ torch.manual_seed(0)
 prepare_brevitas_qmodel(fp_model, brevitas_quant_model, data_loader=calibration_loader_cifar, num_steps=300)
 
 print('\n ----------------------------------------------------\n')
-print(brevitas_quant_model.get_quant_description())
+# print(brevitas_quant_model.get_quant_description((1, 3, 32, 32)))
 print('\n ----------------------------------------------------\n')
 
 # accuracies
@@ -35,7 +35,7 @@ print('--- Full Precision accuracy ---')
 test(fp_model, test_loader_cifar)
 
 print('\n--- Quantized model accuracy ---')
-# test(brevitas_quant_model, test_loader_mnist)
+test(brevitas_quant_model, test_loader_cifar)
 
-# brevitas_quant_model.collect_stats(test_loader_cifar, 10)
+brevitas_quant_model.collect_stats(test_loader_cifar, 10)
 

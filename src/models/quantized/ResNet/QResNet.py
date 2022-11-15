@@ -10,7 +10,6 @@ class QResidualBlock(QuantModule):
         self.downsample = False
 
         # first convolutional
-        print(stride, ' ', in_channels, ' ', out_channels)
         self._append(qnn.QuantConv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False,
                                      weight_quant=None))  # 0
         self._append(nn.BatchNorm2d(out_channels)),  # 1
@@ -31,22 +30,22 @@ class QResidualBlock(QuantModule):
             self._append(qnn.QuantIdentity(act_quant=None))  # 5
 
         # relu
-        self._append(qnn.QuantReLU(act_quant=None))  # 7 or 8
+        self._append(qnn.QuantReLU(act_quant=None))  # 6 or 7
 
     def forward(self, x):
+        out = x
         x_downsampled = None
         for i, module in enumerate(self.features):
-            print('    ', x.shape, ' ', type(module).__name__)
             if self.downsample and i == 5:
                 x_downsampled = module(x)
-            if self.downsample and i == 6:
+            elif self.downsample and i == 6:
                 x_downsampled = module(x_downsampled)
-                x += x_downsampled
+                out += x_downsampled
             elif not self.downsample and i == 5:
-                x += module(x)
+                out += module(x)
             else:
-                x = module(x)
-        return x
+                out = module(out)
+        return out
 
 
 class QResNet(QuantModule):
@@ -80,14 +79,11 @@ class QResNet(QuantModule):
     def _make_layer(self, block, planes, blocks, stride=1):
         strides = [stride] + [1]*(blocks-1)
         for stride in strides:
-            print(stride)
             self._append(block(self.inplanes, planes, stride))
             self.inplanes = planes
-        print()
 
     def forward(self, x):
         for module in self.features:
-            print(x.shape, ' ', type(module).__name__)
             x = module(x)
         return x
 

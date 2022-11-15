@@ -25,14 +25,9 @@ class ResidualBlock(nn.Module):
             )
 
     def forward(self, x):
-        print('    ', x.shape, ' ', 'Conv2d 1')
         out = self.conv1(x)
-        print(self.conv1[0].out_channels, ' ', self.conv1[0].stride)
-        print('    ', x.shape, ' ', 'Conv2d 2')
         out = self.conv2(out)
-        print('    ', x.shape, ' ', 'downsample')
         out += self.downsample(x)
-        print('    ', x.shape, ' ', 'relu')
         out = self.relu(out)
         return out
 
@@ -58,29 +53,19 @@ class ResNet(nn.Module):
         strides = [stride] + [1]*(blocks-1)
         layers = []
         for stride in strides:
-            print(self.inplanes, ' ', planes)
-            layers.append(block(self.inplanes, planes, stride))   
+            layers.append(block(self.inplanes, planes, stride))
             self.inplanes = planes
-        print()
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        print(x.shape, ' ', 'Conv2d')
         x = self.conv1(x)
-        print(x.shape, ' ', 'ResBlock1,2')
         x = self.layer0(x)
-        print(x.shape, ' ', 'ResBlock3, 4')
         x = self.layer1(x)
-        print(x.shape, ' ', 'ResBlock5, 6')
         x = self.layer2(x)
-        print(x.shape, ' ', 'ResBlock7, 8')
         x = self.layer3(x)
 
-        print(x.shape, ' ', 'avgpool')
         x = F.avg_pool2d(x, 4)
-        print(x.shape, ' ', 'reshape')
         x = x.view(x.size(0), -1)
-        print(x.shape, ' ', 'linear')
         x = self.fc(x)
         
         return x

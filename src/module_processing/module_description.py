@@ -34,7 +34,7 @@ def describe_module(module, x=None):
         value_not_empty = True
 
     # quant output
-    if isinstance(x, QuantTensor):
+    if isinstance(x_output, QuantTensor):
         value += ', ' if value_not_empty else ''
         value += describe_quant_output_module(module, x_output)
         value_not_empty = True

@@ -17,15 +17,15 @@ fp_model = TFC(64, 64, 64)
 fp_model.load_state_dict(torch.load('../models/TFC.pt', map_location=torch.device('cpu')))
 
 # force bias to zero
-# it = FullPrecisionModuleIterator(fp_model)
+it = FullPrecisionModuleIterator(fp_model)
 # it.force_bias_zero()
-# fp_model.eval()
+fp_model.eval()
 
 
 # ======================= Uncomment one of below lines ======================
 # Full precision: (bias zeroed: 98.14%, bias: 98.12%)
-brevitas_quant_model = quantized.QTFC(64, 64, 64)  # (98.14 %, 98.12%)
-# brevitas_quant_model = quantized.QTFCInt8(64, 64, 64)  # (98.09 %, 98.10%)
+# brevitas_quant_model = quantized.QTFC(64, 64, 64)  # (98.14 %, 98.12%)
+brevitas_quant_model = quantized.QTFCInt8(64, 64, 64)  # (98.09 %, 98.10%)
 # brevitas_quant_model = quantized.QTFCInt5(64, 64, 64)  # (98.00%, 98.00%)
 # brevitas_quant_model = quantized.QTFCInt4(64, 64, 64)  # (97.37%, 97.38%)
 # brevitas_quant_model = quantized.QTFCInt3(64, 64, 64)  # (96.4%, 96.42%)
