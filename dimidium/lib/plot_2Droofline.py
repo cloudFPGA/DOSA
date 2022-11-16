@@ -482,8 +482,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
         # plt.plot(ai_list, p_fpga_bram_max, color='tab:blue', linewidth=MY_WIDTH, label='current Role BRAM bandwidth', linestyle=line_style, zorder=1)
         # plt.plot(ai_list, p_fpga_network_max, color='tab:green', linewidth=MY_WIDTH, label='current Role network bandwidth', linestyle=line_style, zorder=1)
         plt.plot(ai_list, p_fpga_lutram_max, color='tab:orange', linewidth=MY_WIDTH, label='LUTRAM bandwidth', linestyle=line_style, zorder=1)
-        plt.plot(ai_list, p_fpga_ddr_max, color='tab:red', linewidth=MY_WIDTH, label='DRAM bandwidth', linestyle=line_style, zorder=1)
         plt.plot(ai_list, p_fpga_bram_max, color='tab:blue', linewidth=MY_WIDTH, label='BRAM bandwidth', linestyle=line_style, zorder=1)
+        plt.plot(ai_list, p_fpga_ddr_max, color='tab:red', linewidth=MY_WIDTH, label='DRAM bandwidth', linestyle=line_style, zorder=1)
         plt.plot(ai_list, p_fpga_network_max, color='tab:green', linewidth=MY_WIDTH, label='network bandwidth', linestyle=line_style, zorder=1)
         # plt.plot(ai_list, p_fpga_network_max, color='tab:green', linewidth=MY_WIDTH, label='I/O bandwidth', linestyle=line_style, zorder=1)
 
