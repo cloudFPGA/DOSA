@@ -167,9 +167,15 @@ class Hls4mlWrapper_Parallel:
                     # TODO
                     if self.in_dims[1] > 1:
                         fsm_tmpl = '    case FILL_BUF_{b}:\n' + \
-                                   '      if( !siData.empty() && !sTohls4ml_parallelBuffer_chan{b}.full() && !sTohls4ml_parallelBuffer_chan{b1}.full() )\n' + \
+                                   '      if( (!siData.empty() && !sTohls4ml_parallelBuffer_chan{b}.full()) || hangover_present)\n' + \
                                    '      {{\n' + \
-                                   '        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();\n' + \
+                                   '          if(hangover_present)\n' + \
+                                   '          {{\n' + \
+                                   '              tmp_read_0 = hangover_axis;\n' + \
+                                   '          }} else {{\n' + \
+                                   '              tmp_read_0 = siData.read();\n' + \
+                                   '        }}\n' + \
+                                   '        hangover_present = false;\n' + \
                                    '        uint32_t new_bytes_cnt = extractByteCnt(tmp_read_0);\n' + \
                                    '        if((current_frame_byte_cnt + new_bytes_cnt) >= HLS4ML_PARALLEL_INPUT_FRAME_BYTE_CNT)\n' + \
                                    '        {{\n' + \
@@ -186,15 +192,16 @@ class Hls4mlWrapper_Parallel:
                                    '            {{\n' + \
                                    '              this_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) cur_tkeep_bit) << i;\n' + \
                                    '            }} else {{\n' + \
-                                   '              next_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) cur_tkeep_bit) << i;\n' + \
+                                   '              next_tkeep |= ((ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8>) cur_tkeep_bit) << (i - bytes_to_this_frame);\n' + \
                                    '            }}\n' + \
                                    '          }}\n' + \
                                    '          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_this =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, this_tkeep, 0);\n' + \
-                                   '          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, next_tkeep, 0);\n' + \
+                                   '          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input >> bytes_to_this_frame, next_tkeep, 0);\n' + \
                                    '          sTohls4ml_parallelBuffer_chan{b}.write(tmp_write_this);\n' + \
                                    '          if(bytes_to_next_frame > 0)\n' + \
                                    '          {{\n' + \
-                                   '            sTohls4ml_parallelBuffer_chan{b1}.write(tmp_write_next);\n' + \
+                                   '               hangover_present = true;\n' + \
+                                   '               hangover_axis = tmp_write_next;\n' + \
                                    '          }}\n' + \
                                    '          current_frame_byte_cnt = bytes_to_next_frame;\n' + \
                                    '          enqueueFSM = FILL_BUF_{b1};\n' + \

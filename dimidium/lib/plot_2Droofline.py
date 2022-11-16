@@ -103,7 +103,7 @@ def draw_oi_list(plt, color, line_style, font_size, line_width, y_max, oi_list, 
                 if tx <= pot_collisions <= tx2:
                     collision = True
                 if collision:
-                    print("text collision detected")
+                    # print("text collision detected")
                     # going rightwards by default?
                     tx *= ((1+text_font_height_factor) * 1.1)
                     arrow_needed = True

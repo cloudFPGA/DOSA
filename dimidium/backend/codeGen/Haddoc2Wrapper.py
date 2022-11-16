@@ -89,6 +89,10 @@ class Haddoc2Wrapper:
                     assert tkeep_general > 0
                     assert tkeep_width > 0
                     assert tkeep_general >= tkeep_width
+                    if self.general_bitw > (self.in_dims[2]*8):
+                        print("the handling ov multiple channels per one line read is not implemented here,"
+                              "see hls4mlwrapper_parallel for solution")
+                        raise NotImplementedError
                     outline = ''
                     outline += '#define DOSA_WRAPPER_INPUT_IF_BITWIDTH {}\n'.format(self.if_in_bitw)
                     outline += '#define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH {}\n'.format(self.if_out_bitw)
