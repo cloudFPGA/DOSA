@@ -1,4 +1,5 @@
 import torch
+import onnx
 
 from src import data_loader, test
 from src.module_processing import FullPrecisionModuleIterator
@@ -29,4 +30,6 @@ test(q_model, test_loader_mnist)
 q_model.cpu()
 bo.export_finn_onnx(q_model, (1, 1, 28, 28), '../models/QTFCInt8.onnx')
 
-
+# check onnx model
+model = onnx.load('../models/QTFCInt8.onnx')
+onnx.checker.check_model(model)
