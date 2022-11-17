@@ -7,7 +7,11 @@ from src.utils import Reshape
 class QResidualBlock(QuantModule):
     def __init__(self, in_channels, out_channels, stride=1):
         super(QResidualBlock, self).__init__()
+
         self.downsample = False
+        self.forward_step_index = 0
+        self.forward_step_input_x = None
+        self.forward_step_output4 = None
 
         # first convolutional
         self._append(qnn.QuantConv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False,
@@ -47,15 +51,49 @@ class QResidualBlock(QuantModule):
                 out = module(out)
         return out
 
+    def forward_step(self, x):
+        if self.forward_step_index >= len(self.features):
+            self.forward_step_index = 0
+            return None, None, None
+
+        module = self.features[self.forward_step_index]
+
+        if self.forward_step_index == 0:
+            self.forward_step_input_x = x
+            x_in = x
+            x_out = module(x_in)
+
+        elif self.forward_step_index == 4:
+            x_in = x
+            x_out = module(x_in)
+            self.forward_step_output4 = x_out
+
+        elif self.forward_step_index == 5:
+            x_in = self.forward_step_input_x
+            x_out = module(x_in) if self.downsample else x + module(x_in)
+
+        elif self.forward_step_index == 6 and self.downsample:
+            x_in = x
+            x_out = self.forward_step_output4 + module(x_in)
+
+        else:
+            x_in = x
+            x_out = module(x_in)
+
+        self.forward_step_index += 1
+        return x_in, module, x_out
+
 
 class QResNet(QuantModule):
     """
-    Base class for quantized ResNet, per default not quantized and therefore acts as a wrapper for the full precision
+    Base class for quantized QResNet, per default not quantized and therefore acts as a wrapper for the full precision
     model
     """
 
     def __init__(self, block, layers, num_classes=10):
         super(QResNet, self).__init__()
+        self.forward_step_index = 0
+
         self.inplanes = 64
 
         # first layer
@@ -86,6 +124,16 @@ class QResNet(QuantModule):
         for module in self.features:
             x = module(x)
         return x
+
+    def forward_step(self, x):
+        if self.forward_step_index >= len(self.features):
+            self.forward_step_index = 0
+            return None, None, None
+
+        module = self.features[self.forward_step_index]
+        out = module(x)
+        self.forward_step_index += 1
+        return x, module, out
 
 
 class QResNet18(QResNet):

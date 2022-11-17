@@ -1,11 +1,15 @@
+from abc import ABC, abstractmethod
+from typing import Union
+
 import torch
-from torch import nn
+from brevitas.quant_tensor import QuantTensor
+from torch import nn, Tensor
 import src.module_processing.module_iterator as iterator
 from src.module_processing import describe_module
 from src.module_processing.module_statistics import ModuleStatsObserver
 
 
-class QuantModule(nn.Module):
+class QuantModule(nn.Module, ABC):
     """Represents a module quantized with Brevitas"""
 
     def __init__(self):
@@ -17,9 +21,15 @@ class QuantModule(nn.Module):
         return self.features.__str__()
 
     def forward(self, x):
-        for module in self.features:
-            x = module(x)
+        x_next = x
+        while x_next is not None:
+            x = x_next
+            _, _, x_next = self.forward_step(x)
         return x
+
+    @abstractmethod
+    def forward_step(self, x) -> tuple[Union[Tensor, QuantTensor], nn.Module, Union[Tensor, QuantTensor]]:
+        pass
 
     def load_module_state_dict(self, fp_module):
         from brevitas import config
@@ -62,3 +72,4 @@ class QuantModule(nn.Module):
 
     def _append(self, module):
         self.features.append(module)
+

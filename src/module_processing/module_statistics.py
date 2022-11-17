@@ -59,17 +59,18 @@ class ModuleStatsObserver:
 
     def __collect_act_bias_stats_single_pass(self, x, per_channel):
         it = QuantModuleIterator(self.module)
-        name, module = it.next_main_module(return_name=True)
-        while name is not None:
-            x = module(x)
 
-            # activations
-            self.__collect_module_act_stats(x, name, module, per_channel)
-
-            # bias
-            if type(module).__name__ in modules_repertory.weight_layers_all:
-                self.__collect_module_bias_stats(name, module, per_channel)
-            name, module = it.next_main_module(return_name=True)
+        x_out = x
+        while x_out is not None:
+            x = x_out
+            x_in, sub_module, x_out = self.module.forward_step(x)
+            name, _ = it.find_module(sub_module)
+            if name is not None:
+                # activations
+                self.__collect_module_act_stats(x_in, name, sub_module, per_channel)
+                # bias
+                if type(sub_module).__name__ in modules_repertory.weight_layers_all and sub_module.bias is not None:
+                    self.__collect_module_bias_stats(name, sub_module, per_channel)
 
     def __collect_module_act_stats(self, activations, module_name, module, per_channel):
         a_entry_name = ModuleStatsObserver.__entry_name('activations', module_name, module)

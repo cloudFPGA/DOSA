@@ -2,10 +2,10 @@ from brevitas.quant_tensor import QuantTensor
 
 from .module_iterator import QuantModuleIterator
 from .modules_repertory import weight_layers_all
-from src.utils import Reshape, pad_left
+from src.utils import Reshape, pad_left, features_descriptions_to_string
 
 
-def describe_module(module, x=None):
+def describe_module(module, x=None) -> str:
     value = ''
     value_not_empty = False
 
@@ -45,17 +45,23 @@ def describe_module(module, x=None):
 
 def describe_quant_module(module, x):
     module.eval()
-    value = module._get_name() + '(\n'
+
+    features_descriptions = [None] * len(module.features)
 
     it = QuantModuleIterator(module)
-    name, module = it.next_main_module(return_name=True)
-    while module is not None:
-        module_description = '(' + name + '): '
-        module_description += describe_module(module, x)
-        module_description = pad_left(module_description, 4)
-        value += module_description
-        x = module(x)
-        name, module = it.next_main_module(return_name=True)
+    x_out = x
+    while x_out is not None:
+        x = x_out
+        x_in, sub_module, x_out = module.forward_step(x)
+        name, _ = it.find_module(sub_module)
+        if name is not None:
+            sub_module_description = '(' + name + '): '
+            sub_module_description += describe_module(sub_module, x_in)
+            sub_module_description = pad_left(sub_module_description, 4)
+            features_descriptions[int(name)] = sub_module_description
+
+    value = module._get_name() + '(\n'
+    value += features_descriptions_to_string(features_descriptions, module.features)
     value += ')\n'
     return value
 

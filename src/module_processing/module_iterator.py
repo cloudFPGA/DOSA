@@ -31,6 +31,18 @@ class ModuleIterator(ABC):
             module = next(self)
         self.reset()
 
+    def find_module(self, target_module, return_name=True):
+        stop = False
+        name, module = self.named_next()
+        while not stop and module is not None:
+            if module is None:
+                self.reset()
+                stop = True
+            if module is target_module:
+                return (name, module) if return_name else module
+            name, module = self.named_next()
+        return (None, None) if return_name else None
+
     def find_next_module_of_type(self, target_type, return_name=False):
         while True:
             name, module = self.named_next()

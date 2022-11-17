@@ -23,6 +23,8 @@ class QTFC(QuantModule):
                  bit_width=None):
         super(QTFC, self).__init__()
 
+        self.forward_step_index = 0
+
         return_quant_tensor = False if act_quant is None else True
         quantize_relu = act_quant is not None
 
@@ -89,6 +91,17 @@ class QTFC(QuantModule):
                                      bias_quant=bias_quant[3],
                                      output_quant=output_quant[3]))
 
-    # def forward(self, x):
-    #     x = x.reshape((-1, QTFC.in_features))
-    #     return QuantModule.forward(self, x)
+    def forward(self, x):
+        for module in self.features:
+            x = module(x)
+        return x
+
+    def forward_step(self, x):
+        if self.forward_step_index >= len(self.features):
+            self.forward_step_index = 0
+            return None, None, None
+
+        module = self.features[self.forward_step_index]
+        out = module(x)
+        self.forward_step_index += 1
+        return x, module, out

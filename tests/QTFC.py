@@ -26,13 +26,13 @@ fp_model.load_state_dict(torch.load('../models/TFC.pt', map_location=torch.devic
 # ======================= Uncomment one of below lines ======================
 # Full precision: (bias zeroed: 98.14%, bias: 98.12%)
 # brevitas_quant_model = quantized.QTFC(64, 64, 64)  # (98.14 %, 98.12%)
-brevitas_quant_model = quantized.QTFCInt8(64, 64, 64)  # (98.09 %, 98.10%)
+# brevitas_quant_model = quantized.QTFCInt8(64, 64, 64)  # (98.09 %, 98.10%)
 # brevitas_quant_model = quantized.QTFCInt5(64, 64, 64)  # (98.00%, 98.00%)
 # brevitas_quant_model = quantized.QTFCInt4(64, 64, 64)  # (97.37%, 97.38%)
 # brevitas_quant_model = quantized.QTFCInt3(64, 64, 64)  # (96.4%, 96.42%)
 # brevitas_quant_model = quantized.QTFCFixedPoint8(64, 64, 64)  # (98.08%, 98.09%)
 # brevitas_quant_model = quantized.QTFCFixedPoint5(64, 64, 64)  # (97.72%, 97.74%)
-# brevitas_quant_model = quantized.QTFCFixedPoint4(64, 64, 64)  # (94.36%, 94.41%)
+brevitas_quant_model = quantized.QTFCFixedPoint4(64, 64, 64)  # (94.36%, 94.41%)
 # brevitas_quant_model = quantized.QTFCFixedPoint3(64, 64, 64)  # (21.05%, 21.78%)
 # brevitas_quant_model = quantized.QTFCShiftedQuantAct8(64, 64, 64)  # (98.14%, 98.14%)
 # brevitas_quant_model = quantized.QTFCShiftedQuantAct4(64, 64, 64)  # (97.56 %, 97.55%)
@@ -56,6 +56,6 @@ print('\n--- Quantized model accuracy ---')
 test(brevitas_quant_model, test_loader_mnist)
 
 # Collect statistics
-print('Collecting statistics...')
+print('\nCollecting statistics...')
 brevitas_quant_model.collect_stats(test_loader_mnist, 10)
 
