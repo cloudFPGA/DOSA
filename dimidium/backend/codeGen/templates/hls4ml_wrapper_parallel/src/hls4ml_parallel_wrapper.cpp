@@ -60,6 +60,7 @@ void pTohls4ml_parallelDemux(
       //TODO: necessary?
       current_frame_byte_cnt = 0x0;
       wait_drain_cnt = cnn_input_frame_size;
+      hangover_present = false;
 #ifndef __SYNTHESIS_
       wait_drain_cnt = 10;
 #endif
@@ -79,7 +80,7 @@ void pTohls4ml_parallelDemux(
 #ifdef WRAPPER_TEST
     case FILL_BUF_0:
     //we distribute on the channels only, cutting in right bitsize in dequeue process
-      if(( !siData.empty() && !sTohls4ml_parallelBuffer_chan1.full() ) || hangover_present) //&& !sTohls4ml_parallelBuffer_chan2.full() )
+      if( (!siData.empty() || hangover_present) && !sTohls4ml_parallelBuffer_chan1.full() ) //&& !sTohls4ml_parallelBuffer_chan2.full() )
       {
         if(hangover_present)
         {
@@ -127,7 +128,7 @@ void pTohls4ml_parallelDemux(
       }
       break;
     case FILL_BUF_1:
-      if(( !siData.empty() && !sTohls4ml_parallelBuffer_chan2.full() ) || hangover_present) //&& !sTohls4ml_parallelBuffer_chan3.full() )
+      if( (!siData.empty() || hangover_present) && !sTohls4ml_parallelBuffer_chan2.full() ) //&& !sTohls4ml_parallelBuffer_chan3.full() )
       {
         if(hangover_present)
         {
@@ -175,7 +176,7 @@ void pTohls4ml_parallelDemux(
       }
       break;
     case FILL_BUF_2:
-      if(( !siData.empty() && !sTohls4ml_parallelBuffer_chan3.full() ) || hangover_present) //&& !sTohls4ml_parallelBuffer_chan1.full() )
+      if( (!siData.empty() || hangover_present) && !sTohls4ml_parallelBuffer_chan3.full() ) //&& !sTohls4ml_parallelBuffer_chan1.full() )
       {
         if(hangover_present)
         {
@@ -229,7 +230,7 @@ void pTohls4ml_parallelDemux(
   }
 
   *debug = (uint8_t) enqueueFSM;
-  *debug = ((uint16_t) current_frame_byte_cnt) << 8;
+  *debug |= ((uint16_t) current_frame_byte_cnt) << 8;
 
 }
 

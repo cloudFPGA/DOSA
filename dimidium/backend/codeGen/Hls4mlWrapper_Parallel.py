@@ -167,7 +167,7 @@ class Hls4mlWrapper_Parallel:
                     # TODO
                     if self.in_dims[1] > 1:
                         fsm_tmpl = '    case FILL_BUF_{b}:\n' + \
-                                   '      if( (!siData.empty() && !sTohls4ml_parallelBuffer_chan{b}.full()) || hangover_present)\n' + \
+                                   '      if( (!siData.empty() || hangover_present) && !sTohls4ml_parallelBuffer_chan{b}.full())\n' + \
                                    '      {{\n' + \
                                    '          if(hangover_present)\n' + \
                                    '          {{\n' + \
