@@ -4,6 +4,7 @@ import torch
 from .modules_repertory import weight_layers_all, brevitas_translation_stateful_layers
 
 
+# TODO: refactor the whole class
 class ModuleIterator(ABC):
     def __init__(self, module):
         self.module = module
@@ -17,7 +18,7 @@ class ModuleIterator(ABC):
         _, module = next(self.modules_it, (None, None))
         return module
 
-    def named_next(self):
+    def named_next(self, **kwargs):
         return next(self.modules_it, (None, None))
 
     def force_bias_zero(self):
@@ -31,29 +32,29 @@ class ModuleIterator(ABC):
             module = next(self)
         self.reset()
 
-    def find_module(self, target_module, return_name=True):
+    def find_module(self, target_module, return_name=True, **kwargs):
         stop = False
-        name, module = self.named_next()
+        name, module = self.named_next(kwargs)
         while not stop and module is not None:
             if module is None:
                 self.reset()
                 stop = True
             if module is target_module:
                 return (name, module) if return_name else module
-            name, module = self.named_next()
+            name, module = self.named_next(kwargs)
         return (None, None) if return_name else None
 
-    def find_next_module_of_type(self, target_type, return_name=False):
+    def find_next_module_of_type(self, target_type, return_name=False, **kwargs):
         while True:
-            name, module = self.named_next()
+            name, module = self.named_next(kwargs)
             if module is None:
                 return (None, None) if return_name else None
             if isinstance(module, target_type):
                 return (name, module) if return_name else module
 
-    def find_next_weight_module(self, return_name=False):
+    def find_next_weight_module(self, return_name=False, **kwargs):
         while True:
-            name, module = self.named_next()
+            name, module = self.named_next(kwargs)
             if module is None:
                 return (None, None) if return_name else None
 
@@ -72,17 +73,42 @@ class QuantModuleIterator(ModuleIterator):
     def reset(self):
         self.modules_it = self.module.features.named_modules()
 
-    def next_main_module(self, return_name=False):
-        name, module = self.named_next()
-        while module is not None:
-            if name and name.find('.') < 0:
+    def named_next(self, main_module=False):
+        if not main_module:
+            return super(QuantModuleIterator, self).named_next()
+        else:
+            name, module = super(QuantModuleIterator, self).named_next()
+            while module is not None:
+                if name and name.find('.') < 0:
+                    return name, module
+                name, module = super(QuantModuleIterator, self).named_next()
+            return None, None
+
+    def find_module(self, target_module, return_name=True, main_module=False):
+        stop = False
+        name, module = self.named_next(main_module)
+        while not stop and module is not None:
+            if module is None:
+                self.reset()
+                stop = True
+            if module is target_module:
                 return (name, module) if return_name else module
-            name, module = self.named_next()
+            name, module = self.named_next(main_module)
         return (None, None) if return_name else None
 
-    def find_next_act_quant_module(self, return_name=False):
+    def find_next_quant_submodule(self, return_name=False, main_module=False):
         while True:
-            name, module = self.named_next()
+            name, module = self.named_next(main_module)
+            if module is None:
+                return (None, None) if return_name else None
+
+            from src.models.quantized import QuantModule
+            if isinstance(module, QuantModule):
+                return (name, module) if return_name else module
+
+    def find_next_act_quant_module(self, return_name=False, main_module=False):
+        while True:
+            name, module = self.named_next(main_module)
             if module is None:
                 return (None, None) if return_name else None
             if hasattr(module, 'act_quant') or hasattr(module, 'input_quant') or hasattr(module, 'output_quant'):

@@ -6,40 +6,65 @@ from src.module_processing import QuantModuleIterator, modules_repertory
 
 
 class ModuleStatsObserver:
-    def __init__(self, module):
-        self.writer = SummaryWriter(log_dir='../runs/' + module.__class__.__name__ + '/')
+    def __init__(self, module, entries_name_prefix=None):
+        self.log_dir = '../runs/' + module.__class__.__name__ + '/'
         self.module = module
         self.stats = {}
+        self.entries_name_prefix = entries_name_prefix if entries_name_prefix is not None else ''
 
     def collect_stats(self, data_loader, num_iterations=30, per_channel=False, write_to_tensorboard=True, seed=45):
         self.module.eval()
+        self.__set_quant_submodule_entries_name_prefix()
 
         self.__collect_weights_stats(per_channel)
         self.__collect_act_bias_stats(data_loader, num_iterations, per_channel, seed)
+        self.__retrieve_quant_submodules_stats()
 
         if write_to_tensorboard:
             self.write_stats_to_tensorboard()
 
     def write_stats_to_tensorboard(self):
+        writer = SummaryWriter(self.log_dir)
         for entry_name, values in self.stats.items():
             if not isinstance(values, list):
-                self.writer.add_histogram(tag=entry_name, values=values, global_step=0, bins='auto')
+                writer.add_histogram(tag=entry_name, values=values, global_step=0, bins='auto')
             else:
                 for i in range(len(list)):
-                    self.writer.add_histogram(tag=entry_name, values=values[i], global_step=i, bins='auto')
-        self.writer.close()
+                    writer.add_histogram(tag=entry_name, values=values[i], global_step=i, bins='auto')
+        writer.close()
+
+    def __set_quant_submodule_entries_name_prefix(self):
+        # TODO refactor
+        for i, module in enumerate(self.module.features):
+            from src.models.quantized import QuantModule
+            if isinstance(module, QuantModule):
+                prefix = '(' + str(i) + '): ' + type(module).__name__ + '/'
+                module.stats_observer.entries_name_prefix = prefix
+
+    def __retrieve_quant_submodules_stats(self):
+        # TODO refactor
+        for i, module in enumerate(self.module.features):
+            from src.models.quantized import QuantModule
+            if isinstance(module, QuantModule):
+                self.stats.update(module.stats_observer.stats)
 
     def __collect_weights_stats(self, per_channel):
         it = QuantModuleIterator(self.module)
-        name, module = it.find_next_weight_module(return_name=True)
+        name, module = it.find_next_weight_module(return_name=True, main_module=True)
         while module is not None:
             weights = ModuleStatsObserver.__prepare_stats_tensor(tensor=module.quant_weight(),
                                                                  accumulation_tensor=torch.empty(0),
                                                                  per_channel=per_channel,
                                                                  has_batch=False)
-            entry_name = ModuleStatsObserver.__entry_name('weights', name, module)
+            entry_name = self.__entry_name('weights', name, module)
             self.stats[entry_name] = weights
-            name, module = it.find_next_weight_module(return_name=True)
+            name, module = it.find_next_weight_module(return_name=True, main_module=True)
+
+        # TODO refactor
+        for module in self.module.features:
+            from src.models.quantized import QuantModule
+            if isinstance(module, QuantModule):
+                module.stats_observer.__collect_weights_stats(per_channel)
 
     def __collect_act_bias_stats(self, data_loader, num_iterations, per_channel, seed):
         it = QuantModuleIterator(self.module)
@@ -65,15 +90,23 @@ class ModuleStatsObserver:
             x = x_out
             x_in, sub_module, x_out = self.module.forward_step(x)
             name, _ = it.find_module(sub_module)
+
+            from src.models.quantized import QuantModule
             if name is not None:
-                # activations
-                self.__collect_module_act_stats(x_in, name, sub_module, per_channel)
-                # bias
-                if type(sub_module).__name__ in modules_repertory.weight_layers_all and sub_module.bias is not None:
-                    self.__collect_module_bias_stats(name, sub_module, per_channel)
+                if isinstance(sub_module, QuantModule):
+                    sub_module.stats_observer.__collect_act_bias_stats_single_pass(x_in, per_channel)
+                else:
+                    self.__collect_atomic_module_act_bias_stats(x_out, name, sub_module, per_channel)
+
+    def __collect_atomic_module_act_bias_stats(self, activations, name, module, per_channel):
+        # activations
+        self.__collect_module_act_stats(activations, name, module, per_channel)
+        # bias
+        if type(module).__name__ in modules_repertory.weight_layers_all and module.bias is not None:
+            self.__collect_module_bias_stats(name, module, per_channel)
 
     def __collect_module_act_stats(self, activations, module_name, module, per_channel):
-        a_entry_name = ModuleStatsObserver.__entry_name('activations', module_name, module)
+        a_entry_name = self.__entry_name('activations', module_name, module)
         a_accumulator = self.stats.get(a_entry_name, torch.empty(0))
         activations = ModuleStatsObserver.__prepare_stats_tensor(tensor=activations,
                                                                  accumulation_tensor=a_accumulator,
@@ -82,7 +115,7 @@ class ModuleStatsObserver:
         self.stats[a_entry_name] = activations
 
     def __collect_module_bias_stats(self, module_name, module, per_channel):
-        b_entry_name = ModuleStatsObserver.__entry_name('bias', module_name, module)
+        b_entry_name = self.__entry_name('bias', module_name, module)
         b_accumulator = self.stats.get(b_entry_name, torch.empty(0))
         bias = ModuleStatsObserver.__prepare_stats_tensor(tensor=module.quant_bias(),
                                                           accumulation_tensor=b_accumulator,
@@ -90,9 +123,8 @@ class ModuleStatsObserver:
                                                           has_batch=False)
         self.stats[b_entry_name] = bias
 
-    @staticmethod
-    def __entry_name(param_type, module_name, module):
-        return param_type + '/(' + module_name + '): ' + type(module).__name__
+    def __entry_name(self, param_type, module_name, module):
+        return param_type + '/' + self.entries_name_prefix + '(' + module_name + '): ' + type(module).__name__
 
     @staticmethod
     def __prepare_stats_tensor(tensor, accumulation_tensor, per_channel, has_batch=False):
@@ -113,4 +145,3 @@ class ModuleStatsObserver:
 
         else:
             return res.flatten()
-

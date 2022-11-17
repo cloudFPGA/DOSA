@@ -50,10 +50,10 @@ print('\n ----------------------------------------------------\n')
 
 # accuracies
 print('--- Full Precision accuracy ---')
-test(fp_model, test_loader_mnist)
+# test(fp_model, test_loader_mnist)
 
 print('\n--- Quantized model accuracy ---')
-test(brevitas_quant_model, test_loader_mnist)
+# test(brevitas_quant_model, test_loader_mnist)
 
 # Collect statistics
 print('\nCollecting statistics...')

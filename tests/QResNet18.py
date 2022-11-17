@@ -17,10 +17,10 @@ fp_model = ResNet18()
 fp_model.load_state_dict(torch.load('../models/ResNet18.pt', map_location=torch.device('cpu')))
 
 
-# ======================= Uncomment one of below lines ======================
+# ======================= Uncomment one of below lines =======================
 # Full precision: 91.47%
-brevitas_quant_model = quantized.QResNet18()  # ( 91.47%)
-# ===========================================================================
+brevitas_quant_model = quantized.QResNet18()  # (91.47%)
+# ============================================================================
 
 # load and calibrate quantized model
 torch.manual_seed(0)
@@ -35,7 +35,7 @@ print('--- Full Precision accuracy ---')
 # test(fp_model, test_loader_cifar)
 
 print('\n--- Quantized model accuracy ---')
-test(brevitas_quant_model, test_loader_cifar)
+# test(brevitas_quant_model, test_loader_cifar)
 
 # Collect statistics
 print('\nCollecting statistics...')
