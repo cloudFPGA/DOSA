@@ -75,7 +75,7 @@ if __name__ == '__main__':
         if k not in dosa_config:
             print("ERROR: Mandatory key {} is missing in the configuration file {}. Stop.".format(k, const_path))
             exit(1)
-    dosa_singelton.init_singleton(dosa_config)
+    dosa_singelton.init_singleton(dosa_config, main_path=sys.argv[0])
     dosa_singelton.add_global_build_dir(global_build_dir)
 
     debug_mode = False

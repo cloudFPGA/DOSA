@@ -25,8 +25,6 @@
 -- * Description : In cloudFPGA, the user application is referred to as a 'role'
 -- *   and is integrated along with a 'shell' that abstracts the HW components
 -- *   of the FPGA module.
--- *   The current role implements 2 typical UDP and TCP applications and pairs
--- *   paires them with the shell 'Themisto'.
 -- *
 -- *****************************************************************************
 
@@ -41,6 +39,7 @@ use     UNISIM.vcomponents.all;
 
 --******************************************************************************
 --**  ENTITY  **  ROLE_THEMISTO
+-- DOSA_ADD_version_string
 --******************************************************************************
 
 entity Role_Themisto is

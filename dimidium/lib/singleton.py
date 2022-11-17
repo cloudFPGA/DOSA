@@ -11,16 +11,19 @@
 
 import os
 from types import SimpleNamespace
+import git
+
 from dimidium.lib.dosa_dtype import DosaDtype, convert_tvmDtype_to_DosaDtype
 
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 is_initiated = False
 config = SimpleNamespace()
+config.git_version = 'UNKNOWN'
 uc = {}
 
 
-def init_singleton(config_dict):
+def init_singleton(config_dict, main_path=None):
     global config
     global is_initiated
 
@@ -75,6 +78,11 @@ def init_singleton(config_dict):
               .format(config.dse.allowed_throughput_degradation))
 
     config.dse.max_vertical_split = 500
+
+    if main_path is not None:
+        repo = git.Repo(path=main_path, search_parent_directories=True)
+        cur_sha = repo.git.describe()
+        config.git_version = cur_sha
 
     is_initiated = True
     return 0
