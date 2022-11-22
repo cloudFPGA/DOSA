@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, Tuple
 
 import torch
 from brevitas.quant_tensor import QuantTensor
@@ -28,7 +28,7 @@ class QuantModule(nn.Module, ABC):
         return x
 
     @abstractmethod
-    def forward_step(self, x) -> tuple[Union[Tensor, QuantTensor], nn.Module, Union[Tensor, QuantTensor]]:
+    def forward_step(self, x) -> Tuple[Union[Tensor, QuantTensor], nn.Module, Union[Tensor, QuantTensor]]:
         pass
 
     def load_module_state_dict(self, fp_module):

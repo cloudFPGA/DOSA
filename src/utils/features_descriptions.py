@@ -1,5 +1,5 @@
 import functools
-from typing import Optional
+from typing import Optional, List
 from torch import nn
 
 
@@ -11,7 +11,7 @@ def pad_left(string, num_pad, char=' '):
     return functools.reduce(lambda l, r: l + r, string_split)
 
 
-def features_descriptions_to_string(descriptions: list[Optional[str]], features: list[nn.Module]) -> str:
+def features_descriptions_to_string(descriptions: List[Optional[str]], features: List[nn.Module]) -> str:
     for i, description in enumerate(descriptions):
         if description is None:
             descriptions[i] = '(' + str(i) + '): '
