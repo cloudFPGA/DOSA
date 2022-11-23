@@ -35,23 +35,18 @@ class QuantModule(nn.Module, ABC):
         from brevitas import config
         config.IGNORE_MISSING_KEYS = True
 
-        fp_modules = iterator.FullPrecisionModuleIterator(fp_module)
-        quant_modules = iterator.QuantModuleIterator(self)
+        fp_modules_it = iterator.FullPrecisionModuleIterator(fp_module)
+        quant_modules_it = iterator.QuantModuleIterator(self)
 
-        fp_layer, q_target_type = fp_modules.find_next_stateful_quantizable_module_with_quantized_type()
-        while fp_layer is not None:
-            q_layer = quant_modules.find_next_module_of_type(q_target_type)
+        for fp_layer, q_target_type in fp_modules_it.stateful_quantizable_modules():
+            q_layer = quant_modules_it.find_next_module_of_type(q_target_type)
             q_layer.load_state_dict(fp_layer.state_dict())
-
-            fp_layer, q_target_type = fp_modules.find_next_stateful_quantizable_module_with_quantized_type()
 
     def calibrate(self):
         self.eval()
         it = iterator.QuantModuleIterator(self)
-        module = it.find_next_act_quant_module()
-        while module is not None:
+        for module in it.act_quant_modules():
             module.train()
-            module = it.find_next_act_quant_module()
 
     def collect_stats(self, data_loader, num_iterations=30, per_channel=False, seed=45):
         self.stats_observer.collect_stats(data_loader, num_iterations, per_channel, seed)

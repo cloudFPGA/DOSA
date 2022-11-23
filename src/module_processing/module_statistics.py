@@ -34,37 +34,28 @@ class ModuleStatsObserver:
         writer.close()
 
     def __set_quant_submodule_entries_name_prefix(self):
-        # TODO refactor
-        for i, module in enumerate(self.module.features):
-            from src.models.quantized import QuantModule
-            if isinstance(module, QuantModule):
-                prefix = '(' + str(i) + '): ' + type(module).__name__ + '/'
-                module.stats_observer.entries_name_prefix = prefix
+        it = QuantModuleIterator(self.module)
+        for name, module in it.sub_quant_modules(return_name=True, main_module=True):
+            prefix = '(' + name + '): ' + type(module).__name__ + '/'
+            module.stats_observer.entries_name_prefix = prefix
 
     def __retrieve_quant_submodules_stats(self):
-        # TODO refactor
-        for i, module in enumerate(self.module.features):
-            from src.models.quantized import QuantModule
-            if isinstance(module, QuantModule):
-                self.stats.update(module.stats_observer.stats)
+        it = QuantModuleIterator(self.module)
+        for module in it.sub_quant_modules(return_name=False, main_module=True):
+            self.stats.update(module.stats_observer.stats)
 
     def __collect_weights_stats(self, per_channel):
         it = QuantModuleIterator(self.module)
-        name, module = it.find_next_weight_module(return_name=True, main_module=True)
-        while module is not None:
+        for name, module in it.weight_modules(return_name=True, main_module=True):
             weights = ModuleStatsObserver.__prepare_stats_tensor(tensor=module.quant_weight(),
                                                                  accumulation_tensor=torch.empty(0),
                                                                  per_channel=per_channel,
                                                                  has_batch=False)
             entry_name = self.__entry_name('weights', name, module)
             self.stats[entry_name] = weights
-            name, module = it.find_next_weight_module(return_name=True, main_module=True)
 
-        # TODO refactor
-        for module in self.module.features:
-            from src.models.quantized import QuantModule
-            if isinstance(module, QuantModule):
-                module.stats_observer.__collect_weights_stats(per_channel)
+        for module in it.sub_quant_modules(return_name=False, main_module=True):
+            module.stats_observer.__collect_weights_stats(per_channel)
 
     def __collect_act_bias_stats(self, data_loader, num_iterations, per_channel, seed):
         it = QuantModuleIterator(self.module)
