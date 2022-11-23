@@ -47,6 +47,8 @@ void pTohls4ml_parallelDemux(
 #pragma HLS reset variable=wait_drain_cnt
   static bool hangover_present = false;
 #pragma HLS reset variable=hangover_present
+  static uint32_t new_bytes_cnt = 0x0;
+#pragma HLS reset variable=new_bytes_cnt
 
   //-- STATIC VARIABLES ------------------------------------------------------
   static Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> hangover_axis;
@@ -61,6 +63,7 @@ void pTohls4ml_parallelDemux(
       current_frame_byte_cnt = 0x0;
       wait_drain_cnt = cnn_input_frame_size;
       hangover_present = false;
+      new_bytes_cnt = 0x0;
 #ifndef __SYNTHESIS_
       wait_drain_cnt = 10;
 #endif
@@ -87,13 +90,13 @@ void pTohls4ml_parallelDemux(
           tmp_read_0 = hangover_axis;
         } else {
           tmp_read_0 = siData.read();
+          new_bytes_cnt = extractByteCnt(tmp_read_0);
         }
         hangover_present = false;
-        uint32_t new_bytes_cnt = extractByteCnt(tmp_read_0);
         if((current_frame_byte_cnt + new_bytes_cnt) >= HLS4ML_PARALLEL_INPUT_FRAME_BYTE_CNT)
         {
           uint32_t bytes_to_this_frame = HLS4ML_PARALLEL_INPUT_FRAME_BYTE_CNT - current_frame_byte_cnt;
-          uint32_t bytes_to_next_frame = new_bytes_cnt - bytes_to_this_frame;
+          int32_t bytes_to_next_frame = new_bytes_cnt - bytes_to_this_frame;
           ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> cur_input = tmp_read_0.getTData();
           ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> cur_tkeep = tmp_read_0.getTKeep();
           ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> this_tkeep = 0x0;
@@ -109,15 +112,17 @@ void pTohls4ml_parallelDemux(
             }
           }
           Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_this =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, this_tkeep, 0);
-          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input >> bytes_to_this_frame, next_tkeep, 0);
+          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input >> (bytes_to_this_frame*8), next_tkeep, 0);
           sTohls4ml_parallelBuffer_chan1.write(tmp_write_this);
           if(bytes_to_next_frame > 0)
           {
             //sTohls4ml_parallelBuffer_chan2.write(tmp_write_next);
             hangover_present = true;
             hangover_axis = tmp_write_next;
+            new_bytes_cnt = bytes_to_next_frame;
           }
-          current_frame_byte_cnt = bytes_to_next_frame;
+          //current_frame_byte_cnt = bytes_to_next_frame;
+          current_frame_byte_cnt = 0x0;
           enqueueFSM = FILL_BUF_1;
         } else {
           current_frame_byte_cnt += new_bytes_cnt;
@@ -135,13 +140,13 @@ void pTohls4ml_parallelDemux(
           tmp_read_0 = hangover_axis;
         } else {
           tmp_read_0 = siData.read();
+          new_bytes_cnt = extractByteCnt(tmp_read_0);
         }
         hangover_present = false;
-        uint32_t new_bytes_cnt = extractByteCnt(tmp_read_0);
         if((current_frame_byte_cnt + new_bytes_cnt) >= HLS4ML_PARALLEL_INPUT_FRAME_BYTE_CNT)
         {
           uint32_t bytes_to_this_frame = HLS4ML_PARALLEL_INPUT_FRAME_BYTE_CNT - current_frame_byte_cnt;
-          uint32_t bytes_to_next_frame = new_bytes_cnt - bytes_to_this_frame;
+          int32_t bytes_to_next_frame = new_bytes_cnt - bytes_to_this_frame;
           ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> cur_input = tmp_read_0.getTData();
           ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> cur_tkeep = tmp_read_0.getTKeep();
           ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> this_tkeep = 0x0;
@@ -157,15 +162,17 @@ void pTohls4ml_parallelDemux(
             }
           }
           Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_this =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, this_tkeep, 0);
-          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input >> bytes_to_this_frame, next_tkeep, 0);
+          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input >> (bytes_to_this_frame*8), next_tkeep, 0);
           sTohls4ml_parallelBuffer_chan2.write(tmp_write_this);
           if(bytes_to_next_frame > 0)
           {
             //sTohls4ml_parallelBuffer_chan3.write(tmp_write_next);
             hangover_present = true;
             hangover_axis = tmp_write_next;
+            new_bytes_cnt = bytes_to_next_frame;
           }
-          current_frame_byte_cnt = bytes_to_next_frame;
+          //current_frame_byte_cnt = bytes_to_next_frame;
+          current_frame_byte_cnt = 0x0;
           enqueueFSM = FILL_BUF_2;
         } else {
           current_frame_byte_cnt += new_bytes_cnt;
@@ -183,13 +190,13 @@ void pTohls4ml_parallelDemux(
           tmp_read_0 = hangover_axis;
         } else {
           tmp_read_0 = siData.read();
+          new_bytes_cnt = extractByteCnt(tmp_read_0);
         }
         hangover_present = false;
-        uint32_t new_bytes_cnt = extractByteCnt(tmp_read_0);
         if((current_frame_byte_cnt + new_bytes_cnt) >= HLS4ML_PARALLEL_INPUT_FRAME_BYTE_CNT)
         {
           uint32_t bytes_to_this_frame = HLS4ML_PARALLEL_INPUT_FRAME_BYTE_CNT - current_frame_byte_cnt;
-          uint32_t bytes_to_next_frame = new_bytes_cnt - bytes_to_this_frame;
+          int32_t bytes_to_next_frame = new_bytes_cnt - bytes_to_this_frame;
           ap_uint<DOSA_WRAPPER_INPUT_IF_BITWIDTH> cur_input = tmp_read_0.getTData();
           ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> cur_tkeep = tmp_read_0.getTKeep();
           ap_uint<(DOSA_WRAPPER_INPUT_IF_BITWIDTH+7)/8> this_tkeep = 0x0;
@@ -205,15 +212,17 @@ void pTohls4ml_parallelDemux(
             }
           }
           Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_this =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input, this_tkeep, 0);
-          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input >> bytes_to_this_frame, next_tkeep, 0);
+          Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_write_next =  Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH>(cur_input >> (bytes_to_this_frame*8), next_tkeep, 0);
           sTohls4ml_parallelBuffer_chan3.write(tmp_write_this);
           if(bytes_to_next_frame > 0)
           {
             //sTohls4ml_parallelBuffer_chan1.write(tmp_write_next);
             hangover_present = true;
             hangover_axis = tmp_write_next;
+            new_bytes_cnt = bytes_to_next_frame;
           }
-          current_frame_byte_cnt = bytes_to_next_frame;
+          //current_frame_byte_cnt = bytes_to_next_frame;
+          current_frame_byte_cnt = 0x0;
           //last channel --> go to start
           enqueueFSM = FILL_BUF_0;
         } else {
