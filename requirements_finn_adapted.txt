@@ -2,7 +2,7 @@ absl-py==1.3.0
 asttokens==2.1.0
 attrs==22.1.0
 backcall==0.2.0
---e git+ssh://git@github.ibm.com/Sophie-Du-Couedic/Brevitas.git@e248145d1616e185cbf9a30ee878b50b3625bc43#egg=brevitas
+-e git+ssh://git@github.ibm.com/Sophie-Du-Couedic/Brevitas.git@e248145d1616e185cbf9a30ee878b50b3625bc43#egg=brevitas
 cachetools==5.2.0
 certifi==2022.6.15
 charset-normalizer==2.1.1

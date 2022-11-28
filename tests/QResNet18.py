@@ -1,6 +1,7 @@
 import torch
 
 from src import data_loader, test
+from src.definitions import ROOT_DIR
 from src.module_processing import FullPrecisionModuleIterator
 from src.models.full_precision import ResNet18
 from src.models import quantized
@@ -8,13 +9,13 @@ from tests.torch_brevitas_comparisons.utils import prepare_brevitas_qmodel
 
 # Prepare datasets
 torch.manual_seed(0)
-test_loader_cifar = data_loader(data_dir='../data', dataset='CIFAR10', batch_size=128, test=True)
+test_loader_cifar = data_loader(data_dir=ROOT_DIR+'/data', dataset='CIFAR10', batch_size=128, test=True)
 
 torch.manual_seed(0)
-calibration_loader_cifar, _ = data_loader(data_dir='../data', dataset='CIFAR10', batch_size=1, test=False)
+calibration_loader_cifar, _ = data_loader(data_dir=ROOT_DIR+'/data', dataset='CIFAR10', batch_size=1, test=False)
 
 fp_model = ResNet18()
-fp_model.load_state_dict(torch.load('../models/ResNet18.pt', map_location=torch.device('cpu')))
+fp_model.load_state_dict(torch.load(ROOT_DIR+'/models/ResNet18.pt', map_location=torch.device('cpu')))
 
 
 # ======================= Uncomment one of below lines =======================

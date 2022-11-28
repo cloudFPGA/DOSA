@@ -2,6 +2,7 @@ from brevitas.inject.enum import QuantType, BitWidthImplType, FloatToIntImplType
     RestrictValueType
 from brevitas.quant.solver import ActQuantSolver
 
+from src.definitions import ROOT_DIR
 from src.models.quantized import QTFC, QTFCShiftedQuantAct8
 from src.test import test
 from src.data import data_loader
@@ -23,11 +24,11 @@ custom_torch_config = QConfig(
 
 
 # ======= Main =======
-test_loader_mnist = data_loader(data_dir='../../../data', dataset='MNIST', batch_size=100, test=True)
-calibration_loader_mnist, _ = data_loader(data_dir='../../../data', dataset='MNIST', batch_size=1, test=False)
+test_loader_mnist = data_loader(data_dir=ROOT_DIR+'/data', dataset='MNIST', batch_size=100, test=True)
+calibration_loader_mnist, _ = data_loader(data_dir=ROOT_DIR+'/data', dataset='MNIST', batch_size=1, test=False)
 
 fp_model = TFC(64, 64, 64)
-fp_model.load_state_dict(torch.load('../../models/TFC.pt', map_location=torch.device('cpu')))
+fp_model.load_state_dict(torch.load(ROOT_DIR+'/models/TFC.pt', map_location=torch.device('cpu')))
 
 # force bias to zero
 mod_it = FullPrecisionModuleIterator(fp_model)
