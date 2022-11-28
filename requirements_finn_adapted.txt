@@ -23,7 +23,7 @@ grpcio==1.50.0
 humanfriendly==10.0
 idna==3.3
 importlib-metadata==5.1.0
-ipykernel==5.5.5
+ipykernel==6.17.0
 ipython==8.6.0
 jedi==0.18.1
 jupyter_client==7.4.4
@@ -36,6 +36,10 @@ matplotlib-inline==0.1.6
 mpmath==1.2.1
 nest-asyncio==1.5.6
 numpy==1.23.2
+nvidia-cublas-cu11==11.10.3.66
+nvidia-cuda-nvrtc-cu11==11.7.99
+nvidia-cuda-runtime-cu11==11.7.99
+nvidia-cudnn-cu11==8.5.0.96
 oauthlib==3.2.2
 onnx==1.11.0
 onnxoptimizer==0.3.1
@@ -63,8 +67,12 @@ six==1.16.0
 stack-data==0.6.0
 sympy==1.11.1
 synr==0.6.0
-tokenize-rt==4.2.1
+tensorboard==2.10.1
+tensorboard-data-server==0.6.1
+tensorboard-plugin-wit==1.8.1
+tokenize-rt==5.0.0
 torch==1.7.1
+torchvision==0.8.2
 tornado==6.2
 traitlets==5.5.0
 typing_extensions==4.3.0
