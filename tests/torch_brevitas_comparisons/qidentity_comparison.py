@@ -13,6 +13,7 @@ from brevitas.quant.base import UintQuant, ParamFromRuntimeMinMaxScaling, PerTen
 from brevitas.quant.solver import ActQuantSolver
 
 from src.data import data_loader
+from src.definitions import ROOT_DIR
 from src.test import test, calibrate
 from src.models.full_precision import TFC
 
@@ -94,7 +95,7 @@ def prepare_simple_brevitas_quant_identity(data_loader):
 
 
 # ======= Main =======
-test_loader_mnist = data_loader(data_dir='../../data', dataset='MNIST', batch_size=1, test=True)
+test_loader_mnist = data_loader(data_dir=ROOT_DIR+'/data', dataset='MNIST', batch_size=1, test=True)
 
 torch.manual_seed(42)
 calibration_data = next(iter(test_loader_mnist))[0]

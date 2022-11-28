@@ -5,6 +5,8 @@ from brevitas import nn as qnn
 from brevitas.quant import Int8Bias, Int8ActPerTensorFixedPoint, Int8WeightPerTensorFixedPoint
 import brevitas.onnx as bo
 
+from src.definitions import ROOT_DIR
+
 
 class DummyLinear(nn.Module):
     def __init__(self):
@@ -35,8 +37,8 @@ model.eval()
 model.cpu()
 quant_idd = qnn.QuantIdentity(act_quant=Int8ActPerTensorFixedPoint, return_quant_tensor=True)
 input = quant_idd(torch.randn((1, 10)))
-bo.export_finn_onnx(model, export_path='../../models/DummyLinear.onnx', input_t=input)
+bo.export_finn_onnx(model, export_path=ROOT_DIR+'/models/DummyLinear.onnx', input_t=input)
 
 # check onnx model
-model = onnx.load('../../models/DummyLinear.onnx')
+model = onnx.load(ROOT_DIR+'/models/DummyLinear.onnx')
 onnx.checker.check_model(model)
