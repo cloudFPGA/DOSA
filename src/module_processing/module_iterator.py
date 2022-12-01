@@ -123,7 +123,7 @@ class QuantModuleIterator(ModuleIterator):
 
 
 class FullPrecisionModuleIterator(ModuleIterator):
-    """Iterates over the modules of a full precision module"""
+    """Iterates over the submodules of a full precision module"""
 
     def __init__(self, module):
         super(FullPrecisionModuleIterator, self).__init__(module)
