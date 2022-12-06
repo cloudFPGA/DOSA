@@ -16,7 +16,6 @@ def calibrate(model, test_loader, num_steps=1, seed=None):
     # set seed for reproducibility
     if seed is not None:
         torch.manual_seed(seed)
-
     count = 0
     for features, _ in test_loader:
         if count >= num_steps:
@@ -26,7 +25,7 @@ def calibrate(model, test_loader, num_steps=1, seed=None):
         count += 1
 
 
-def test(model, test_loader):
+def test(model, test_loader, seed=None):
     # switch to evaluate mode
     model.eval()
 
@@ -38,6 +37,8 @@ def test(model, test_loader):
         correct = 0
         total = 0
 
+        if seed is not None:
+            torch.manual_seed(seed)
         for features, labels in test_loader:
             features = features.to(device)
             labels = labels.to(device)

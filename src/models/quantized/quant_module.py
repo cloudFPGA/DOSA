@@ -48,7 +48,7 @@ class QuantModule(nn.Module, ABC):
         for module in it.act_quant_modules():
             module.train()
 
-    def collect_stats(self, data_loader, num_iterations=30, per_channel=False, seed=45):
+    def collect_stats(self, data_loader, num_iterations=30, per_channel=False, seed=0):
         self.stats_observer.collect_stats(data_loader, num_iterations, per_channel, seed)
 
     def get_quant_description(self, input_shape):

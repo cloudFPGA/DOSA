@@ -63,7 +63,7 @@ class QuantStubWrapperModel(nn.Module):
         return self.quant_stub(x)
 
 
-def prepare_torch_qmodel(model_fp, data_loader):
+def prepare_torch_qmodel(model_fp, data_loader, seed=0):
     model_fp.eval()
     model_fp_fused = copy.deepcopy(model_fp)
     internal_fused_model = torch.quantization.fuse_modules(
@@ -73,23 +73,23 @@ def prepare_torch_qmodel(model_fp, data_loader):
     torch_qmodel = StaticQuantModel(internal_fused_model)
     torch_qmodel.qconfig = custom_torch_config
     torch.ao.quantization.prepare(torch_qmodel, inplace=True)
-    calibrate(torch_qmodel, data_loader, num_steps=1, seed=42)
+    calibrate(torch_qmodel, data_loader, num_steps=1, seed=seed)
     torch.ao.quantization.convert(torch_qmodel, inplace=True)
     return torch_qmodel
 
 
-def prepare_simple_torch_quant_identity(data_loader):
+def prepare_simple_torch_quant_identity(data_loader, seed=0):
     quant_idd = QuantStubWrapperModel(torch.quantization.QuantStub())
     quant_idd.qconfig = custom_torch_config
     torch.ao.quantization.prepare(quant_idd, inplace=True)
-    calibrate(quant_idd, data_loader, num_steps=1, seed=42)
+    calibrate(quant_idd, data_loader, num_steps=1, seed=seed)
     torch.ao.quantization.convert(quant_idd, inplace=True)
     return quant_idd
 
 
-def prepare_simple_brevitas_quant_identity(data_loader):
+def prepare_simple_brevitas_quant_identity(data_loader, seed=0):
     quant_idd = qnn.QuantIdentity(act_quant=Uint8ActPerTensorFloat, return_quant_tensor=True)
-    calibrate(quant_idd, data_loader, num_steps=1, seed=42)
+    calibrate(quant_idd, data_loader, num_steps=1, seed=seed)
     quant_idd.eval()
     return quant_idd
 

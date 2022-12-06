@@ -12,7 +12,8 @@ def data_loader(data_dir,
                 num_elements=None,
                 valid_size=0.01,
                 shuffle=True,
-                test=False
+                test=False,
+                seed=0
                 ):
     dataset = dataset.lower()
     suffix = '_test' if test else '_train'
@@ -23,7 +24,7 @@ def data_loader(data_dir,
     indices = list(range(num_elements))
 
     if shuffle:
-        np.random.seed(42)
+        np.random.seed(seed)
         np.random.shuffle(indices)
 
     if test:

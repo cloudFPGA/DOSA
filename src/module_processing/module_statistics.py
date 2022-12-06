@@ -12,7 +12,7 @@ class ModuleStatsObserver:
         self.stats = {}
         self.entries_name_prefix = entries_name_prefix if entries_name_prefix is not None else ''
 
-    def collect_stats(self, data_loader, num_iterations=30, per_channel=False, write_to_tensorboard=True, seed=45):
+    def collect_stats(self, data_loader, num_iterations=30, per_channel=False, write_to_tensorboard=True, seed=0):
         self.module.eval()
         self.__set_quant_submodule_entries_name_prefix()
 
