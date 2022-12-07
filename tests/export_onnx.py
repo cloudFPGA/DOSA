@@ -1,6 +1,7 @@
 import torch
 import onnx
 
+from src.data import export_data_as_npz
 from src.definitions import ROOT_DIR
 from src import data_loader, test
 from src.module_processing import FullPrecisionModuleIterator
@@ -11,9 +12,7 @@ import brevitas.onnx as bo
 
 
 # Prepare MNIST dataset
-torch.manual_seed(0)
 test_loader_mnist = data_loader(data_dir=ROOT_DIR+'/data', dataset='MNIST', batch_size=100, test=True, seed=42)
-torch.manual_seed(0)
 calibration_loader_mnist, _ = data_loader(data_dir=ROOT_DIR+'/data', dataset='MNIST', batch_size=1, test=False, seed=42)
 
 fp_model = TFC(64, 64, 64)
@@ -37,3 +36,7 @@ bo.export_finn_onnx(q_model, (1, 1, 28, 28), ROOT_DIR+'/models/QTFCInt8WithBias.
 # check onnx model
 model = onnx.load(ROOT_DIR+'/models/QTFCInt8WithBias.onnx')
 onnx.checker.check_model(model)
+
+# Export data used to test the model accuracy
+export_data_as_npz(ROOT_DIR+'/data/mnist_test_data.npz', test_loader_mnist, num_batches=None,
+                   feature_transform=lambda x: torch.floor(x * 255), seed=0)
