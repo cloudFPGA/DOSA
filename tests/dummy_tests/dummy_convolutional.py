@@ -13,9 +13,7 @@ from src.definitions import ROOT_DIR
 class DummyConvolutional(nn.Module):
     def __init__(self):
         super(DummyConvolutional, self).__init__()
-
         self.quantidd = qnn.QuantIdentity(act_quant=Int8ActPerTensorFloat, return_quant_tensor=True)
-
         self.conv = qnn.QuantConv2d(1, 1, 2, bias=True,
                                     weight_quant=Int8WeightPerTensorFloat,
                                     bias_quant=Int8Bias,
@@ -42,8 +40,8 @@ model.cpu()
 bo.export_finn_onnx(model, (1, 1, 4, 4), ROOT_DIR + '/models/DummyConvolutional.onnx')
 
 # check onnx model
-model = onnx.load(ROOT_DIR + '/models/DummyConvolutional.onnx')
-onnx.checker.check_model(model)
+model_check = onnx.load(ROOT_DIR + '/models/DummyConvolutional.onnx')
+onnx.checker.check_model(model_check)
 
 # ========== Compare with unquantized convolution inference ==========
 weights = model.conv.weight
@@ -85,4 +83,3 @@ conv = conv_mul + dequant_bias
 # conv = conv_mul + real_bias
 print('personal emulation result\n', conv, '\n')
 print('\n')
-
