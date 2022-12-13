@@ -10,8 +10,6 @@ class QTFC(QuantModule):
     Base class for quantized TFC, per default not quantized and therefore acts as a wrapper for the full precision
     model
     """
-    num_quantidd = 4
-    num_linear = 4
     dropout = 0.2
     in_features = 28 * 28
 
@@ -19,77 +17,56 @@ class QTFC(QuantModule):
                  act_quant=None,
                  weight_quant=None,
                  bias_quant=None,
-                 output_quant=None,
                  bit_width=None):
-        super(QTFC, self).__init__()
+        super(QTFC, self).__init__(num_act=4, num_weighted=4, num_biased=4)
 
         self.forward_step_index = 0
 
-        return_quant_tensor = False if act_quant is None else True
-        quantize_relu = act_quant is not None
-
-        if not isinstance(act_quant, list):
-            act_quant = [act_quant] * QTFC.num_quantidd
-
-        if not isinstance(weight_quant, list):
-            weight_quant = [weight_quant] * QTFC.num_linear
-
-        if not isinstance(bias_quant, list):
-            bias_quant = [bias_quant] * QTFC.num_linear
-
-        if not isinstance(output_quant, list):
-            output_quant = [output_quant] * QTFC.num_linear
+        a_quant, w_quant, b_quant, bit_width, return_qt, quant_relu =\
+            self._process_quant_methods(act_quant, weight_quant, bias_quant, bit_width)
 
         # reshape layer
         self._append(Reshape(lambda x: (-1, QTFC.in_features)))
 
-        self._append(qnn.QuantIdentity(act_quant=act_quant[0], return_quant_tensor=return_quant_tensor))
+        self._append(qnn.QuantIdentity(act_quant=a_quant[0], return_quant_tensor=return_qt))
         self._append(nn.Dropout(p=QTFC.dropout))
 
         # first layer
         self._append(qnn.QuantLinear(QTFC.in_features, hidden1, bias=True, return_quant_tensor=False,
-                                     weight_quant=weight_quant[0],
-                                     bias_quant=bias_quant[0],
-                                     output_quant=output_quant[0]))
+                                     weight_quant=w_quant[0], bias_quant=b_quant[0]))
         self._append(nn.BatchNorm1d(hidden1))
-        self._append(qnn.QuantIdentity(act_quant=act_quant[1], return_quant_tensor=return_quant_tensor))
+        self._append(qnn.QuantIdentity(act_quant=a_quant[1], return_quant_tensor=return_qt))
         self._append(nn.Dropout(p=QTFC.dropout))
-        if quantize_relu:
-            self._append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor, bit_width=bit_width))
+        if quant_relu:
+            self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))
         else:
-            self._append(qnn.QuantReLU(act_quant=None, return_quant_tensor=return_quant_tensor))
+            self._append(qnn.QuantReLU(act_quant=None))
 
         # second layer
         self._append(qnn.QuantLinear(hidden1, hidden2, bias=True, return_quant_tensor=False,
-                                     weight_quant=weight_quant[1],
-                                     bias_quant=bias_quant[1],
-                                     output_quant=output_quant[1]))
+                                     weight_quant=w_quant[1], bias_quant=b_quant[1]))
         self._append(nn.BatchNorm1d(hidden2))
-        self._append(qnn.QuantIdentity(act_quant=act_quant[2], return_quant_tensor=return_quant_tensor))
+        self._append(qnn.QuantIdentity(act_quant=a_quant[2], return_quant_tensor=return_qt))
         self._append(nn.Dropout(p=QTFC.dropout))
-        if quantize_relu:
-            self._append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor, bit_width=bit_width))
+        if quant_relu:
+            self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))
         else:
-            self._append(qnn.QuantReLU(act_quant=None, return_quant_tensor=return_quant_tensor))
+            self._append(qnn.QuantReLU(act_quant=None))
 
         # third layer
         self._append(qnn.QuantLinear(hidden2, hidden3, bias=True, return_quant_tensor=False,
-                                     weight_quant=weight_quant[2],
-                                     bias_quant=bias_quant[2],
-                                     output_quant=output_quant[2]))
+                                     weight_quant=w_quant[2], bias_quant=b_quant[2]))
         self._append(nn.BatchNorm1d(hidden3))
-        self._append(qnn.QuantIdentity(act_quant=act_quant[3], return_quant_tensor=return_quant_tensor))
+        self._append(qnn.QuantIdentity(act_quant=a_quant[3], return_quant_tensor=return_qt))
         self._append(nn.Dropout(p=QTFC.dropout))
-        if quantize_relu:
-            self._append(qnn.QuantReLU(return_quant_tensor=return_quant_tensor, bit_width=bit_width))
+        if quant_relu:
+            self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))
         else:
-            self._append(qnn.QuantReLU(act_quant=None, return_quant_tensor=return_quant_tensor))
+            self._append(qnn.QuantReLU(act_quant=None))
 
         # output layer
         self._append(qnn.QuantLinear(hidden3, 10, bias=True, return_quant_tensor=False,
-                                     weight_quant=weight_quant[3],
-                                     bias_quant=bias_quant[3],
-                                     output_quant=output_quant[3]))
+                                     weight_quant=w_quant[3], bias_quant=b_quant[3]))
 
     def forward(self, x):
         for module in self.features:

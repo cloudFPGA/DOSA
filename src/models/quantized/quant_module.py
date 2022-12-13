@@ -12,10 +12,13 @@ from src.module_processing.module_statistics import ModuleStatsObserver
 class QuantModule(nn.Module, ABC):
     """Represents a module quantized with Brevitas"""
 
-    def __init__(self):
+    def __init__(self, num_act=0, num_weighted=0, num_biased=0):
         super(QuantModule, self).__init__()
         self.features = nn.ModuleList()
         self.stats_observer = ModuleStatsObserver(self)
+        self._num_idd = num_act
+        self._num_weighted = num_weighted
+        self._num_biased = num_biased
 
     def __str__(self):
         return self.features.__str__()
@@ -49,7 +52,7 @@ class QuantModule(nn.Module, ABC):
             module.train()
 
     def collect_stats(self, data_loader, num_iterations=30, per_channel=False, seed=0):
-        self.stats_observer.collect_stats(data_loader, num_iterations, per_channel, seed)
+        self.stats_observer.collect_stats(data_loader, num_iterations, per_channel, True, seed)
 
     def get_quant_description(self, input_shape):
         x = torch.randn(input_shape)
@@ -67,4 +70,16 @@ class QuantModule(nn.Module, ABC):
 
     def _append(self, module):
         self.features.append(module)
+
+    def _process_quant_methods(self, act_quant=None, weight_quant=None, bias_quant=None, bit_width=None):
+        return_quant_tensor = act_quant is not None
+        quantize_relu = act_quant is not None
+        if not isinstance(act_quant, list):
+            act_quant = [act_quant] * self._num_idd
+        if not isinstance(weight_quant, list):
+            weight_quant = [weight_quant] * self._num_weighted
+        if not isinstance(bias_quant, list):
+            bias_quant = [bias_quant] * self._num_biased
+
+        return act_quant, weight_quant, bias_quant, bit_width, return_quant_tensor, quantize_relu
 
