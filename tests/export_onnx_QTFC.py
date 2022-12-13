@@ -19,15 +19,15 @@ fp_model = TFC(64, 64, 64)
 fp_model.load_state_dict(torch.load(ROOT_DIR+'/models/TFC.pt', map_location=torch.device('cpu')))
 
 # force bias to zero
-# it = FullPrecisionModuleIterator(fp_model)
-# it.force_bias_zero()
-# fp_model.eval()
+it = FullPrecisionModuleIterator(fp_model)
+it.force_bias_zero()
+fp_model.eval()
 
 q_model = QTFCInt8(64, 64, 64)
 prepare_brevitas_qmodel(fp_model, q_model, data_loader=calibration_loader_mnist, num_steps=300, seed=42)
 
 # test model
-test(q_model, test_loader_mnist, seed=0)
+# test(q_model, test_loader_mnist, seed=0)
 
 # export onnx
 q_model.cpu()

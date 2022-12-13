@@ -51,7 +51,7 @@ conv_layer.load_state_dict(model.conv.state_dict())
 print('real result: \n', conv_layer(input), '\n')
 
 # ========== step-by-step manual emulation (no brevitas) based on finn onnx description ============
-e_scale = model.quantidd.quant_output_scale().item()  # == 1/128
+e_scale = model.quantidd.quant_output_scale().item()  # 1/128
 e_input = torch.floor(input / e_scale)  # quantidentity
 e_input = e_input.permute((0, 2, 3, 1))  # not actually necessary
 
