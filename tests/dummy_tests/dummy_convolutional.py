@@ -52,8 +52,8 @@ print('real result: \n', conv_layer(input), '\n')
 
 # ========== step-by-step manual emulation (no brevitas) based on finn onnx description ============
 e_scale = model.quantidd.quant_output_scale().item()  # 1/128
-e_input = torch.floor(input / e_scale)  # quantidentity
-e_input = e_input.permute((0, 2, 3, 1))  # not actually necessary
+e_input = torch.floor(input / e_scale)  # quantidentity  # <----- THIS should be the input to DOSA
+e_input = e_input.permute((0, 2, 3, 1))  # not actually necessary  # <------ THIS is the input to FINN alveo execution
 
 # Finn "convolution input generator"
 window_indices = np.arange(0, 4 * 4).reshape(-1, 4)
