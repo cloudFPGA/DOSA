@@ -92,8 +92,8 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
     ax1.set_xlim(id_list[0], id_list[-1])
     color = 'tab:grey'
     # ax1.set_xlabel('ArchBrick Ids', fontsize=MY_SIZE)
-    ax1.set_xlabel('computing operations', fontsize=MY_SIZE)
-    ax1.set_ylabel('bandwidth in GB/s', fontsize=MY_SIZE)
+    ax1.set_xlabel('computing operations (i.e. layers)', fontsize=MY_SIZE * 1.2)
+    ax1.set_ylabel('bandwidth in GB/s', fontsize=MY_SIZE * 1.2)
     color = 'tab:blue'
     ln1 = ax1.fill_between(id_list, input_B_list, color=color, alpha=alpha, label="input bandwidth per operation",
                            linewidth=MY_WIDTH)
@@ -101,10 +101,11 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
     ln2 = ax1.fill_between(id_list, output_B_list, color=color, alpha=alpha, label="output bandwidth per operation",
                            linewidth=MY_WIDTH)
 
+    plt.tick_params(axis='both', which='both', labelsize=MY_SIZE * 1.2)
     ax2 = ax1.twinx()
     color = 'tab:olive'
-    ax2.set_ylabel('parameters in KB', fontsize=MY_SIZE)
-    ln3 = ax2.fill_between(id_list, param_B_list, color=color, alpha=alpha, label="parameter per ArchBrick",
+    ax2.set_ylabel('parameters in KB', fontsize=MY_SIZE * 1.2)
+    ln3 = ax2.fill_between(id_list, param_B_list, color=color, alpha=alpha, label="parameter per operation",  # ArchBrick
                            linewidth=MY_WIDTH)
 
     title = "DOSA bandwidth analysis for {}\n({})".format(plt_name, target_string)
@@ -117,9 +118,9 @@ def generate_bandwidth_plt(arch_draft: ArchDraft, show_deubg=False):
     # labs = [l.get_label() for l in lns]
     # ax1.legend(lns, labs, loc=0)
     plt.grid(True, which="major", ls="-", color='0.89')
-    plt.tick_params(axis='both', which='both', labelsize=MY_SIZE)
-    # plt.axes().xaxis.set_major_locator(MaxNLocator(integer=True))
     ax1.set_xticks(id_list)
+    plt.tick_params(axis='both', which='both', labelsize=MY_SIZE * 1.2)
+    # plt.axes().xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.setp(legend.get_title(), fontsize=MY_SIZE * 1.2)
     # plt.title(title, fontsize=MY_SIZE*1.2)
     plt.subplots_adjust(top=0.8)
