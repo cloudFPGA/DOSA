@@ -284,3 +284,17 @@ def sort_osg_list(osg_list, use_internal_prio=True):
         # just use any order?
         ret_list.extend(osg_list)
     return ret_list
+
+
+def filter_osg_list(osg_list, osg_whitelist):
+    filtered_list = []
+    for o in osg_list:
+        removed = True
+        for wn in osg_whitelist:
+            if wn in o.name:
+                filtered_list.append(o)
+                removed = False
+        if removed:
+            print(f'[DOSA:OSG:INFO] Remove OSG "{o.name}" due to user constraint.')
+    return filtered_list
+

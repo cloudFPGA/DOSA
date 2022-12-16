@@ -20,7 +20,7 @@ from dimidium.lib.dosa_dtype import convert_tvmDtype_to_DosaDtype, DosaDtype
 __mandatory_user_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_sps', 'targeted_hw',
                            'target_resource_budget', 'arch_gen_strategy', 'fallback_hw', 'used_input_size_t',
                            'target_latency', 'quantization']
-__optional_user_keys__ = ['overwrite_dtypes']
+__optional_user_keys__ = ['overwrite_dtypes', 'osg_whitelist']
 __arch_gen_strategies__ = ['performance', 'resources', 'default', 'latency', 'throughput']
 # __valid_fallback_hws__ = ['None']
 # __valid_fallback_hws__.extend(dosa_devices.fallback_hw)
@@ -138,5 +138,9 @@ def parse_uc_dict(path, dosa_devices):
         parsed_constraints['overwrite_fixed_point_dtypes'] = False
         parsed_constraints['use_extra_accum_dtype'] = False
 
-    return parsed_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw
+    osg_whitelist = None
+    if 'osg_whitelist' in parsed_constraints:
+        osg_whitelist = parsed_constraints['osg_whitelist']
+
+    return parsed_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw, osg_whitelist
 

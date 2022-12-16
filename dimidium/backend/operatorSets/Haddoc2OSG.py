@@ -612,7 +612,7 @@ class Haddoc2OSG(BaseOSG):
         assert input_data_width == op.dims.inp[3]
         assert isinstance(op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant)
         kernel_data = op.tvm_args['by_position'][1]['ref'].data.numpy()
-        bias_data = np.zeros(out_channel_num, dtype=float)
+        bias_data = np.zeros(out_channel_num, dtype=int)
 
         if next_op is not None and next_op.op_call == 'nn.bias_add':
             if isinstance(next_op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant):

@@ -23,7 +23,7 @@ import dimidium.lib.plot_2Droofline as plot_2Droofline
 import dimidium.lib.plot_3Droofline as plot_3Droofline
 import dimidium.backend.devices.builtin as builtin_devices
 from dimidium.backend.operatorSets.osgs import builtin_OSGs
-from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
+from dimidium.backend.operatorSets.BaseOSG import sort_osg_list, filter_osg_list
 from dimidium.lib.plot_bandwidth import generate_bandwidth_plt
 from dimidium.lib.plot_throughput import generate_throughput_plt_nodes, generate_throughput_plt_bricks
 from dimidium.backend.commLibs.commlibs import builtin_comm_libs
@@ -102,9 +102,12 @@ if __name__ == '__main__':
     print("\t...done.\n")
 
     print("DOSA: Parsing constraints...")
-    user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw = parse_uc_dict(const_path,
+    user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw, osg_whitelist = parse_uc_dict(const_path,
                                                                                                available_devices)
     dosa_singelton.add_user_constraints(user_constraints)
+
+    if osg_whitelist is not None:
+        available_OSGs = filter_osg_list(available_OSGs, osg_whitelist)
 
     target_sps = user_constraints['target_sps']  # in #/s
     target_latency = user_constraints['target_latency']  # in s per sample

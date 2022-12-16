@@ -773,7 +773,12 @@ def calculate_required_performance(detail_list, target_sps, used_batch_size=1, u
     # assert target_batch_size == 1
     # calculate latency
     e2e_latency = float(1) / float(target_sps)
-    n_layers = len(detail_list) - 2  # subtracting input & output
+    # n_layers = len(detail_list) - 2  # subtracting input & output
+    # print(detail_list)
+    n_layers = 0
+    for e in detail_list:
+        if e['op'] == '(function_call)':
+            n_layers += 1
     assert n_layers >= 1
     latency_per_layer = e2e_latency / float(n_layers)
     if debug_print:
