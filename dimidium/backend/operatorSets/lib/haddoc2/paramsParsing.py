@@ -75,6 +75,9 @@ def write_bias_value(bias_data, name, nbits, target):
     # bias_fp = to_fixedPoint(bias_data, scale_factor)
 
     target.write(" (")
+    # to deal with 'type does not match with a string literal'
+    if out_size == 1:
+        target.write(" others => ")
     for n in range(out_size):
         # bias_bin = np.binary_repr(bias_fp[n], width=nbits)
         bias_bin = np.binary_repr(bias_data[n], width=nbits)
@@ -107,6 +110,9 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
     # kernel_fp = to_fixedPoint(kernel_data, scale_factor)
     kernel_fp = kernel_data
     target.write(" (")
+    # to deal with 'type does not match with a string literal'
+    if out_size == 1:
+        target.write(" others => ")
 
     # In some Networks, such AlexNet, neurons from layer l are not totally connected to layer l+1
     # But only a group is connected. We manage this as follows:
