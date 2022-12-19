@@ -2,7 +2,7 @@ import torch
 from brevitas.quant_tensor import QuantTensor
 from torch.utils.tensorboard import SummaryWriter
 
-from src.module_processing import QuantModuleIterator, modules_repertory
+from src.module_processing import modules_repertory
 
 
 class ModuleStatsObserver:
@@ -34,18 +34,18 @@ class ModuleStatsObserver:
         writer.close()
 
     def __set_quant_submodule_entries_name_prefix(self):
-        it = QuantModuleIterator(self.module)
+        it = self.module.it()
         for name, module in it.sub_quant_modules(return_name=True, main_module=True):
             prefix = '(' + name + '): ' + type(module).__name__ + '/'
             module.stats_observer.entries_name_prefix = prefix
 
     def __retrieve_quant_submodules_stats(self):
-        it = QuantModuleIterator(self.module)
+        it = self.module.it()
         for module in it.sub_quant_modules(return_name=False, main_module=True):
             self.stats.update(module.stats_observer.stats)
 
     def __collect_weights_stats(self, per_channel):
-        it = QuantModuleIterator(self.module)
+        it = self.module.it()
         for name, module in it.weight_modules(return_name=True, main_module=True):
             weights = ModuleStatsObserver.__prepare_stats_tensor(tensor=module.quant_weight(),
                                                                  accumulation_tensor=torch.empty(0),
@@ -58,7 +58,7 @@ class ModuleStatsObserver:
             module.stats_observer.__collect_weights_stats(per_channel)
 
     def __collect_act_bias_stats(self, data_loader, num_iterations, per_channel, seed):
-        it = QuantModuleIterator(self.module)
+        it = self.module.it()
         it.set_cache_inference_quant_bias(True)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -74,7 +74,7 @@ class ModuleStatsObserver:
             count += 1
 
     def __collect_act_bias_stats_single_pass(self, x, per_channel):
-        it = QuantModuleIterator(self.module)
+        it = self.module.it()
 
         x_out = x
         while x_out is not None:

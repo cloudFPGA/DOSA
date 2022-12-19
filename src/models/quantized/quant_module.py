@@ -34,12 +34,16 @@ class QuantModule(nn.Module, ABC):
     def forward_step(self, x) -> Tuple[Union[Tensor, QuantTensor], nn.Module, Union[Tensor, QuantTensor]]:
         pass
 
+    def it(self):
+        """ Creates and return a new iterator set with self as model"""
+        return iterator.QuantModuleIterator(self)
+
     def load_module_state_dict(self, fp_module):
         from brevitas import config
         config.IGNORE_MISSING_KEYS = True
 
         fp_modules_it = iterator.FullPrecisionModuleIterator(fp_module)
-        quant_modules_it = iterator.QuantModuleIterator(self)
+        quant_modules_it = self.it()
 
         for fp_layer, q_target_type in fp_modules_it.stateful_quantizable_modules():
             q_layer = quant_modules_it.find_next_module_of_type(q_target_type)
@@ -47,7 +51,7 @@ class QuantModule(nn.Module, ABC):
 
     def calibrate(self):
         self.eval()
-        it = iterator.QuantModuleIterator(self)
+        it = self.it()
         for module in it.act_quant_modules():
             module.train()
 
@@ -57,10 +61,12 @@ class QuantModule(nn.Module, ABC):
     def get_quant_description(self, input_shape):
         x = torch.randn(input_shape)
         self.eval()
+        self.it().set_cache_inference_quant_bias(True)
+        self.forward(x)
         return describe_module(self, x)
 
     def calibrating(self):
-        it = iterator.QuantModuleIterator(self)
+        it = self.it()
         module = next(it)
         while module is not None:
             if module.training:

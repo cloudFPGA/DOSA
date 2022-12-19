@@ -1,6 +1,5 @@
 from brevitas.quant_tensor import QuantTensor
 
-from .module_iterator import QuantModuleIterator
 from .modules_repertory import weight_layers_all
 from src.utils import Reshape, pad_left, features_descriptions_to_string
 
@@ -48,7 +47,7 @@ def describe_quant_module(module, x):
 
     features_descriptions = [None] * len(module.features)
 
-    it = QuantModuleIterator(module)
+    it = module.it()
     x_out = x
     while x_out is not None:
         x = x_out
