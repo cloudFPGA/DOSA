@@ -71,6 +71,11 @@ def describe_quant_weight_module(module):
     w_zero_point = module.quant_weight().zero_point
     value += 'weight scale: {}, '.format(w_scale.item() if w_scale is not None else 'None')
     value += 'weight zero-point: {}'.format(w_zero_point.item() if w_zero_point is not None else 'None')
+    if module.quant_bias() is not None and (module.bias > 0).any():
+        b_scale = module.quant_bias().scale
+        b_zero_point = module.quant_bias().zero_point
+        value += ', bias scale: {}, '.format(b_scale.item() if w_scale is not None else 'None')
+        value += 'bias zero-point: {}'.format(b_zero_point.item() if w_zero_point is not None else 'None')
     return value
 
 
