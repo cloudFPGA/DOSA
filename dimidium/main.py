@@ -102,12 +102,12 @@ if __name__ == '__main__':
     print("\t...done.\n")
 
     print("DOSA: Parsing constraints...")
-    user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw, osg_whitelist = parse_uc_dict(const_path,
+    user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw, osg_allowlist = parse_uc_dict(const_path,
                                                                                                available_devices)
     dosa_singelton.add_user_constraints(user_constraints)
 
-    if osg_whitelist is not None:
-        available_OSGs = filter_osg_list(available_OSGs, osg_whitelist)
+    if osg_allowlist is not None:
+        available_OSGs = filter_osg_list(available_OSGs, osg_allowlist)
 
     target_sps = user_constraints['target_sps']  # in #/s
     target_latency = user_constraints['target_latency']  # in s per sample

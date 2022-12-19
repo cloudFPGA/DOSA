@@ -286,15 +286,15 @@ def sort_osg_list(osg_list, use_internal_prio=True):
     return ret_list
 
 
-def filter_osg_list(osg_list, osg_whitelist):
+def filter_osg_list(osg_list, osg_allowlist):
     filtered_list = []
     for o in osg_list:
         removed = True
-        for wn in osg_whitelist:
+        for wn in osg_allowlist:
             if wn in o.name:
                 filtered_list.append(o)
                 removed = False
         if removed:
-            print(f'[DOSA:OSG:INFO] Remove OSG "{o.name}" due to user constraint.')
+            print(f'[DOSA:OSG:INFO] Removing OSG "{o.name}" due to user constraint.')
     return filtered_list
 
