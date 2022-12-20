@@ -51,7 +51,7 @@ print('real result: \n', linear_layer(input), '\n')
 
 # ========== step-by-step manual emulation (no brevitas) based on finn onnx description ============
 e_scale = model.quantidd.quant_output_scale().item()  # 1/128
-e_input = torch.floor(input / e_scale)  # <--- THIS is the input to the matrix multiplication node
+e_input = torch.floor(input / e_scale)  # <--- THIS is the input to the matrix multiplication node (input to DOSA)
 
 w_scale = model.fc.quant_weight_scale().item()  # 0.0025
 weights = torch.round(model.fc.weight / w_scale).transpose(0, 1)

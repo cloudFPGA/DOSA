@@ -14,7 +14,7 @@ class DummyConvolutional(nn.Module):
     def __init__(self):
         super(DummyConvolutional, self).__init__()
         self.quantidd = qnn.QuantIdentity(act_quant=Int8ActPerTensorFloat, return_quant_tensor=True)
-        self.conv = qnn.QuantConv2d(1, 1, 2, bias=True,
+        self.conv = qnn.QuantConv2d(3, 5, 2, bias=True,
                                     weight_quant=Int8WeightPerTensorFloat,
                                     bias_quant=Int8Bias,
                                     return_quant_tensor=False)
@@ -26,18 +26,19 @@ class DummyConvolutional(nn.Module):
 
 
 torch.manual_seed(0)
-input = torch.rand((1, 1, 4, 4)) * 2 - 1
+input = torch.rand((1, 3, 4, 4)) * 2 - 1
 print('input: \n', input, '\n')
-export_data_as_numpy('/home/sop/Documents/deployments/dummy-convolutional/driver/input.npy', input,
-                     data_transform=lambda x: torch.floor(x * 128))
+# export_data_as_numpy('/home/sop/Documents/deployments/dummy-convolutional/driver/input.npy', input,
+#                      data_transform=lambda x: torch.floor(x * 128))
 
 model = DummyConvolutional()
 model.eval()
 model.conv.cache_inference_quant_bias = True
 print('quant result: \n', model(input), '\n')
 
+# Export model to onnx
 model.cpu()
-bo.export_finn_onnx(model, (1, 1, 4, 4), ROOT_DIR + '/models/DummyConvolutional.onnx')
+bo.export_finn_onnx(model, (1, 3, 4, 4), ROOT_DIR + '/models/DummyConvolutionalMulChannels.onnx')
 
 # check onnx model
 model_check = onnx.load(ROOT_DIR + '/models/DummyConvolutional.onnx')
@@ -46,27 +47,26 @@ onnx.checker.check_model(model_check)
 # ========== Compare with floating point convolution inference ==========
 weights = model.conv.weight
 bias = model.conv.bias
-conv_layer = nn.Conv2d(1, 1, 2, bias=True)
+conv_layer = nn.Conv2d(3, 5, 2, bias=True)
 conv_layer.load_state_dict(model.conv.state_dict())
 print('real result: \n', conv_layer(input), '\n')
 
 # ========== step-by-step manual emulation (no brevitas) based on finn onnx description ============
-e_scale = model.quantidd.quant_output_scale().item()  # 1/128
+e_scale = model.quantidd.quant_output_scale().item()  #
 e_input = torch.floor(input / e_scale)  # quantidentity  # <----- THIS should be the input to DOSA
-e_input = e_input.permute((0, 2, 3, 1))  # not actually necessary  # <------ THIS is the input to FINN alveo execution
+# e_input = e_input.permute((0, 2, 3, 1))  # done implicitely later  # <------ THIS is the input to FINN alveo execution
 
 # Finn "convolution input generator"
-window_indices = np.arange(0, 4 * 4).reshape(-1, 4)
-window_view = np.lib.stride_tricks.sliding_window_view(window_indices, (2, 2))[::1]
-window_view = window_view.reshape((window_view.shape[0], window_view.shape[1], -1))
-window_view = np.expand_dims(window_view, axis=0)
+window_indices = np.arange(0, 4 * 4 * 3).reshape(3, 4, 4)
+window_view = np.lib.stride_tricks.sliding_window_view(window_indices, (3, 2, 2))
+window_view = window_view.reshape((window_view.shape[0], window_view.shape[1], window_view.shape[2], -1))
 conv_input = e_input.flatten()[window_view]
 conv_input = np.expand_dims(conv_input, axis=0)
 conv_input = torch.tensor(conv_input)
 
 # convolution with weights
 w_scale = model.conv.quant_weight_scale().item()
-weights = torch.floor(model.conv.weight / w_scale).reshape(4, -1)
+weights = torch.floor(model.conv.weight / w_scale).reshape(-1, 12).permute((1, 0))
 conv_mul = torch.matmul(conv_input, weights).permute((0, 3, 1, 2))
 
 # un-quantize first (this is cheating)
@@ -76,8 +76,8 @@ conv_mul = conv_mul * conv_scale
 # convolution : add bias
 b_scale = model.conv.quant_bias_scale()
 b_quant = model.conv.int_bias()
-dequant_bias = (b_scale * b_quant).item()  # same as in onnx: 0.0026482
-real_bias = model.conv.bias
+dequant_bias = (b_scale * b_quant).unsqueeze(-1).unsqueeze(-1)  # same as in onnx
+real_bias = model.conv.bias.unsqueeze(-1).unsqueeze(-1)
 
 conv = conv_mul + dequant_bias
 # conv = conv_mul + real_bias
