@@ -46,16 +46,16 @@ print('\n ----------------------------------------------------\n')
 print(brevitas_quant_model.get_quant_description((1, 1, 28, 28)))
 print('\n ----------------------------------------------------\n')
 
+seed = 0
 # accuracies
 print('--- Full Precision accuracy ---')
-# test(fp_model, test_loader_mnist)
+test(fp_model, test_loader_mnist, seed=seed)
 
 print('\n--- Quantized model accuracy ---')
-seed = 0
 test(brevitas_quant_model, test_loader_mnist, seed=seed)
 
 # Collect statistics
 print('\nCollecting statistics...')
-# brevitas_quant_model.collect_stats(test_loader_mnist, 10)
+brevitas_quant_model.collect_stats(test_loader_mnist, 10, seed=seed)
 
 
