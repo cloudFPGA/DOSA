@@ -12,58 +12,60 @@ class QResidualBlock(QuantModule):
                  bit_width=None):
         super(QResidualBlock, self).__init__(num_act=4, num_weighted=3, num_biased=0)
 
-        a_quant, w_quant, b_quant, bit_width, return_qt, quant_relu = \
+        a_quant, w_quant, b_quant, bit_width, return_qt, do_quantization = \
             self._process_quant_methods(act_quant, weight_quant, bias_quant, bit_width)
 
         self.downsample = False
         self.forward_step_index = 0
         self.forward_step_input_x = None
-        self.forward_step_output5 = None
+        self.forward_step_output6 = None
 
         # first convolutional
         self._append(qnn.QuantConv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False,
-                                     return_quant_tensor=False, weight_quant=w_quant[0]))  # 0 --> 0
-        self._append(nn.BatchNorm2d(out_channels)),  # 1 --> 1
+                                     return_quant_tensor=False, weight_quant=w_quant[0]))  # 0
+        self._append(nn.BatchNorm2d(out_channels)),  # 1
         self._append(qnn.QuantIdentity(act_quant=a_quant[1], return_quant_tensor=return_qt))  # 2
-        if quant_relu:
-            self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))  # 2 --> 3
+        if do_quantization:
+            self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))  # 3
         else:
-            self._append(qnn.QuantReLU(act_quant=None))  # 2 --> 3
+            self._append(qnn.QuantReLU(act_quant=None))  # 3
 
         # second convolutional
         self._append(qnn.QuantConv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False,
-                                     return_quant_tensor=False, weight_quant=w_quant[1]))  # 3 --> 4
-        self._append(nn.BatchNorm2d(out_channels))  # 4 --> 5
+                                     return_quant_tensor=False, weight_quant=w_quant[1]))  # 4
+        self._append(nn.BatchNorm2d(out_channels))  # 5
+        qidd_add = qnn.QuantIdentity(act_quant=a_quant[2], return_quant_tensor=return_qt)
+        self._append(qidd_add)  # 6
 
         # downsample
         if stride != 1 or in_channels != out_channels:
             self.downsample = True
-            self._append(qnn.QuantIdentity(act_quant=a_quant[2], return_quant_tensor=return_qt))  # 6
+            self._append(qnn.QuantIdentity(act_quant=a_quant[3], return_quant_tensor=return_qt))  # 7
             self._append(qnn.QuantConv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False,
-                                         return_quant_tensor=False, weight_quant=w_quant[2]))  # 5 --> 7
-            self._append(nn.BatchNorm2d(out_channels))  # 6 --> 8
-            self._append(qnn.QuantIdentity(act_quant=a_quant[3], return_quant_tensor=return_qt))  # 9
+                                         return_quant_tensor=False, weight_quant=w_quant[2]))  # 8
+            self._append(nn.BatchNorm2d(out_channels))  # 9
+            self._append(qidd_add)  # 10
         else:
-            self._append(qnn.QuantIdentity(act_quant=a_quant[3], return_quant_tensor=return_qt))  # 5 --> 6
+            self._append(qidd_add)  # 7
 
         # relu
-        if quant_relu:
-            self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))  # 6 or 7 --> 7 or 10
+        if do_quantization:
+            self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))  # 8 or 11
         else:
-            self._append(qnn.QuantReLU(act_quant=None))  # 6 or 7 --> 7 or 10
+            self._append(qnn.QuantReLU(act_quant=None))  # 8 or 11
 
     def forward(self, x):
         out = x
         x_downsampled = None
         for i, module in enumerate(self.features):
-            if self.downsample and i == 6:
+            if self.downsample and i == 7:
                 x_downsampled = module(x)
-            elif self.downsample and (i == 7 or i == 8):
+            elif self.downsample and (i == 8 or i == 9):
                 x_downsampled = module(x_downsampled)
-            elif self.downsample and i == 9:
+            elif self.downsample and i == 10:
                 x_downsampled = module(x_downsampled)
                 out += x_downsampled
-            elif not self.downsample and i == 6:
+            elif not self.downsample and i == 7:
                 out += module(x)
             else:
                 out = module(out)
@@ -81,18 +83,18 @@ class QResidualBlock(QuantModule):
             x_in = x
             x_out = module(x_in)
 
-        elif self.forward_step_index == 5:
+        elif self.forward_step_index == 6:
             x_in = x
             x_out = module(x_in)
-            self.forward_step_output5 = x_out
+            self.forward_step_output6 = x_out
 
-        elif self.forward_step_index == 6:
+        elif self.forward_step_index == 7:
             x_in = self.forward_step_input_x
             x_out = module(x_in) if self.downsample else x + module(x_in)
 
-        elif self.downsample and self.forward_step_index == 9:
+        elif self.downsample and self.forward_step_index == 10:
             x_in = x
-            x_out = self.forward_step_output5 + module(x_in)
+            x_out = self.forward_step_output6 + module(x_in)
 
         else:
             x_in = x
@@ -118,7 +120,7 @@ class QResNet(QuantModule):
 
         self.inplanes = 64
 
-        a_quant, w_quant, b_quant, bit_width, return_qt, quant_relu = \
+        a_quant, w_quant, b_quant, bit_width, return_qt, do_quantization = \
             self._process_quant_methods(act_quant, weight_quant, bias_quant, bit_width)
 
         # first layer
@@ -127,7 +129,7 @@ class QResNet(QuantModule):
                                      weight_quant=w_quant[0]))
         self._append(nn.BatchNorm2d(64))
         self._append(qnn.QuantIdentity(act_quant=a_quant[1], return_quant_tensor=return_qt))
-        if quant_relu:
+        if do_quantization:
             self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))
         else:
             self._append(qnn.QuantReLU(act_quant=None))
@@ -143,7 +145,10 @@ class QResNet(QuantModule):
                          bit_width=bit_width)
 
         # last layer
-        self._append(nn.AvgPool2d(4))
+        if do_quantization:
+            self._append(qnn.QuantAvgPool2d(4, bit_width=bit_width))
+        else:
+            self._append(nn.AvgPool2d(4))
         self._append(Reshape(lambda x: (x.shape[0], -1)))
         self._append(qnn.QuantIdentity(act_quant=a_quant[6], return_quant_tensor=return_qt))
         self._append(qnn.QuantLinear(512, num_classes, bias=True, bias_quant=b_quant[0], weight_quant=w_quant[5]))

@@ -8,10 +8,7 @@ from src.models import quantized
 from tests.torch_brevitas_comparisons.utils import prepare_brevitas_qmodel
 
 # Prepare datasets
-torch.manual_seed(0)
 test_loader_cifar = data_loader(data_dir=ROOT_DIR+'/data', dataset='CIFAR10', batch_size=128, test=True, seed=0)
-
-torch.manual_seed(0)
 calibration_loader_cifar, _ = data_loader(data_dir=ROOT_DIR+'/data', dataset='CIFAR10',
                                           batch_size=1, test=False, seed=0)
 
@@ -22,9 +19,9 @@ fp_model.load_state_dict(torch.load(ROOT_DIR+'/models/ResNet18.pt', map_location
 # ======================= Uncomment one of below lines =======================
 # Full precision: 91.47%
 # brevitas_quant_model = quantized.QResNet18()  # (91.47%)
-# brevitas_quant_model = quantized.QResNet18Int8()  # (91.18%)
-# brevitas_quant_model = quantized.QResNet18Int5()  # (88.12%)
-brevitas_quant_model = quantized.QResNet18Int4()  # (50.22%)
+# brevitas_quant_model = quantized.QResNet18Int8()  # (90.95%)
+# brevitas_quant_model = quantized.QResNet18Int5()  # (86.38%)
+brevitas_quant_model = quantized.QResNet18Int4()  # (50.86%)
 # ============================================================================
 
 # load and calibrate quantized model
@@ -37,7 +34,7 @@ print('\n ----------------------------------------------------\n')
 # accuracies
 print('--- Full Precision accuracy ---')
 seed = 0
-test(fp_model, test_loader_cifar, seed=seed)
+# test(fp_model, test_loader_cifar, seed=seed)
 
 print('\n--- Quantized model accuracy ---')
 test(brevitas_quant_model, test_loader_cifar, seed=seed)

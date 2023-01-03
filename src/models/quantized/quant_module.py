@@ -79,7 +79,7 @@ class QuantModule(nn.Module, ABC):
 
     def _process_quant_methods(self, act_quant=None, weight_quant=None, bias_quant=None, bit_width=None):
         return_quant_tensor = act_quant is not None
-        quantize_relu = act_quant is not None
+        do_quantization = act_quant is not None
         if not isinstance(act_quant, list):
             act_quant = [act_quant] * self._num_idd
         if not isinstance(weight_quant, list):
@@ -87,5 +87,5 @@ class QuantModule(nn.Module, ABC):
         if not isinstance(bias_quant, list):
             bias_quant = [bias_quant] * self._num_biased
 
-        return act_quant, weight_quant, bias_quant, bit_width, return_quant_tensor, quantize_relu
+        return act_quant, weight_quant, bias_quant, bit_width, return_quant_tensor, do_quantization
 

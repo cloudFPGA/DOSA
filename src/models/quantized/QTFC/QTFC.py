@@ -22,7 +22,7 @@ class QTFC(QuantModule):
 
         self.forward_step_index = 0
 
-        a_quant, w_quant, b_quant, bit_width, return_qt, quant_relu =\
+        a_quant, w_quant, b_quant, bit_width, return_qt, do_quantization =\
             self._process_quant_methods(act_quant, weight_quant, bias_quant, bit_width)
 
         # reshape layer
@@ -37,7 +37,7 @@ class QTFC(QuantModule):
         self._append(nn.BatchNorm1d(hidden1))
         self._append(qnn.QuantIdentity(act_quant=a_quant[1], return_quant_tensor=return_qt))
         self._append(nn.Dropout(p=QTFC.dropout))
-        if quant_relu:
+        if do_quantization:
             self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))
         else:
             self._append(qnn.QuantReLU(act_quant=None))
@@ -48,7 +48,7 @@ class QTFC(QuantModule):
         self._append(nn.BatchNorm1d(hidden2))
         self._append(qnn.QuantIdentity(act_quant=a_quant[2], return_quant_tensor=return_qt))
         self._append(nn.Dropout(p=QTFC.dropout))
-        if quant_relu:
+        if do_quantization:
             self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))
         else:
             self._append(qnn.QuantReLU(act_quant=None))
@@ -59,7 +59,7 @@ class QTFC(QuantModule):
         self._append(nn.BatchNorm1d(hidden3))
         self._append(qnn.QuantIdentity(act_quant=a_quant[3], return_quant_tensor=return_qt))
         self._append(nn.Dropout(p=QTFC.dropout))
-        if quant_relu:
+        if do_quantization:
             self._append(qnn.QuantReLU(return_quant_tensor=return_qt, bit_width=bit_width))
         else:
             self._append(qnn.QuantReLU(act_quant=None))
