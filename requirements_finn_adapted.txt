@@ -74,9 +74,9 @@ six==1.16.0
 stack-data==0.6.0
 sympy==1.11.1
 synr==0.6.0
-tensorboard==2.10.1
-tensorboard-data-server==0.6.1
-tensorboard-plugin-wit==1.8.1
+tensorboard>=2.10.1
+tensorboard-data-server>=0.6.1
+tensorboard-plugin-wit>=1.8.1
 tokenize-rt==5.0.0
 toposort==1.7
 torch==1.7.1
