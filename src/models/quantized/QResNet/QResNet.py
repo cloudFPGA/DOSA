@@ -115,7 +115,7 @@ class QResNet(QuantModule):
                  bias_quant=None,
                  bit_width=None):
 
-        super(QResNet, self).__init__(num_act=7, num_weighted=6, num_biased=1)
+        super(QResNet, self).__init__(num_act=6, num_weighted=6, num_biased=1)
         self.forward_step_index = 0
 
         self.inplanes = 64
@@ -150,7 +150,6 @@ class QResNet(QuantModule):
         else:
             self._append(nn.AvgPool2d(4))
         self._append(Reshape(lambda x: (x.shape[0], -1)))
-        self._append(qnn.QuantIdentity(act_quant=a_quant[6], return_quant_tensor=return_qt))
         self._append(qnn.QuantLinear(512, num_classes, bias=True, bias_quant=b_quant[0], weight_quant=w_quant[5]))
 
     def _make_layer(self, block, planes, blocks, stride=1,
