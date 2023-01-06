@@ -10,7 +10,7 @@ Installation
     - use the **internal** fork of TVM as source, see below
     - new build
     ```bash
-    $ git clone git@github.ibm.com:cloudFPGA/tvm-for-dosa.git tvm
+    $ git clone --recurse-submodules git@github.ibm.com:cloudFPGA/tvm-for-dosa.git tvm
     $ cd tvm/build
     $ which llvm-config  # update config.cmake with the respective llvm path
     $ cmake ..
