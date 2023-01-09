@@ -16,7 +16,7 @@ def intermediate_models_path(export_path, export_intermediate_files):
     split_path = export_path.split('/')
     dir_path_prefix = '/'.join(split_path[:-1])
     model_name = split_path[-1][:split_path[-1].index('.onnx')]
-    dir_path = dir_path_prefix + '/' + model_name
+    dir_path = dir_path_prefix + '/' + model_name + '_intermediate_models'
     model_file_prefix = dir_path + '/' + model_name
 
     if not os.path.exists(dir_path):
