@@ -84,7 +84,7 @@ class ArchNode(object):
                                'impl_Gflop_eqiv': float(self.used_perf_F / gigaU),
                                'max_Gflop_based_on_impl_eqiv': float(self.max_perf_iter_based / gigaU)},
                'over_utilized_node': self.over_utilized_node,
-               'blocks': [], 'engineContainers': [],
+               'blocks': [], 'engineContainers': [], 'comm_plan': 'none',
                'bricks': {}}
         # for tn in self.twins:
         #    res['twin_nodes'].append(tn.node_id)
@@ -102,6 +102,8 @@ class ArchNode(object):
             res['blocks'].append(repr(ab))
         for ec in self.engine_container_refs:
             res['engineContainers'].append(repr(ec))
+        if self.comm_plan is not None:
+            res['comm_plan'] = self.comm_plan.as_dict()
         return res
 
     def __str__(self):

@@ -136,6 +136,7 @@ class ArchBrick(object):
                # 'possible OSGs': [], 'selected OSG': repr(self.selected_osg),
                'possible contr': [], 'selected contr': '',
                'selected impl. type:': repr(self.selected_impl_type),
+               'local_tensor_pipeline_depth': self.local_pipeline_store,
                'ops': {}}
         if self.tvm_node is None and self.orig_tvm_node is not None:
             res['tvm_node'] = 'Original: ' + str(self.orig_tvm_node)[:100]

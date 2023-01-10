@@ -1476,7 +1476,6 @@ void hls4ml_parallel_wrapper_test(
 #endif
   static stream<bool> shls4ml_parallelUnitProcessing ("shls4ml_parallelUnitProcessing");
   const int hls4ml_parallel_processing_fifo_depth = (HLS4ML_PARALLEL_AVG_LAYER_LATENCY + 1) * DOSA_HLS4ML_PARALLEL_LAYER_CNT;
-  //const int hls4ml_parallel_processing_fifo_depth = DOSA_HLS4ML_PARALLEL_VALID_WAIT_CNT + (DOSA_HLS4ML_PARALLEL_INPUT_FRAME_WIDTH*DOSA_HLS4ML_PARALLEL_LAYER_CNT);
   #pragma HLS STREAM variable=shls4ml_parallelUnitProcessing depth=hls4ml_parallel_processing_fifo_depth
   static stream<ap_uint<DOSA_HLS4ML_PARALLEL_OUTPUT_BITDIWDTH> > sFromhls4ml_parallelBuffer ("sFromhls4ml_parallelBuffer");
   #pragma HLS STREAM variable=sFromhls4ml_parallelBuffer depth=2*hls4ml_parallel_processing_fifo_depth  //so that we can receive, what we send out...

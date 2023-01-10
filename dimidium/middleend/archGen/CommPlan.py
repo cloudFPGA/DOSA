@@ -24,6 +24,10 @@ class CommPlan:
         self.after_pipeline_full_instr_start = -1
         self.update()
 
+    def as_dict(self):
+        ret = self.comm_instr
+        return ret
+
     def update(self):
         brick_keys = list(self.node.bricks.keys())
         brick_keys.sort()

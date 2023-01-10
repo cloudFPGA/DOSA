@@ -108,6 +108,8 @@ class Hls4mlWrapper_Parallel:
                     assert tkeep_general > 0
                     assert tkeep_width > 0
                     assert tkeep_general >= tkeep_width
+                    assert (len(self.in_dims) == 2) or (len(self.in_dims) == 4)
+                    assert (len(self.out_dims) == 2) or (len(self.out_dims) == 4)
                     outline = ''
                     outline += '#define DOSA_WRAPPER_INPUT_IF_BITWIDTH {}\n'.format(self.if_in_bitw)
                     outline += '#define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH {}\n'.format(self.if_out_bitw)
@@ -115,18 +117,24 @@ class Hls4mlWrapper_Parallel:
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP {}\n'.format(tkeep_general)
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP_WIDTH {}\n'.format(tkeep_width)
                     outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_CHAN_NUM {}\n'.format(self.in_dims[1])
-                    outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_CHAN_NUM {}\n'.format(self.out_dims[1])
-                    frame_width = 1
-                    if len(self.in_dims) >= 3:
-                        frame_width = self.in_dims[2]
-                    outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_FRAME_WIDTH {}\n'.format(frame_width)
-                    frame_width = 1
-                    if len(self.out_dims) >= 3:
-                        frame_width = self.out_dims[2]
-                    outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_FRAME_WIDTH {}\n'.format(frame_width)
+                    if len(self.out_dims) == 4:
+                        outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_CHAN_NUM {}\n'.format(self.out_dims[1])
+                    else:
+                        outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_CHAN_NUM {}\n'.format(1)
+                    frame_width = self.in_dims[1]
+                    if len(self.in_dims) == 4:
+                        frame_width = self.in_dims[2] * self.in_dims[3]
+                    # outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_FRAME_WIDTH {}\n'.format(frame_width)
+                    outline += '#define CNN_INPUT_FRAME_SIZE {}\n'.format(frame_width)
+                    frame_width = self.out_dims[1]
+                    if len(self.out_dims) == 4:
+                        frame_width = self.out_dims[2] * self.out_dims[3]
+                    # outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_FRAME_WIDTH {}\n'.format(frame_width)
+                    outline += '#define CNN_OUTPUT_FRAME_SIZE {}\n'.format(frame_width)
                     flatten_str = 'false'
                     # if self.wrapper_flatten_op is not None:
-                    #     flatten_str = 'true'
+                    if len(self.out_dims) != 4:
+                        flatten_str = 'true'
                     outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_BATCH_FLATTEN {}\n'.format(flatten_str)
                     outline += '#define DOSA_HLS4ML_PARALLEL_LAYER_CNT {}\n'.format(self.layer_cnt)
                     # outline += '#define DOSA_HLS4ML_PARALLEL_VALID_WAIT_CNT {}\n'.format(self.initial_delay)
