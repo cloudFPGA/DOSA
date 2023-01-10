@@ -11,6 +11,8 @@ Installation
     - new build
     ```bash
     $ git clone --recurse-submodules git@github.ibm.com:cloudFPGA/tvm-for-dosa.git tvm
+    $ git submodule init
+    $ git submodule update
     $ cd tvm/build
     $ which llvm-config  # update config.cmake with the respective llvm path
     $ cmake ..
@@ -83,7 +85,7 @@ $ git push -u internal main
 ```
 
 
-On changes, just run `make -j4` again to build TVM (`cmake ..` not really necessary).
+On changes, just run `make -j4` again to build TVM (`cmake ..` not really necessary, but don't forget submodules).
 From time to time a `git pull origin main` is recommended to pull latest changes from TVM.
 
 ### hls4ml
