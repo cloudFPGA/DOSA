@@ -89,10 +89,17 @@ class Hls4mlWrapper_Parallel:
             continue_skip = False
             assert (len(self.in_dims) == 2) or (len(self.in_dims) == 4)
             assert (len(self.out_dims) == 2) or (len(self.out_dims) == 4)
-            in_channels = 1
-            in_frame_width = self.in_dims[1]
+            # in_channels = 1
+            # in_frame_width = self.in_dims[1]
+            # if len(self.in_dims) == 4:
+            #     in_channels = self.in_dims[1]
+            #     in_frame_width = self.in_dims[2] * self.in_dims[3]
+            # input needs to be treated differently
+            # in any case
+            in_channels = self.in_dims[1]
+            # in case of 2D
+            in_frame_width = 1
             if len(self.in_dims) == 4:
-                in_channels = self.in_dims[1]
                 in_frame_width = self.in_dims[2] * self.in_dims[3]
             out_channels = 1
             out_frame_width = self.out_dims[1]
@@ -232,7 +239,7 @@ class Hls4mlWrapper_Parallel:
                                   '      {\n' + \
                                   '        Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> tmp_read_0 = siData.read();\n' + \
                                   '        tmp_read_0.setTLast(0);\n' + \
-                                  '        sTohls4ml_parallelBuffer_chan.write(tmp_read_0);\n' + \
+                                  '        sTohls4ml_parallelBuffer_chan0.write(tmp_read_0);\n' + \
                                   '      }\n' + \
                                   '      break;\n'
                 elif 'DOSA_ADD_pTohls4ml_parallelNarrow_X_declaration' in line:
