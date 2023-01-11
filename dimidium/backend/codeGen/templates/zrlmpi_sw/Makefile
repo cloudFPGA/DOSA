@@ -44,10 +44,9 @@ CFLAGS +=-DPROGRESS_PRINT
 
 .PHONY: all clean help lib
 
+lib: $(SHLIB) ## Builds the Software part of ZRLMPI as shared library
 
 all: $(PROG) ## Builds the Software part of ZRLMPI to communicate with the FPGAs
-
-lib: $(SHLIB) ## Builds the Software part of ZRLMPI as shared library
 
 clean:  ## cleans all builds 
 	rm -rf $(PROG) *.o $(SHLIB)
