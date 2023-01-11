@@ -13,7 +13,7 @@ else
 	IP_GUARD_FORCE=$(usedRoleDir)/.ip_guard_delete_to_force_tcl_export
 endif
 
-.PHONY: all csim cosim cosim_view assert_env syn_test
+.PHONY: all csim cosim cosim_view assert_env syn_test report
 all: assert_env ${ipName}_prj/solution1/impl/ip
 
 # assert ENVIRONMENT
@@ -56,6 +56,10 @@ cosim:
 cosim_view:
 	@/bin/echo -e "current_fileset\nopen_wave_database $(appName).wdb\n" > ./$(ipName)_prj/solution1/sim/verilog/open_wave.tcl
 	cd ./$(ipName)_prj/solution1/sim/verilog/; vivado -source open_wave.tcl
+
+report:
+	@cat vivado_hls.log
+	@cat ${ipName}_prj/solution1/syn/report/${appName}_csynth.rpt
 
 clean:
 	rm -rf ${ipName}_prj
