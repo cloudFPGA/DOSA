@@ -87,6 +87,18 @@ class Hls4mlWrapper_Parallel:
                 open(os.path.join(self.out_dir_path, 'src/hls4ml_parallel_wrapper.hpp'), 'w') as out_file:
             skip_line = False
             continue_skip = False
+            assert (len(self.in_dims) == 2) or (len(self.in_dims) == 4)
+            assert (len(self.out_dims) == 2) or (len(self.out_dims) == 4)
+            in_channels = 1
+            in_frame_width = self.in_dims[1]
+            if len(self.in_dims) == 4:
+                in_channels = self.in_dims[1]
+                in_frame_width = self.in_dims[2] * self.in_dims[3]
+            out_channels = 1
+            out_frame_width = self.out_dims[1]
+            if len(self.out_dims) == 4:
+                out_channels = self.out_dims[1]
+                out_frame_width = self.out_dims[2] * self.out_dims[3]
             for line in in_file.readlines():
                 if skip_line:
                     skip_line = False
@@ -108,32 +120,16 @@ class Hls4mlWrapper_Parallel:
                     assert tkeep_general > 0
                     assert tkeep_width > 0
                     assert tkeep_general >= tkeep_width
-                    assert (len(self.in_dims) == 2) or (len(self.in_dims) == 4)
-                    assert (len(self.out_dims) == 2) or (len(self.out_dims) == 4)
                     outline = ''
                     outline += '#define DOSA_WRAPPER_INPUT_IF_BITWIDTH {}\n'.format(self.if_in_bitw)
                     outline += '#define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH {}\n'.format(self.if_out_bitw)
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH {}\n'.format(self.general_bitw)
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP {}\n'.format(tkeep_general)
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP_WIDTH {}\n'.format(tkeep_width)
-                    if len(self.in_dims) == 4:
-                        outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_CHAN_NUM {}\n'.format(self.in_dims[1])
-                    else:
-                        outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_CHAN_NUM {}\n'.format(1)
-                    if len(self.out_dims) == 4:
-                        outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_CHAN_NUM {}\n'.format(self.out_dims[1])
-                    else:
-                        outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_CHAN_NUM {}\n'.format(1)
-                    frame_width = self.in_dims[1]
-                    if len(self.in_dims) == 4:
-                        frame_width = self.in_dims[2] * self.in_dims[3]
-                    # outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_FRAME_WIDTH {}\n'.format(frame_width)
-                    outline += '#define CNN_INPUT_FRAME_SIZE {}\n'.format(frame_width)
-                    frame_width = self.out_dims[1]
-                    if len(self.out_dims) == 4:
-                        frame_width = self.out_dims[2] * self.out_dims[3]
-                    # outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_FRAME_WIDTH {}\n'.format(frame_width)
-                    outline += '#define CNN_OUTPUT_FRAME_SIZE {}\n'.format(frame_width)
+                    outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_CHAN_NUM {}\n'.format(in_channels)
+                    outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_CHAN_NUM {}\n'.format(out_channels)
+                    outline += '#define CNN_INPUT_FRAME_SIZE {}\n'.format(in_frame_width)
+                    outline += '#define CNN_OUTPUT_FRAME_SIZE {}\n'.format(out_frame_width)
                     flatten_str = 'false'
                     # if self.wrapper_flatten_op is not None:
                     if len(self.out_dims) != 4:
@@ -144,12 +140,12 @@ class Hls4mlWrapper_Parallel:
                     # TODO
                     outline += '#define DOSA_HLS4ML_PARALLEL_VALID_WAIT_CNT {}\n'.format(0)
                     enum_def = 'enum Tohls4ml_parallelEnqStates {RESET0 = 0, WAIT_DRAIN'
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         enum_def += ', FILL_BUF_{}'.format(b)
                     enum_def += '};\n'
                     outline += enum_def
                     enum_def = 'enum Fromhls4ml_parallelDeqStates {RESET1 = 0'
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         enum_def += ', READ_BUF_{}'.format(b)
                     enum_def += '};\n'
                     outline += enum_def
@@ -170,13 +166,13 @@ class Hls4mlWrapper_Parallel:
                     skip_line = True
                 elif 'DOSA_ADD_tohls4ml_parallel_buffer_param_decl' in line:
                     outline = ''
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         outline += '    stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> >    &sTohls4ml_parallelBuffer_chan{},\n'.format(
                             b)
                 elif 'DOSA_ADD_demux_fsm' in line:
                     # if len(self.in_dims[1]) > 1:
                     # TODO
-                    if self.in_dims[1] > 1:
+                    if in_channels > 1:
                         fsm_tmpl = '    case FILL_BUF_{b}:\n' + \
                                    '      if( (!siData.empty() || hangover_present) && !sTohls4ml_parallelBuffer_chan{b}.full())\n' + \
                                    '      {{\n' + \
@@ -225,9 +221,9 @@ class Hls4mlWrapper_Parallel:
                                    '      }}\n' + \
                                    '      break;\n'
                         outline = ''
-                        for b in range(0, self.in_dims[1]):
+                        for b in range(0, in_channels):
                             b1 = b + 1
-                            if b1 >= self.in_dims[1]:
+                            if b1 >= in_channels:
                                 b1 = 0
                             outline += fsm_tmpl.format(b=b, b1=b1)
                     else:
@@ -244,57 +240,57 @@ class Hls4mlWrapper_Parallel:
                         os.path.join(__filedir__, 'templates/hls4ml_wrapper_parallel/src/pToAccelNarrow_b'
                                                   '.fstrtmpl')).read_text()
                     outline = ''
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         outline += template_lines.format(b=b)
                 elif 'DOSA_ADD_tohls4ml_parallel_deq_buffer_drain' in line:
                     fsm_tmpl = '    if( !sTohls4ml_parallelBuffer_chan{b}.empty() )\n    {{\n      sTohls4ml_parallelBuffer_chan{b}.read();\n' + \
                                '      one_not_empty = true;\n    }}\n'
                     outline = ''
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         outline += fsm_tmpl.format(b=b)
                 elif 'DOSA_ADD_tohls4ml_parallel_pixelChain_param_decl' in line:
                     outline = ''
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         outline += '  stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> >    &sTohls4ml_parallelPixelChain_chan{},\n'.format(
                             b)
                 elif 'DOSA_ADD_tohls4ml_parallel_deq_pixelChain_drain' in line:
                     fsm_tmpl = '    if( !sTohls4ml_parallelPixelChain_chan{b}.empty() )\n    {{\n      sTohls4ml_parallelPixelChain_chan{b}.read();\n' + \
                                '      one_not_empty = true;\n    }}\n'
                     outline = ''
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         outline += fsm_tmpl.format(b=b)
                 elif 'DOSA_ADD_tohls4ml_parallel_deq_if_clause' in line:
                     outline = '       '
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         # outline += ' && !sTohls4ml_parallelBuffer_chan{}.empty()'.format(b)
                         outline += ' && !sTohls4ml_parallelPixelChain_chan{}.empty()'.format(b)
                     outline += '\n'
                 elif 'DOSA_ADD_deq_flatten' in line:
                     fsm_tmpl = '        pixel_array[{b}] = sTohls4ml_parallelPixelChain_chan{b}.read();\n'
                     outline = ''
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         outline += fsm_tmpl.format(b=b)
                 elif 'DOSA_ADD_from_hls4ml_parallel_stream_param_decl' in line:
                     outline = ''
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         outline += '  stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> >    &sFromhls4ml_parallelBuffer_chan{b},\n' \
                             .format(b=b)
                 elif 'DOSA_ADD_from_hls4ml_parallel_stream_full_check' in line:
                     outline = '         '
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         outline += ' && !sFromhls4ml_parallelBuffer_chan{b}.full()' \
                             .format(b=b)
                     outline += '\n'
                 elif 'DOSA_ADD_from_hls4ml_parallel_stream_write' in line:
                     outline = ''
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         outline += (
                                 '        sFromhls4ml_parallelBuffer_chan{b}.write((ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH>) ' +
                                 '(input_data >> {b} * DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH));\n') \
                             .format(b=b)
                 elif 'DOSA_ADD_output_stream_param_decl' in line:
                     outline = ''
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         outline += '    stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> >    &sOutBuffer_chan{b},\n' \
                             .format(b=b)
                 elif 'DOSA_ADD_pFromhls4ml_parallelWiden_X_declaration' in line:
@@ -302,14 +298,14 @@ class Hls4mlWrapper_Parallel:
                         os.path.join(__filedir__, 'templates/hls4ml_wrapper_parallel/src/pFromAccelWiden_b'
                                                   '.fstrtmpl')).read_text()
                     outline = ''
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         outline += template_lines.format(b=b)
                 elif 'DOSA_ADD_out_stream_drain' in line:
                     fsm_tmpl = ('    if(!sOutBuffer_chan{b}.empty())\n    {{\n' +
                                 '      sOutBuffer_chan{b}.read();\n' +
                                 '      not_empty = true;\n    }}\n')
                     outline = ''
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         outline += fsm_tmpl.format(b=b)
                 elif 'DOSA_ADD_from_hls4ml_parallel_deq_buf_read' in line:
                     fsm_tmpl = ('\n    case READ_BUF_{b}:\n      if(!soData.full() && !sOutBuffer_chan{b}.empty())\n' +
@@ -334,9 +330,9 @@ class Hls4mlWrapper_Parallel:
                             '          tmp_read_0.setTLast(0b1);\n        }}\n' +
                             '        soData.write(tmp_read_0);\n      }}\n      break;\n')
                     outline = ''
-                    for b in range(0, self.out_dims[1] - 1):
+                    for b in range(0, out_channels - 1):
                         outline += fsm_tmpl.format(b=b, b1=b + 1)
-                    outline += fsm_tmpl_last.format(b=self.out_dims[1] - 1)
+                    outline += fsm_tmpl_last.format(b=out_channels - 1)
                 elif 'DOSA_ADD_hls4ml_parallel_buffer_instantiation' in line:
                     fsm_tmpl = '  static stream<Axis<DOSA_WRAPPER_INPUT_IF_BITWIDTH> > sTohls4ml_parallelBuffer_chan{b} ' + \
                                '("sTohls4ml_parallelBuffer_chan{b}");\n  #pragma HLS STREAM variable=sTohls4ml_parallelBuffer_chan{b}   ' + \
@@ -345,7 +341,7 @@ class Hls4mlWrapper_Parallel:
                                 'sTohls4ml_parallelPixelChain_chan{b} ("sTohls4ml_parallelPixelChain_chan{b}");\n' + \
                                 '  #pragma HLS STREAM variable=sTohls4ml_parallelPixelChain_chan{b} depth=2*cnn_input_frame_size\n'
                     outline = '\n'
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         outline += fsm_tmpl.format(b=b)
                     outline += '\n'
                     fsm_tmpl = '  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> > ' + \
@@ -354,38 +350,38 @@ class Hls4mlWrapper_Parallel:
                     fsm_tmpl += '  static stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > ' + \
                                 'sOutBuffer_chan{b} ("sOutBuffer_chan{b}");\n' + \
                                 '  #pragma HLS STREAM variable=sOutBuffer_chan{b} depth=cnn_output_frame_size\n'
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         outline += fsm_tmpl.format(b=b)
                 elif 'DOSA_ADD_tohls4ml_parallel_buffer_list' in line:
                     outline = '     '
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         outline += ' sTohls4ml_parallelBuffer_chan{},'.format(b)
                     outline += '\n'
                 elif 'DOSA_ADD_pTohls4ml_parallelNarrow_X_instantiate' in line:
                     outline = ''
                     tmpl = '  pToAccelNarrow_{b}(sTohls4ml_parallelBuffer_chan{b}, sTohls4ml_parallelPixelChain_chan{b});\n'
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         outline += tmpl.format(b=b)
                     outline += '\n'
                 elif 'DOSA_ADD_tohls4ml_parallel_pixelChain_list' in line:
                     outline = '     '
-                    for b in range(0, self.in_dims[1]):
+                    for b in range(0, in_channels):
                         outline += ' sTohls4ml_parallelPixelChain_chan{b},'.format(b=b)
                     outline += '\n'
                 elif 'DOSA_ADD_from_hls4ml_parallel_stream_list' in line:
                     outline = '     '
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         outline += ' sFromhls4ml_parallelBuffer_chan{b},'.format(b=b)
                     outline += '\n'
                 elif 'DOSA_ADD_from_hls4ml_parallel_out_list' in line:
                     outline = '     '
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         outline += ' sOutBuffer_chan{b},'.format(b=b)
                     outline += '\n'
                 elif 'DOSA_ADD_pFromhls4ml_parallelWiden_X_instantiate' in line:
                     outline = ''
                     tmpl = '  pFromAccelWiden_{b}(sFromhls4ml_parallelBuffer_chan{b}, sOutBuffer_chan{b});\n'
-                    for b in range(0, self.out_dims[1]):
+                    for b in range(0, out_channels):
                         outline += tmpl.format(b=b)
                     outline += '\n'
                 else:
