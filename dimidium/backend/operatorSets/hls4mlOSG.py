@@ -401,6 +401,10 @@ class Hls4mlOSG(BaseOSG):
             new_str += ('\n\t@{echo} -n "HLS4ML build time: "' +
                         "\n\t@/bin/bash -c \"cat <(cat .tmp_stamp_* | tr '\\n' ' ') <(echo '') | {bc} -l\"") \
                 .format(echo=echo_cmd, bc=bc_cmd)
+            new_str += ('\nreport:\n' +
+                        '\t@cat vivado_hls.log\n' +
+                        '\t@cat {project}_prj/solution1/syn/report/{project}_csynth.rpt\n' +
+                        '\n')
             m_file.write(new_str)
             m_file.write('\n\n')
 
