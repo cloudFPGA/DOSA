@@ -404,7 +404,7 @@ class Hls4mlOSG(BaseOSG):
             new_str += ('\nreport:\n' +
                         '\t@cat vivado_hls.log\n' +
                         '\t@cat {project}_prj/solution1/syn/report/{project}_csynth.rpt\n' +
-                        '\n')
+                        '\n').format(project=project_name)
             m_file.write(new_str)
             m_file.write('\n\n')
 
