@@ -116,7 +116,10 @@ class Hls4mlWrapper_Parallel:
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH {}\n'.format(self.general_bitw)
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP {}\n'.format(tkeep_general)
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP_WIDTH {}\n'.format(tkeep_width)
-                    outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_CHAN_NUM {}\n'.format(self.in_dims[1])
+                    if len(self.in_dims) == 4:
+                        outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_CHAN_NUM {}\n'.format(self.in_dims[1])
+                    else:
+                        outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_CHAN_NUM {}\n'.format(1)
                     if len(self.out_dims) == 4:
                         outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_CHAN_NUM {}\n'.format(self.out_dims[1])
                     else:
