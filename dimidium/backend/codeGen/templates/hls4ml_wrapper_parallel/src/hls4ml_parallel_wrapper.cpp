@@ -764,10 +764,10 @@ void pFromhls4ml_parallelFlatten(
       {
         input_data = sFromhls4ml_parallelBuffer.read();
 #ifdef WRAPPER_TEST
-        sFromhls4ml_parallelBuffer_chan1.write((ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH>) (input_data >> 0 * DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH));
-        sFromhls4ml_parallelBuffer_chan2.write((ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH>) (input_data >> 1 * DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH));
-        sFromhls4ml_parallelBuffer_chan3.write((ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH>) (input_data >> 2 * DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH));
-        sFromhls4ml_parallelBuffer_chan4.write((ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH>) (input_data >> 3 * DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH));
+        sFromhls4ml_parallelBuffer_chan1.write((ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH>) (input_data >> 0 * DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH));
+        sFromhls4ml_parallelBuffer_chan2.write((ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH>) (input_data >> 1 * DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH));
+        sFromhls4ml_parallelBuffer_chan3.write((ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH>) (input_data >> 2 * DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH));
+        sFromhls4ml_parallelBuffer_chan4.write((ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH>) (input_data >> 3 * DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH));
 #else
         //DOSA_ADD_from_hls4ml_parallel_stream_write
 #endif
@@ -1455,13 +1455,13 @@ void hls4ml_parallel_wrapper_test(
 #pragma HLS STREAM variable=sTohls4ml_parallelPixelChain_chan2   depth=2*cnn_input_frame_size
   static stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> > sTohls4ml_parallelPixelChain_chan3 ("sTohls4ml_parallelPixelChain_chan3");
 #pragma HLS STREAM variable=sTohls4ml_parallelPixelChain_chan3   depth=2*cnn_input_frame_size
-  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> > sFromhls4ml_parallelBuffer_chan1 ("sFromhls4ml_parallelBuffer_chan1");
+  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH> > sFromhls4ml_parallelBuffer_chan1 ("sFromhls4ml_parallelBuffer_chan1");
 #pragma HLS STREAM variable=sFromhls4ml_parallelBuffer_chan1 depth=cnn_output_frame_size
-  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> > sFromhls4ml_parallelBuffer_chan2 ("sFromhls4ml_parallelBuffer_chan2");
+  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH> > sFromhls4ml_parallelBuffer_chan2 ("sFromhls4ml_parallelBuffer_chan2");
 #pragma HLS STREAM variable=sFromhls4ml_parallelBuffer_chan2 depth=cnn_output_frame_size
-  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> > sFromhls4ml_parallelBuffer_chan3 ("sFromhls4ml_parallelBuffer_chan3");
+  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH> > sFromhls4ml_parallelBuffer_chan3 ("sFromhls4ml_parallelBuffer_chan3");
 #pragma HLS STREAM variable=sFromhls4ml_parallelBuffer_chan3 depth=cnn_output_frame_size
-  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> > sFromhls4ml_parallelBuffer_chan4 ("sFromhls4ml_parallelBuffer_chan4");
+  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH> > sFromhls4ml_parallelBuffer_chan4 ("sFromhls4ml_parallelBuffer_chan4");
 #pragma HLS STREAM variable=sFromhls4ml_parallelBuffer_chan4 depth=cnn_output_frame_size
   static stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > sOutBuffer_chan1 ("sOutBuffer_chan1");
 #pragma HLS STREAM variable=sOutBuffer_chan1 depth=cnn_output_frame_size

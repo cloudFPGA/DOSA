@@ -89,6 +89,11 @@ class Hls4mlWrapper_Parallel:
             continue_skip = False
             assert (len(self.in_dims) == 2) or (len(self.in_dims) == 4)
             assert (len(self.out_dims) == 2) or (len(self.out_dims) == 4)
+            tkeep_general = bit_width_to_tkeep(self.general_bitw)
+            tkeep_width = max(math.ceil(math.log2(tkeep_general)), 1)
+            assert tkeep_general > 0
+            assert tkeep_width > 0
+            assert tkeep_general >= tkeep_width
             # in_channels = 1
             # in_frame_width = self.in_dims[1]
             # if len(self.in_dims) == 4:
@@ -102,10 +107,14 @@ class Hls4mlWrapper_Parallel:
             if len(self.in_dims) == 4:
                 in_frame_width = self.in_dims[2] * self.in_dims[3]
             out_channels = 1
-            out_frame_width = self.out_dims[1]
+            out_bitw = self.out_dims[1]
+            out_frame_width = 1  # since we encode it into bitwidth
             if len(self.out_dims) == 4:
                 out_channels = self.out_dims[1]
                 out_frame_width = self.out_dims[2] * self.out_dims[3]
+                out_bitw = self.general_bitw  # if we are 4D, we get one bit at a time?
+            tkeep_out = bit_width_to_tkeep(out_bitw)
+            tkeep_out_width = max(math.ceil(math.log2(tkeep_out)), 1)
             for line in in_file.readlines():
                 if skip_line:
                     skip_line = False
@@ -122,17 +131,15 @@ class Hls4mlWrapper_Parallel:
                     continue_skip = True
                     continue
                 elif 'DOSA_ADD_INTERFACE_DEFINES' in line:
-                    tkeep_general = bit_width_to_tkeep(self.general_bitw)
-                    tkeep_width = max(math.ceil(math.log2(tkeep_general)), 1)
-                    assert tkeep_general > 0
-                    assert tkeep_width > 0
-                    assert tkeep_general >= tkeep_width
                     outline = ''
                     outline += '#define DOSA_WRAPPER_INPUT_IF_BITWIDTH {}\n'.format(self.if_in_bitw)
                     outline += '#define DOSA_WRAPPER_OUTPUT_IF_BITWIDTH {}\n'.format(self.if_out_bitw)
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH {}\n'.format(self.general_bitw)
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP {}\n'.format(tkeep_general)
                     outline += '#define DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH_TKEEP_WIDTH {}\n'.format(tkeep_width)
+                    outline += '#define DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH {}\n'.format(out_bitw)
+                    outline += '#define DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH_TKEEP {}\n'.format(tkeep_out)
+                    outline += '#define DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH_TKEEP_WIDTH {}\n'.format(tkeep_out_width)
                     outline += '#define DOSA_HLS4ML_PARALLEL_INPUT_CHAN_NUM {}\n'.format(in_channels)
                     outline += '#define DOSA_HLS4ML_PARALLEL_OUTPUT_CHAN_NUM {}\n'.format(out_channels)
                     outline += '#define CNN_INPUT_FRAME_SIZE {}\n'.format(in_frame_width)
@@ -280,7 +287,7 @@ class Hls4mlWrapper_Parallel:
                 elif 'DOSA_ADD_from_hls4ml_parallel_stream_param_decl' in line:
                     outline = ''
                     for b in range(0, out_channels):
-                        outline += '  stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> >    &sFromhls4ml_parallelBuffer_chan{b},\n' \
+                        outline += '  stream<ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH> >    &sFromhls4ml_parallelBuffer_chan{b},\n' \
                             .format(b=b)
                 elif 'DOSA_ADD_from_hls4ml_parallel_stream_full_check' in line:
                     outline = '         '
@@ -292,8 +299,8 @@ class Hls4mlWrapper_Parallel:
                     outline = ''
                     for b in range(0, out_channels):
                         outline += (
-                                '        sFromhls4ml_parallelBuffer_chan{b}.write((ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH>) ' +
-                                '(input_data >> {b} * DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH));\n') \
+                                '        sFromhls4ml_parallelBuffer_chan{b}.write((ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH>) ' +
+                                '(input_data >> {b} * DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH));\n') \
                             .format(b=b)
                 elif 'DOSA_ADD_output_stream_param_decl' in line:
                     outline = ''
@@ -351,7 +358,7 @@ class Hls4mlWrapper_Parallel:
                     for b in range(0, in_channels):
                         outline += fsm_tmpl.format(b=b)
                     outline += '\n'
-                    fsm_tmpl = '  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_GENERAL_BITWIDTH> > ' + \
+                    fsm_tmpl = '  static stream<ap_uint<DOSA_HLS4ML_PARALLEL_FROMACCEL_BITWIDTH> > ' + \
                                'sFromhls4ml_parallelBuffer_chan{b} ("sFromhls4ml_parallelBuffer_chan{b}");\n' + \
                                '  #pragma HLS STREAM variable=sFromhls4ml_parallelBuffer_chan{b} depth=cnn_output_frame_size\n'
                     fsm_tmpl += '  static stream<Axis<DOSA_WRAPPER_OUTPUT_IF_BITWIDTH> > ' + \
