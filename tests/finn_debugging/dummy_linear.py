@@ -7,6 +7,7 @@ import brevitas.onnx as bo
 
 from src.data import export_data_as_numpy
 from src.definitions import ROOT_DIR
+from src.onnx import export_DOSA_onnx
 
 
 class DummyLinear(nn.Module):
@@ -24,22 +25,29 @@ class DummyLinear(nn.Module):
         return x
 
 
+# define model
+torch.manual_seed(0)
+model = DummyLinear()
+
+# prepare and save input
 torch.manual_seed(0)
 input = torch.rand((1, 9)) * 2 - 1
 print('input: \n', input, '\n')
-export_data_as_numpy('/home/sop/Documents/deployments/dummy-linear/driver/input.npy', input,
-                     data_transform=lambda x: torch.floor(x * 128))
+export_data_as_numpy('/home/sop/Documents/DNNQuantization/data/DummyLinear_quantized_input.npy', input,
+                     data_transform=lambda x: model.quantidd(x).int())
 
-model = DummyLinear()
+# inference
 model.eval()
 model.fc.cache_inference_quant_bias = True
 print('quant result: \n', model(input), '\n')
 
+# export
 model.cpu()
-bo.export_finn_onnx(model, (1, 9), ROOT_DIR + '/models/DummyLinear.onnx')
+# bo.export_finn_onnx(model, (1, 9), ROOT_DIR + '/models/FINN/DummyLinear.onnx')
+export_DOSA_onnx(model, (1, 9), ROOT_DIR+'/models/DOSA/DummyLinear.onnx')
 
 # check onnx model
-model_check = onnx.load(ROOT_DIR + '/models/DummyLinear.onnx')
+model_check = onnx.load(ROOT_DIR + '/models/FINN/DummyLinear.onnx')
 onnx.checker.check_model(model_check)
 
 # ========== Compare with unquantized inference result ==========

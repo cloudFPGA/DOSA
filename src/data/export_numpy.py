@@ -26,5 +26,7 @@ def export_data_as_npz(path, data_loader, num_batches=None, feature_transform=No
     np.savez(path, features=np_features, labels=np_labels)
 
 
-def export_data_as_numpy(path, data, data_transform=None):
-    np.save(path, data_transform(data).numpy() if data_transform is not None else data.numpy())
+def export_data_as_numpy(path, data, data_transform=None, dtype='int8'):
+    data = data_transform(data).numpy() if data_transform is not None else data.numpy()
+    data = data.astype(dtype)
+    np.save(path, data)
