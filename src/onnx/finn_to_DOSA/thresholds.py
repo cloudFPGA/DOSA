@@ -1,22 +1,19 @@
 import numpy as np
 from onnx import helper as oh
-from qonnx.core.datatype import DataType
 from qonnx.transformation.base import Transformation
 
 
 class RemoveThresModuleInfo(Transformation):
-    """ Remove "module" information of MultiThreshold nodes."""
+    """Remove "module" information of MultiThreshold nodes."""
 
     def apply(self, model):
         graph = model.graph
-        graph_modified = False
         for n in graph.node:
             if n.op_type == "MultiThreshold":
                 # remove "module
                 if n.domain:
                     n.domain = ''
-                    graph_modified = True
-        return model, graph_modified
+        return model, False
 
 
 class ThresMissingOutBiasToZero(Transformation):
@@ -24,16 +21,14 @@ class ThresMissingOutBiasToZero(Transformation):
 
     def apply(self, model):
         graph = model.graph
-        graph_modified = False
         for n in graph.node:
             if n.op_type == "MultiThreshold":
                 # check 'out_bias' exists, if not create one set to zero
                 if 'out_bias' not in [a.name for a in n.attribute]:
                     out_bias = oh.make_attribute('out_bias', 0.0)
                     n.attribute.append(out_bias)
-                    graph_modified = True
 
-        return model, graph_modified
+        return model, False
 
 
 class ConvertThresToAdd(Transformation):
@@ -41,7 +36,6 @@ class ConvertThresToAdd(Transformation):
 
     def apply(self, model):
         graph = model.graph
-        graph_modified = False
         node_ind = 0
         for n in graph.node:
             node_ind += 1
@@ -60,5 +54,4 @@ class ConvertThresToAdd(Transformation):
                 # remove old node, add new node to graph at correct position
                 graph.node.insert(node_ind, add_node)
                 graph.node.remove(n)
-                graph_modified = True
-        return model, graph_modified
+        return model, False
