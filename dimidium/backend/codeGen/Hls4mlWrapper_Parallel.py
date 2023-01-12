@@ -82,39 +82,40 @@ class Hls4mlWrapper_Parallel:
                         outline = '\n'
                 out_file.write(outline)
                 cur_line_nr += 1
+        # calculate parameters
         # 2. wrapper.hpp
+        assert (len(self.in_dims) == 2) or (len(self.in_dims) == 4)
+        assert (len(self.out_dims) == 2) or (len(self.out_dims) == 4)
+        tkeep_general = bit_width_to_tkeep(self.general_bitw)
+        tkeep_width = max(math.ceil(math.log2(tkeep_general)), 1)
+        assert tkeep_general > 0
+        assert tkeep_width > 0
+        assert tkeep_general >= tkeep_width
+        # in_channels = 1
+        # in_frame_width = self.in_dims[1]
+        # if len(self.in_dims) == 4:
+        #     in_channels = self.in_dims[1]
+        #     in_frame_width = self.in_dims[2] * self.in_dims[3]
+        # input needs to be treated differently
+        # in any case
+        in_channels = self.in_dims[1]
+        # in case of 2D
+        in_frame_width = 1
+        if len(self.in_dims) == 4:
+            in_frame_width = self.in_dims[2] * self.in_dims[3]
+        out_channels = 1
+        out_bitw = self.out_dims[1] * self.general_bitw
+        out_frame_width = 1  # since we encode it into bitwidth
+        if len(self.out_dims) == 4:
+            out_channels = self.out_dims[1]
+            out_frame_width = self.out_dims[2] * self.out_dims[3]
+            out_bitw = self.general_bitw  # if we are 4D, we get one bit at a time?
+        tkeep_out = bit_width_to_tkeep(out_bitw)
+        tkeep_out_width = max(math.ceil(math.log2(tkeep_out)), 1)
         with open(os.path.join(self.templ_dir_path, 'src/hls4ml_parallel_wrapper.hpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'src/hls4ml_parallel_wrapper.hpp'), 'w') as out_file:
             skip_line = False
             continue_skip = False
-            assert (len(self.in_dims) == 2) or (len(self.in_dims) == 4)
-            assert (len(self.out_dims) == 2) or (len(self.out_dims) == 4)
-            tkeep_general = bit_width_to_tkeep(self.general_bitw)
-            tkeep_width = max(math.ceil(math.log2(tkeep_general)), 1)
-            assert tkeep_general > 0
-            assert tkeep_width > 0
-            assert tkeep_general >= tkeep_width
-            # in_channels = 1
-            # in_frame_width = self.in_dims[1]
-            # if len(self.in_dims) == 4:
-            #     in_channels = self.in_dims[1]
-            #     in_frame_width = self.in_dims[2] * self.in_dims[3]
-            # input needs to be treated differently
-            # in any case
-            in_channels = self.in_dims[1]
-            # in case of 2D
-            in_frame_width = 1
-            if len(self.in_dims) == 4:
-                in_frame_width = self.in_dims[2] * self.in_dims[3]
-            out_channels = 1
-            out_bitw = self.out_dims[1]
-            out_frame_width = 1  # since we encode it into bitwidth
-            if len(self.out_dims) == 4:
-                out_channels = self.out_dims[1]
-                out_frame_width = self.out_dims[2] * self.out_dims[3]
-                out_bitw = self.general_bitw  # if we are 4D, we get one bit at a time?
-            tkeep_out = bit_width_to_tkeep(out_bitw)
-            tkeep_out_width = max(math.ceil(math.log2(tkeep_out)), 1)
             for line in in_file.readlines():
                 if skip_line:
                     skip_line = False
