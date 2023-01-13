@@ -77,7 +77,7 @@ class Hls4mlOSG(BaseOSG):
         # self.suggested_max_block_length = 1
         self.util_db = {}
         self.avg_util_dict = {}
-        self.pipeline_tensor_store = 1
+        self.pipeline_tensor_store = 8  # TODO
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
