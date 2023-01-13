@@ -33,12 +33,12 @@ test(q_model, test_loader_mnist, seed=0)
 
 # export onnx
 q_model.cpu()
-export_finn_onnx(q_model, (1, 1, 28, 28), ROOT_DIR+'/models/FINN/QTFCInt8ZeroBias.onnx')
+# export_finn_onnx(q_model, (1, 1, 28, 28), ROOT_DIR+'/models/FINN/QTFCInt8ZeroBias.onnx')
 export_DOSA_onnx(q_model, (1, 1, 28, 28), ROOT_DIR+'/models/DOSA/QTFCInt8ZeroBias.onnx')
 
-
 # check onnx model
-model = onnx.load(ROOT_DIR+'/models/FINN/QTFCInt8ZeroBias.onnx')
+# model = onnx.load(ROOT_DIR+'/models/FINN/QTFCInt8ZeroBias.onnx')
+model = onnx.load(ROOT_DIR+'/models/DOSA/QTFCInt8ZeroBias.onnx')
 onnx.checker.check_model(model)
 
 # Export data used to test the model accuracy

@@ -8,6 +8,7 @@ import brevitas.onnx as bo
 
 from src.data import export_data_as_numpy
 from src.definitions import ROOT_DIR
+from src.onnx import export_DOSA_onnx
 
 
 class DummyConvolutional(nn.Module):
@@ -24,23 +25,28 @@ class DummyConvolutional(nn.Module):
         x = self.conv(x)
         return x
 
+# define model
+torch.manual_seed(0)
+model = DummyConvolutional()
 
+# prepare and save input
 torch.manual_seed(0)
 input = torch.rand((1, 1, 4, 4)) * 2 - 1
 print('input: \n', input, '\n')
-export_data_as_numpy('/home/sop/Documents/deployments/dummy-convolutional/driver/input.npy', input,
-                     data_transform=lambda x: torch.floor(x * 128))
-
-model = DummyConvolutional()
+export_data_as_numpy('/home/sop/Documents/DNNQuantization/data/DummyConvolutional_quantized_input.npy', input,
+                     data_transform=lambda x: model.quantidd(x).int())
+# inference
 model.eval()
 model.conv.cache_inference_quant_bias = True
 print('quant result: \n', model(input), '\n')
 
+# export
 model.cpu()
-bo.export_finn_onnx(model, (1, 1, 4, 4), ROOT_DIR + '/models/DummyConvolutional.onnx')
+bo.export_finn_onnx(model, (1, 1, 4, 4), ROOT_DIR + '/models/FINN/DummyConvolutional.onnx')
+export_DOSA_onnx(model, (1, 1, 4, 4), ROOT_DIR + '/models/DOSA/DummyConvolutional.onnx')
 
 # check onnx model
-model_check = onnx.load(ROOT_DIR + '/models/DummyConvolutional.onnx')
+model_check = onnx.load(ROOT_DIR + '/models/FINN/DummyConvolutional.onnx')
 onnx.checker.check_model(model_check)
 
 # ========== Compare with floating point convolution inference ==========

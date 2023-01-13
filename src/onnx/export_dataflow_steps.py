@@ -40,6 +40,8 @@ from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.transformation.lower_convs_to_matmul import LowerConvsToMatMul
 
+from src.onnx.finn_to_DOSA import RemoveFloatPointNodes
+from src.onnx.finn_to_DOSA.thresholds import *
 from src.onnx.streamline import absorb, Streamline
 from src.onnx.streamline.reorder import MakeMaxPoolNHWC
 
@@ -95,5 +97,10 @@ def step_finn_to_DOSA(model: ModelWrapper):
     If such nodes are found the step will run the tidy-up step from QONNX
     and then convert the QONNX model to the FINN-ONNX dialect.
     """
-    # TODO
+    model = model.transform(ThresMissingOutBiasToZero())
+    model = model.transform(RemoveFloatPointNodes())
+    model = model.transform(GiveUniqueNodeNames())
+    model = model.transform(GiveReadableTensorNames())
+    model = model.transform(InferDataTypes())
+
     return model
