@@ -5,7 +5,7 @@ backcall==0.2.0
 bitstring==4.0.1
 -e git+ssh://git@github.ibm.com/Sophie-Du-Couedic/Brevitas.git@e248145d1616e185cbf9a30ee878b50b3625bc43#egg=brevitas
 cachetools==5.2.0
-certifi==2022.6.15
+certifi==2022.12.7
 charset-normalizer==2.1.1
 clize==4.1.1
 cloudpickle==2.2.0
@@ -54,7 +54,7 @@ pexpect==4.8.0
 pickleshare==0.7.5
 Pillow==9.3.0
 prompt-toolkit==3.0.31
-protobuf==3.20.1
+protobuf==3.20.2
 psutil==5.9.2
 ptyprocess==0.7.0
 pure-eval==0.2.2
@@ -74,13 +74,13 @@ six==1.16.0
 stack-data==0.6.0
 sympy==1.11.1
 synr==0.6.0
-tensorboard>=2.10.1
-tensorboard-data-server>=0.6.1
-tensorboard-plugin-wit>=1.8.1
+tensorboard==2.11.0
+tensorboard-data-server==0.6.1
+tensorboard-plugin-wit==1.8.1
 tokenize-rt==5.0.0
 toposort==1.7
-torch==1.7.1
-torchvision==0.8.2
+torch==1.13.1
+torchvision==0.14.1
 tornado==6.2
 traitlets==5.5.0
 typing-extensions==4.3.0
