@@ -19,9 +19,9 @@ fp_model.load_state_dict(torch.load(ROOT_DIR+'/models/ResNet18.pt', map_location
 # ======================= Uncomment one of below lines =======================
 # Full precision: 91.47%
 # brevitas_quant_model = quantized.QResNet18()  # (91.47%)
-# brevitas_quant_model = quantized.QResNet18Int8()  # (90.95%)
-# brevitas_quant_model = quantized.QResNet18Int5()  # (86.38%)
-brevitas_quant_model = quantized.QResNet18Int4()  # (50.86%)
+# brevitas_quant_model = quantized.QResNet18Int8()  # (91.18%)
+# brevitas_quant_model = quantized.QResNet18Int5()  # (86.48%)
+brevitas_quant_model = quantized.QResNet18Int4()  # (53.4%)
 # ============================================================================
 
 # load and calibrate quantized model

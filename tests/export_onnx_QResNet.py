@@ -37,4 +37,5 @@ model = onnx.load(ROOT_DIR+'/models/DOSA/QResNet18Int4.onnx')
 onnx.checker.check_model(model)
 
 # Export data used to test the model accuracy
-export_data_as_npz(ROOT_DIR +'/data/cifar_test_data.npz', test_loader_cifar10, num_batches=None)
+export_data_as_npz(ROOT_DIR + '/data/cifar_test_data.npz', test_loader_cifar10, num_batches=None,
+                   feature_transform=lambda x: q_model.features[0](x).int(), dtype='int8', seed=0)
