@@ -7,6 +7,7 @@ from brevitas.quant_tensor import QuantTensor
 import brevitas.onnx as bo
 
 from src.onnx.export_dataflow_steps import step_tidy_up, step_streamline, step_finn_to_DOSA
+from src.onnx.opset import fix_missing_opsets
 
 
 def intermediate_models_path(export_path, export_intermediate_files):
@@ -44,6 +45,7 @@ def export_step_brevitas(module, model_file_prefix, input_shape, input_t):
     brevitas_model_file = (model_file_prefix if model_file_prefix else '') + '_brevitas.onnx'
     bo.export_finn_onnx(module, input_shape, brevitas_model_file, input_t)
     model = ModelWrapper(brevitas_model_file)
+    model = fix_missing_opsets(model)
     if model_file_prefix is None:
         os.remove(brevitas_model_file)
     return model
@@ -52,6 +54,7 @@ def export_step_brevitas(module, model_file_prefix, input_shape, input_t):
 def export_step_tidy_up(model, model_file_prefix):
     print('step tidy up')
     model = step_tidy_up(model)
+    model = fix_missing_opsets(model)
     if model_file_prefix is not None:
         model.save(model_file_prefix + '_step_tidy_up.onnx')
     return model
@@ -60,6 +63,7 @@ def export_step_tidy_up(model, model_file_prefix):
 def export_step_streamline(model, model_file_prefix):
     print('step streamline')
     model = step_streamline(model)
+    model = fix_missing_opsets(model)
     if model_file_prefix is not None:
         model.save(model_file_prefix + '_step_streamline.onnx')
     return model
@@ -68,6 +72,7 @@ def export_step_streamline(model, model_file_prefix):
 def export_step_finn_to_DOSA(model, export_path):
     print('step finn to DOSA')
     model = step_finn_to_DOSA(model)
+    model = fix_missing_opsets(model)
     if export_path is not None:
         model.save(export_path)
     return model
