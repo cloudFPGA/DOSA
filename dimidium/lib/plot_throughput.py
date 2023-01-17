@@ -98,8 +98,8 @@ def generate_throughput_plt_nodes(arch_draft: ArchDraft, show_deubg=False):
             y_upper_lim = float((nn.used_iter_hz / kiloU) * nn.data_parallelism_level)
         i += 1
 
-    MY_SIZE = 16
-    MY_SIZE_SMALL = 15
+    MY_SIZE = 26
+    MY_SIZE_SMALL = MY_SIZE * 0.6
     MY_WIDTH = 1.6
     # line_style = 'dotted'
     line_style = 'solid'
@@ -136,7 +136,7 @@ def generate_throughput_plt_nodes(arch_draft: ArchDraft, show_deubg=False):
         pn = parallel_factor_dict[e][0]
         ni = parallel_factor_dict[e][2]
         text = 'Node {} has {} parallel nodes\n(with same throughput)'.format(ni, pn)
-        plt.text(x=e, y=y, color=color, s=text, fontsize=MY_SIZE * 0.7, ha='left', va='bottom',
+        plt.text(x=e, y=y, color=color, s=text, fontsize=MY_SIZE_SMALL, ha='left', va='bottom',
                  rotation=90, zorder=z)
 
     z = 10
@@ -150,7 +150,7 @@ def generate_throughput_plt_nodes(arch_draft: ArchDraft, show_deubg=False):
     title = "DOSA Throughput analysis (node-wise) for\n{}\n({})".format(plt_name, target_string)
     # handles, labels = plt.gca().get_legend_handles_labels()
     handles = [ln1, ln2, ln3]
-    legend = plt.legend(handles=handles, ncol=2, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)
+    legend = plt.legend(handles=handles, ncol=2, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE_SMALL, title=title)
     plt.setp(legend.get_title(), multialignment='center')
     # legend = plt.legend(ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)
     # lns = ln1+ln2+ln3
@@ -161,7 +161,7 @@ def generate_throughput_plt_nodes(arch_draft: ArchDraft, show_deubg=False):
     # plt.axes().xaxis.set_major_locator(MaxNLocator(integer=True))
     ax1.set_xticks(xlist)
     ax1.set_xticklabels(id_list)
-    plt.setp(legend.get_title(), fontsize=MY_SIZE * 1.2)
+    plt.setp(legend.get_title(), fontsize=MY_SIZE)
     # plt.title(title, fontsize=MY_SIZE*1.2)
     plt.subplots_adjust(top=0.8)
     # plt.tight_layout()
@@ -207,8 +207,8 @@ def generate_throughput_plt_bricks(arch_draft: ArchDraft, show_deubg=False):
             parallel_factor_dict[i] = (len(bb.parallelized_bricks), predicted_throughput_list[-1], bb.brick_uuid)
         i += 1
 
-    MY_SIZE = 16
-    MY_SIZE_SMALL = 15
+    MY_SIZE = 26
+    MY_SIZE_SMALL = MY_SIZE * 0.6
     MY_WIDTH = 1.6
     # line_style = 'dotted'
     line_style = 'solid'
@@ -223,7 +223,7 @@ def generate_throughput_plt_bricks(arch_draft: ArchDraft, show_deubg=False):
     ax1.set_ylim(y_lower_lim*0.5, y_upper_lim*20)
     ax1.set_yscale('log', base=10)
     color = 'tab:grey'
-    ax1.set_xlabel('computing Operations', fontsize=MY_SIZE)
+    ax1.set_xlabel('computing operations (i.e. layers)', fontsize=MY_SIZE)
     ax1.set_ylabel('throughput in Ksamples/s (logarithmic)', fontsize=MY_SIZE)  # , color=color
     color = 'tab:blue'
     z = 5
@@ -238,7 +238,7 @@ def generate_throughput_plt_bricks(arch_draft: ArchDraft, show_deubg=False):
         pn = parallel_factor_dict[e][0]
         ni = parallel_factor_dict[e][2]
         text = 'operation {} has {} parallel instances\n(with same throughput)'.format(ni, pn)
-        plt.text(x=e, y=y, color=color, s=text, fontsize=MY_SIZE * 0.7, ha='left', va='bottom',
+        plt.text(x=e, y=y, color=color, s=text, fontsize=MY_SIZE_SMALL, ha='left', va='bottom',
                  rotation=90, zorder=z)
 
     z = 10
@@ -252,7 +252,7 @@ def generate_throughput_plt_bricks(arch_draft: ArchDraft, show_deubg=False):
     title = "DOSA Throughput analysis (brick-wise) for\n{}\n({})".format(plt_name, target_string)
     # handles, labels = plt.gca().get_legend_handles_labels()
     handles = [ln1]
-    legend = plt.legend(handles=handles, ncol=2, bbox_to_anchor=(0.5, 1), loc='lower center', fontsize=MY_SIZE, title=title)
+    legend = plt.legend(handles=handles, ncol=2, bbox_to_anchor=(0.5, 1), loc='lower center', fontsize=MY_SIZE_SMALL, title=title)
     plt.setp(legend.get_title(), multialignment='center')
     # legend = plt.legend(ncol=3, bbox_to_anchor=(0, 1), loc='lower left', fontsize=MY_SIZE, title=title)
     # lns = ln1+ln2+ln3
@@ -263,7 +263,7 @@ def generate_throughput_plt_bricks(arch_draft: ArchDraft, show_deubg=False):
     # plt.axes().xaxis.set_major_locator(MaxNLocator(integer=True))
     ax1.set_xticks(xlist)
     ax1.set_xticklabels(id_list)
-    plt.setp(legend.get_title(), fontsize=MY_SIZE * 1.2)
+    plt.setp(legend.get_title(), fontsize=MY_SIZE)
     # plt.title(title, fontsize=MY_SIZE*1.2)
     plt.subplots_adjust(top=0.8)
     # plt.tight_layout()

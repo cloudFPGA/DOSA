@@ -279,8 +279,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     utt_list = np.concatenate(([0], turn_to_log_np(np.arange(1, 100, 1))))
     # plots
     # fig, ax1 = plt.subplots()
-    MY_SIZE = 16
-    MY_SIZE_SMALL = 15
+    MY_SIZE = 26
+    MY_SIZE_SMALL = MY_SIZE * 0.6
     MY_WIDTH = 1.6
     # line_style = 'dotted'
     line_style = 'solid'
@@ -524,9 +524,9 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     ax.set_zlim3d(zticks[0], zticks[-1])
     ax.set_ylim3d(utt_list[0], utt_list[-1])
 
-    ax.set_xlabel('operational intensity (OI) [FLOPS/Byte]', fontsize=MY_SIZE)
-    ax.set_zlabel('attainable performance [GFLOPS/s]', fontsize=MY_SIZE)
-    ax.set_ylabel('utilization [%] \n (mem (bottom) -> comp (top))', fontsize=MY_SIZE)
+    ax.set_xlabel('operational intensity (OI)\n[FLOPS/Byte]', fontsize=MY_SIZE)
+    ax.set_zlabel('attainable performance\n[GFLOPS/s]', fontsize=MY_SIZE)
+    ax.set_ylabel('utilization [%]\n(memory (bottom) ->\ncompute (top))', fontsize=MY_SIZE)
 
     handles, labels = plt.gca().get_legend_handles_labels()
     handles.append(marker1_legend)
