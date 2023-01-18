@@ -91,6 +91,7 @@ def parse_uc_dict(path, dosa_devices):
             print("ERROR: Batch sizes in constraint file contradict each other ({} != {}). Stop."
                   .format(used_batch, inp_v[0]))
             exit(1)
+            # print("...trying to continue...")
         for i in range(1, total_d):  # exclude batch size
             d = inp_v[i]
             sample_size_bit *= d
@@ -124,10 +125,13 @@ def parse_uc_dict(path, dosa_devices):
             exit(1)
         if 'fixed_point_fraction_bits' in parsed_constraints['overwrite_dtypes']:
             parsed_constraints['overwrite_fixed_point_dtypes'] = True
+            print("[DOSA:ConstraintParsing:WARNING] [NOT YET IMPLEMENTED] Custom fixed point fractional bits will be "
+                  "ignored, due to unclear encoding.")
         else:
             parsed_constraints['overwrite_fixed_point_dtypes'] = False
         if 'accum_bits_factor' in parsed_constraints['overwrite_dtypes']:
             parsed_constraints['use_extra_accum_dtype'] = True
+            # print("[DOSA:ConstraintParsing:WARNING] Accumulator factor is set to 2, because larger is not recommended.")
         else:
             parsed_constraints['use_extra_accum_dtype'] = False
         if weights_dtype != data_dtype:

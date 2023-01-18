@@ -63,6 +63,7 @@ class CorrectionPipeline:
                 # return relay.Call(new_fn, new_args, call.attrs, call.type_args, call.span)
                 new_types = []
                 for ta in call.type_args:
+                #    if hasattr(ta, 'shape'):
                     nt = TensorType(ta.shape, dtype=obj.var_type)
                     new_types.append(nt)
                 if hasattr(call.attrs, 'out_dtype') and len(call.attrs.out_dtype) > 0:

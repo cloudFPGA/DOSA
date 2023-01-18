@@ -453,8 +453,11 @@ class Hls4mlOSG(BaseOSG):
             if not dosa_singleton.uc['overwrite_fixed_point_dtypes']:
                 precision_string = 'ap_uint<{}>'.format(cur_w)
             else:
-                fractional_bits = dosa_singleton.uc['overwrite_dtypes']['fixed_point_fraction_bits']
-                int_bits = cur_w - fractional_bits
+                # fractional_bits = dosa_singleton.uc['overwrite_dtypes']['fixed_point_fraction_bits']
+                # int_bits = cur_w - fractional_bits
+                print("[DOSA:OSG:WARNING] Ignoring custom_fixed_point settings, will treat all inputs and weights as "
+                      "integer within [-1;+1].")
+                fractional_bits = 0
                 # according to xlinix documentation
                 #  https://docs.xilinx.com/r/en-US/ug1399-vitis-hls/Overview-of-Arbitrary-Precision-Fixed-Point-Data-Types
                 #  https://github.com/Xilinx/HLS_arbitrary_Precision_Types/blob/200a9aecaadf471592558540dc5a88256cbf880f/include/ap_fixed_base.h#L809
@@ -462,10 +465,13 @@ class Hls4mlOSG(BaseOSG):
                 # so no extra subtraction
                 # if DosaDtype_is_signed(used_dtype):
                 #     int_bits -= 1
-                precision_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w, int_bits)
+                # precision_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w, int_bits)
+                # with explanations in http://homes.di.unimi.it/~pedersini/AD/SystemC_v201_LRM.pdf, we better use
+                # AP_TRN and AP_SAT_SYM
+                precision_string = 'ap_fixed<{},{}, AP_TRN, AP_SAT_SYM>'.format(cur_w, int_bits)
             if dosa_singleton.uc['use_extra_accum_dtype']:
                 accum_factor = dosa_singleton.uc['overwrite_dtypes']['accum_bits_factor']
-                accum_string = 'ap_fixed<{},{}, AP_RND_CONV, AP_SAT_SYM>'.format(cur_w * accum_factor,
+                accum_string = 'ap_fixed<{},{}, AP_TRN, AP_SAT_SYM>'.format(cur_w * accum_factor,
                                                                                  int_bits * accum_factor)
             else:
                 accum_string = precision_string
