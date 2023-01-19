@@ -16,6 +16,7 @@ import time
 import json
 import requests
 import subprocess
+import random
 
 # from cFSPlib import cFSP
 
@@ -69,6 +70,21 @@ def get_cluster_data(cluster_id, user_dict):
 
     cluster_data = json.loads(r1.text)
     return cluster_data
+
+
+def get_action_data(action_name, user_dict):
+
+    print("Requesting action data...")
+
+    r1 = requests.get("http://"+__cf_manager_url__+"/actions/"+str(action_name)+"?username={0}&password={1}"
+                      .format(user_dict['user'], user_dict['pw']))
+
+    if r1.status_code != 200:
+        # something went horrible wrong
+        return errorReqExit("GET action", r1.status_code)
+
+    action_data = json.loads(r1.text)
+    return action_data
 
 
 def restart_app(cluster_id, user_dict):
@@ -159,6 +175,22 @@ class DosaRoot:
         self.pipeline_full_batch_size = self.c_lib.get_pipeline_full_batch_size()
         # print("cluster properties: {} {} {} {}".format(self.pipeline_store_depth, self.minimum_input_batch_size,
         #                                             self.minimum_output_batch_size, self.pipeline_full_batch_size))
+
+    def init_from_action(self, action_name, host_address, json_file='./user.json', debug=False):
+        _, user_dict = load_user_credentials(json_file)
+        self.user_dict = user_dict
+        action = get_action_data(action_name, user_dict)
+        # print(action)
+        if len(action['deployed_cluster_ids']) == 0:
+            print("ERROR: Requested action is not defined.\nFAILED DEPENDENCY. STOP.")
+            exit(1)
+        cluster_id = action['deployed_cluster_ids'][0]
+        if len(action['deployed_cluster_ids']) > 1:
+            cluster_id = action['deployed_cluster_ids'][random.randint(0, len(action['deployed_cluster_ids']) - 1)]
+            print(f"INFO: Multimple clusters for the action {action_name} available, selected {cluster_id} at random.")
+        else:
+            print(f"INFO: Action {action_name} is deployed with cluster {cluster_id}.")
+        return self.init_from_cluster(cluster_id, host_address, json_file=json_file, debug=debug)
 
     def init_from_cluster(self, cluster_id, host_address, json_file='./user.json', debug=False):
         _, user_dict = load_user_credentials(json_file)
