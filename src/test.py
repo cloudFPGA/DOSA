@@ -25,7 +25,7 @@ def calibrate(model, test_loader, num_steps=1, seed=None):
         count += 1
 
 
-def test(model, test_loader, seed=None):
+def test(model, test_loader, seed=None, verbose=True):
     # switch to evaluate mode
     model.eval()
 
@@ -48,8 +48,9 @@ def test(model, test_loader, seed=None):
             correct += (predicted == labels).sum().item()
             del features, labels, outputs
 
-    print('Accuracy of the network on the {} test data: {} %'.format(total,
-                                                                       None if total == 0 else 100 * correct / total),
-          flush=True)
+    if verbose:
+        print('Accuracy of the network on the {} test data: {} %'.format(total,
+                                                                         None if total == 0 else 100 * correct / total),
+              flush=True)
 
     return None if total == 0 else 100 * correct / total

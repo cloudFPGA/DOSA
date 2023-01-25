@@ -1,7 +1,6 @@
 import copy
 import os
 import sys
-import time
 import torch
 import argparse
 import torch.quantization
@@ -10,18 +9,20 @@ src_path = os.path.abspath('../../../')
 sys.path.insert(0, src_path)
 
 import src
-from src import test, calibrate
+from src import calibrate
 from src.definitions import ROOT_DIR
 from src.models.full_precision import TFC
-from src.utils.monitoring import empty_run, get_model_size
+from src.utils.monitoring import write_model_stats, run_model
 
 
 def prepare_fp_model_and_dataloader():
     # Prepare MNIST dataset
     test_loader_mnist = src.data_loader(data_dir=ROOT_DIR + '/data', dataset='MNIST', batch_size=100, test=True, seed=0)
 
+    # Prepare model
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = TFC(64, 64, 64)
-    model.load_state_dict(torch.load(ROOT_DIR + '/models/TFC.pt', map_location=torch.device('cpu')))
+    model.load_state_dict(torch.load(ROOT_DIR + '/models/TFC.pt', map_location=device))
     model.eval()
     return model, test_loader_mnist
 
@@ -29,7 +30,7 @@ def prepare_fp_model_and_dataloader():
 def prepare_int8_static_qmodel(fp_model, dataloader):
     from torch.quantization.qconfig import QConfig
     from torch.quantization.observer import MinMaxObserver
-    from torch_static_quant import StaticQuantModel
+    from torch_quant import StaticQuantModel
 
     internal_model = copy.deepcopy(fp_model)
     internal_model = torch.quantization.fuse_modules(
@@ -58,40 +59,22 @@ def prepare_int8_dynamic_qmodel(fp_model):
     )
 
 
-def measure_model(model, dataloader, file, model_description):
-    file.write('\n{}:\n'.format(model_description))
-    file.write('size (KB): {}\n'.format(get_model_size(model)))
-    accuracy = test(model, dataloader, seed=0, verbose=False)
-    file.write('accuracy: {} %\n'.format(accuracy))
-    file.flush()
-
-
-def run_model(model, dataloader, sleep_time, run_time, file, model_description):
-    file.write('sleep: {}\n'.format(time.time()))
-    file.flush()
-    time.sleep(sleep_time)
-
-    file.write('\nrunning {}:\n'.format(model_description))
-    file.write('start: {}\n'.format(time.time()))
-    file.flush()
-    empty_run(model, dataloader, run_time)
-    file.write('end: {}\n'.format(time.time()))
-    file.flush()
-
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Monitor TFC model running."
+        description="Monitor TFC models. This script is supposed to be launched in parallel to a gpu or cpu system "
+                    "management tool, to measure hardware power consumption while the script is running (eg. "
+                    "nvidia-smi)."
     )
     parser.add_argument(
         "--log_file", help="file path of the running logs.", type=str, required=True
     )
     parser.add_argument(
-        "--sleep_interval", help="sleep interval in seconds before two inference sessions", type=int, default=30
+        "--sleep_interval", help="sleep interval in seconds before two inference sessions", type=int, default=300
     )
     parser.add_argument(
-        "--running_interval", help="target running time in seconds", type=int, default=30
+        "--running_interval", help="target running time in seconds", type=int, default=300
     )
+
     # parse arguments
     args = parser.parse_args()
     log_file = args.log_file
@@ -108,9 +91,9 @@ def main():
     q_static_model = prepare_int8_static_qmodel(fp_model, dataloader)
 
     # (size, accuracy) of models
-    measure_model(fp_model, dataloader, f, 'full precision model')
-    measure_model(q_dyn_model, dataloader, f, 'dynamic int8 model')
-    measure_model(q_static_model, dataloader, f, 'static int8 model')
+    write_model_stats(fp_model, dataloader, f, 'full precision model')
+    write_model_stats(q_dyn_model, dataloader, f, 'dynamic int8 model')
+    write_model_stats(q_static_model, dataloader, f, 'static int8 model')
 
     # running the models
     f.write('\n')
