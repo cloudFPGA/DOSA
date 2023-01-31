@@ -1,0 +1,73 @@
+====== TFC ======
+
+Models size (KB):
+  -full precision model: 245269
+  -dynamic int8 model: 70949
+  -static int8 model: 65523
+
+Accuracy:
+  -full precision model: 98.12
+  -dynamic int8 model: 98.11
+  -static int8 model: 98.16
+
+Runtime:
+  -full precision model:
+    bs 1:       min: 0.132    max: 0.311    median: 0.135   (ms)
+    bs 100:     min: 0.345    max: 0.986    median: 0.359   (ms)
+    bs 1000:    min: 1.101    max: 10.766   median: 1.150   (ms)
+    bs 10000:   min: 8.153    max: 17.699   median: 8.820   (ms)
+
+  -dynamic int8 model:
+    bs 1:       min: 0.269    max: 6.378    median: 0.281   (ms)
+    bs 100:     min: 0.358    max: 0.779    median: 0.376   (ms)
+    bs 1000:    min: 0.880    max: 1.584    median: 0.933   (ms)
+    bs 10000:   min: 7.117    max: 100.365  median: 7.867   (ms)
+
+  -static int8 model:
+    bs 1:       min: 0.228    max: 0.821    median: 0.245   (ms)
+    bs 100:     min: 0.275    max: 0.421    median: 0.289   (ms)
+    bs 1000:    min: 0.554    max: 0.931    median: 0.568   (ms)
+    bs 10000:   min: 2.540    max: 4.565    median: 2.741   (ms)
+
+Empty-run (sleep 4 secs, run 4 secs):
+  -full precision model:
+    bs 1:       17:30:11      sleep
+    bs 1:       17:30:15      start run
+    bs 1:       17:30:19      end run
+    bs 100:     17:30:19      sleep
+    bs 100:     17:30:23      start run
+    bs 100:     17:30:27      end run
+    bs 1000:    17:30:27      sleep
+    bs 1000:    17:30:31      start run
+    bs 1000:    17:30:35      end run
+    bs 10000:   17:30:35      sleep
+    bs 10000:   17:30:39      start run
+    bs 10000:   17:30:43      end run
+
+  -dynamic int8 model:
+    bs 1:       17:30:43      sleep
+    bs 1:       17:30:47      start run
+    bs 1:       17:30:54      end run
+    bs 100:     17:30:54      sleep
+    bs 100:     17:30:58      start run
+    bs 100:     17:31:02      end run
+    bs 1000:    17:31:02      sleep
+    bs 1000:    17:31:06      start run
+    bs 1000:    17:31:10      end run
+    bs 10000:   17:31:10      sleep
+    bs 10000:   17:31:14      start run
+    bs 10000:   17:31:18      end run
+
+  -static int8 model:
+    bs 1:       17:31:18      sleep
+    bs 1:       17:31:22      start run
+    bs 1:       17:31:28      end run
+    bs 100:     17:31:28      sleep
+    bs 100:     17:31:32      start run
+    bs 100:     17:31:36      end run
+    bs 1000:    17:31:36      sleep
+    bs 1000:    17:31:40      start run
+    bs 1000:    17:31:44      end run
+    bs 10000:   17:31:44      sleep
+    bs 10000:   17:31:48      start run
+    bs 10000:   17:31:52      end run
