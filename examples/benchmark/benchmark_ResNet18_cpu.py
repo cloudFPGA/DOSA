@@ -22,20 +22,23 @@ class TorchQuantResidualBlock(ResidualBlock):
         return out
 
 
-def prepare_fp_model_and_dataloader():
+def prepare_test_data():
+    return src.data_loader(data_dir=ROOT_DIR + '/data', dataset='CIFAR10', batch_size=100, test=True, seed=0)
+
+
+def prepare_fp_model_and_train_data():
     # Prepare CIFAR10 dataset
-    test_loader_cifar = src.data_loader(data_dir=ROOT_DIR + '/data', dataset='CIFAR10', batch_size=128, test=True,
-                                        seed=0)
+    train_loader, _ = src.data_loader(data_dir=ROOT_DIR + '/data', dataset='CIFAR10', batch_size=100, test=False,
+                                      seed=0)
 
     # Prepare model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = ResNet(TorchQuantResidualBlock, [2, 2, 2, 2])
-    model.load_state_dict(torch.load(ROOT_DIR + '/models/ResNet18.pt', map_location=device))
+    model.load_state_dict(torch.load(ROOT_DIR + '/models/ResNet18.pt', map_location='cpu'))
     model.eval()
-    return model, test_loader_cifar
+    return model, train_loader
 
 
-def prepare_static_qmodel(fp_model, dataloader):
+def prepare_static_qmodel(fp_model, train_data):
     modules_to_fuse = [['conv1.0', 'conv1.1', 'conv1.2'],
                        # layer 0
                        ['layer0.0.conv1.0', 'layer0.0.conv1.1', 'layer0.0.conv1.2'],
@@ -60,7 +63,7 @@ def prepare_static_qmodel(fp_model, dataloader):
                        ['layer3.0.downsample.0', 'layer3.0.downsample.1'],
                        ['layer3.1.conv1.0', 'layer3.1.conv1.1', 'layer3.1.conv1.2'],
                        ['layer3.1.conv2.0', 'layer3.1.conv2.1']]
-    return prepare_int8_static_qmodel(fp_model, dataloader, modules_to_fuse)
+    return prepare_int8_static_qmodel(fp_model, train_data, modules_to_fuse)
 
 
 def prepare_dynamic_qmodel(fp_model):
@@ -75,9 +78,9 @@ def main():
     logger = BenchmarkLogger('ResNet18', log_file)
 
     # prepare models
-    fp_model, dataloader = prepare_fp_model_and_dataloader()
+    fp_model, train_data = prepare_fp_model_and_train_data()
     q_dyn_model = prepare_dynamic_qmodel(fp_model)
-    q_static_model = prepare_static_qmodel(fp_model, dataloader)
+    q_static_model = prepare_static_qmodel(fp_model, train_data)
     models = {
         'full precision model': fp_model,
         'dynamic int8 model': q_dyn_model,
@@ -93,7 +96,8 @@ def main():
 
     # Accuracy
     logger.write_section_accuracy()
-    run.compute_models_accuracy(models, dataloader, logger)
+    test_data = prepare_test_data()
+    run.compute_models_accuracy(models, test_data, logger)
 
     # Runtimes
     logger.write_section_runtime()

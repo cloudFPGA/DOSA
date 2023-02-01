@@ -11,7 +11,7 @@ import pycuda.driver as cuda
 import pycuda.autoinit
 
 
-src_path = os.path.abspath('../../../')
+src_path = os.path.abspath('../../')
 sys.path.insert(0, src_path)
 
 import src

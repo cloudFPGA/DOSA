@@ -10,21 +10,25 @@ from src.models.full_precision import TFC
 from cpu import prepare_int8_dynamic_qmodel, prepare_int8_static_qmodel
 
 
-def prepare_fp_model_and_dataloader():
+def prepare_test_data():
+    return src.data_loader(data_dir=ROOT_DIR + '/data', dataset='MNIST', batch_size=100, test=True, seed=0)
+
+
+def prepare_fp_model_and_train_data():
     # Prepare MNIST dataset
-    test_loader_mnist = src.data_loader(data_dir=ROOT_DIR + '/data', dataset='MNIST', batch_size=100, test=True, seed=0)
+    train_loader, _ = src.data_loader(data_dir=ROOT_DIR + '/data', dataset='MNIST', batch_size=100, test=False, seed=0)
 
     # Prepare model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = TFC(64, 64, 64)
     model.load_state_dict(torch.load(ROOT_DIR + '/models/TFC.pt', map_location=device))
     model.eval()
-    return model, test_loader_mnist
+    return model, train_loader
 
 
-def prepare_static_qmodel(fp_model, dataloader):
+def prepare_static_qmodel(fp_model, train_data):
     modules_to_fuse = [['1', '2'], ['5', '6'], ['9', '10']]
-    return prepare_int8_static_qmodel(fp_model, dataloader, modules_to_fuse)
+    return prepare_int8_static_qmodel(fp_model, train_data, modules_to_fuse)
 
 
 def prepare_dynamic_qmodel(fp_model):
@@ -36,9 +40,9 @@ def main():
     logger = BenchmarkLogger('TFC', log_file)
 
     # prepare models
-    fp_model, dataloader = prepare_fp_model_and_dataloader()
+    fp_model, train_data = prepare_fp_model_and_train_data()
     q_dyn_model = prepare_dynamic_qmodel(fp_model)
-    q_static_model = prepare_static_qmodel(fp_model, dataloader)
+    q_static_model = prepare_static_qmodel(fp_model, train_data)
     models = {
         'full precision model': fp_model,
         'dynamic int8 model': q_dyn_model,
@@ -54,7 +58,8 @@ def main():
 
     # Accuracy
     logger.write_section_accuracy()
-    run.compute_models_accuracy(models, dataloader, logger)
+    test_data = prepare_test_data()
+    run.compute_models_accuracy(models, test_data, logger)
 
     # Runtimes
     logger.write_section_runtime()
