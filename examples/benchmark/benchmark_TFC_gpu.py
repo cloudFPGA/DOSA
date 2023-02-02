@@ -79,7 +79,7 @@ def prepare_q_model(fp_model, train_data):
     renamed_state_dict = {a: fp_state_dict[b] for a, b in zip(q_state_dict, fp_state_dict)}
 
     q_model.load_state_dict(renamed_state_dict)
-    calibrate_model(q_model, train_data)
+    # calibrate_model(q_model, train_data) TODO
     return q_model
 
 
@@ -95,7 +95,7 @@ def main():
     batch_sizes = [1, 100, 1000, 10000]
     fp_model_description = 'full precision model'
     q_model_description = 'int8 quantized model'
-    models = run.prepare_engines_and_contexts('TFC', fp_model, q_model, batch_sizes, (1, 28, 28),
+    models = run.prepare_engines_and_contexts('TFC', fp_model, q_model, batch_sizes, (1, 28, 28), train_data,
                                               fp_model_description, q_model_description)
 
     # Accuracy

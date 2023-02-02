@@ -62,7 +62,7 @@ def main():
     batch_sizes = [1, 10, 100, 1000]
     fp_model_description = 'full precision model'
     q_model_description = 'int8 quantized model'
-    models = run.prepare_engines_and_contexts('ResNet18', fp_model, q_model, batch_sizes, (3, 32, 32),
+    models = run.prepare_engines_and_contexts('ResNet18', fp_model, q_model, batch_sizes, (3, 32, 32), train_data,
                                               fp_model_description, q_model_description)
     # Accuracy
     logger.write_section_accuracy()

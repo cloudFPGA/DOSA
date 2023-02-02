@@ -85,9 +85,11 @@ def free_buffers(inputs, outpus):
         device_mem.free()
 
 
-def prepare_model_engines_and_contexts(model_name, model, batch_sizes, input_shape, use_int8):
+def prepare_model_engines_and_contexts(model_name, model, batch_sizes, input_shape, **kwargs):
     model.to('cuda')
+
     onnx_file_path_prefix = 'gpu/onnx_models/' + model_name + '_bs'
+
     engines_contexts = []
     for bs in batch_sizes:
         # export onnx
@@ -96,7 +98,7 @@ def prepare_model_engines_and_contexts(model_name, model, batch_sizes, input_sha
         export_onnx(model, onnx_file_path, shape)
 
         # build engine from onnx file
-        engine, context = build_engine(onnx_file_path, use_int8)
+        engine, context = build_engine(onnx_file_path, **kwargs)
         # context.set_binding_shape(engine.get_binding_index('input'), shape)  TODO remove?
 
         # append engine
@@ -105,14 +107,20 @@ def prepare_model_engines_and_contexts(model_name, model, batch_sizes, input_sha
     return engines_contexts
 
 
-def prepare_engines_and_contexts(model_name, fp_model, q_model, batch_sizes, input_shape, fp_description,
-                                 q_description):
+def prepare_engines_and_contexts(model_name, fp_model, q_model, batch_sizes, input_shape, train_data,
+                                 fp_description, q_description):
     fp_model_name = model_name + '_full_precision'
     q_model_name = model_name + '_int8'
 
+    calib_file = 'gpu/calib_data/' + model_name + '.txt'
+
     models = {
-        fp_description: prepare_model_engines_and_contexts(fp_model_name, fp_model, batch_sizes, input_shape, False),
-        q_description: prepare_model_engines_and_contexts(q_model_name, q_model, batch_sizes, input_shape, True)
+        # fp_description: prepare_model_engines_and_contexts(fp_model_name, fp_model, batch_sizes, input_shape,
+        #                                                    use_int8=False),  TODO
+
+        q_description: prepare_model_engines_and_contexts(q_model_name, q_model, batch_sizes, input_shape,
+                                                          use_int8=True, dataloader=train_data,
+                                                          calib_cache_file=calib_file)
     }
     return models
 
@@ -121,7 +129,7 @@ def compute_models_accuracy(models, test_data, logger, seed=0):
     for description, engines_contexts in models.items():
 
         # find engine with batch size corresponding to target batch_size
-        target_batch_size = next(iter(test_data))[0].shape[0]
+        target_batch_size = test_data.batch_size
         packed_engine = find_engine_target_batch_size(engines_contexts, target_batch_size)
         assert packed_engine is not None, f"ERROR, no engine match the test data batch size of {target_batch_size}."
 
