@@ -15,6 +15,13 @@ def export_onnx(model, onnx_file_path, input_shape):
     )
 
 
+def find_engine_target_batch_size(engines_contexts, target_batch_size):
+    for engine, context, input_shape in engines_contexts:
+        if input_shape[0] == target_batch_size:
+            return engine, context, input_shape
+    return None
+
+
 def run(context, inputs, outputs, bindings, stream, run_interval=None):
     for host, device in inputs:
         cuda.memcpy_htod_async(device, host, stream)
@@ -110,15 +117,43 @@ def prepare_engines_and_contexts(model_name, fp_model, q_model, batch_sizes, inp
     return models
 
 
-def compute_models_accuracy(models, test_data, logger):
+def compute_models_accuracy(models, test_data, logger, seed=0):
     for description, engines_contexts in models.items():
-        accuracy = 100  # TODO
+
+        # find engine with batch size corresponding to target batch_size
+        target_batch_size = next(iter(test_data))[0].shape[0]
+        packed_engine = find_engine_target_batch_size(engines_contexts, target_batch_size)
+        assert packed_engine is not None, f"ERROR, no engine match the test data batch size of {target_batch_size}."
+
+        # allocate cuda memory
+        engine, context, input_shape = packed_engine
+        inputs, outputs, bindings, stream, input_dtype = allocate_buffers(engine, alloc_batch_size=1)
+
+        # do inference
+        correct = 0
+        total = 0
+        torch.manual_seed(seed)
+        for features, labels in test_data:
+            features = features.numpy()
+            labels = labels.numpy()
+            np.copyto(inputs[0][0], features.ravel())
+            run(context, inputs, outputs, bindings, stream)
+            output = outputs[0][0].reshape(target_batch_size, -1)
+            predicted = np.argmax(output, axis=1)
+            total += labels.shape[0]
+            correct += (predicted == labels).sum()
+
+        # free cuda memory
+        free_buffers(inputs, outputs)
+
+        # write accuracy
+        accuracy = 100 * correct / total
         logger.write_model_accuracy(description, accuracy)
 
 
 def compute_models_runtime(models, batch_sizes, logger, nb_executions=20):
     for description, engines_contexts in models.items():
-        print('-------> DESCRIPTION     ', description ,' <----------------')
+        print('-------> DESCRIPTION     ', description,' <----------------')
 
         runtimes = []
         for (engine, context, input_shape), bs in zip(engines_contexts, batch_sizes):
