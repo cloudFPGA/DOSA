@@ -610,7 +610,7 @@ class MoveScalarLinearPastInvariants(Transformation):
                     continue
                 # find and check producer on our input
                 prod0 = model.find_producer(in0)
-                if prod0 is None:
+                if prod0 is None or model.is_fork_node(prod0) or model.is_join_node(prod0):
                     continue
 
                 if prod0.op_type in ["Mul", "Add", "Div"]:

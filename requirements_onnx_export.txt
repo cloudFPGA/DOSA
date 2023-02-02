@@ -3,9 +3,9 @@ asttokens==2.1.0
 attrs==19.3.0
 backcall==0.2.0
 bitstring==4.0.1
--e git+ssh://git@github.ibm.com/Sophie-Du-Couedic/Brevitas.git@e248145d1616e185cbf9a30ee878b50b3625bc43#egg=brevitas
+-e git+ssh://git@github.ibm.com/Sophie-Du-Couedic/Brevitas.git@7eb9f6884f5cf9dc15d672d7d98d7fca02c102c3#egg=brevitas
 cachetools==5.2.0
-certifi==2022.12.7
+certifi==2022.6.15
 charset-normalizer==2.1.1
 clize==4.1.1
 cloudpickle==2.2.0
@@ -29,8 +29,8 @@ importlib-metadata==5.1.0
 ipykernel==6.17.0
 ipython==8.6.0
 jedi==0.18.1
-jupyter-client==7.4.4
-jupyter-core==4.11.2
+jupyter_client==7.4.4
+jupyter_core==4.11.2
 kiwisolver==1.4.4
 Markdown==3.4.1
 MarkupSafe==2.1.1
@@ -54,7 +54,7 @@ pexpect==4.8.0
 pickleshare==0.7.5
 Pillow==9.3.0
 prompt-toolkit==3.0.31
-protobuf==3.20.2
+protobuf==3.20.1
 psutil==5.9.2
 ptyprocess==0.7.0
 pure-eval==0.2.2
@@ -79,11 +79,11 @@ tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.8.1
 tokenize-rt==5.0.0
 toposort==1.7
-torch==1.13.1
-torchvision==0.14.1
+torch==1.7.1
+torchvision==0.8.2
 tornado==6.2
 traitlets==5.5.0
-typing-extensions==4.3.0
+typing_extensions==4.3.0
 urllib3==1.26.12
 wcwidth==0.2.5
 Werkzeug==2.2.2

@@ -45,17 +45,17 @@ def compute_models_runtime(models, input_shape, batch_sizes, logger, nb_executio
             model.to('cpu')
 
             # run
-            runtime = []
+            bs_runtimes = []
             for _ in range(nb_executions):
                 with torch.no_grad():
                     start = time.time()
                     model(input_data)
                     end = time.time()
-                    runtime.append((end - start) * 1000)
-            runtime = np.asarray(runtime)
-            min = np.min(runtime)
-            max = np.max(runtime)
-            median = np.median(runtime)
+                    bs_runtimes.append((end - start) * 1000)
+            bs_runtimes = np.asarray(bs_runtimes)
+            min = np.min(bs_runtimes)
+            max = np.max(bs_runtimes)
+            median = np.median(bs_runtimes)
             runtimes.append((bs, [min, max, median]))
 
         logger.write_model_runtimes(description, runtimes)
@@ -65,6 +65,7 @@ def empty_run_models(models, input_shape, batch_sizes, logger, sleep_interval, r
     for description, model in models.items():
         logger.write_model_empty_run(description)
         for bs in batch_sizes:
+            # prepare empty run
             shape = (batch_sizes[-1],) + input_shape
             input_data = torch.randn(shape).to('cpu')
             model.eval()

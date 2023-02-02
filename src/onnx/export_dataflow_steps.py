@@ -26,24 +26,26 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import copy
 from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.transformation.bipolar_to_xnor import ConvertBipolarMatMulToXnorPopcount
+from qonnx.transformation.double_to_single_float import DoubleToSingleFloat
 from qonnx.transformation.fold_constants import FoldConstants
 from qonnx.transformation.general import (
     GiveReadableTensorNames,
     GiveUniqueNodeNames,
     RemoveStaticGraphInputs,
-    RemoveUnusedTensors,
+    RemoveUnusedTensors, SortGraph,
 )
 from qonnx.transformation.infer_data_layouts import InferDataLayouts
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.infer_shapes import InferShapes
-from qonnx.transformation.lower_convs_to_matmul import LowerConvsToMatMul
+from qonnx.transformation.remove import RemoveIdentityOps
 
 from src.onnx.finn_to_DOSA import RemoveFloatPointNodes
 from src.onnx.finn_to_DOSA.thresholds import *
-from src.onnx.streamline import absorb, Streamline
-from src.onnx.streamline.reorder import MakeMaxPoolNHWC
+from src.onnx.streamline import Streamline
+from src.onnx.streamline import *
 
 
 def step_tidy_up(model: ModelWrapper):
@@ -61,29 +63,89 @@ def step_tidy_up(model: ModelWrapper):
     return model
 
 
-def step_streamline(model: ModelWrapper):
-    """Run streamlining on given model. Streamlining involves moving floating point
-    scale/shift parameters around, collapsing adjacent ones into a single parameter,
-    then absorbing the scale/shift into the following `MultiThreshold` node.
-    Streamlining requires careful topology design and cannot be applied to all
-    topologies.
-    """
+# def step_streamline(model: ModelWrapper, clean_step=True):
+#     """Run streamlining on given model. Streamlining involves moving floating point
+#     scale/shift parameters around, collapsing adjacent ones into a single parameter,
+#     then absorbing the scale/shift into the following `MultiThreshold` node.
+#     Streamlining requires careful topology design and cannot be applied to all
+#     topologies.
+#     """
+#     model_prev = None
+#
+#     # do it as long as there are changes
+#     while model.model != model_prev:
+#         model_prev = copy.deepcopy(model.model)
+#         model = model.transform(Streamline(clean_step))
+#
+#         # big loop tidy up
+#         model = model.transform(RemoveIdentityOps())
+#         model = model.transform(RemoveUnusedTensors())
+#         model = model.transform(GiveReadableTensorNames())
+#         model = model.transform(InferDataTypes())
+#         model = model.transform(InferDataLayouts())
+#         model = model.transform(SortGraph())
+#
+#     model = model.transform(DoubleToSingleFloat())
+#
+#     return model
 
-    model = model.transform(absorb.AbsorbSignBiasIntoMultiThreshold())
-    model = model.transform(Streamline())
-    need_lowering = len(model.get_nodes_by_op_type("Conv")) > 0
-    if need_lowering:
-        model = model.transform(LowerConvsToMatMul())
-        model = model.transform(MakeMaxPoolNHWC())
-        model = model.transform(absorb.AbsorbTransposeIntoMultiThreshold())
-        model = model.transform(MakeMaxPoolNHWC())
-        model = model.transform(absorb.AbsorbConsecutiveTransposes())
-    model = model.transform(ConvertBipolarMatMulToXnorPopcount())
-    model = model.transform(Streamline())
-    # absorb final add-mul nodes into TopK
-    model = model.transform(absorb.AbsorbScalarMulAddIntoTopK())
-    model = model.transform(InferDataLayouts())
-    model = model.transform(RemoveUnusedTensors())
+def step_streamline_linear(model: ModelWrapper):
+    streamline_transformations = [
+        # AbsorbScalarMulAddIntoTopK(),  # before MoveAddPastMul to avoid int->float
+        ConvertSubToAdd(),
+        ConvertDivToMul(),
+        RemoveIdentityOps(),
+        CollapseRepeatedMul(),
+        BatchNormToAffine(),
+        ConvertSignToThres(),
+        AbsorbSignBiasIntoMultiThreshold(),
+        MoveAddPastMul(),
+        MoveScalarAddPastMatMul(),
+        MoveAddPastConv(),
+        MoveScalarMulPastMatMul(),
+        MoveScalarMulPastConv(),
+        MoveScalarLinearPastInvariants(),
+        MoveAddPastMul(),
+        CollapseRepeatedAdd(),
+        CollapseRepeatedMul(),
+        AbsorbAddIntoMultiThreshold(),
+        FactorOutMulSignMagnitude(),
+        MoveMaxPoolPastMultiThreshold(),
+        AbsorbMulIntoMultiThreshold(),
+        Absorb1BitMulIntoMatMul(),
+        Absorb1BitMulIntoConv(),
+        RoundAndClipThresholds(),
+    ]
+    for trn in streamline_transformations:
+        model = model.transform(trn)
+        model = model.transform(GiveUniqueNodeNames())
+    return model
+
+
+def step_streamline_nonlinear(model: ModelWrapper):
+    streamline_transformations = [
+        MoveLinearPastEltwiseAdd(),
+        MoveLinearPastFork(),
+    ]
+    for trn in streamline_transformations:
+        model = model.transform(trn)
+        model = model.transform(GiveUniqueNodeNames())
+    return model
+
+
+def step_streamline(model: ModelWrapper):
+
+    for iter_id in range(4):
+        model = step_streamline_linear(model)
+        model = step_streamline_nonlinear(model)
+
+        # big loop tidy up
+        model = model.transform(RemoveUnusedTensors())
+        model = model.transform(GiveReadableTensorNames())
+        model = model.transform(InferDataTypes())
+        model = model.transform(SortGraph())
+
+    model = model.transform(DoubleToSingleFloat())
 
     return model
 

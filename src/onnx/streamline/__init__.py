@@ -27,6 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from qonnx.transformation.base import Transformation
 from qonnx.transformation.batchnorm_to_affine import BatchNormToAffine
+from qonnx.transformation.bipolar_to_xnor import ConvertBipolarMatMulToXnorPopcount
 from qonnx.transformation.general import ConvertSubToAdd, ConvertDivToMul, GiveUniqueNodeNames, GiveReadableTensorNames
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.remove import RemoveIdentityOps
@@ -51,22 +52,26 @@ from .reorder import (
     MoveScalarAddPastMatMul,
     MoveScalarLinearPastInvariants,
     MoveScalarMulPastConv,
-    MoveScalarMulPastMatMul,
+    MoveScalarMulPastMatMul, MoveLinearPastEltwiseAdd, MoveLinearPastFork, MoveMaxPoolPastMultiThreshold,
 )
 
 
 class Streamline(Transformation):
     """Apply the streamlining transform, see arXiv:1709.04060."""
 
+    def __init__(self, clean_step):
+        self.clean_step = clean_step
+
     def apply(self, model):
         streamline_transformations = [
             ConvertSubToAdd(),
             ConvertDivToMul(),
+            RemoveIdentityOps(),
             BatchNormToAffine(),
             ConvertSignToThres(),
+            AbsorbSignBiasIntoMultiThreshold(),
             MoveMulPastMaxPool(),
             MoveScalarLinearPastInvariants(),
-            AbsorbSignBiasIntoMultiThreshold(),
             MoveAddPastMul(),
             MoveScalarAddPastMatMul(),
             MoveAddPastConv(),
@@ -78,15 +83,21 @@ class Streamline(Transformation):
             MoveMulPastMaxPool(),
             AbsorbAddIntoMultiThreshold(),
             FactorOutMulSignMagnitude(),
+            MoveMaxPoolPastMultiThreshold(),
             AbsorbMulIntoMultiThreshold(),
             Absorb1BitMulIntoMatMul(),
             Absorb1BitMulIntoConv(),
             RoundAndClipThresholds(),
+            ConvertBipolarMatMulToXnorPopcount(),
+            MoveLinearPastEltwiseAdd(),
+            MoveLinearPastFork(),
+            absorb.AbsorbScalarMulAddIntoTopK()
         ]
         for trn in streamline_transformations:
             model = model.transform(trn)
-            model = model.transform(RemoveIdentityOps())
             model = model.transform(GiveUniqueNodeNames())
-            model = model.transform(GiveReadableTensorNames())
-            model = model.transform(InferDataTypes())
+            if self.clean_step:
+                model = model.transform(RemoveIdentityOps())
+                model = model.transform(GiveReadableTensorNames())
+                model = model.transform(InferDataTypes())
         return model, False

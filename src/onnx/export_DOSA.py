@@ -43,7 +43,7 @@ def export_DOSA_onnx(module: Module,
 def export_step_brevitas(module, model_file_prefix, input_shape, input_t):
     print('step brevitas export')
     brevitas_model_file = (model_file_prefix if model_file_prefix else '') + '_brevitas.onnx'
-    bo.export_finn_onnx(module, input_shape, brevitas_model_file, input_t)
+    bo.export_finn_onnx(module=module, input_shape=input_shape, export_path=brevitas_model_file, input_t=input_t)
     model = ModelWrapper(brevitas_model_file)
     model = fix_missing_opsets(model)
     if model_file_prefix is None:
