@@ -71,7 +71,7 @@ def main():
 
     # Runtimes
     logger.write_section_runtime()
-    run.compute_models_runtime(models, (1, 28, 28), batch_sizes, logger)
+    run.compute_models_runtime(models, batch_sizes, logger)
 
     # Empty run
     # Model do inference for a few minutes with each batch size, you are supposed to use a system monitoring tool

@@ -110,10 +110,10 @@ def build_engine(onnx_file_path, use_int8, dataloader=None, calib_num_steps=10, 
             builder.create_network(explicit_batch_flag) as network, \
             builder.create_builder_config() as builder_config:
 
+        builder_config.max_workspace_size = 1 << 30
         if use_int8:
             assert builder.platform_has_fast_int8, 'ERROR: platform do not support int8'
             assert dataloader is not None, 'ERROR: int8 requires calibration with data, dataloader missing.'
-            builder_config.max_workspace_size = 1 << 30
             builder.max_batch_size = 1
             builder_config.set_quantization_flag(trt.QuantizationFlag.CALIBRATE_BEFORE_FUSION)
             builder_config.set_flag(trt.BuilderFlag.INT8)
