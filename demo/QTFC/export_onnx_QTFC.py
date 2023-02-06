@@ -1,7 +1,5 @@
 import torch
-import numpy as np
 import onnx
-from brevitas.export import export_finn_onnx
 
 from dnn_quant.data import export_data_as_npz
 from dnn_quant.definitions import ROOT_DIR
@@ -9,8 +7,7 @@ from dnn_quant import data_loader, test
 from dnn_quant.module_processing import FullPrecisionModuleIterator
 from dnn_quant.models.full_precision.TFC import TFC
 from dnn_quant.models.quantized import QTFCInt8
-from dnn_quant.onnx import export_DOSA_onnx
-
+from dnn_quant.onnx import export_DOSA_onnx, export_FINN_onnx
 
 # Prepare MNIST dataset
 test_loader_mnist = data_loader(data_dir=ROOT_DIR+'/data', dataset='MNIST', batch_size=100, test=True, seed=42)
@@ -33,11 +30,12 @@ test(q_model, test_loader_mnist, seed=0)
 
 # export onnx
 q_model.cpu()
-b = export_finn_onnx(module=q_model, input_shape=(1, 1, 28, 28), export_path=ROOT_DIR+'/models/FINN/QTFCInt8ZeroBias.onnx')
+export_FINN_onnx(module=q_model, input_shape=(1, 1, 28, 28), export_path=ROOT_DIR+'/models/FINN/QTFCInt8ZeroBias.onnx')
 export_DOSA_onnx(module=q_model, input_shape=(1, 1, 28, 28), export_path=ROOT_DIR+'/models/DOSA/QTFCInt8ZeroBias.onnx')
 
 # check onnx model
 model = onnx.load(ROOT_DIR+'/models/FINN/QTFCInt8ZeroBias.onnx')
+onnx.checker.check_model(model)
 model = onnx.load(ROOT_DIR+'/models/DOSA/QTFCInt8ZeroBias.onnx')
 onnx.checker.check_model(model)
 

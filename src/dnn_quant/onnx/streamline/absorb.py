@@ -99,7 +99,7 @@ class AbsorbSignBiasIntoMultiThreshold(Transformation):
                     model.set_tensor_datatype(end_name, odt)
         if graph_modified:
             model = model.transform(InferDataTypes())
-        return (model, graph_modified)
+        return model, graph_modified
 
 
 class AbsorbAddIntoMultiThreshold(Transformation):
@@ -140,7 +140,7 @@ class AbsorbAddIntoMultiThreshold(Transformation):
                         # remove the add node
                         graph.node.remove(n)
                         graph_modified = True
-        return (model, graph_modified)
+        return model, graph_modified
 
 
 class AbsorbMulIntoMultiThreshold(Transformation):
@@ -182,7 +182,7 @@ class AbsorbMulIntoMultiThreshold(Transformation):
                         # remove the mul node
                         graph.node.remove(n)
                         graph_modified = True
-        return (model, graph_modified)
+        return model, graph_modified
 
 
 class FactorOutMulSignMagnitude(Transformation):
@@ -225,7 +225,7 @@ class FactorOutMulSignMagnitude(Transformation):
                     n.input[0] = middle_name
                     graph.node.insert(node_ind - 1, new_mul)
                     graph_modified = True
-        return (model, graph_modified)
+        return model, graph_modified
 
 
 class Absorb1BitMulIntoMatMul(Transformation):
@@ -262,7 +262,7 @@ class Absorb1BitMulIntoMatMul(Transformation):
                             n.output[0] = consumer.output[0]
                             graph.node.remove(consumer)
                             graph_modified = True
-        return (model, graph_modified)
+        return model, graph_modified
 
 
 class Absorb1BitMulIntoConv(Transformation):
@@ -303,7 +303,7 @@ class Absorb1BitMulIntoConv(Transformation):
                             n.output[0] = consumer.output[0]
                             graph.node.remove(consumer)
                             graph_modified = True
-        return (model, graph_modified)
+        return model, graph_modified
 
 
 class AbsorbTransposeIntoMultiThreshold(Transformation):
@@ -364,7 +364,7 @@ class AbsorbTransposeIntoMultiThreshold(Transformation):
                         graph_modified = True
         if graph_modified:
             model = model.transform(InferDataTypes())
-        return (model, graph_modified)
+        return model, graph_modified
 
 
 class AbsorbTransposeIntoFlatten(Transformation):
@@ -427,7 +427,7 @@ class AbsorbTransposeIntoFlatten(Transformation):
                     graph_modified = True
         if graph_modified:
             model = model.transform(InferDataTypes())
-        return (model, graph_modified)
+        return model, graph_modified
 
 
 class AbsorbScalarMulAddIntoTopK(Transformation):
@@ -466,7 +466,7 @@ class AbsorbScalarMulAddIntoTopK(Transformation):
         if graph_modified:
             model = model.transform(InferShapes())
             model = model.transform(InferDataTypes())
-        return (model, graph_modified)
+        return model, graph_modified
 
 
 class AbsorbConsecutiveTransposes(Transformation):
@@ -556,7 +556,7 @@ class AbsorbConsecutiveTransposes(Transformation):
                             graph_modified = True
         if graph_modified:
             model = model.transform(InferDataTypes())
-        return (model, graph_modified)
+        return model, graph_modified
 
 
 class AbsorbTransposeIntoResize(Transformation):
@@ -633,4 +633,4 @@ class AbsorbTransposeIntoResize(Transformation):
                         graph_modified = True
         if graph_modified:
             model = model.transform(InferDataTypes())
-        return (model, graph_modified)
+        return model, graph_modified

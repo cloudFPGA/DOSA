@@ -1,4 +1,5 @@
 import os
+import shutil
 from typing import Optional, Tuple, Union
 from torch import Tensor
 from torch.nn import Module
@@ -7,7 +8,13 @@ from brevitas.quant_tensor import QuantTensor
 import brevitas.onnx as bo
 
 from dnn_quant.onnx.export_dataflow_steps import step_tidy_up, step_streamline, step_finn_to_DOSA
-from dnn_quant.onnx.opset import fix_missing_opsets
+from dnn_quant.onnx.fix_torch_export import fix_missing_opsets, fix_shared_initializers
+
+
+def delete_if_exists(path):
+    if os.path.exists(path):
+        shutil.rmtree(path)
+        print("Previous exported model deleted!")
 
 
 def intermediate_models_path(export_path, export_intermediate_files):
@@ -20,8 +27,10 @@ def intermediate_models_path(export_path, export_intermediate_files):
     dir_path = dir_path_prefix + '/' + model_name + '_intermediate_models'
     model_file_prefix = dir_path + '/' + model_name
 
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
+    if os.path.exists(dir_path):
+        shutil.rmtree(dir_path)
+        print("Previous exported models deleted!")
+    os.makedirs(dir_path)
 
     return model_file_prefix
 
@@ -45,7 +54,11 @@ def export_step_brevitas(module, model_file_prefix, input_shape, input_t):
     brevitas_model_file = (model_file_prefix if model_file_prefix else '') + '_brevitas.onnx'
     bo.export_finn_onnx(module=module, input_shape=input_shape, export_path=brevitas_model_file, input_t=input_t)
     model = ModelWrapper(brevitas_model_file)
+
+    # overcome torch and brevitas export errors
     model = fix_missing_opsets(model)
+    model = fix_shared_initializers(model)
+
     if model_file_prefix is None:
         os.remove(brevitas_model_file)
     return model

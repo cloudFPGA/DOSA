@@ -63,91 +63,93 @@ def step_tidy_up(model: ModelWrapper):
     return model
 
 
-# def step_streamline(model: ModelWrapper, clean_step=True):
-#     """Run streamlining on given model. Streamlining involves moving floating point
-#     scale/shift parameters around, collapsing adjacent ones into a single parameter,
-#     then absorbing the scale/shift into the following `MultiThreshold` node.
-#     Streamlining requires careful topology design and cannot be applied to all
-#     topologies.
-#     """
-#     model_prev = None
-#
-#     # do it as long as there are changes
-#     while model.model != model_prev:
-#         model_prev = copy.deepcopy(model.model)
-#         model = model.transform(Streamline(clean_step))
-#
-#         # big loop tidy up
-#         model = model.transform(RemoveIdentityOps())
-#         model = model.transform(RemoveUnusedTensors())
-#         model = model.transform(GiveReadableTensorNames())
-#         model = model.transform(InferDataTypes())
-#         model = model.transform(InferDataLayouts())
-#         model = model.transform(SortGraph())
-#
-#     model = model.transform(DoubleToSingleFloat())
-#
-#     return model
+def step_streamline(model: ModelWrapper, clean_step=True):
+    """Run streamlining on given model. Streamlining involves moving floating point
+    scale/shift parameters around, collapsing adjacent ones into a single parameter,
+    then absorbing the scale/shift into the following `MultiThreshold` node.
+    Streamlining requires careful topology design and cannot be applied to all
+    topologies.
+    """
+    model_prev = None
 
-def step_streamline_linear(model: ModelWrapper):
-    streamline_transformations = [
-        # AbsorbScalarMulAddIntoTopK(),  # before MoveAddPastMul to avoid int->float
-        ConvertSubToAdd(),
-        ConvertDivToMul(),
-        RemoveIdentityOps(),
-        CollapseRepeatedMul(),
-        BatchNormToAffine(),
-        ConvertSignToThres(),
-        AbsorbSignBiasIntoMultiThreshold(),
-        MoveAddPastMul(),
-        MoveScalarAddPastMatMul(),
-        MoveAddPastConv(),
-        MoveScalarMulPastMatMul(),
-        MoveScalarMulPastConv(),
-        MoveScalarLinearPastInvariants(),
-        MoveAddPastMul(),
-        CollapseRepeatedAdd(),
-        CollapseRepeatedMul(),
-        AbsorbAddIntoMultiThreshold(),
-        FactorOutMulSignMagnitude(),
-        MoveMaxPoolPastMultiThreshold(),
-        AbsorbMulIntoMultiThreshold(),
-        Absorb1BitMulIntoMatMul(),
-        Absorb1BitMulIntoConv(),
-        RoundAndClipThresholds(),
-    ]
-    for trn in streamline_transformations:
-        model = model.transform(trn)
-        model = model.transform(GiveUniqueNodeNames())
-    return model
-
-
-def step_streamline_nonlinear(model: ModelWrapper):
-    streamline_transformations = [
-        MoveLinearPastEltwiseAdd(),
-        MoveLinearPastFork(),
-    ]
-    for trn in streamline_transformations:
-        model = model.transform(trn)
-        model = model.transform(GiveUniqueNodeNames())
-    return model
-
-
-def step_streamline(model: ModelWrapper):
-
-    for iter_id in range(4):
-        model = step_streamline_linear(model)
-        model = step_streamline_nonlinear(model)
+    # do it as long as there are changes
+    while model.model != model_prev:
+        model_prev = copy.deepcopy(model.model)
+        model = model.transform(Streamline(clean_step))
 
         # big loop tidy up
+        model = model.transform(RemoveIdentityOps())
         model = model.transform(RemoveUnusedTensors())
         model = model.transform(GiveReadableTensorNames())
         model = model.transform(InferDataTypes())
+        model = model.transform(InferDataLayouts())
         model = model.transform(SortGraph())
 
     model = model.transform(DoubleToSingleFloat())
 
     return model
+
+
+# TODO Sophie cleanup
+# def step_streamline_linear(model: ModelWrapper):
+#     streamline_transformations = [
+#         # AbsorbScalarMulAddIntoTopK(),  # before MoveAddPastMul to avoid int->float
+#         ConvertSubToAdd(),
+#         ConvertDivToMul(),
+#         RemoveIdentityOps(),
+#         CollapseRepeatedMul(),
+#         BatchNormToAffine(),
+#         ConvertSignToThres(),
+#         AbsorbSignBiasIntoMultiThreshold(),
+#         MoveAddPastMul(),
+#         MoveScalarAddPastMatMul(),
+#         MoveAddPastConv(),
+#         MoveScalarMulPastMatMul(),
+#         MoveScalarMulPastConv(),
+#         MoveScalarLinearPastInvariants(),
+#         MoveAddPastMul(),
+#         CollapseRepeatedAdd(),
+#         CollapseRepeatedMul(),
+#         AbsorbAddIntoMultiThreshold(),
+#         FactorOutMulSignMagnitude(),
+#         MoveMaxPoolPastMultiThreshold(),
+#         AbsorbMulIntoMultiThreshold(),
+#         Absorb1BitMulIntoMatMul(),
+#         Absorb1BitMulIntoConv(),
+#         RoundAndClipThresholds(),
+#     ]
+#     for trn in streamline_transformations:
+#         model = model.transform(trn)
+#         model = model.transform(GiveUniqueNodeNames())
+#     return model
+#
+#
+# def step_streamline_nonlinear(model: ModelWrapper):
+#     streamline_transformations = [
+#         MoveLinearPastEltwiseAdd(),
+#         MoveLinearPastFork(),
+#     ]
+#     for trn in streamline_transformations:
+#         model = model.transform(trn)
+#         model = model.transform(GiveUniqueNodeNames())
+#     return model
+#
+#
+# def step_streamline(model: ModelWrapper):
+#
+#     for iter_id in range(4):
+#         model = step_streamline_linear(model)
+#         model = step_streamline_nonlinear(model)
+#
+#         # big loop tidy up
+#         model = model.transform(RemoveUnusedTensors())
+#         model = model.transform(GiveReadableTensorNames())
+#         model = model.transform(InferDataTypes())
+#         model = model.transform(SortGraph())
+#
+#     model = model.transform(DoubleToSingleFloat())
+#
+#     return model
 
 
 def step_finn_to_DOSA(model: ModelWrapper):
