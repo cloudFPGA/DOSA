@@ -9,6 +9,9 @@ from dnn_quant.models.full_precision.TFC import TFC
 from dnn_quant.models.quantized import QTFCInt8
 from dnn_quant.onnx import export_DOSA_onnx, export_FINN_onnx
 
+import warnings
+warnings.filterwarnings("ignore")
+
 # Prepare MNIST dataset
 test_loader_mnist = data_loader(data_dir=ROOT_DIR+'/data', dataset='MNIST', batch_size=100, test=True, seed=42)
 calibration_loader_mnist, _ = data_loader(data_dir=ROOT_DIR+'/data', dataset='MNIST', batch_size=1, test=False, seed=42)
@@ -26,7 +29,9 @@ q_model.load_state_and_calibrate(fp_model, data_loader=calibration_loader_mnist,
 print(q_model.get_quant_description((1, 1, 28, 28)))
 
 # test model
+print('\n--- Quantized model accuracy ---')
 test(q_model, test_loader_mnist, seed=0)
+print('\n')
 
 # export onnx
 q_model.cpu()
