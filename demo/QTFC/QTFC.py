@@ -35,6 +35,7 @@ q_model = quantized.QTFCInt8(64, 64, 64)  # (98.09 %, 98.10%)
 # q_model = quantized.QTFCShiftedQuantAct4(64, 64, 64)  # (97.55 %, 97.55%)
 # q_model = quantized.QTFCTernary(64, 64, 64)  # (9.80 %, 9.80 %)
 # q_model = quantized.QTFCBinary(64, 64, 64)  # (9.82%, 9.82 %)
+# q_model = quantized.QTFCMixed(64, 64, 64)  # (98.02%, 98.02%)
 # ===========================================================================
 
 # load and calibrate quantized model
