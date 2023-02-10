@@ -7,6 +7,32 @@ from brevitas.quant.solver.act import ActQuantSolver
 from brevitas.quant.solver.trunc import TruncQuantSolver
 
 
+class Int32ActPerTensorFloat(Int8ActPerTensorFloat):
+    bit_width = 32
+
+
+class Int32WeightPerTensorFloat(Int8WeightPerTensorFloat):
+    bit_width = 32
+
+
+class Int32Bias(Int8Bias):
+    bit_width = 32
+    requires_input_bit_width = False
+
+
+class Int16ActPerTensorFloat(Int8ActPerTensorFloat):
+    bit_width = 16
+
+
+class Int16WeightPerTensorFloat(Int8WeightPerTensorFloat):
+    bit_width = 16
+
+
+class Int16Bias(Int8Bias):
+    bit_width = 16
+    requires_input_bit_width = False
+
+
 class Int7ActPerTensorFloat(Int8ActPerTensorFloat):
     bit_width = 7
 

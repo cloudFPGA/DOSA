@@ -1,3 +1,4 @@
+import brevitas.onnx
 import torch
 import onnx
 
@@ -6,7 +7,7 @@ from dnn_quant.definitions import ROOT_DIR
 from dnn_quant import data_loader, test
 from dnn_quant.module_processing import FullPrecisionModuleIterator
 from dnn_quant.models.full_precision.TFC import TFC
-from dnn_quant.models.quantized import QTFCInt8
+from dnn_quant.models import quantized
 from dnn_quant.onnx import export_DOSA_onnx, export_FINN_onnx
 
 import warnings
@@ -20,11 +21,11 @@ fp_model = TFC(64, 64, 64)
 fp_model.load_state_dict(torch.load(ROOT_DIR+'/models/TFC.pt', map_location=torch.device('cpu')))
 
 # force bias to zero
-it = FullPrecisionModuleIterator(fp_model)
-it.force_bias_zero()
-fp_model.eval()
+# it = FullPrecisionModuleIterator(fp_model)
+# it.force_bias_zero()
+# fp_model.eval()
 
-q_model = QTFCInt8(64, 64, 64)
+q_model = quantized.QTFCMixed1(64, 64, 64)
 q_model.load_state_and_calibrate(fp_model, data_loader=calibration_loader_mnist, num_steps=300, seed=42)
 print(q_model.get_quant_description((1, 1, 28, 28)))
 
@@ -35,13 +36,13 @@ print('\n')
 
 # export onnx
 q_model.cpu()
-export_FINN_onnx(module=q_model, input_shape=(1, 1, 28, 28), export_path=ROOT_DIR+'/models/FINN/QTFCInt8ZeroBias.onnx')
-export_DOSA_onnx(module=q_model, input_shape=(1, 1, 28, 28), export_path=ROOT_DIR+'/models/DOSA/QTFCInt8ZeroBias.onnx')
+export_FINN_onnx(module=q_model, input_shape=(1, 1, 28, 28), export_path=ROOT_DIR+'/models/FINN/QTFCMixed1WithBias.onnx')
+export_DOSA_onnx(module=q_model, input_shape=(1, 1, 28, 28), export_path=ROOT_DIR+'/models/DOSA/QTFCMixed1WithBias.onnx')
 
 # check onnx model
-model = onnx.load(ROOT_DIR+'/models/FINN/QTFCInt8ZeroBias.onnx')
+model = onnx.load(ROOT_DIR+'/models/FINN/QTFCMixed1WithBias.onnx')
 onnx.checker.check_model(model)
-model = onnx.load(ROOT_DIR+'/models/DOSA/QTFCInt8ZeroBias.onnx')
+model = onnx.load(ROOT_DIR+'/models/DOSA/QTFCMixed1WithBias.onnx')
 onnx.checker.check_model(model)
 
 
