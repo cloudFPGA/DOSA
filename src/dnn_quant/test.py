@@ -4,6 +4,12 @@ import torch
 def calibrate(model, test_loader, num_steps=1, seed=None):
     from dnn_quant.models.quantized.quant_module import QuantModule
     if isinstance(model, QuantModule):
+        # ensures that the "normal" modules are _not_ in training mode, while setting the activation quantization
+        #  modules into "training mode", which then collects statistics during the "inference" (line 24).
+        # The statistics collection happens via dependency injection a. o. here:
+        #  https://github.com/Xilinx/brevitas/blob/master/src/brevitas/quant/scaled_int.py
+        # and here
+        #  https://github.com/Xilinx/brevitas/blob/master/src/brevitas/core/scaling/runtime.py
         model.calibrate()
     else:
         model.eval()

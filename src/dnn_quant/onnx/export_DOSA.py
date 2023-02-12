@@ -43,6 +43,8 @@ def export_DOSA_onnx(module: Module,
     export_intermediate_models = export_intermediate_models if export_path else False
 
     model_path_prefix = intermediate_models_path(export_path, export_intermediate_models)
+    # the steps below process/modify the model even if the intermediate steps aren't saved
+    #  SOP: "modifies and return a qonnx.core.ModelWrapper instance with all the onnx final nodes that you can save yourself to an onnx file."
     model = export_step_brevitas(module, model_path_prefix, input_shape, input_t)
     model = export_step_tidy_up(model, model_path_prefix)
     model = export_step_streamline(model, model_path_prefix)

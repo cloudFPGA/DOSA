@@ -14,6 +14,11 @@ def all_nodes_opsets(model):
             opsets.append(node.domain)
     return opsets
 
+"""
+SOP: fix_missing_opset was meant to resolve and make this warning disappear. The problem has nothing to do with TVM though, 
+it was the onnx model that was not consistent with itself.  The individual nodes in the model had opset attributes that 
+were not defined in the onnx model metadata  (ie. model.opset_import vs. node.domain).
+"""
 
 def fix_missing_opsets(model):
     model_opsets = [o.domain for o in model.model.opset_import]
