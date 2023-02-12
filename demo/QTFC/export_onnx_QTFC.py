@@ -124,8 +124,9 @@ def main():
     if export_input:
         feature_transform_function = get_QTFC_FINN_input_mapping_function(q_model)
         data_path = f"{ROOT_DIR}/data/mnist_test_data.npz"
+        dtype = 'int8' if not isinstance(q_model, quantized.QTFCShiftedQuantAct8) else 'int32'
         export_data_as_npz(data_path, test_loader_mnist, num_batches=None, feature_transform=feature_transform_function,
-                           dtype='int8', seed=0)
+                           dtype=dtype, seed=0)
         print(f"Quantized input data for FINN driver exported to {data_path}")
 
 
