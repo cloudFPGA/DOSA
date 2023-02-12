@@ -2,12 +2,13 @@ import torch
 from brevitas.quant_tensor import QuantTensor
 from torch.utils.tensorboard import SummaryWriter
 
+from dnn_quant.definitions import ROOT_DIR
 from dnn_quant.module_processing import modules_repertory
 
 
 class ModuleStatsObserver:
     def __init__(self, module, entries_name_prefix=None):
-        self.log_dir = '../runs/' + module.__class__.__name__ + '/'
+        self.log_dir = ROOT_DIR + '/runs/' + module.__class__.__name__ + '/'
         self.module = module
         self.stats = {}
         self.entries_name_prefix = entries_name_prefix if entries_name_prefix is not None else ''
