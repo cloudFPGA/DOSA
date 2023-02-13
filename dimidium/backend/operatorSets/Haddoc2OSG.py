@@ -324,12 +324,16 @@ class Haddoc2OSG(BaseOSG):
                 wrapper_last_op = op
                 layer_name = layer_names_by_op_id[op.global_op_id]
                 if 'conv2d' in op.op_call:
-                    use_relu_activation = True
+                    use_relu_activation = False
+                    use_tanh_activation = False
                     if op.haddoc_activation == 'tanh':
-                        use_relu_activation = False
+                        use_tanh_activation = True
+                    elif op.haddoc_activation == 'relu':
+                        use_relu_activation = True
                     # else: default...
                     topologyParsing.InstanceConvLayer(topf, layer_name, previous_layer_name,
-                                                      use_relu_activation=use_relu_activation)
+                                                      use_relu_activation=use_relu_activation,
+                                                      use_tanh_activation=use_tanh_activation)
                 elif 'pool2d' in op.op_call:
                     topologyParsing.InstancePoolLayer(topf, layer_name, previous_layer_name)
                 else:
@@ -628,7 +632,7 @@ class Haddoc2OSG(BaseOSG):
             op.haddoc_activation = 'tanh'
             consumed_opt_ops += 1
         else:
-            op.haddoc_activation = 'default'
+            op.haddoc_activation = 'none'
 
         nbits = get_bitwidth_of_DosaDtype(op.used_dtype)
         target_fh.write("--" + layer_name + "\n")

@@ -164,7 +164,7 @@ def WriteInputSignal(target, layer_name, next_layer_name):
     target.write("signal " + layer_name + "_fv\t: std_logic;\n")
 
 
-def InstanceConvLayer(target, layer_name, previous_layer_name, use_relu_activation=True):
+def InstanceConvLayer(target, layer_name, previous_layer_name, use_relu_activation=False, use_tanh_activation=False):
     target.write(layer_name + ": ConvLayer\n")
     target.write("generic map (\n")
     target.write("  BITWIDTH   => BITWIDTH,\n")
@@ -177,6 +177,10 @@ def InstanceConvLayer(target, layer_name, previous_layer_name, use_relu_activati
         target.write("  USE_RELU_ACTIVATION => true,\n")
     else:
         target.write("  USE_RELU_ACTIVATION => false,\n")
+    if use_tanh_activation:
+        target.write("  USE_TANH_ACTIVATION => true,\n")
+    else:
+        target.write("  USE_TANH_ACTIVATION => false,\n")
     target.write("  KERNEL_VALUE => " + layer_name + "_KERNEL_VALUE,\n")
     target.write("  BIAS_VALUE   => " + layer_name + "_BIAS_VALUE\n")
     target.write(")\n")
