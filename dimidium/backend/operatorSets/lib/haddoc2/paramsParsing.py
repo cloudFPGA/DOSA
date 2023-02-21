@@ -125,13 +125,16 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
             #     for j in range(kernel_size - 1, -1, -1):
                     if (kernel_fp[n][m][i][j] > scale_factor):
                         kernel_fp[n][m][i][j] = scale_factor
+                        print(f"[:HADDOC:INFO] weight at {n}, {m}, {i}, {j} above upper bound ({kernel_fp[n][m][i][j]}), setting to {scale_factor}.")
                     if (kernel_fp[n][m][i][j] < -scale_factor):
                         kernel_fp[n][m][i][j] = -scale_factor
+                        print(f"[:HADDOC:INFO] weight at {n}, {m}, {i}, {j} below lower bound ({kernel_fp[n][m][i][j]}), setting to {-scale_factor}.")
                     kernel_bin = np.binary_repr(
                         kernel_fp[n][m][i][j], width=nbits)
                     target.write("\"" + kernel_bin + "\"")
-                    if (m != in_size - 1 or i != 0 or j != 0):
-                        target.write(",")
+                    # if (m != in_size - 1 or i != 0 or j != 0):
+                    if (m != in_size - 1) or (i != kernel_size - 1) or (j != kernel_size - 1):
+                            target.write(",")
             if (m == in_size - 1):
                 if (n != out_size - 1):
                     target.write("),\n (")
