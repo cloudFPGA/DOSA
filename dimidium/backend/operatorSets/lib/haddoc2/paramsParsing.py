@@ -119,8 +119,8 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
     target.write(" (")
     for n in range(out_size):
         for m in range(in_size):
-            for i in range(kernel_size - 1):
-                for j in range(kernel_size - 1):
+            for i in range(0, kernel_size):
+                for j in range(0, kernel_size):
             # for i in range(kernel_size - 1, -1, -1):
             #     for j in range(kernel_size - 1, -1, -1):
                     if (kernel_fp[n][m][i][j] > scale_factor):
