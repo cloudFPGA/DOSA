@@ -37,7 +37,7 @@ def WriteInputLayerComponent(target):
     target.write("  in_data  : in  std_logic_vector(INPUT_BIT_WIDTH-1 downto 0);\n")
     target.write("  in_dv    : in  std_logic;\n")
     target.write("  in_fv    : in  std_logic;\n")
-    target.write("  out_data : out pixel_array(0 to NB_OUT_FLOWS-1);\n")
+    target.write("  out_data : out pixel_array(NB_OUT_FLOWS-1 downto 0);\n")
     target.write("  out_dv   : out std_logic;\n")
     target.write("  out_fv   : out std_logic\n")
     target.write(");\n")
@@ -58,7 +58,7 @@ def WriteDynInputLayerComponent(target):
     target.write("  in_data  : in  std_logic_vector(INPUT_BIT_WIDTH-1 downto 0);\n")
     target.write("  in_dv    : in  std_logic;\n")
     target.write("  in_fv    : in  std_logic;\n")
-    target.write("  out_data : out pixel_array(0 to NB_OUT_FLOWS-1);\n")
+    target.write("  out_data : out pixel_array(NB_OUT_FLOWS-1 downto 0);\n")
     target.write("  out_dv   : out std_logic;\n")
     target.write("  out_fv   : out std_logic\n")
     target.write(");\n")
@@ -83,10 +83,10 @@ def WriteConvlayerComponent(target):
     target.write("  clk      : in  std_logic;\n")
     target.write("  reset_n  : in  std_logic;\n")
     target.write("  enable   : in  std_logic;\n")
-    target.write("  in_data  : in  pixel_array(0 to NB_IN_FLOWS - 1);\n")
+    target.write("  in_data  : in  pixel_array(NB_IN_FLOWS - 1 downto 0);\n")
     target.write("  in_dv    : in  std_logic;\n")
     target.write("  in_fv    : in  std_logic;\n")
-    target.write("  out_data : out pixel_array(0 to NB_OUT_FLOWS - 1);\n")
+    target.write("  out_data : out pixel_array(NB_OUT_FLOWS - 1 downto 0);\n")
     target.write("  out_dv   : out std_logic;\n")
     target.write("  out_fv   : out std_logic\n")
     target.write(");\n")
@@ -100,7 +100,7 @@ def WriteDisplayLayerComponent(target):
     target.write("  NB_IN_FLOWS: integer\n")
     target.write(");\n")
     target.write("port(\n")
-    target.write("  in_data  : in  pixel_array(0 to NB_IN_FLOWS-1);\n")
+    target.write("  in_data  : in  pixel_array(NB_IN_FLOWS-1 downto 0);\n")
     target.write("  in_dv    : in  std_logic;\n")
     target.write("  in_fv    : in  std_logic;\n")
     target.write("  sel      : in  std_logic_vector(31 downto 0);\n")
@@ -118,7 +118,7 @@ def WriteDynOutputLayerComponent(target):
     target.write("  NB_IN_FLOWS: integer\n")
     target.write(");\n")
     target.write("port(\n")
-    target.write("  in_data  : in  pixel_array(0 to NB_IN_FLOWS-1);\n")
+    target.write("  in_data  : in  pixel_array(NB_IN_FLOWS-1 downto 0);\n")
     target.write("  in_dv    : in  std_logic;\n")
     target.write("  in_fv    : in  std_logic;\n")
     target.write("  out_data : out std_logic_vector(NB_IN_FLOWS*BITWIDTH-1 downto 0);\n")
@@ -140,10 +140,10 @@ def WritePoolLayerComponent(target):
     target.write("  clk      : in  std_logic;\n")
     target.write("  reset_n  : in  std_logic;\n")
     target.write("  enable   : in  std_logic;\n")
-    target.write("  in_data  : in  pixel_array(0 to NB_OUT_FLOWS - 1);\n")
+    target.write("  in_data  : in  pixel_array(NB_OUT_FLOWS - 1 downto 0);\n")
     target.write("  in_dv    : in  std_logic;\n")
     target.write("  in_fv    : in  std_logic;\n")
-    target.write("  out_data : out pixel_array(0 to NB_OUT_FLOWS - 1);\n")
+    target.write("  out_data : out pixel_array(NB_OUT_FLOWS - 1 downto 0);\n")
     target.write("  out_dv   : out std_logic;\n")
     target.write("  out_fv   : out std_logic\n")
     target.write(");\n")
@@ -152,15 +152,15 @@ def WritePoolLayerComponent(target):
 
 def WriteLayerSignal(target, layer_name):
     target.write("signal " + layer_name +
-                 "_data: pixel_array (0 to "
-                 + layer_name + "_OUT_SIZE - 1);\n")
+                 "_data: pixel_array ("
+                 + layer_name + "_OUT_SIZE - 1 downto 0);\n")
     target.write("signal " + layer_name + "_dv\t: std_logic;\n")
     target.write("signal " + layer_name + "_fv\t: std_logic;\n")
 
 
 def WriteInputSignal(target, layer_name, next_layer_name):
-    target.write("signal " + layer_name + "_data: pixel_array(0 to " +
-                 next_layer_name + "_IN_SIZE-1);\n")
+    target.write("signal " + layer_name + "_data: pixel_array(" +
+                 next_layer_name + "_IN_SIZE-1 downto 0);\n")
     target.write("signal " + layer_name + "_dv\t: std_logic;\n")
     target.write("signal " + layer_name + "_fv\t: std_logic;\n")
 

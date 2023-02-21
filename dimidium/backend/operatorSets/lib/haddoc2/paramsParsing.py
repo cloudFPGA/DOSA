@@ -70,7 +70,7 @@ def write_bias_value(bias_data, name, nbits, target):
     target.write("constant ")
     target.write(layer_name)
     target.write("_BIAS_VALUE   :  pixel_array ")
-    target.write("   (0 to " + layer_name + "_OUT_SIZE - 1 ) := \n")
+    target.write("   (" + layer_name + "_OUT_SIZE - 1 downto 0) := \n")
     # NOT scaling AGAIN
     # bias_fp = to_fixedPoint(bias_data, scale_factor)
 
@@ -101,9 +101,9 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
     target.write(layer_name)
     target.write("_KERNEL_VALUE :  pixel_matrix ")
     # (0 to CONV1_LAYER_SIZE * CONV1_LAYER_SIZE - 1, 0 to CONV1_KERNEL_SIZE*CONV1_KERNEL_SIZE - 1) :=
-    target.write(" (0 to " + layer_name + "_OUT_SIZE - 1 ,")
-    target.write("  0 to " + layer_name + "_IN_SIZE * " + layer_name +
-                 "_KERNEL_SIZE * " + layer_name + "_KERNEL_SIZE - 1)")
+    target.write(" (" + layer_name + "_OUT_SIZE - 1 downto 0,")
+    target.write("  " + layer_name + "_IN_SIZE * " + layer_name +
+                 "_KERNEL_SIZE * " + layer_name + "_KERNEL_SIZE - 1 downto 0)")
     target.write(" :=\n")
 
     # NOT scaling AGAIN
@@ -119,8 +119,10 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
     target.write(" (")
     for n in range(out_size):
         for m in range(in_size):
-            for i in range(kernel_size - 1, -1, -1):
-                for j in range(kernel_size - 1, -1, -1):
+            for i in range(kernel_size - 1):
+                for j in range(kernel_size - 1):
+            # for i in range(kernel_size - 1, -1, -1):
+            #     for j in range(kernel_size - 1, -1, -1):
                     if (kernel_fp[n][m][i][j] > scale_factor):
                         kernel_fp[n][m][i][j] = scale_factor
                     if (kernel_fp[n][m][i][j] < -scale_factor):
