@@ -76,13 +76,14 @@ def write_bias_value(bias_data, name, nbits, target):
 
     target.write(" (")
     # to deal with 'type does not match with a string literal'
-    if out_size == 1:
-        target.write(" others => ")
+    # if out_size == 1:
+    #    target.write(" others => ")
     for n in range(out_size):
         # bias_bin = np.binary_repr(bias_fp[n], width=nbits)
+        target.write(f" {n} => ")
         bias_bin = np.binary_repr(bias_data[n], width=nbits)
         target.write("\"" + bias_bin + "\"")
-        if (n == out_size - 1):
+        if n == (out_size - 1):
             target.write(");\n")
         else:
             target.write(",")
@@ -111,13 +112,14 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
     kernel_fp = kernel_data
     target.write(" (")
     # to deal with 'type does not match with a string literal'
-    if out_size == 1:
-        target.write(" others => ")
+    # if out_size == 1:
+    #     target.write(" others => ")
 
     # In some Networks, such AlexNet, neurons from layer l are not totally connected to layer l+1
     # But only a group is connected. We manage this as follows:
-    target.write(" (")
+    #target.write(" (")
     for n in range(out_size):
+        target.write(f" {n} => (")
         for m in range(in_size):
             for i in range(0, kernel_size):
                 for j in range(0, kernel_size):
@@ -135,11 +137,14 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
                     # if (m != in_size - 1 or i != 0 or j != 0):
                     if (m != in_size - 1) or (i != kernel_size - 1) or (j != kernel_size - 1):
                             target.write(",")
-            if (m == in_size - 1):
-                if (n != out_size - 1):
-                    target.write("),\n (")
-                else:
-                    target.write(")")
+            # if (m == in_size - 1):
+            #     if (n != out_size - 1):
+            #         target.write("),\n (")
+            #     else:
+            #         target.write(")")
+        target.write(")")
+        if n != (out_size - 1):
+            target.write(",\n  ")
     target.write("\n);\n")
 
 
