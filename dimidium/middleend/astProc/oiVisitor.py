@@ -19,6 +19,7 @@ from tvm.ir.tensor_type import TensorType
 
 from dimidium.lib.util import replace_deep, dtype_to_size_b, bit_to_dtype
 from dimidium.lib.units import config_bits_per_byte
+import dimidium.lib.singleton as dosa_singleton
 
 
 oiV_fn_main_str = 'fn_main'
@@ -36,6 +37,7 @@ class OiPipeline:
         self.oi_results = []
         self.bw_results = []
         self.data_per_layer = {}
+        # self.datatypes_per_layer = {}
         self.size_t = fallback_size_t
         self.default_size_b = math.ceil(self.size_t/config_bits_per_byte)
         self.default_dtype = bit_to_dtype(fallback_size_t)
@@ -158,13 +160,21 @@ class OiPipeline:
                         if hasattr(p, 'name_hint'):   # necessary?
                             hint = p.name_hint
                 my_layer_num = obj.bw_layer_cnt
+                istr = "{:06}".format(my_layer_num)
+                orig_dtype = used_dtype
+                if dosa_singleton.config.quant.overwrite_imported_dtypes:
+                    # TODO: support different dtypes for weights and activations
+                    print(f"[DOSA:OICALC:INFO] overwriting dtypes of function {my_name} with "
+                          f"{dosa_singleton.config.quant.activation_dtype} (orig: {used_dtype}).")
+                    used_dtype = dosa_singleton.config.quant.activation_dtype
+                # obj.datatypes_per_layer[istr] = used_dtype
                 obj.bw_layer_cnt += 1
                 res = {'num_layer': my_layer_num, 'name': hint, 'bw_total_B': bw_tmp,
                        'bw_data_B': bw_tmp, 'bw_param_B': 0}
                 obj.bw_results.append(res)
-                istr = "{:06}".format(my_layer_num)
                 dpl = {'name': my_name, 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
-                       'layer': istr, 'fn': fn_name, 'op': oiV_func_str, 'dtype': used_dtype, 'tid': my_node_id}
+                       'layer': istr, 'fn': fn_name, 'op': oiV_func_str, 'dtype': used_dtype, 'tid': my_node_id,
+                       'orig_dtype': orig_dtype}
                 obj.data_per_layer[istr] = dpl
                 obj.tvm_nodes[my_node_id] = func
                 # visit body
@@ -188,7 +198,8 @@ class OiPipeline:
                     obj.bw_results.append(res2)
                     istr = "{:06}".format(my_layer_num2)
                     dpl2 = {'name': oiV_output_str, 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
-                            'layer': istr,  'fn': fn_name, 'op': oiV_func_str, 'dtype': used_dtype, 'tid': my_node_id}
+                            'layer': istr,  'fn': fn_name, 'op': oiV_func_str, 'dtype': used_dtype, 'tid': my_node_id,
+                            'orig_dtype': orig_dtype}
                     obj.data_per_layer[istr] = dpl2
 
             def visit_call(self, call):
@@ -207,6 +218,7 @@ class OiPipeline:
                 # post order processing
                 my_layer_num = obj.bw_layer_cnt
                 obj.bw_layer_cnt += 1
+                istr = "{:06}".format(my_layer_num)
                 if obj.bw_layer_cnt > 999999:
                     print("[DOSA:OICALC:ERROR] layer count overflow occurred!")
                 if type(call.op) is relay.function.Function:
@@ -227,16 +239,24 @@ class OiPipeline:
                 data_dim = []
                 param_dim = []
                 used_dtype = None
+                # used_dtype = obj.datatypes_per_layer[istr]
+                orginal_dtype = None
+                if dosa_singleton.config.quant.overwrite_imported_dtypes:
+                    used_dtype = dosa_singleton.config.quant.activation_dtype
                 call_args_dict = {'calls': [], 'constants': [], 'vars': [], 'else': [], 'by_position': []}
                 arg_pos = 0
                 for a in call.args:
                     # bw_tmp = obj.size_b
-                    bw_tmp = dtype_to_size_b(a.checked_type.dtype)
+                    # bw_tmp = dtype_to_size_b(a.checked_type.dtype)
+                    original_dtype = a.checked_type.dtype
                     if used_dtype is None:
                         used_dtype = a.checked_type.dtype
-                    elif used_dtype != a.checked_type.dtype:
+                    elif used_dtype != a.checked_type.dtype and \
+                            not dosa_singleton.config.quant.overwrite_imported_dtypes:
+                        # TODO: support different dtypes for weights and activations
                         print("[DOSA:OICALC:WARNING] different dtypes within one operation ({}). Ignoring."
                               .format(op_name))
+                    bw_tmp = dtype_to_size_b(used_dtype)
                     cur_dims = []
                     for d in a.checked_type.shape:
                         bw_tmp *= int(d)
@@ -313,10 +333,10 @@ class OiPipeline:
                 obj.bw_results.append(resBw)
                 resOi = {'num_layer': my_layer_num, 'name': my_name, 'oi_cmpl': oi_cmpl, 'oi_uinp': oi_uinp}
                 obj.oi_results.append(resOi)
-                istr = "{:06}".format(my_layer_num)
                 dpl = {'name': my_name, 'cmpl': oi_cmpl, 'uinp': oi_uinp, 'flop': flop_total, 'parB': bw_param_B,
                        'inpB': bw_data_B, 'outB': out_bw, 'layer': istr, 'fn': obj.cur_fstr, 'op': op_name,
-                       'dtype': used_dtype, 'tid': my_node_id, 'dims': {}}
+                       'dtype': used_dtype, 'tid': my_node_id, 'dims': {},
+                       'orig_dtype': original_dtype}
                 dpl['dims']['inp'] = data_dim
                 dpl['dims']['param'] = param_dim
                 dpl['dims']['out'] = out_dim

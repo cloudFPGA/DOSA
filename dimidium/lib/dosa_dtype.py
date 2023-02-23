@@ -11,6 +11,8 @@
 #  *
 
 from enum import Enum
+import numpy as np
+from fxpmath import Fxp
 
 
 class DosaDtype(Enum):
@@ -99,3 +101,22 @@ def DosaDtype_is_signed(dtype: DosaDtype) -> bool:
     return True
 
 
+def bitw_to_scaleFactor(nbits):
+    return np.power(2, (nbits - 1)) - 1
+
+
+def data_array_convert_to_DosaDtype(orig_data: np.ndarray, target_dtype: DosaDtype) -> np.ndarray:
+    signed = DosaDtype_is_signed(target_dtype)
+    precision = get_bitwidth_of_DosaDtype(target_dtype)
+    scale_factor = bitw_to_scaleFactor(precision)
+    # TODO: support custom fixed point
+    rescaled_data = orig_data / scale_factor
+    quant_data = Fxp(rescaled_data, signed=signed, n_word=precision, n_frac=(precision - 1))
+    return quant_data.val
+
+
+# def data_array_convert_to_DosaDtype(orig_data: np.ndarray, target_dtype: DosaDtype) -> np.ndarray:
+#     # TODO: check if supported by numpy
+#     ret_val = orig_data.astype(DosaDtype_to_string(target_dtype))
+#     return ret_val
+#

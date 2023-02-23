@@ -908,6 +908,10 @@ class Hls4mlOSG(BaseOSG):
 
         # data must have var names 'kernel' and 'bias' (also 'depthwise_kernel?')
         data = {'layer_name': layer_name, 'variables': {}, 'data_format': {}}
+        # TODO
+        if op.need_to_cast_tvm_args:
+            print("implement data cast!")
+            exit(42)
         data['variables']['kernel'] = op.tvm_args['by_position'][1]['ref'].data.numpy()
         data['data_format']['kernel'] = 'channels_first'
 
@@ -917,6 +921,10 @@ class Hls4mlOSG(BaseOSG):
             conv_config['bias_constraint'] = None
             conv_config['bias_initializer'] = None
             conv_config['bias_regularizer'] = None
+            # TODO
+            if op.need_to_cast_tvm_args:
+                print("implement data cast!")
+                exit(42)
             data['variables']['bias'] = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
             data['data_format']['bias'] = 'channels_first'
             conv_config['filters'] += 1
@@ -1034,6 +1042,10 @@ class Hls4mlOSG(BaseOSG):
 
         # data must have var names 'kernel' and 'bias' (also 'depthwise_kernel?')
         data = {'layer_name': layer_name, 'variables': {}, 'data_format': {}}
+        # TODO
+        if op.need_to_cast_tvm_args:
+            print("implement data cast!")
+            exit(42)
         data['variables']['kernel'] = op.tvm_args['by_position'][1]['ref'].data.numpy()
         data['data_format']['kernel'] = 'channels_first'
 
@@ -1044,6 +1056,10 @@ class Hls4mlOSG(BaseOSG):
             layer_config['bias_initializer'] = None
             layer_config['bias_regularizer'] = None
             consumed_opt_ops += 1
+            # TODO
+            if op.need_to_cast_tvm_args:
+                print("implement data cast!")
+                exit(42)
             if next_op.op_call == 'add':
                 # it is still called bias
                 data['variables']['bias'] = next_op.tvm_args['by_position'][1]['ref'].data.numpy()

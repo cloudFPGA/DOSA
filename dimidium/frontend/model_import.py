@@ -90,10 +90,10 @@ def user_import(onnx_path, user_constraints, debug_mode=False):
         print("DOSA: Executing TVM quantization...")
         mod_i, params_i = tvm_quantization(mod_i, params_i, user_constraints)
         print("\t...done.\n")
-    elif user_constraints['overwrite_imported_dtypes']:
-        print("[DOSA:import:INFO] overwriting ONNX data types...")
-        mod_i, params_i = overwrite_dtypes(mod_i, params_i, user_constraints)
-        print("\t...done.\n")
+    # elif user_constraints['overwrite_imported_dtypes']:
+    #     print("[DOSA:import:INFO] overwriting ONNX data types...")
+    #     mod_i, params_i = overwrite_dtypes(mod_i, params_i, user_constraints)
+    #     print("\t...done.\n")
 
     print("DOSA: Executing TVM optimization passes...")
     mod, params = tvm_optimization_pass(mod_i, params_i, debug=debug_mode)

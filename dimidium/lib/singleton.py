@@ -57,6 +57,17 @@ def init_singleton(config_dict, main_path=None):
         else:
             config.dtype.dosa_lambda[convert_tvmDtype_to_DosaDtype(k)] = float(config_dict['dosa_learning']['lambda'][k])
 
+    config.quant = SimpleNamespace()
+    config.quant.overwrite_imported_dtypes = False
+    config.quant.overwrite_fixed_point_dtypes = False
+    # config.quant.use_extra_accum_dtype = False
+    config.quant.activation_dtype = DosaDtype.UNKNOWN
+    config.quant.weight_dtype = DosaDtype.UNKNOWN
+    config.quant.bias_dtype = DosaDtype.UNKNOWN
+    config.quant.fixed_point_fraction_bits = None
+    # config.quant.per_layer_dtypes = {}
+
+
     config.middleend = SimpleNamespace()
     config.middleend.engine_saving_threshold = float(config_dict['build']['engine_saving_threshold'])
 

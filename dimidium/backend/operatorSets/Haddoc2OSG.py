@@ -27,7 +27,8 @@ from dimidium.backend.buildTools.cFBuild1 import cFBuild1
 from dimidium.backend.codeGen.Haddoc2Wrapper import Haddoc2Wrapper
 from dimidium.backend.operatorSets.BaseOSG import BaseOSG
 from dimidium.backend.devices.dosa_device import DosaHwClasses
-from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype
+from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype, DosaDtype_is_signed, \
+    data_array_convert_to_DosaDtype
 from dimidium.lib.util import BrickImplTypes
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
@@ -279,6 +280,9 @@ class Haddoc2OSG(BaseOSG):
                     #     exit(1)
 
             paramParsing.write_fileEnd(vhdlf)
+        # haddoc only supports signed datatypes
+        assert DosaDtype_is_signed(used_dtype)
+
         # then, we do the bitwidth
         used_bit_width = get_bitwidth_of_DosaDtype(used_dtype)
         input_dim = input_dims_ordered[0]
@@ -615,12 +619,20 @@ class Haddoc2OSG(BaseOSG):
         input_data_width = op.dims.inp[2]  # image_width
         assert input_data_width == op.dims.inp[3]
         assert isinstance(op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant)
-        kernel_data = op.tvm_args['by_position'][1]['ref'].data.numpy()
+        if op.need_to_cast_tvm_args:
+            kernel_data = data_array_convert_to_DosaDtype(op.tvm_args['by_position'][1]['ref'].data.numpy(),
+                                                          op.used_dtype)
+        else:
+            kernel_data = op.tvm_args['by_position'][1]['ref'].data.numpy()
         bias_data = np.zeros(out_channel_num, dtype=int)
 
         if next_op is not None and next_op.op_call == 'nn.bias_add':
             if isinstance(next_op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant):
-                bias_data = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
+                if op.need_to_cast_tvm_args:
+                    bias_data = data_array_convert_to_DosaDtype(next_op.tvm_args['by_position'][1]['ref'].data.numpy(),
+                                                                  op.used_dtype)
+                else:
+                    bias_data = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
             else:
                 print("[DOSA:OSG:WARNING] Strange non-constant bias value for op {}".format(repr(next_op)))
             consumed_opt_ops += 1
@@ -701,7 +713,8 @@ class Haddoc2OSG(BaseOSG):
             f.write('  use ieee.math_real.all;\n')
             f.write('package bitwidths_b{} is\n'.format(block_id))
             f.write('  constant GENERAL_BITWIDTH      : integer := ' + str(general_bitwidth) + ';\n')
-            f.write('  constant SUM_WIDTH        : integer := 3*GENERAL_BITWIDTH;\n')
+            # f.write('  constant SUM_WIDTH        : integer := 3*GENERAL_BITWIDTH;\n')
+            f.write('  constant PROD_WIDTH        : integer := 2*GENERAL_BITWIDTH;\n')
             f.write('  constant INPUT_BIT_WIDTH  : integer := ' + str(input_bitwidth) + ';\n')
             f.write('  constant OUTPUT_BITWIDTH  : integer := ' + str(output_bitwidth) + ';\n')
             f.write('end bitwidths_b{};\n'.format(block_id))

@@ -55,7 +55,8 @@ class ArchBrick(object):
         # self.op_call = None
         self.used_dtype = DosaDtype.UNKNOWN
         self.flops_conv_factor = dosa_singleton.config.dtype.default_dosa_flops_conv_factor
-        self.tvm_dtype = None
+        # self.tvm_dtype = None
+        self.orig_dtype = None
         self.tvm_node = tvm_node
         self.tvm_args = tvm_args
         self.ops = {}
@@ -213,8 +214,13 @@ class ArchBrick(object):
         self.fn_label = dpl_dict['layer']
         # self.parent_fn = dpl_dict['fn']
         # self.op_call = dpl_dict['op']
-        self.tvm_dtype = dpl_dict['dtype']
-        self.used_dtype = convert_tvmDtype_to_DosaDtype(self.tvm_dtype)
+        # the overwritten did already take place in oIVisitor etc...
+        self.orig_dtype = dpl_dict['orig_dtype']
+        self.used_dtype = dpl_dict['dtype']
+        # self.tvm_dtype = dpl_dict['dtype']
+        # self.used_dtype = convert_tvmDtype_to_DosaDtype(self.tvm_dtype)
+        if dosa_singleton.config.quant.overwrite_imported_dtypes:
+            self.used_dtype = dosa_singleton.config.quant.activation_dtype
         self.flops_conv_factor = get_flops_conv_factor(self.used_dtype)
         self.update_dims()
 

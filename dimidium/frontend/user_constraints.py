@@ -15,6 +15,7 @@ import json
 
 from dimidium.lib.util import OptimizationStrategies, config_bits_per_byte
 from dimidium.lib.dosa_dtype import convert_tvmDtype_to_DosaDtype, DosaDtype
+import dimidium.lib.singleton as dosa_singleton
 
 
 __mandatory_user_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_sps', 'targeted_hw',
@@ -113,18 +114,26 @@ def parse_uc_dict(path, dosa_devices):
     parsed_constraints['input_dtype'] = convert_tvmDtype_to_DosaDtype(input_dtype_str)
     if 'overwrite_dtypes' in parsed_constraints:
         parsed_constraints['overwrite_imported_dtypes'] = True
+        dosa_singleton.config.quant.overwrite_imported_dtypes = True
         data_dtype = convert_tvmDtype_to_DosaDtype(parsed_constraints['overwrite_dtypes']['data'])
         if data_dtype == DosaDtype.UNKNOWN:
             print('ERROR: Datatype {} to overwrite "data" data types is not supported. Stop.'.format(
                 parsed_constraints['overwrite_dtypes']['data']))
             exit(1)
+        dosa_singleton.config.quant.activation_dtype = data_dtype
         weights_dtype = convert_tvmDtype_to_DosaDtype(parsed_constraints['overwrite_dtypes']['weights'])
         if weights_dtype == DosaDtype.UNKNOWN:
             print('ERROR: Datatype {} to overwrite "weights" data types is not supported. Stop.'.format(
                 parsed_constraints['overwrite_dtypes']['weights']))
             exit(1)
+        dosa_singleton.config.quant.weight_dtype = weights_dtype
+        # TODO
+        dosa_singleton.config.quant.bias_dtype = weights_dtype
         if 'fixed_point_fraction_bits' in parsed_constraints['overwrite_dtypes']:
             parsed_constraints['overwrite_fixed_point_dtypes'] = True
+            dosa_singleton.config.quant.fixed_point_fraction_bits = \
+                int(parsed_constraints['overwrite_dtypes']['fixed_point_fraction_bits'])
+            dosa_singleton.config.quant.overwrite_fixed_point_dtypes = True
             print("[DOSA:ConstraintParsing:WARNING] [NOT YET IMPLEMENTED] Custom fixed point fractional bits will be "
                   "ignored, due to unclear encoding.")
         else:

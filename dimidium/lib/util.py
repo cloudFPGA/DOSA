@@ -17,7 +17,7 @@ import copy
 import numpy as np
 
 from dimidium.lib.units import config_bits_per_byte
-from dimidium.lib.dosa_dtype import convert_tvmDtype_to_DosaDtype, get_bitwidth_of_DosaDtype
+from dimidium.lib.dosa_dtype import convert_tvmDtype_to_DosaDtype, get_bitwidth_of_DosaDtype, DosaDtype
 
 
 # Dosa Return Value
@@ -101,6 +101,8 @@ def dtype_to_bit(dtype):
     # if dtype == 'float16' or 'int16':
     #     return 16
     # return 32  # default
+    if isinstance(dtype, DosaDtype):
+        return get_bitwidth_of_DosaDtype(dtype)
     return get_bitwidth_of_DosaDtype(convert_tvmDtype_to_DosaDtype(dtype))
 
 
@@ -149,3 +151,4 @@ def byte_width_to_tkeep(byte_width):
         tkeep = tkeep << 1
         tkeep |= 0b1
     return tkeep
+

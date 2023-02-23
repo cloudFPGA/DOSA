@@ -49,8 +49,10 @@ class ArchOp(object):
         self.parent_fn = None
         self.op_call = None
         self.used_dtype = DosaDtype.UNKNOWN
+        self.orig_dtype = None
+        self.need_to_cast_tvm_args = False
         self.flops_conv_factor = dosa_singleton.config.dtype.default_dosa_flops_conv_factor
-        self.tvm_dtype = None
+        # self.tvm_dtype = None
         self.tvm_node = tvm_node
         self.tvm_args = tvm_args
         # self.selected_osg = placeholderOSG
@@ -118,8 +120,17 @@ class ArchOp(object):
         self.layer_name = dpl_dict['layer']
         self.parent_fn = dpl_dict['fn']
         self.op_call = dpl_dict['op']
-        self.tvm_dtype = dpl_dict['dtype']
-        self.used_dtype = convert_tvmDtype_to_DosaDtype(self.tvm_dtype)
+        # the overwritten did already take place in oIVisitor etc...
+        # self.tvm_dtype = dpl_dict['dtype']
+        # self.used_dtype = convert_tvmDtype_to_DosaDtype(self.tvm_dtype)
+        # if dosa_singleton.config.quant.overwrite_imported_dtypes:
+        #     self.orig_dtype = self.used_dtype
+        #     self.used_dtype = dosa_singleton.config.quant.activation_dtype
+        #     self.need_to_cast_tvm_args = True
+        self.orig_dtype = dpl_dict['orig_dtype']
+        self.used_dtype = dpl_dict['dtype']
+        if dosa_singleton.config.quant.overwrite_imported_dtypes:
+            self.need_to_cast_tvm_args = True
         self.flops_conv_factor = get_flops_conv_factor(self.used_dtype)
         self.dims.inp = dpl_dict['dims']['inp']
         if len(self.dims.inp) > 0 and type(self.dims.inp[0]) is list:
