@@ -153,7 +153,7 @@ class Haddoc2OSG(BaseOSG):
                 open(os.path.join(target_hdl_dir, 'cnn_types.vhd'), 'w') as out_file:
             line_num = 1
             for line in in_file.readlines():
-                if line_num == 18:
+                if line_num == 9:
                     outline = 'use work.bitwidths_b{}.all;\n'.format(block_id)
                 else:
                     outline = line
