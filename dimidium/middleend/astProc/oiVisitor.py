@@ -134,29 +134,29 @@ class OiPipeline:
 
                 # used_dtype = obj.default_dtype
                 used_dtype = None
+                bw_type = None
                 if hasattr(func, 'params'):
                     bw_tmp = obj.default_size_b
                     for p in func.params:
                         # TODO use p.checked_type.dtype instead of size_b?
-                        bw_type = None
                         if hasattr(p, 'checked_type'):
                             if type(p.checked_type) is TensorType:
                                 bw_type = p.checked_type
-                                bw_tmp = dtype_to_size_b(p.checked_type.dtype)
+                                # bw_tmp = dtype_to_size_b(p.checked_type.dtype)
                                 used_dtype = p.checked_type.dtype
                             elif type(p.checked_type) is TupleType:
                                 # TODO: necessary?
                                 # take the first one, should be similar
                                 bw_type = p.checked_type.fields[0]
-                                bw_tmp = dtype_to_size_b(p.checked_type.fields[0].dtype)
+                                # bw_tmp = dtype_to_size_b(p.checked_type.fields[0].dtype)
                                 used_dtype = p.checked_type.fields[0].dtype
                         elif hasattr(p, 'type_annotation'):
                             bw_type = p.type_annotation
-                            bw_tmp = dtype_to_size_b(p.type_annotation.dtype)
+                            # bw_tmp = dtype_to_size_b(p.type_annotation.dtype)
                             used_dtype = p.type_annotation.dtype
-                        if bw_type is not None:
-                            for d in bw_type.shape:
-                                bw_tmp *= int(d)
+                        # if bw_type is not None:
+                        #     for d in bw_type.shape:
+                        #         bw_tmp *= int(d)
                         if hasattr(p, 'name_hint'):   # necessary?
                             hint = p.name_hint
                 my_layer_num = obj.bw_layer_cnt
@@ -167,11 +167,20 @@ class OiPipeline:
                     print(f"[DOSA:OICALC:INFO] overwriting dtypes of function {my_name} with "
                           f"{dosa_singleton.config.quant.activation_dtype} (orig: {used_dtype}).")
                     used_dtype = dosa_singleton.config.quant.activation_dtype
+                bw_tmp = dtype_to_size_b(used_dtype)
+                if bw_type is not None:
+                    for d in bw_type.shape:
+                        bw_tmp *= int(d)
+                # out_bw = dtype_to_size_b(used_dtype)
+                # if hasattr(func, 'ret_type'):
+                #     for d in func.ret_type.shape:
+                #         out_bw *= int(d)
                 # obj.datatypes_per_layer[istr] = used_dtype
                 obj.bw_layer_cnt += 1
                 res = {'num_layer': my_layer_num, 'name': hint, 'bw_total_B': bw_tmp,
                        'bw_data_B': bw_tmp, 'bw_param_B': 0}
                 obj.bw_results.append(res)
+                # for (input) and (output): inB and outB are the same!
                 dpl = {'name': my_name, 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
                        'layer': istr, 'fn': fn_name, 'op': oiV_func_str, 'dtype': used_dtype, 'tid': my_node_id,
                        'orig_dtype': orig_dtype}
@@ -197,6 +206,7 @@ class OiPipeline:
                             'bw_data_B': bw_tmp, 'bw_param_B': 0}
                     obj.bw_results.append(res2)
                     istr = "{:06}".format(my_layer_num2)
+                    # for (input) and (output): inB and outB are the same!
                     dpl2 = {'name': oiV_output_str, 'cmpl': 0, 'uinp': 0, 'flop': 0, 'parB': 0, 'inpB': bw_tmp, 'outB': bw_tmp,
                             'layer': istr,  'fn': fn_name, 'op': oiV_func_str, 'dtype': used_dtype, 'tid': my_node_id,
                             'orig_dtype': orig_dtype}
@@ -298,7 +308,9 @@ class OiPipeline:
                 out_dim = []
                 if hasattr(call, 'checked_type'):
                     # out_bw = obj.size_b
-                    out_bw = dtype_to_size_b(call.checked_type.dtype)
+                    # out_bw = dtype_to_size_b(call.checked_type.dtype)
+                    # TODO: support different dtypes per layer!
+                    out_bw = dtype_to_size_b(used_dtype)
                     cur_dims = []
                     for d in call.checked_type.shape:
                         out_bw *= int(d)
