@@ -60,6 +60,7 @@ def init_singleton(config_dict, main_path=None):
     config.quant = SimpleNamespace()
     config.quant.overwrite_imported_dtypes = False
     config.quant.overwrite_fixed_point_dtypes = False
+    config.quant.numbers_already_scaled = True  # TODO: change default to False (if quant module is merged)
     # config.quant.use_extra_accum_dtype = False
     config.quant.activation_dtype = DosaDtype.UNKNOWN
     config.quant.weight_dtype = DosaDtype.UNKNOWN

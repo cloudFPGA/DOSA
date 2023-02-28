@@ -114,6 +114,8 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
     # to deal with 'type does not match with a string literal'
     # if out_size == 1:
     #     target.write(" others => ")
+    upper_bound = scale_factor
+    lower_bound = -scale_factor - 1
 
     # In some Networks, such AlexNet, neurons from layer l are not totally connected to layer l+1
     # But only a group is connected. We manage this as follows:
@@ -125,12 +127,12 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
                 for j in range(0, kernel_size):
             # for i in range(kernel_size - 1, -1, -1):
             #     for j in range(kernel_size - 1, -1, -1):
-                    if (kernel_fp[n][m][i][j] > scale_factor):
-                        kernel_fp[n][m][i][j] = scale_factor
-                        print(f"[:HADDOC:INFO] weight at {n}, {m}, {i}, {j} above upper bound ({kernel_fp[n][m][i][j]}), setting to {scale_factor}.")
-                    if (kernel_fp[n][m][i][j] < -scale_factor):
-                        kernel_fp[n][m][i][j] = -scale_factor
-                        print(f"[:HADDOC:INFO] weight at {n}, {m}, {i}, {j} below lower bound ({kernel_fp[n][m][i][j]}), setting to {-scale_factor}.")
+                    if kernel_fp[n][m][i][j] > upper_bound:
+                        print(f"[:HADDOC:INFO] weight at {n}, {m}, {i}, {j} above upper bound ({kernel_fp[n][m][i][j]}), setting to {upper_bound}.")
+                        kernel_fp[n][m][i][j] = upper_bound
+                    if kernel_fp[n][m][i][j] < lower_bound:
+                        print(f"[:HADDOC:INFO] weight at {n}, {m}, {i}, {j} below lower bound ({kernel_fp[n][m][i][j]}), setting to {lower_bound}.")
+                        kernel_fp[n][m][i][j] = lower_bound
                     kernel_bin = np.binary_repr(
                         kernel_fp[n][m][i][j], width=nbits)
                     target.write("\"" + kernel_bin + "\"")
@@ -148,42 +150,42 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
     target.write("\n);\n")
 
 
-def parse_convLayer(target, cnn, layer_name, previous_layer_name, nbits):
-    kernel_data = cnn.params[layer_name][0].data
-    in_size = cnn.params[layer_name][0].data.shape[1]
-    out_size = cnn.blobs[layer_name].data.shape[1]
-    previous_layer_size = cnn.blobs[previous_layer_name].data.shape[1]
-    kernel_size = cnn.params[layer_name][0].data.shape[2]
-    image_width = cnn.blobs[previous_layer_name].data.shape[2]
-    bias_data = np.zeros(out_size, dtype=float)
-    try:
-        bias_data = cnn.params[layer_name][1].data
-    except (IndexError):
-        bias_data = np.zeros(out_size, dtype=float)
-    except (NameError):
-        bias_data = np.zeros(out_size, dtype=float)
-    ## Write layer params ##
-    target.write("--" + layer_name + "\n")
-    write_image_width(layer_name, image_width, target)
-    write_in_size(layer_name, previous_layer_size, target)
-    write_out_size(layer_name, out_size, target)
-    write_kernel_size(layer_name, kernel_size, target)
-    write_bias_value(bias_data, layer_name, nbits, target)
-    write_kernel_value(kernel_data, layer_name, nbits, target)
-    target.write("----------------------------------------------------------")
-    target.write("--------------------------------------------------------\n")
-
-
-def parse_poolLayer(target, cnn, layer_name, previous_layer_name):
-    kernel_size = 2  # For now only a subsampling factor of 4 is supported
-    out_size = cnn.blobs[layer_name].data.shape[1]
-    image_width = cnn.blobs[previous_layer_name].data.shape[2]
-    target.write("--" + layer_name + "\n")
-    write_image_width(layer_name, image_width, target)
-    write_out_size(layer_name, out_size, target)
-    write_kernel_size(layer_name, kernel_size, target)
-    target.write("----------------------------------------------------------")
-    target.write("--------------------------------------------------------\n")
+# def parse_convLayer(target, cnn, layer_name, previous_layer_name, nbits):
+#     kernel_data = cnn.params[layer_name][0].data
+#     in_size = cnn.params[layer_name][0].data.shape[1]
+#     out_size = cnn.blobs[layer_name].data.shape[1]
+#     previous_layer_size = cnn.blobs[previous_layer_name].data.shape[1]
+#     kernel_size = cnn.params[layer_name][0].data.shape[2]
+#     image_width = cnn.blobs[previous_layer_name].data.shape[2]
+#     bias_data = np.zeros(out_size, dtype=float)
+#     try:
+#         bias_data = cnn.params[layer_name][1].data
+#     except (IndexError):
+#         bias_data = np.zeros(out_size, dtype=float)
+#     except (NameError):
+#         bias_data = np.zeros(out_size, dtype=float)
+#     ## Write layer params ##
+#     target.write("--" + layer_name + "\n")
+#     write_image_width(layer_name, image_width, target)
+#     write_in_size(layer_name, previous_layer_size, target)
+#     write_out_size(layer_name, out_size, target)
+#     write_kernel_size(layer_name, kernel_size, target)
+#     write_bias_value(bias_data, layer_name, nbits, target)
+#     write_kernel_value(kernel_data, layer_name, nbits, target)
+#     target.write("----------------------------------------------------------")
+#     target.write("--------------------------------------------------------\n")
+#
+#
+# def parse_poolLayer(target, cnn, layer_name, previous_layer_name):
+#     kernel_size = 2  # For now only a subsampling factor of 4 is supported
+#     out_size = cnn.blobs[layer_name].data.shape[1]
+#     image_width = cnn.blobs[previous_layer_name].data.shape[2]
+#     target.write("--" + layer_name + "\n")
+#     write_image_width(layer_name, image_width, target)
+#     write_out_size(layer_name, out_size, target)
+#     write_kernel_size(layer_name, kernel_size, target)
+#     target.write("----------------------------------------------------------")
+#     target.write("--------------------------------------------------------\n")
 
 
 def write_fileHead(target, block_id):

@@ -22,6 +22,8 @@ import tvm.relay as relay
 import math
 import json
 
+
+import dimidium.lib.singleton as dosa_singleton
 from dimidium.backend.buildTools.BaseBuild import HwBuildTopVhdl
 from dimidium.backend.buildTools.cFBuild1 import cFBuild1
 from dimidium.backend.codeGen.Haddoc2Wrapper import Haddoc2Wrapper
@@ -39,6 +41,7 @@ from dimidium.middleend.archGen.OperationContract import OperationContract
 from dimidium.backend.operatorSets.lib.util import get_avg_util_dict_bytes_based, get_share_of_FPGA_resources
 import dimidium.lib.units as units
 
+
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 __db_path__ = __filedir__ + '/osg_impl_db.json'
 _part_conv_ = 0.8
@@ -50,7 +53,9 @@ class Haddoc2OSG(BaseOSG):
 
     def __init__(self):
         super().__init__('haddoc2 OSG', [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx],
-                         [DosaDtype.int8, DosaDtype.uint8, DosaDtype.int16, DosaDtype.int32],
+                         [DosaDtype.int2, DosaDtype.int3, DosaDtype.int4, DosaDtype.int8,
+                          DosaDtype.int16, DosaDtype.int32],
+                         # not uint8!
                          [BrickImplTypes.STREAM])
         self.priority = 99
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
@@ -621,7 +626,9 @@ class Haddoc2OSG(BaseOSG):
         assert isinstance(op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant)
         if op.need_to_cast_tvm_args:
             kernel_data = data_array_convert_to_DosaDtype(op.tvm_args['by_position'][1]['ref'].data.numpy(),
-                                                          op.used_dtype)
+                                                          op.used_dtype,
+                                                          data_already_scaled=dosa_singleton.config.quant.numbers_already_scaled,
+                                                          numpy_array_type='int32')
         else:
             kernel_data = op.tvm_args['by_position'][1]['ref'].data.numpy()
         bias_data = np.zeros(out_channel_num, dtype=int)
@@ -630,7 +637,9 @@ class Haddoc2OSG(BaseOSG):
             if isinstance(next_op.tvm_args['by_position'][1]['ref'], tvm.relay.expr.Constant):
                 if op.need_to_cast_tvm_args:
                     bias_data = data_array_convert_to_DosaDtype(next_op.tvm_args['by_position'][1]['ref'].data.numpy(),
-                                                                  op.used_dtype)
+                                                                op.used_dtype,
+                                                                data_already_scaled=dosa_singleton.config.quant.numbers_already_scaled,
+                                                                numpy_array_type='int32')
                 else:
                     bias_data = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
             else:

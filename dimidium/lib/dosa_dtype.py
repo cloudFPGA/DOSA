@@ -25,13 +25,15 @@ class DosaDtype(Enum):
     uint8   = 6
     double  = 7
     int4    = 8
+    int3    = 9
+    int2    = 10
 
     def __repr__(self):
         return DosaDtype_to_string(self)
 
 
 complete_dtype_list = [DosaDtype.float32, DosaDtype.float16, DosaDtype.int32, DosaDtype.int16, DosaDtype.int8,
-                       DosaDtype.uint8, DosaDtype.double]
+                       DosaDtype.uint8, DosaDtype.double, DosaDtype.int4, DosaDtype.int3, DosaDtype.int2]
 
 
 def convert_tvmDtype_to_DosaDtype(dtype):
@@ -71,7 +73,7 @@ def get_bitwidth_of_DosaDtype(dtype: DosaDtype) -> int:
         return 64
     if dtype == DosaDtype.int4:
         return 4
-    # unkown, take default
+    # unknown, take default
     return 32
 
 
@@ -105,14 +107,24 @@ def bitw_to_scaleFactor(nbits):
     return np.power(2, (nbits - 1)) - 1
 
 
-def data_array_convert_to_DosaDtype(orig_data: np.ndarray, target_dtype: DosaDtype) -> np.ndarray:
+def data_array_convert_to_DosaDtype(orig_data: np.ndarray, target_dtype: DosaDtype,
+                                    data_already_scaled=True, numpy_array_type=None) -> np.ndarray:
     signed = DosaDtype_is_signed(target_dtype)
     precision = get_bitwidth_of_DosaDtype(target_dtype)
-    scale_factor = bitw_to_scaleFactor(precision)
     # TODO: support custom fixed point
-    rescaled_data = orig_data / scale_factor
-    quant_data = Fxp(rescaled_data, signed=signed, n_word=precision, n_frac=(precision - 1))
-    return quant_data.val
+    # scale_factor = bitw_to_scaleFactor(precision)
+    if data_already_scaled:
+        # rescaled_data = orig_data / scale_factor
+        # so we need to treat it as raw data / representation
+        quant_data = Fxp([0], signed=signed, n_word=precision, n_frac=precision-1)
+        quant_data.set_val(orig_data, raw=True)
+    else:
+        # rescaled_data = orig_data
+        quant_data = Fxp(orig_data, signed=signed, n_word=precision, n_frac=(precision - 1))
+    ret = quant_data.val
+    if numpy_array_type is not None:
+        ret = ret.astype(numpy_array_type)
+    return ret
 
 
 # def data_array_convert_to_DosaDtype(orig_data: np.ndarray, target_dtype: DosaDtype) -> np.ndarray:

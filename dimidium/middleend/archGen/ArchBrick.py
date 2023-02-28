@@ -204,6 +204,7 @@ class ArchBrick(object):
             yield o
 
     def from_dpl_dict(self, dpl_dict):
+        self._orig_dpl_dict = dpl_dict
         self.name = dpl_dict['name']
         self.oi_engine = dpl_dict['cmpl']
         self.oi_stream = dpl_dict['uinp']
@@ -358,8 +359,9 @@ class ArchBrick(object):
             new_brick = ArchBrick()
             new_brick.name = self.name + '_split_{}of{}'.format(i + 1, used_factor)
             new_brick.fn_label = self.fn_label + '_split_{}of{}'.format(i + 1, used_factor)
-            new_brick.tvm_dtype = self.tvm_dtype
+            # new_brick.tvm_dtype = self.tvm_dtype
             new_brick.used_dtype = self.used_dtype
+            new_brick.orig_dtype = self.orig_dtype
             new_brick.flops_conv_factor = self.flops_conv_factor
             new_brick.available_osgs = self.available_osgs
             new_brick.possible_osgs = self.possible_osgs
@@ -682,7 +684,7 @@ class ArchBrick(object):
         #     self.max_parallelization_tries = 32
         self.max_parallelization_tries = 32
         if len(self.dims.param) > 0 and self.parameter_bytes > 0:
-            assert self.parameter_bytes == (check_params * (get_bitwidth_of_DosaDtype(self.used_dtype)/8))
+            assert self.parameter_bytes == (check_params * float(get_bitwidth_of_DosaDtype(self.used_dtype)/8))
 
     def update_util_estimation(self, target_hw: DosaBaseHw):
         share_comp, share_mem = target_hw.get_hw_utilization_tuple(self.req_flops, self.parameter_bytes)

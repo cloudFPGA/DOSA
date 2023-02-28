@@ -108,7 +108,8 @@ def dtype_to_bit(dtype):
 
 def dtype_to_size_b(dtype):
     bits = dtype_to_bit(dtype)
-    return math.ceil(bits / config_bits_per_byte)
+    # return math.ceil(bits / config_bits_per_byte)
+    return bits / config_bits_per_byte
 
 
 def bit_to_dtype(bit):

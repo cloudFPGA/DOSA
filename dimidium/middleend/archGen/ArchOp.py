@@ -110,6 +110,7 @@ class ArchOp(object):
         return naop
 
     def from_dpl_dict(self, dpl_dict):
+        self._orig_dpl_dict = dpl_dict
         self.name = dpl_dict['name']
         self.oi_engine = dpl_dict['cmpl']
         self.oi_stream = dpl_dict['uinp']

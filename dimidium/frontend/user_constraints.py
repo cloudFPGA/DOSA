@@ -146,6 +146,9 @@ def parse_uc_dict(path, dosa_devices):
         if weights_dtype != data_dtype:
             print('NOT YET IMPLEMENTED: For now, weights and data must have the same data type. Stop.')
             exit(1)
+        if 'numbers_already_scaled' in parsed_constraints['overwrite_dtypes']:
+            dosa_singleton.config.quant.numbers_already_scaled = \
+                bool(parsed_constraints['overwrite_dtypes']['numbers_already_scaled'])
     else:
         parsed_constraints['overwrite_imported_dtypes'] = False
         parsed_constraints['overwrite_fixed_point_dtypes'] = False

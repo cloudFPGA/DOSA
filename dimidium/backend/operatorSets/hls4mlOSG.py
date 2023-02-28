@@ -30,7 +30,7 @@ from dimidium.lib.util import BrickImplTypes
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 from dimidium.backend.operatorSets.osgUtils import convert_IntImm_array
 from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype, DosaDtype_is_signed, DosaDtype_to_string, \
-    complete_dtype_list
+    complete_dtype_list, data_array_convert_to_DosaDtype
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
 from dimidium.backend.operatorSets.lib.hls4ml.DosaFileReader import OsgDataReader
 from dimidium.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
@@ -472,7 +472,7 @@ class Hls4mlOSG(BaseOSG):
             if dosa_singleton.uc['use_extra_accum_dtype']:
                 accum_factor = dosa_singleton.uc['overwrite_dtypes']['accum_bits_factor']
                 accum_string = 'ap_fixed<{},{}, AP_TRN, AP_SAT_SYM>'.format(cur_w * accum_factor,
-                                                                                 int_bits * accum_factor)
+                                                                            int_bits * accum_factor)
             else:
                 accum_string = precision_string
 
@@ -908,11 +908,13 @@ class Hls4mlOSG(BaseOSG):
 
         # data must have var names 'kernel' and 'bias' (also 'depthwise_kernel?')
         data = {'layer_name': layer_name, 'variables': {}, 'data_format': {}}
-        # TODO
         if op.need_to_cast_tvm_args:
-            print("implement data cast!")
-            exit(42)
-        data['variables']['kernel'] = op.tvm_args['by_position'][1]['ref'].data.numpy()
+            data['variables']['kernel'] = data_array_convert_to_DosaDtype(
+                op.tvm_args['by_position'][1]['ref'].data.numpy(),
+                op.used_dtype,
+                data_already_scaled=dosa_singleton.config.quant.numbers_already_scaled)
+        else:
+            data['variables']['kernel'] = op.tvm_args['by_position'][1]['ref'].data.numpy()
         data['data_format']['kernel'] = 'channels_first'
 
         consumed_opt_ops = 0
@@ -921,11 +923,13 @@ class Hls4mlOSG(BaseOSG):
             conv_config['bias_constraint'] = None
             conv_config['bias_initializer'] = None
             conv_config['bias_regularizer'] = None
-            # TODO
             if op.need_to_cast_tvm_args:
-                print("implement data cast!")
-                exit(42)
-            data['variables']['bias'] = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
+                data['variables']['bias'] = data_array_convert_to_DosaDtype(
+                    next_op.tvm_args['by_position'][1]['ref'].data.numpy(),
+                    next_op.used_dtype,
+                    data_already_scaled=dosa_singleton.config.quant.numbers_already_scaled)
+            else:
+                data['variables']['bias'] = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
             data['data_format']['bias'] = 'channels_first'
             conv_config['filters'] += 1
             consumed_opt_ops += 1
@@ -1042,11 +1046,13 @@ class Hls4mlOSG(BaseOSG):
 
         # data must have var names 'kernel' and 'bias' (also 'depthwise_kernel?')
         data = {'layer_name': layer_name, 'variables': {}, 'data_format': {}}
-        # TODO
         if op.need_to_cast_tvm_args:
-            print("implement data cast!")
-            exit(42)
-        data['variables']['kernel'] = op.tvm_args['by_position'][1]['ref'].data.numpy()
+            data['variables']['kernel'] = data_array_convert_to_DosaDtype(
+                op.tvm_args['by_position'][1]['ref'].data.numpy(),
+                op.used_dtype,
+                data_already_scaled=dosa_singleton.config.quant.numbers_already_scaled)
+        else:
+            data['variables']['kernel'] = op.tvm_args['by_position'][1]['ref'].data.numpy()
         data['data_format']['kernel'] = 'channels_first'
 
         consumed_opt_ops = 0
@@ -1056,13 +1062,14 @@ class Hls4mlOSG(BaseOSG):
             layer_config['bias_initializer'] = None
             layer_config['bias_regularizer'] = None
             consumed_opt_ops += 1
-            # TODO
+            # if next_op.op_call == 'add':
+            #     # it is still called bias
+            #     data['variables']['bias'] = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
             if op.need_to_cast_tvm_args:
-                print("implement data cast!")
-                exit(42)
-            if next_op.op_call == 'add':
-                # it is still called bias
-                data['variables']['bias'] = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
+                data['variables']['bias'] = data_array_convert_to_DosaDtype(
+                    next_op.tvm_args['by_position'][1]['ref'].data.numpy(),
+                    next_op.used_dtype,
+                    data_already_scaled=dosa_singleton.config.quant.numbers_already_scaled)
             else:
                 data['variables']['bias'] = next_op.tvm_args['by_position'][1]['ref'].data.numpy()
             data['data_format']['bias'] = 'channels_first'

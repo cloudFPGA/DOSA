@@ -12,7 +12,7 @@
 import numpy as np
 import tvm.relay as relay
 
-from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype
+from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype_to_string
 from dimidium.middleend.archGen.ArchOp import ArchOp
 # from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.lib.util import get_next_larger_dividor
@@ -147,7 +147,9 @@ class ParallelizeOpClass(object):
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
-            new_op.tvm_dtype = orig_op.tvm_dtype
+            # new_op.tvm_dtype = orig_op.tvm_dtype
+            new_op.orig_dtype = orig_op.orig_dtype
+            new_op.need_to_cast_tvm_args = orig_op.need_to_cast_tvm_args
             new_op.used_dtype = orig_op.used_dtype
             new_op.flops_conv_factor = orig_op.flops_conv_factor
             # FIXME: also adapt tvm_node
@@ -157,7 +159,8 @@ class ParallelizeOpClass(object):
                 new_op.input_bytes = orig_op.input_bytes
             else:
                 new_op.dims.inp = []
-                inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                # inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                inp_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
                 for dp in range(0, len(orig_op.dims.inp)):
                     d = orig_op.dims.inp[dp]
                     if dp == 1:
@@ -166,9 +169,10 @@ class ParallelizeOpClass(object):
                     else:
                         new_op.dims.inp.append(d)
                         inp_B *= d
-                new_op.input_bytes = int(inp_B)
+                new_op.input_bytes = inp_B
             new_op.dims.param = []
-            param_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            # param_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            param_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
             # for d in orig_op.dims.param:
             for dp in range(0, len(orig_op.dims.param)):
                 d = orig_op.dims.param[dp]
@@ -178,9 +182,10 @@ class ParallelizeOpClass(object):
                 else:
                     new_op.dims.param.append(d)
                     param_B *= d
-            new_op.parameter_bytes = int(param_B)
+            new_op.parameter_bytes = param_B
             new_op.dims.out = []
-            out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            # out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            out_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
             # for d in orig_op.dims.out:
             for dp in range(0, len(orig_op.dims.out)):
                 d = orig_op.dims.out[dp]
@@ -190,7 +195,7 @@ class ParallelizeOpClass(object):
                 else:
                     new_op.dims.out.append(d)
                     out_B *= d
-            new_op.output_bytes = int(out_B)
+            new_op.output_bytes = out_B
             new_op.flops = orig_op.flops/factor
             new_op.oi_stream = new_op.flops / new_op.input_bytes
             new_op.oi_engine = new_op.flops / (new_op.input_bytes + new_op.parameter_bytes)
@@ -201,8 +206,9 @@ class ParallelizeOpClass(object):
             orig_var = orig_op.tvm_args['by_position'][1]['node']
             new_op.tvm_args['by_position'][1] = {'pos': 1,
                                                  'node': relay.var(orig_var.name_hint, shape=new_op.dims.param,
-                                                                   dtype=new_op.tvm_dtype),
-                                                 'ref': relay.const(new_weights_list[i], dtype=new_op.tvm_dtype)}
+                                                                   dtype=new_op.orig_dtype),
+                                                 'ref': relay.const(new_weights_list[i],
+                                                                    dtype=new_op.orig_dtype)}
             # we need new contracts
             new_ops_list.append(new_op)
         return new_ops_list
@@ -220,7 +226,9 @@ class ParallelizeOpClass(object):
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
-            new_op.tvm_dtype = orig_op.tvm_dtype
+            # new_op.tvm_dtype = orig_op.tvm_dtype
+            new_op.orig_dtype = orig_op.orig_dtype
+            new_op.need_to_cast_tvm_args = orig_op.need_to_cast_tvm_args
             new_op.used_dtype = orig_op.used_dtype
             new_op.flops_conv_factor = orig_op.flops_conv_factor
             # no TVM node --> later # TODO
@@ -229,7 +237,8 @@ class ParallelizeOpClass(object):
                 new_op.input_bytes = orig_op.input_bytes
             else:
                 new_op.dims.inp = []
-                inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                # inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                inp_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
                 for dp in range(0, len(orig_op.dims.inp)):
                     d = orig_op.dims.inp[dp]
                     if dp == 1:
@@ -238,9 +247,10 @@ class ParallelizeOpClass(object):
                     else:
                         new_op.dims.inp.append(d)
                         inp_B *= d
-                new_op.input_bytes = int(inp_B)
+                new_op.input_bytes = inp_B
             new_op.dims.param = []
-            param_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            # param_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            param_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
             # for d in orig_op.dims.param:
             for dp in range(0, len(orig_op.dims.param)):
                 d = orig_op.dims.param[dp]
@@ -250,9 +260,10 @@ class ParallelizeOpClass(object):
                 else:
                     new_op.dims.param.append(d)
                     param_B *= d
-            new_op.parameter_bytes = int(param_B)
+            new_op.parameter_bytes = param_B
             new_op.dims.out = []
-            out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            # out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            out_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
             # for d in orig_op.dims.out:
             for dp in range(0, len(orig_op.dims.out)):
                 d = orig_op.dims.out[dp]
@@ -262,7 +273,7 @@ class ParallelizeOpClass(object):
                 else:
                     new_op.dims.out.append(d)
                     out_B *= d
-            new_op.output_bytes = int(out_B)
+            new_op.output_bytes = out_B
             new_op.flops = orig_op.flops/factor
             new_op.oi_stream = new_op.flops / new_op.input_bytes
             new_op.oi_engine = new_op.flops / (new_op.input_bytes + new_op.parameter_bytes)
@@ -273,8 +284,8 @@ class ParallelizeOpClass(object):
             orig_var = orig_op.tvm_args['by_position'][1]['node']
             new_op.tvm_args['by_position'][1] = {'pos': 1,
                                                  'node': relay.var(orig_var.name_hint, shape=new_op.dims.param,
-                                                                   dtype=new_op.tvm_dtype),
-                                                 'ref': relay.const(new_bias_list[i], dtype=new_op.tvm_dtype)}
+                                                                   dtype=new_op.orig_dtype),
+                                                 'ref': relay.const(new_bias_list[i], dtype=new_op.orig_dtype)}
             new_ops_list.append(new_op)
         return new_ops_list
 
@@ -286,7 +297,9 @@ class ParallelizeOpClass(object):
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
-            new_op.tvm_dtype = orig_op.tvm_dtype
+            # new_op.tvm_dtype = orig_op.tvm_dtype
+            new_op.orig_dtype = orig_op.orig_dtype
+            new_op.need_to_cast_tvm_args = orig_op.need_to_cast_tvm_args
             new_op.used_dtype = orig_op.used_dtype
             new_op.flops_conv_factor = orig_op.flops_conv_factor
             # no TVM node --> later # TODO
@@ -295,7 +308,8 @@ class ParallelizeOpClass(object):
                 new_op.input_bytes = orig_op.input_bytes
             else:
                 new_op.dims.inp = []
-                inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                # inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                inp_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
                 for dp in range(0, len(orig_op.dims.inp)):
                     d = orig_op.dims.inp[dp]
                     if dp == 1:
@@ -304,11 +318,12 @@ class ParallelizeOpClass(object):
                     else:
                         new_op.dims.inp.append(d)
                         inp_B *= d
-                new_op.input_bytes = int(inp_B)
+                new_op.input_bytes = inp_B
             new_op.dims.param = []
             new_op.parameter_bytes = 0
             new_op.dims.out = []
-            out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            # out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            out_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
             # for d in orig_op.dims.out:
             for dp in range(0, len(orig_op.dims.out)):
                 d = orig_op.dims.out[dp]
@@ -318,7 +333,7 @@ class ParallelizeOpClass(object):
                 else:
                     new_op.dims.out.append(d)
                     out_B *= d
-            new_op.output_bytes = int(out_B)
+            new_op.output_bytes = out_B
             new_op.flops = orig_op.flops/factor
             new_op.oi_stream = new_op.flops / new_op.input_bytes
             new_op.oi_engine = new_op.flops / (new_op.input_bytes + new_op.parameter_bytes)
@@ -338,7 +353,9 @@ class ParallelizeOpClass(object):
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
-            new_op.tvm_dtype = orig_op.tvm_dtype
+            # new_op.tvm_dtype = orig_op.tvm_dtype
+            new_op.orig_dtype = orig_op.orig_dtype
+            new_op.need_to_cast_tvm_args = orig_op.need_to_cast_tvm_args
             new_op.used_dtype = orig_op.used_dtype
             new_op.flops_conv_factor = orig_op.flops_conv_factor
             # no TVM node --> later # TODO
@@ -347,7 +364,8 @@ class ParallelizeOpClass(object):
                 new_op.input_bytes = orig_op.input_bytes
             else:
                 new_op.dims.inp = []
-                inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                # inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                inp_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
                 for dp in range(0, len(orig_op.dims.inp)):
                     d = orig_op.dims.inp[dp]
                     if dp == 1:
@@ -356,11 +374,12 @@ class ParallelizeOpClass(object):
                     else:
                         new_op.dims.inp.append(d)
                         inp_B *= d
-                new_op.input_bytes = int(inp_B)
+                new_op.input_bytes = inp_B
             new_op.dims.param = []
             new_op.parameter_bytes = 0
             new_op.dims.out = []
-            out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            # out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            out_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
             # for d in orig_op.dims.out:
             for dp in range(0, len(orig_op.dims.out)):
                 d = orig_op.dims.out[dp]
@@ -370,7 +389,7 @@ class ParallelizeOpClass(object):
                 else:
                     new_op.dims.out.append(d)
                     out_B *= d
-            new_op.output_bytes = int(out_B)
+            new_op.output_bytes = out_B
             new_op.flops = orig_op.flops/factor
             new_op.oi_stream = new_op.flops / new_op.input_bytes
             new_op.oi_engine = new_op.flops / (new_op.input_bytes + new_op.parameter_bytes)
@@ -390,7 +409,9 @@ class ParallelizeOpClass(object):
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
-            new_op.tvm_dtype = orig_op.tvm_dtype
+            # new_op.tvm_dtype = orig_op.tvm_dtype
+            new_op.orig_dtype = orig_op.orig_dtype
+            new_op.need_to_cast_tvm_args = orig_op.need_to_cast_tvm_args
             new_op.used_dtype = orig_op.used_dtype
             new_op.flops_conv_factor = orig_op.flops_conv_factor
             # FIXME: also adapt tvm_node
@@ -402,7 +423,8 @@ class ParallelizeOpClass(object):
                 new_op.output_bytes = orig_op.output_bytes
             else:
                 new_op.dims.inp = []
-                inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                # inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                inp_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
                 for dp in range(0, len(orig_op.dims.inp)):
                     d = orig_op.dims.inp[dp]
                     if dp == 1:
@@ -411,9 +433,10 @@ class ParallelizeOpClass(object):
                     else:
                         new_op.dims.inp.append(d)
                         inp_B *= d
-                new_op.input_bytes = int(inp_B)
+                new_op.input_bytes = inp_B
                 new_op.dims.out = []
-                out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                # out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                out_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
                 # for d in orig_op.dims.out:
                 for dp in range(0, len(orig_op.dims.out)):
                     d = orig_op.dims.out[dp]
@@ -423,7 +446,7 @@ class ParallelizeOpClass(object):
                     else:
                         new_op.dims.out.append(d)
                         out_B *= d
-                new_op.output_bytes = int(out_B)
+                new_op.output_bytes = out_B
             new_op.dims.param = []
             new_op.parameter_bytes = 0
             new_op.flops = orig_op.flops/factor
@@ -447,7 +470,9 @@ class ParallelizeOpClass(object):
             new_op.op_call = orig_op.op_call
             new_op.layer_name = orig_op.layer_name
             new_op.parent_fn = orig_op.parent_fn
-            new_op.tvm_dtype = orig_op.tvm_dtype
+            # new_op.tvm_dtype = orig_op.tvm_dtype
+            new_op.orig_dtype = orig_op.orig_dtype
+            new_op.need_to_cast_tvm_args = orig_op.need_to_cast_tvm_args
             new_op.used_dtype = orig_op.used_dtype
             new_op.flops_conv_factor = orig_op.flops_conv_factor
             # no TVM node --> later # TODO
@@ -456,7 +481,8 @@ class ParallelizeOpClass(object):
                 new_op.input_bytes = orig_op.input_bytes
             else:
                 new_op.dims.inp = []
-                inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                # inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                inp_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
                 for dp in range(0, len(orig_op.dims.inp)):
                     d = orig_op.dims.inp[dp]
                     if dp == 1:
@@ -465,11 +491,12 @@ class ParallelizeOpClass(object):
                     else:
                         new_op.dims.inp.append(d)
                         inp_B *= d
-                new_op.input_bytes = int(inp_B)
+                new_op.input_bytes = inp_B
             new_op.dims.param = []
             new_op.parameter_bytes = 0
             new_op.dims.out = []
-            out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            # out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            out_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
             # for d in orig_op.dims.out:
             for dp in range(0, len(orig_op.dims.out)):
                 d = orig_op.dims.out[dp]
@@ -479,7 +506,7 @@ class ParallelizeOpClass(object):
                 else:
                     new_op.dims.out.append(d)
                     out_B *= d
-            new_op.output_bytes = int(out_B)
+            new_op.output_bytes = out_B
             new_op.flops = orig_op.flops/factor
             new_op.oi_stream = new_op.flops / new_op.input_bytes
             new_op.oi_engine = new_op.flops / (new_op.input_bytes + new_op.parameter_bytes)
