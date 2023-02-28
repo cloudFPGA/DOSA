@@ -12,6 +12,8 @@
 
 import sys
 import abc
+from collections import Counter
+
 
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.backend.buildTools.BaseBuild import BaseBuild
@@ -21,6 +23,9 @@ from dimidium.lib.dosa_dtype import DosaDtype
 # to init relay_ops
 import dimidium.backend.operatorSets.relay_ops as relay_ops
 from dimidium.middleend.archGen.BrickContract import BrickContract
+
+
+__default_osg_dict_value__ = (False, None)
 
 
 class BaseOSG(metaclass=abc.ABCMeta):
@@ -37,7 +42,7 @@ class BaseOSG(metaclass=abc.ABCMeta):
         # self.relay2osg = {}
         # init with all False
         # self.relay2osg = {x: False for x in relay_ops.op}
-        self.relay2osg = deep_update(relay_ops.get_op_dict_copy(), (False, None))
+        self.relay2osg = deep_update(relay_ops.get_op_dict_copy(), __default_osg_dict_value__)
         self.dosaHwTypes = []
         self.priority = -1
         self.priority_internal = -1
@@ -234,6 +239,29 @@ class BaseOSG(metaclass=abc.ABCMeta):
     # @abc.abstractmethod
     # def estimate_flops_brick(self, brick_node):
     #     print("[DOSA:OSG:ERROR] NOT YET IMPLEMENTED.")
+    
+    def get_ir_coverage(self):
+        # from collections import Counter
+        # Counter(d.values())
+        # from itertools import chain
+        # counter_dict = Counter(chain(*d.values()))
+        # for mixed nested dictionaries, above is not working
+        # tmp_str = str(self.relay2osg)
+        # not_covered = tmp_str.count("(False, None)")
+        total_entries = 0
+        not_covered = 0
+        for v in self.relay2osg.values():
+            if type(v) == dict:
+                total_entries += len(v)
+                tmp_cnt = Counter(v.values())
+                not_covered += tmp_cnt[__default_osg_dict_value__]
+            else:
+                total_entries += 1
+                if v == __default_osg_dict_value__:
+                    not_covered += 1
+        ret = {'osg': self.name, 'total_entries': total_entries, 'not_covered': not_covered,
+               'coverage': float(1-(not_covered/total_entries))}
+        return ret
 
 
 class UndecidedOSG(BaseOSG):
@@ -297,4 +325,37 @@ def filter_osg_list(osg_list, osg_allowlist):
         if removed:
             print(f'[DOSA:OSG:INFO] Removing OSG "{o.name}" due to user constraint.')
     return filtered_list
+
+
+def get_coverege_multiple_osgs(osg_list):
+    merge_ops = deep_update(relay_ops.get_op_dict_copy(), 'not_covered')
+    combined_names = ''
+    for o in osg_list:
+        combined_names += o.name
+        combined_names += '_'
+        for k in o.relay2osg:
+            v = o.relay2osg[k]
+            if type(v) == dict:
+                for kk in o.relay2osg[k]:
+                    vv = o.relay2osg[k][kk]
+                    if vv != __default_osg_dict_value__:
+                        merge_ops[k][kk] = 'covered'
+            else:
+                if v != __default_osg_dict_value__:
+                    merge_ops[k] = 'covered'
+    total_entries = 0
+    not_covered = 0
+    for v in merge_ops.values():
+        if type(v) == dict:
+            total_entries += len(v)
+            tmp_cnt = Counter(v.values())
+            not_covered += tmp_cnt['not_covered']
+        else:
+            total_entries += 1
+            if v == 'not_covered':
+                not_covered += 1
+
+    ret = {'osg': combined_names[:-1], 'total_entries': total_entries, 'not_covered': not_covered,
+           'coverage': float(1 - (not_covered / total_entries))}
+    return ret
 

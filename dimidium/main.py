@@ -22,8 +22,8 @@ from dimidium.middleend.archGen.archGen import arch_gen
 import dimidium.lib.plot_2Droofline as plot_2Droofline
 import dimidium.lib.plot_3Droofline as plot_3Droofline
 import dimidium.backend.devices.builtin as builtin_devices
-from dimidium.backend.operatorSets.osgs import builtin_OSGs
-from dimidium.backend.operatorSets.BaseOSG import sort_osg_list, filter_osg_list
+from dimidium.backend.operatorSets.osgs import builtin_OSGs, fpga_OSGs
+from dimidium.backend.operatorSets.BaseOSG import sort_osg_list, filter_osg_list, get_coverege_multiple_osgs
 from dimidium.lib.plot_bandwidth import generate_bandwidth_plt
 from dimidium.lib.plot_throughput import generate_throughput_plt_nodes, generate_throughput_plt_bricks
 from dimidium.backend.commLibs.commlibs import builtin_comm_libs
@@ -91,6 +91,10 @@ if __name__ == '__main__':
     for osg in available_OSGs:
         osg.init(available_devices.classes_dict, prio_int)
         prio_int += 1
+        # if debug_mode:
+        osg_cov_stat = osg.get_ir_coverage()
+        print(osg_cov_stat)
+    print(get_coverege_multiple_osgs(fpga_OSGs))
     all_commLibs = builtin_comm_libs
     available_comm_libs = sort_commLib_list(all_commLibs, use_internal_prio=False)
     # TODO: extend this list with custom comm libs here
