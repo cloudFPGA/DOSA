@@ -37,7 +37,10 @@ from dimidium.lib.dosa_exceptions import DosaImpossibleToProceed, DosaInvalidAct
 def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices,
              available_comm_libs: [BaseCommLib], batch_size=1, sample_size=1, target_sps=-1, target_latency=-1,
              target_resources=-1, arch_target_devices=None, arch_fallback_devices=None, debug=False, profiling=False,
-             verbose=False, generate_build=True, generate_only_stats=False):
+             verbose=False, generate_build=True, generate_only_stats=False, write_only_osg_coverage=False):
+    verbose_arch_dump = True
+    do_best_search = True
+
     arch_gen_start = time.time()
     oi_calc = OiCalculator(default_oi=1.0)
     oi_pass = OiPipeline(fallback_size_t=32, oiCalc=oi_calc)
@@ -104,6 +107,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
         for bb in inital_draft.brick_iter_gen():
             for osg in available_osgs:
                 osg.annotate_brick(bb, thw)
+    inital_draft.available_osgs = available_osgs
 
     creating_draft_end = time.time()
 
@@ -133,8 +137,23 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
         print("[DOSA:archGen:ERROR] Draft {} is not valid.".format(annotated_draft.name))
         exit(1)
 
+    if write_only_osg_coverage:
+        # print("[DOSA:archGen:INFO] coverage of available OSGs:")
+        print(annotated_draft.get_osg_coverage())
+        # exit(0)
+        print("\n\tINFO: Skipping optimization and build on user request.")
+        print("\tINFO: Writing OSG statistics to build folder on user request.")
+        annotated_draft.write_osg_coverage()
+        generate_build = False
+        generate_only_stats = False
+        verbose_arch_dump = False
+        do_best_search = False
+
     find_best_start = time.time()
-    best_draft = find_best_draft(annotated_draft, verbose=verbose)
+    if do_best_search:
+        best_draft = find_best_draft(annotated_draft, verbose=verbose)
+    else:
+        best_draft = annotated_draft
     find_best_end = time.time()
 
     # check_annot_start_2 = time.time()
@@ -154,8 +173,9 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     #     # print("\n[DEBUG] ...trying to build...")
     dse_time_seconds = find_best_end - tvm_pass_start
     best_draft.total_time_dse_seconds = f'{dse_time_seconds:.2f}'
-    print("\nDOSA: Found best and valid draft, generating architecture and software in {}...\n"
-          .format(dosa_singleton.config.global_build_dir))
+    if do_best_search:
+        print("\nDOSA: Found best and valid draft, generating architecture and software in {}...\n"
+              .format(dosa_singleton.config.global_build_dir))
     build_start = time.time()
     if generate_build:
         best_draft.build(verbose=verbose)
@@ -163,11 +183,10 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
         print("\tINFO: Skipping build on user request.")
         print("\tINFO: Writing architecture Information to build folder on user request.")
         best_draft.write_info(verbose=verbose)
-    else:
+    elif (verbose or debug) and verbose_arch_dump:
         print("\tINFO: Skipping build on user request.")
-        if verbose or debug:
-            print("\n[DEBUG] best draft found:")
-            print(json.dumps(best_draft.get_extended_cluster_description(), indent=2))
+        print("\n[DEBUG] best draft found:")
+        print(json.dumps(best_draft.get_extended_cluster_description(), indent=2))
     build_stop = time.time()
 
     # if debug or verbose:
@@ -210,7 +229,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
                      'dse_time': dse_time_seconds,
                      # 'check_annotations_time_2_s': check_annot_end_2 - check_annot_start_2,
                      'build_total_time_s': build_stop - build_start}
-                     #, 'synth_total_time_s': synth_stop - synth_start}
+        # , 'synth_total_time_s': synth_stop - synth_start}
         ret['profiling'] = prof_dict
         if debug or verbose:
             print("\n[DEBUG] profiling information: ")
@@ -222,7 +241,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     return ret
 
 
-def create_arch_draft(name, strategy: OptimizationStrategies,  available_osgs: [BaseOSG],
+def create_arch_draft(name, strategy: OptimizationStrategies, available_osgs: [BaseOSG],
                       available_comm_libs: [BaseCommLib], batch_size, sample_size, target_sps, target_latency,
                       target_resources, data_per_layer, tvm_nodes, tvm_call_args, tvm_mod, tvm_params):
     # construct main function calls
@@ -325,8 +344,9 @@ def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.E
                     if (float(cur_local_tp) + 1) < float(req_local_tp):
                         fails_tp = True
                 if fails_tp:
-                    print("[DOSA:archVerify:ERROR] Brick {} does not fulfill local throughput requirement (req: {} current: {} B/s)."
-                          .format(repr(bb), req_local_tp, cur_local_tp))
+                    print(
+                        "[DOSA:archVerify:ERROR] Brick {} does not fulfill local throughput requirement (req: {} current: {} B/s)."
+                        .format(repr(bb), req_local_tp, cur_local_tp))
                     return False
         print("[DOSA:archVerify:INFO] Draft {} fulfills throughput requirement.".format(repr(draft)))
         return True
@@ -420,7 +440,7 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
     assert len(draft.target_hw_set) >= 1
     assert len(draft.fallback_hw_set) >= 1
     draft_list = []
-    node_count_list = []   # index equals index in target_hw_set and draft_list
+    node_count_list = []  # index equals index in target_hw_set and draft_list
     max_brick_count_list = []
     # TODO: also consider osg count?
     predicted_iter_list = []
@@ -456,7 +476,7 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
                 continue
             # save state
             node_count_list.append(tmp_draft.get_total_nodes_cnt())
-            max_brick_count_list.append(tmp_draft.max_brick_uuid)
+            max_brick_count_list.append(tmp_draft.max_brick_uuid + 1)
             predicted_iter_list.append(tmp_draft.min_iter_hz)
             draft_list.append(tmp_draft)
     if len(draft_list) == 0:
@@ -501,5 +521,3 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
 
 def optimize_draft(draft: ArchDraft) -> [ArchDraft]:
     return False
-
-

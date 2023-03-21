@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     # TODO: use argparse
     if len(sys.argv) == 6 and (sys.argv[5] != '--no-roofline' and sys.argv[5] != '--no-build'
-        and sys.argv[5] != '--only-stats'):
+        and sys.argv[5] != '--only-stats' and sys.argv[5] != '--only-coverage'):
         print_usage(sys.argv)
 
     dosa_config_path = sys.argv[1]
@@ -59,6 +59,7 @@ if __name__ == '__main__':
     show_graphics = True
     generate_build = True
     generate_only_stats = False  # default is part of build
+    generate_only_coverage = False
     if len(sys.argv) == 6 and sys.argv[5] == '--no-roofline':
         show_graphics = False
     if len(sys.argv) == 6 and sys.argv[5] == '--no-build':
@@ -67,6 +68,11 @@ if __name__ == '__main__':
         show_graphics = False
         generate_build = False
         generate_only_stats = True
+    if len(sys.argv) == 6 and sys.argv[5] == '--only-coverage':
+        show_graphics = False
+        generate_build = False
+        generate_only_stats = False
+        generate_only_coverage = True
 
     with open(dosa_config_path, 'r') as inp:
         dosa_config = json.load(inp)
@@ -86,15 +92,18 @@ if __name__ == '__main__':
     all_OSGs = builtin_OSGs
     available_OSGs = sort_osg_list(all_OSGs, use_internal_prio=False)
     # TODO: extend this list with custom OSGs here
+    print_osg_stats = False
     # init osgs
     prio_int = 0  # get unique internal priorities
     for osg in available_OSGs:
         osg.init(available_devices.classes_dict, prio_int)
         prio_int += 1
-        # if debug_mode:
-        osg_cov_stat = osg.get_ir_coverage()
-        print(osg_cov_stat)
-    print(get_coverege_multiple_osgs(fpga_OSGs))
+        if print_osg_stats:
+            osg_cov_stat = osg.get_ir_coverage()
+            print(osg_cov_stat)
+    if print_osg_stats:
+        print(get_coverege_multiple_osgs(fpga_OSGs))
+        print(get_coverege_multiple_osgs(fpga_OSGs[:-1]))
     all_commLibs = builtin_comm_libs
     available_comm_libs = sort_commLib_list(all_commLibs, use_internal_prio=False)
     # TODO: extend this list with custom comm libs here
@@ -134,7 +143,8 @@ if __name__ == '__main__':
     archDict = arch_gen(mod, params, used_name, arch_gen_strategy, available_OSGs, available_devices,
                         available_comm_libs, used_batch, used_sample_size, target_sps, target_latency,
                         target_resource_budget, arch_target_devices, arch_fallback_hw, debug=debug_mode, profiling=True,
-                        verbose=True, generate_build=generate_build, generate_only_stats=generate_only_stats)
+                        verbose=True, generate_build=generate_build, generate_only_stats=generate_only_stats,
+                        write_only_osg_coverage=generate_only_coverage)
     print("\t...done.\n")
 
     all_plots = True

@@ -22,10 +22,11 @@ class CommPlan:
         self.comm_instr = []
         self.pipeline_store_until_now = pipeline_store_until_now
         self.after_pipeline_full_instr_start = -1
+        self.transactions_per_iteration = 0
         self.update()
 
     def as_dict(self):
-        ret = self.comm_instr
+        ret = {'instructions': self.comm_instr, 'transactions_per_iteration': self.transactions_per_iteration}
         return ret
 
     def update(self):
@@ -142,6 +143,8 @@ class CommPlan:
         # TODO: we don't need to take care of output...?`
         # repetition_cycles = [(total_in_repetition, total_out_repetition)]
         repetition_cycles = zip(in_repeat_list, out_repeat_list)
+        self.comm_instr = []
+        self.transactions_per_iteration = 0
         for in_repetition, out_repetition in repetition_cycles:
             for i in range(len(incomming_ranks)):
                 # here, we assume strict streaming...so one message in, one out (with repetition)
@@ -149,6 +152,7 @@ class CommPlan:
                     new_msg_in_dict = {'instr': 'recv', 'rank': incomming_ranks[i][0], 'count': in_msg_cnt,
                                        'repeat': in_repetition, 'cond': in_cmd_rank_list[i], 'combine': None}
                     self.comm_instr.append(new_msg_in_dict)
+                    self.transactions_per_iteration += in_repetition
                 else:
                     # make repetition explicit
                     combine_comp_parallel = []
@@ -171,10 +175,12 @@ class CommPlan:
                         combine_comp_parallel.append(new_msg_in_dict)
                     for r in range(0, in_repetition):
                         self.comm_instr.extend(combine_comp_parallel)
+                    self.transactions_per_iteration += in_repetition
                 if len(outgoing_ranks[i]) == 1:
                     new_msg_out_dict = {'instr': 'send', 'rank': outgoing_ranks[i][0], 'count': out_msg_cnt,
                                         'repeat': out_repetition, 'cond': out_cmd_rank_list[i], 'combine': None}
                     self.comm_instr.append(new_msg_out_dict)
+                    self.transactions_per_iteration += out_repetition
                 else:
                     # make repetition explicit
                     combine_comp_parallel = []
@@ -197,6 +203,7 @@ class CommPlan:
                         combine_comp_parallel.append(new_msg_out_dict)
                     for r in range(0, out_repetition):
                         self.comm_instr.extend(combine_comp_parallel)
+                    self.transactions_per_iteration += out_repetition
         # Pipeline full part
         self.after_pipeline_full_instr_start = len(self.comm_instr)
         total_in_repetition = max(1, dosa_singleton.config.backend.comm_message_interleaving)
@@ -243,6 +250,7 @@ class CommPlan:
                     new_msg_in_dict = {'instr': 'recv', 'rank': incomming_ranks[i][0], 'count': in_msg_cnt,
                                        'repeat': in_repetition, 'cond': in_cmd_rank_list[i], 'combine': None}
                     self.comm_instr.append(new_msg_in_dict)
+                    self.transactions_per_iteration += in_repetition
                 else:
                     # make repetition explicit
                     combine_comp_parallel = []
@@ -265,10 +273,12 @@ class CommPlan:
                         combine_comp_parallel.append(new_msg_in_dict)
                     for r in range(0, in_repetition):
                         self.comm_instr.extend(combine_comp_parallel)
+                    self.transactions_per_iteration += in_repetition
                 if len(outgoing_ranks[i]) == 1:
                     new_msg_out_dict = {'instr': 'send', 'rank': outgoing_ranks[i][0], 'count': out_msg_cnt,
                                         'repeat': out_repetition, 'cond': out_cmd_rank_list[i], 'combine': None}
                     self.comm_instr.append(new_msg_out_dict)
+                    self.transactions_per_iteration += out_repetition
                 else:
                     # make repetition explicit
                     combine_comp_parallel = []
@@ -291,6 +301,7 @@ class CommPlan:
                         combine_comp_parallel.append(new_msg_out_dict)
                     for r in range(0, out_repetition):
                         self.comm_instr.extend(combine_comp_parallel)
+                    self.transactions_per_iteration += out_repetition
 
 
         # in_nodes = self.node.predecessors

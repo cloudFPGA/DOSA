@@ -15,11 +15,11 @@ from dimidium.lib.units import *
 from dimidium.backend.devices.dosa_device import DosaHwClasses, DosaBaseHw
 from dimidium.backend.buildTools.DefaultCpuBuild import DefaultCpuBuild
 
-
-network_bandwidth_gBs = 10.0/8.0
+network_bandwidth_gBs = 10.0 / 8.0
 cpu_gflops = 200  # from some benchmark for Intel i7 8th gen
 dram_bandwith_gBs = 80.0
 cpu_l1l2_cache_size_bytes = 8 * megaU
+max_connections_per_s_single_socket = 4000  # based on experiments
 
 
 class VcpuDummy(DosaBaseHw):
@@ -68,8 +68,9 @@ class VcpuDummy(DosaBaseHw):
 
     def get_hw_utilization_tuple(self, flops, bake_in_params_bytes):
         self._gen_numbers()
-        share_flops = float(flops/self.total_flops_hw) * dosa_singleton.config.utilization.dosa_mu_comp
-        share_memory = float(bake_in_params_bytes/self.total_bytes_hw) * dosa_singleton.config.utilization.dosa_mu_mem
+        share_flops = float(flops / self.total_flops_hw) * dosa_singleton.config.utilization.dosa_mu_comp
+        share_memory = float(bake_in_params_bytes / self.total_bytes_hw) * dosa_singleton.config.utilization.dosa_mu_mem
         return share_flops, share_memory
 
-
+    def get_max_connections_per_s(self):
+        return max_connections_per_s_single_socket

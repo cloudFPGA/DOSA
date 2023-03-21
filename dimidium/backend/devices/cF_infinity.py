@@ -167,7 +167,7 @@ class CfPseudoFPGA(DosaBaseHw):
         # b_s_mantle_lutram_gBs = (small_role_lutram_available_B / (1/freq_fpga)) / gigaU
 
         # network bandwidth
-        self.b_s_fpga_eth_gBs = (10.0 / 8.0) * 10  # 10Gbe
+        self.b_s_fpga_eth_gBs = (10.0 / 8.0) * 10
         # b_s_mantle_eth_gBs = 9.87 / 8.0
 
         # utilization
@@ -181,6 +181,10 @@ class CfPseudoFPGA(DosaBaseHw):
         total_bytes_lutram = role_lutram_available_inBytes / \
                              dosa_singleton.config.utilization.xilinx_lutram_to_bram_factor
         self.total_bytes_hw = total_bytes_bram + total_bytes_lutram
+
+        message_overhead_bytes = 50  # roughly
+        network_overhead_per_gB = message_overhead_bytes / gigaU
+        self.max_connections_per_s = self.b_s_fpga_eth_gBs / network_overhead_per_gB
 
         self.initialized = True
         return
@@ -229,4 +233,7 @@ class CfPseudoFPGA(DosaBaseHw):
         share_flops = float(flops / self.total_flops_hw) * dosa_singleton.config.utilization.dosa_mu_comp
         share_memory = float(bake_in_params_bytes / self.total_bytes_hw) * dosa_singleton.config.utilization.dosa_mu_mem
         return share_flops, share_memory
+
+    def get_max_connections_per_s(self):
+        return self.max_connections_per_s
 

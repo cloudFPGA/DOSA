@@ -91,6 +91,10 @@ class DosaBaseHw(metaclass=abc.ABCMeta):
     def get_hw_utilization_tuple(self, flops, bake_in_params_bytes):
         print("[DOSA:DEVICES:ERROR] NOT YET IMPLEMENTED.")
 
+    @abc.abstractmethod
+    def get_max_connections_per_s(self):
+        print("[DOSA:DEVICES:ERROR] NOT YET IMPLEMENTED.")
+
 
 class UndecidedDosaHw(DosaBaseHw):
 
@@ -115,6 +119,9 @@ class UndecidedDosaHw(DosaBaseHw):
         pass
 
     def get_hw_utilization_tuple(self, flops, bake_in_params_bytes):
+        pass
+
+    def get_max_connections_per_s(self):
         pass
 
 

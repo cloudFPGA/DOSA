@@ -732,7 +732,8 @@ def draw_roofline(used_name, used_batch, perf_dict, roofline_dict, target_string
     ncol = 3
     if not draw_markers:
         ncol = 4
-    legend = plt.legend(handles=handles, ncol=ncol, bbox_to_anchor=(0.5, 1), loc='lower center', fontsize=MY_SIZE_SMALL, title=title)
+    legend = plt.legend(handles=handles, ncol=ncol, bbox_to_anchor=(0.5, 1), loc='lower center', fontsize=MY_SIZE_SMALL,
+                        title=title)
     plt.grid(True, which="major", ls="-", color='0.89')
     plt.tick_params(axis='both', which='both', labelsize=MY_SIZE)
     # plt.setp(legend.get_title(), fontsize=MY_SIZE*1.2)

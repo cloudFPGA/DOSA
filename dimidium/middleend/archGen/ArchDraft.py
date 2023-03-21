@@ -65,7 +65,8 @@ class ArchDraft(object):
         self.all_selected_hw_types = []
         self.possible_comm_libs = []
         self.selected_comm_lib = placeholderCommLib
-        self.substract_node_0 = False
+        self.available_osgs = []
+        self.substract_client_nodes = 0
         self.total_perf_F = -1
         self.max_perf_iter_based = -1
         self.min_iter_hz = -1
@@ -237,8 +238,9 @@ class ArchDraft(object):
         total_nodes = 0
         for nn in self.node_iter_gen():
             total_nodes += nn.data_parallelism_level
-        if self.substract_node_0:
-            total_nodes -= 1
+        # if self.substract_node_0:
+        #     total_nodes -= 1
+        total_nodes -= self.substract_client_nodes
         return total_nodes
 
     # def legalize(self, verbose=False):
@@ -1751,8 +1753,9 @@ class ArchDraft(object):
 
     def _generate_cluster_description(self):
         num_nodes = self.get_total_nodes_cnt()
-        if self.substract_node_0:
-            num_nodes += 1
+        # if self.substract_node_0:
+        #     num_nodes += 1
+        num_nodes -= self.substract_client_nodes
         cluster_dict = {'name': self.name, 'total_nodes': num_nodes, 'nodes': []}
         for nn in self.node_iter_gen():
             nn_f = nn.build_tool.node_folder_name
@@ -1780,8 +1783,9 @@ class ArchDraft(object):
 
     def get_extended_cluster_description(self):
         num_nodes = self.get_total_nodes_cnt()
-        if self.substract_node_0:
-            num_nodes += 1
+        num_nodes -= self.substract_client_nodes
+        # if self.substract_node_0:
+        #     num_nodes += 1
         cluster_dict = {'name': self.name, 'total_flops': float(self.total_flops),
                         'total_parameter_bytes': int(self.total_parameters_bytes),
                         'predicted_performance_iter_hz': float(self.min_iter_hz),
@@ -1861,7 +1865,7 @@ class ArchDraft(object):
         input_brick.skip_in_roofline = True
         node_0.add_brick(input_brick)
         self.insert_node(node_0, 0)
-        self.substract_node_0 = True
+        self.substract_client_nodes = 1
         # add also with "inverted" successor/predecessor
         node_0.add_succ_node(self.nodes[1])
         node_0.add_pred_node(self.nodes[self.nid_cnt - 1])
@@ -1921,3 +1925,34 @@ class ArchDraft(object):
                     prev_node = nn
                 nn.generate_communication(self.selected_comm_lib, pipeline_store_until_now)
                 last_pipeline_store = nn.total_pipeline_store
+
+    def get_osg_coverage(self):
+        osg_overage = {}
+        osg_stats = {}
+        total_ops = 0
+        not_covered = 0
+        for osg in self.available_osgs:
+            osg_overage[osg.name] = 0
+            osg_stats[osg.name] = {'count': 0, 'ratio': 0.0}
+        for op in self.op_iter_gen():
+            total_ops += 1
+            already_considered = []
+            for poc in op.possible_contracts:
+                ogn = poc.osg.name
+                if ogn not in already_considered:
+                    osg_overage[ogn] += 1
+                    already_considered.append(ogn)
+        for osgn in osg_overage.keys():
+            osg_stats[osgn]['count'] = osg_overage[osgn]
+            osg_stats[osgn]['ratio'] = float(osg_overage[osgn]/total_ops)
+        ret = {'draft': self.name, 'total_ops': total_ops, 'not_covered': not_covered,
+               'dosa_coverage': float(1 - (not_covered / total_ops)),
+               'osg_coverage': osg_stats}
+        return ret
+
+    def write_osg_coverage(self):
+        coverage = self.get_osg_coverage()
+        out_file = '{}/osg_statistic.json'.format(dosa_singleton.config.global_build_dir)
+        with open(out_file, 'w') as of:
+            json.dump(coverage, of, indent=4)
+
