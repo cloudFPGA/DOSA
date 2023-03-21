@@ -418,3 +418,16 @@ class ArchNode(object):
     def generate_communication(self, comm_lib, pipeline_store_until_now):
         self.used_comm_lib = comm_lib
         self.comm_plan = CommPlan(self, pipeline_store_until_now)
+
+    def check_connection_limit(self, verbose=False):
+        assert self.comm_plan is not None
+        total_transactions = self.comm_plan.transactions_per_iteration * self.req_iter_hz
+        device_transactions = self.selected_hw_type.get_max_connections_per_s()
+        if total_transactions > device_transactions and verbose:
+            print(f"[DOSA:ArchNode:INFO] Node {self.node_id}: Required transactions/s ({total_transactions} "
+                  f"exceed device-specific limit {device_transactions}.")
+        ret = {'total_transactions': total_transactions, 'device_transactions': device_transactions,
+               'below_device-limit': (total_transactions <= device_transactions),
+               'split_factor': float(total_transactions/device_transactions)}
+        return ret
+

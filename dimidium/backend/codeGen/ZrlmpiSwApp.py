@@ -165,7 +165,7 @@ class ZrlmpiSwApp:
                         if mi['instr'] == 'send' and mi['combine'] is not None and mi['combine'] != 'finish':
                             save_cur_data = 'true'
                         outline += tmpl.format(i=prog_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
-                                               save_cur_data=save_cur_data, byte_cnt=mi['count'])
+                                               save_cur_data=save_cur_data, byte_cnt=int(mi['count']))
                         prog_i += 1
                         if prog_i == self.comm_plan.after_pipeline_full_instr_start:
                             outline += '  //pipeline-FULL part\n'

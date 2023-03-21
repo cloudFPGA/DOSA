@@ -104,6 +104,7 @@ class ArchBrick(object):
         self.parallelized_bricks = None
         self.orig_tvm_node = None
         self.compute_parallelization_factor = 1
+        self.is_pseudo_brick = False
 
     def __repr__(self):
         if self.brick_uuid is None:
@@ -698,6 +699,8 @@ class ArchBrick(object):
             self.req_util_comp_engine = share_comp
 
     def update_util_estimation_contr(self, target_hw, prefer_engine=False):
+        if self.is_pseudo_brick:
+            return
         if self.selected_contract is None:
             self.update_possible_contracts()
             if not prefer_engine and self.selected_impl_type != BrickImplTypes.STREAM:
@@ -729,7 +732,7 @@ class ArchBrick(object):
             self.req_util_comp_engine = share_comp
         self.tmp_osg = tmp_best.osg
         max_util = max(share_comp + self.switching_comp_share, share_mem + self.switching_mem_share)
-        if max_util > 0 and not tmp_best.is_contract_to_be_merged:
+        if (max_util > 0) and (not tmp_best.is_contract_to_be_merged):
             max_iter = (1.0 / max_util) * self.iter_hz
             self.max_possible_iter = max_iter
         self.local_pipeline_store = tmp_best.osg.pipeline_tensor_store

@@ -29,10 +29,10 @@ osg_vta = VtaOSG()
 fpga_OSGs = [osg_hls4ml, osg_haddoc2, osg_tips, osg_vta]
 
 # builtin_OSGs = fpga_OSGs
-builtin_OSGs = [osg_hls4ml, osg_tvmCpu, osg_haddoc2, osg_tips, osg_vta]
+# builtin_OSGs = [osg_hls4ml, osg_tvmCpu, osg_haddoc2, osg_tips, osg_vta]
 # builtin_OSGs = [osg_tips, osg_vta]
 # builtin_OSGs = [osg_hls4ml, osg_haddoc2, osg_tips]
-
+builtin_OSGs = [osg_hls4ml, osg_haddoc2]
 
 
 def merge_ops_dict(osgs):

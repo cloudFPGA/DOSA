@@ -62,6 +62,7 @@ class ArchOp(object):
         self.original_brick_tvm_handle = None  # for merged bricks: save also the *brick* handle
         if dpl_dict is not None:
             self.from_dpl_dict(dpl_dict)
+        self.is_pseudo_op = False
 
     def __repr__(self):
         return "ArchOp({})".format(self.op_call)

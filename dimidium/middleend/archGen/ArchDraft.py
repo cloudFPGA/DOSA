@@ -16,7 +16,8 @@ import json
 import numpy as np
 
 import dimidium.lib.singleton as dosa_singleton
-from dimidium.backend.commLibs.BaseCommLib import BaseCommLib
+from dimidium.lib.dosa_exceptions import DosaChangeArchType, DosaConstraintFail
+from dimidium.backend.commLibs.BaseCommLib import BaseCommLib, placeholderCommLib
 from dimidium.lib.util import OptimizationStrategies, BrickImplTypes, DosaRv
 from dimidium.middleend.archGen.ArchFilter import MergeBrickContrFilter
 from dimidium.middleend.archGen.archOpt import merge_bricks_pass
@@ -27,8 +28,9 @@ from dimidium.backend.devices.dosa_device import DosaBaseHw, placeholderHw, Dosa
 from dimidium.backend.devices.builtin import vCPU_x86
 from dimidium.backend.devices.dosa_roofline import RooflineRegionsOiPlane, get_rightmost_roofline_region
 from dimidium.backend.operatorSets.BaseOSG import sort_osg_list
-from dimidium.backend.commLibs.BaseCommLib import placeholderCommLib
-from dimidium.lib.dosa_exceptions import DosaChangeArchType, DosaConstraintFail
+from dimidium.backend.operatorSets.osgs import osg_tvmCpu
+from dimidium.middleend.archGen.BrickContract import BrickContract
+
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
@@ -1757,6 +1759,9 @@ class ArchDraft(object):
         #     num_nodes += 1
         num_nodes -= self.substract_client_nodes
         cluster_dict = {'name': self.name, 'total_nodes': num_nodes, 'nodes': []}
+        #                 'num_cpu_clients': self.substract_client_nodes}
+        # if dosa_singleton.config.backend.create_rank_0_for_io:
+        #     cluster_dict['num_cpu_clients'] = len(self.nodes[0].ranks)
         for nn in self.node_iter_gen():
             nn_f = nn.build_tool.node_folder_name
             nn_ranks = nn.ranks
@@ -1854,21 +1859,53 @@ class ArchDraft(object):
     def _add_node_0(self):
         node_0 = ArchNode(0, target_hw=vCPU_x86)
         node_0.selected_hw_type = vCPU_x86
+        node_0.targeted_hw = vCPU_x86
         node_0.skip_in_roofline = True
         # add output brick first, so they match the input...output logic of CommPlan
+        req_iter_hz = self.nodes[0].req_iter_hz  # should be equal to "entry node"...
+        node_0.req_iter_hz = req_iter_hz
         output_brick = ArchBrick()
         output_brick.from_dpl_dict(self.output_layer)
         output_brick.skip_in_roofline = True
+        output_op = ArchOp()
+        output_op.is_pseudo_op = True
+        output_contract_op = osg_tvmCpu._get_contr_offer(output_op, vCPU_x86, BrickImplTypes.ENGINE)
+        output_contract_brick = BrickContract(output_brick, vCPU_x86, osg_tvmCpu, BrickImplTypes.ENGINE, [output_contract_op])
+        output_brick.still_possible_contracts = [output_contract_brick]
+        output_brick.available_contracts = [output_contract_brick]
+        output_brick.selected_contract = output_contract_brick
+        output_brick.still_possible_osgs = [osg_tvmCpu]
+        output_brick.available_osgs = [osg_tvmCpu]
+        output_brick.selected_osg = osg_tvmCpu
+        output_brick.is_pseudo_brick = True
+        output_brick.iter_hz = req_iter_hz
+        output_brick.req_util_comp = 0.5
+        output_brick.req_util_mem = 0.5
         node_0.add_brick(output_brick)
         input_brick = ArchBrick()
         input_brick.from_dpl_dict(self.input_layer)
         input_brick.skip_in_roofline = True
+        input_op = ArchOp()
+        input_op.is_pseudo_op = True
+        input_contract_op = osg_tvmCpu._get_contr_offer(input_op, vCPU_x86, BrickImplTypes.ENGINE)
+        input_contract_brick = BrickContract(input_brick, vCPU_x86, osg_tvmCpu, BrickImplTypes.ENGINE, [input_contract_op])
+        input_brick.still_possible_contracts = [input_contract_brick]
+        input_brick.available_contracts = [input_contract_brick]
+        input_brick.selected_contract = input_contract_brick
+        input_brick.still_possible_osgs = [osg_tvmCpu]
+        input_brick.available_osgs = [osg_tvmCpu]
+        input_brick.selected_osg = osg_tvmCpu
+        input_brick.is_pseudo_brick = True
+        input_brick.iter_hz = req_iter_hz
+        input_brick.req_util_comp = 0.5
+        input_brick.req_util_mem = 0.5
         node_0.add_brick(input_brick)
         self.insert_node(node_0, 0)
         self.substract_client_nodes = 1
         # add also with "inverted" successor/predecessor
         node_0.add_succ_node(self.nodes[1])
         node_0.add_pred_node(self.nodes[self.nid_cnt - 1])
+        # update other nodes
         self.nodes[1].add_pred_node(node_0)
         self.nodes[self.nid_cnt - 1].add_succ_node(node_0)
         self.update_uuids(add_backlink=True)
@@ -1908,9 +1945,29 @@ class ArchDraft(object):
         #    # so that CPU receives the right amount
         #    self.nodes[0].total_pipeline_store = total_pipeline_store
         # then, populate
+        need_to_parallelize, nodes_to_parallelize, split_factors = self._populate_communication_generation(
+            draft_total_pipeline_store)
+        if need_to_parallelize:
+            assert len(split_factors) == len(nodes_to_parallelize)
+            for i in range(len(nodes_to_parallelize)):
+                pnn = nodes_to_parallelize[i]
+                sf = split_factors[i]
+                # if pnn.node_id == 0 and dosa_singleton.config.backend.create_rank_0_for_io:
+                #     self.substract_client_nodes = sf
+                pnn.split_vertical(factor=sf)
+            # to get ranks right
+            self.update_uuids(add_backlink=True)
+            # no second round...
+            ignore, also_ignore, dont_care = self._populate_communication_generation(draft_total_pipeline_store,
+                                                                                     check_constraints=False)
+
+    def _populate_communication_generation(self, draft_total_pipeline_store, check_constraints=True):
         pipeline_store_until_now = 0
         last_pipeline_store = 0
         prev_node = None
+        need_to_parallelize = False
+        nodes_to_parallelize = []
+        split_factors = []
         for nn in self.node_iter_gen():
             if nn.node_id == 0 and dosa_singleton.config.backend.create_rank_0_for_io:
                 # FIXME: find more elegant way...
@@ -1925,6 +1982,19 @@ class ArchDraft(object):
                     prev_node = nn
                 nn.generate_communication(self.selected_comm_lib, pipeline_store_until_now)
                 last_pipeline_store = nn.total_pipeline_store
+            # in all cases
+            if check_constraints:
+                check_dict = nn.check_connection_limit(verbose=True)
+                if not check_dict['below_device-limit']:
+                    need_to_parallelize = True
+                    nodes_to_parallelize.append(nn)
+                    split_factor_up = math.ceil(check_dict['split_factor'])
+                    if split_factor_up < 2:
+                        split_factor_up = 2
+                    split_factors.append(split_factor_up)
+                    print(f"[DOSA:CommGen:INFO] Split node {nn.node_id} vertically with factor {split_factor_up}, to fix "
+                          f"transaction limitations.")
+        return need_to_parallelize, nodes_to_parallelize, split_factors
 
     def get_osg_coverage(self):
         osg_overage = {}

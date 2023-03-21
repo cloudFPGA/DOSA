@@ -15,6 +15,7 @@ from dimidium.backend.buildTools.cFBuild1 import cFBuild1
 from dimidium.backend.codeGen.WrapperInterfaces import InterfaceAxisFifo
 from dimidium.backend.codeGen.ZrlmpiSwApp import ZrlmpiSwApp
 from dimidium.backend.codeGen.ZrlmpiWrapper import ZrlmpiWrapper
+from dimidium.backend.codeGen.ZrlmpiSwMultiNodeApp import ZrlmpiSwMultiNodeApp
 from dimidium.backend.commLibs.BaseCommLib import BaseCommLib
 from dimidium.backend.devices.dosa_device import DosaHwClasses
 from dimidium.backend.buildTools.BaseBuild import HwBuildTopVhdl, BaseSwBuild
@@ -54,7 +55,10 @@ class ZrlmpiCommLib(BaseCommLib):
             if comm_plan.node.node_id == 0:
                 # SW app
                 node_dir = build_tool.build_dir
-                comm_inst = ZrlmpiSwApp(comm_plan.node.node_id, node_dir, comm_plan)
+                if len(comm_plan.node.ranks) == 1:
+                    comm_inst = ZrlmpiSwApp(comm_plan.node.node_id, node_dir, comm_plan)
+                else:
+                    comm_inst = ZrlmpiSwMultiNodeApp(comm_plan.node.node_id, node_dir, comm_plan)
                 comm_inst.generate()
                 # add nothing to SwBuild Tool, since this is the root app (?)
             else:
