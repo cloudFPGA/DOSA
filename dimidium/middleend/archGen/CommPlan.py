@@ -15,6 +15,20 @@ import dimidium.lib.singleton as dosa_singleton
 from dimidium.lib.util import my_lcm
 
 
+def _get_repetition_split(total_repetition, set_size):
+    ret = []
+    if set_size == 1:
+        ret = [int(total_repetition)]
+        return  ret
+    if total_repetition % set_size == 0:
+        ret = [int(total_repetition/set_size)] * set_size
+    else:
+        ret = [int(total_repetition - ((total_repetition//set_size) * (set_size - 1)))]
+        remaining = [int(total_repetition//set_size)] * (set_size - 1)
+        ret.extend(remaining)
+    return ret
+
+
 class CommPlan:
 
     def __init__(self, for_node, pipeline_store_until_now):
@@ -101,6 +115,7 @@ class CommPlan:
         out_msg_cnt = last_brick.output_bytes
         # Pipeline fill part
         # in_repetition = 1 + dosa_singleton.config.backend.comm_message_pipeline_store
+        # TODO: self.pipeline_store_until now is <0!
         total_in_repetition = 1 + dosa_singleton.config.backend.comm_message_pipeline_store - self.pipeline_store_until_now
         # out_repetition = 1 + dosa_singleton.config.backend.comm_message_pipeline_store
         total_out_repetition = 1 + dosa_singleton.config.backend.comm_message_pipeline_store - \
@@ -146,14 +161,20 @@ class CommPlan:
         self.comm_instr = []
         self.transactions_per_iteration = 0
         for in_repetition, out_repetition in repetition_cycles:
+            data_parallel_incoming_set_of_ranks = len(incomming_ranks)
+            incoming_repetition_distribution = _get_repetition_split(in_repetition, data_parallel_incoming_set_of_ranks)
             for i in range(len(incomming_ranks)):
                 # here, we assume strict streaming...so one message in, one out (with repetition)
                 if len(incomming_ranks[i]) == 1:
+                    # POTENTIAL DATA PARALLELISM BEFORE
+                    # new_msg_in_dict = {'instr': 'recv', 'rank': incomming_ranks[i][0], 'count': in_msg_cnt,
+                    #                    'repeat': in_repetition, 'cond': in_cmd_rank_list[i], 'combine': None}
                     new_msg_in_dict = {'instr': 'recv', 'rank': incomming_ranks[i][0], 'count': in_msg_cnt,
-                                       'repeat': in_repetition, 'cond': in_cmd_rank_list[i], 'combine': None}
+                                       'repeat': incoming_repetition_distribution[i], 'cond': in_cmd_rank_list[i], 'combine': None}
                     self.comm_instr.append(new_msg_in_dict)
                     # self.transactions_per_iteration += in_repetition
                 else:
+                    # MODEL PARALLELISM BEFORE
                     # make repetition explicit
                     combine_comp_parallel = []
                     # if self.node.node_id % 2 == 0:
@@ -173,15 +194,23 @@ class CommPlan:
                         new_msg_in_dict = {'instr': 'recv', 'rank': cur_parallel_ranks[j], 'count': partial_msg_cnt,
                                            'repeat': 1, 'cond': in_cmd_rank_list[i], 'combine': combine_str}
                         combine_comp_parallel.append(new_msg_in_dict)
-                    for r in range(0, in_repetition):
+                    for r in range(0, incoming_repetition_distribution[i]):
                         self.comm_instr.extend(combine_comp_parallel)
                     # self.transactions_per_iteration += in_repetition
+
+                data_parallel_outgoing_set_of_ranks = len(outgoing_ranks)
+                outgoing_repetition_distribution = _get_repetition_split(out_repetition,
+                                                                         data_parallel_outgoing_set_of_ranks)
                 if len(outgoing_ranks[i]) == 1:
+                    # POTENTIAL DATA PARALLELISM AFTERWARDS
+                    # new_msg_out_dict = {'instr': 'send', 'rank': outgoing_ranks[i][0], 'count': out_msg_cnt,
+                    #                     'repeat': out_repetition, 'cond': out_cmd_rank_list[i], 'combine': None}
                     new_msg_out_dict = {'instr': 'send', 'rank': outgoing_ranks[i][0], 'count': out_msg_cnt,
-                                        'repeat': out_repetition, 'cond': out_cmd_rank_list[i], 'combine': None}
+                                        'repeat': outgoing_repetition_distribution[i], 'cond': out_cmd_rank_list[i], 'combine': None}
                     self.comm_instr.append(new_msg_out_dict)
                     # self.transactions_per_iteration += out_repetition
                 else:
+                    # MODEL PARALLELISM AFTERWARDS
                     # make repetition explicit
                     combine_comp_parallel = []
                     # if self.node.node_id % 2 == 0:
@@ -201,7 +230,7 @@ class CommPlan:
                         new_msg_out_dict = {'instr': 'send', 'rank': cur_parallel_ranks[j], 'count': out_msg_cnt,
                                             'repeat': 1, 'cond': out_cmd_rank_list[i], 'combine': combine_str}
                         combine_comp_parallel.append(new_msg_out_dict)
-                    for r in range(0, out_repetition):
+                    for r in range(0, outgoing_repetition_distribution[i]):
                         self.comm_instr.extend(combine_comp_parallel)
                     # self.transactions_per_iteration += out_repetition
         # Pipeline full part

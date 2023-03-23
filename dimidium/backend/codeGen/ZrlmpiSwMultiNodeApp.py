@@ -122,31 +122,34 @@ class ZrlmpiSwMultiNodeApp:
                                '    saveCurData[{i}]          = {save_cur_data};\n'
                         prog_i = 0
                         outline += f'  if(rank == {cur_rank})\n  {{\n'
-                        if cur_rank == root_rank:
-                            outline += '    //pipeline-FILL part\n'
+                        # if cur_rank == root_rank:
+                        outline += '    //pipeline-FILL part\n'
+                        skipped_instr = 0
                         for mi in node_0_instr:
-                            if cur_rank == root_rank or prog_i >= len_fill_instr:
-                                instr = 'MPI_INSTR_SEND'
-                                if mi['instr'] == 'recv':
-                                    instr = 'MPI_INSTR_RECV'
-                                rank = mi['rank']
-                                word_count = int((mi['count'] + 3) / 4)
-                                repeat = mi['repeat']
-                                save_cur_data = 'false'
-                                if mi['instr'] == 'send' and mi['combine'] is not None and mi['combine'] != 'finish':
-                                    save_cur_data = 'true'
-                                true_i = prog_i
-                                if cur_rank != root_rank:
-                                    true_i -= len_fill_instr
-                                outline += tmpl.format(i=true_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
+                            # if cur_rank == root_rank or prog_i >= len_fill_instr:
+                            instr = 'MPI_INSTR_SEND'
+                            if mi['instr'] == 'recv':
+                                instr = 'MPI_INSTR_RECV'
+                            rank = mi['rank']
+                            word_count = int((mi['count'] + 3) / 4)
+                            repeat = mi['repeat']
+                            save_cur_data = 'false'
+                            if mi['instr'] == 'send' and mi['combine'] is not None and mi['combine'] != 'finish':
+                                save_cur_data = 'true'
+                            if repeat == 0:
+                                skipped_instr += 1
+                            else:
+                                # if cur_rank != root_rank:
+                                #     true_i -= len_fill_instr
+                                outline += tmpl.format(i=prog_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
                                                        save_cur_data=save_cur_data, byte_cnt=int(mi['count']))
-                            prog_i += 1
-                            if prog_i == len_fill_instr:
+                                prog_i += 1
+                            if (prog_i + skipped_instr) == len_fill_instr:
                                 outline += '    //pipeline-FULL part\n'
-                        if cur_rank == root_rank:
-                            outline += f'    my_prog_length = {prog_i};\n'
-                        else:
-                            outline += f'    my_prog_length = {prog_i - len_fill_instr};\n'
+                        # if cur_rank == root_rank:
+                        outline += f'    my_prog_length = {prog_i};\n'
+                        # else:
+                        #     outline += f'    my_prog_length = {prog_i - len_fill_instr};\n'
                         outline += '  }\n\n'
                 elif 'DOSA_ADD_MPI_barrier' in line:
                     root_rank = all_ranks[0]

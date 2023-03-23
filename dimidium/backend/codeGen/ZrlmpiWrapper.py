@@ -101,6 +101,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                         # else:
                         #     indent = ''
                         outline += indent + '      //pipeline-FILL part\n'
+                        skipped_instr = 0
                         for ie in sorted_instr[self_id]:
                             cmnd_macro = 'MPI_INSTR_RECV'
                             if ie['instr'] == 'send':
@@ -108,7 +109,7 @@ class ZrlmpiWrapper(CommunicationWrapper):
                             rank = ie['rank']
                             # counts must be in WORDS!
                             counts = int((ie['count'] + 3) / 4)
-                            byte_cnt = ie['count']
+                            byte_cnt = int(ie['count'])
                             assert counts < 0xFFFF  # max message size is uint16
                             repeat = ie['repeat']
                             assert repeat < 255  # uint8 limit
@@ -116,18 +117,21 @@ class ZrlmpiWrapper(CommunicationWrapper):
                             # if ie['combine'] is not None and ie['combine'] != 'finish':
                             if ie['instr'] == 'send' and (ie['combine'] is not None and ie['combine'] != 'finish'):
                                 save_cur_data = 'true'
-                            outline += indent + f'      mpiCommands[{instr_num}]          = {cmnd_macro};\n'
-                            outline += indent + f'      mpiRanks[{instr_num}]             = {rank};\n'
-                            outline += indent + f'      mpiCounts[{instr_num}]            = {counts};\n'
-                            outline += indent + f'      byteCounts[{instr_num}]           = {byte_cnt};\n'
-                            outline += indent + f'      commandRepetitions[{instr_num}]   = {repeat};\n'
-                            outline += indent + f'      saveCurData[{instr_num}]          = {save_cur_data};\n'
-                            instr_num += 1
-                            if instr_num == self.comm_plan.after_pipeline_full_instr_start:
+                            if repeat == 0:
+                                skipped_instr += 1
+                            else:
+                                outline += indent + f'      mpiCommands[{instr_num}]          = {cmnd_macro};\n'
+                                outline += indent + f'      mpiRanks[{instr_num}]             = {rank};\n'
+                                outline += indent + f'      mpiCounts[{instr_num}]            = {counts};\n'
+                                outline += indent + f'      byteCounts[{instr_num}]           = {byte_cnt};\n'
+                                outline += indent + f'      commandRepetitions[{instr_num}]   = {repeat};\n'
+                                outline += indent + f'      saveCurData[{instr_num}]          = {save_cur_data};\n'
+                                instr_num += 1
+                            if (instr_num + skipped_instr) == self.comm_plan.after_pipeline_full_instr_start:
                                 outline += indent + '      //pipeline-FULL part\n'
                         # if len(sorted_instr.keys()) > 1:
                         outline += '      }\n'
-                    assert instr_num == comm_plan_length
+                    assert (instr_num + skipped_instr) == comm_plan_length
                 else:
                     outline = line
                 out_file.write(outline)

@@ -246,7 +246,9 @@ class DosaRoot:
         host_address, sw_node_id, other_ip_addresses = self._get_host_address_and_cluster_list()
         print("Initialize ZRLMPI...")
         print(f"Using {host_address} as local IP address.")
-        print(f"DEBUG: other ip adresses are: {other_ip_addresses}")
+        # if debug:
+        #     print(f"DEBUG: other ip addresses are: {other_ip_addresses}")
+        #     print(f"DEBUG: root rank {self._root_rank}")
         ping_cnt = 2
         if debug:
             print("Ping all nodes, build ARP table...")
@@ -282,7 +284,7 @@ class DosaRoot:
         single_output_length = int(self.n_bytes)
         for d in output_shape:
             single_output_length *= d
-        if not processing_pipelines_filled and self.own_rank != self._root_rank:
+        if not processing_pipelines_filled:
             # now, adapt to minimum length requirements
             # added_zero_tensors = 0
             # batch_input = input_data
@@ -372,8 +374,8 @@ class DosaRoot:
 
     def reset(self, force=False):
         self.c_lib.reset_state()
-        if force or self.own_rank == __rank_calling_FPGA_resets__:
-            restart_app(self.cluster_id, self.user_dict)
+        # if force or self.own_rank == self._root_rank:
+        #     restart_app(self.cluster_id, self.user_dict)
 
     def cleanup(self):
         self.c_lib.cleanup()
