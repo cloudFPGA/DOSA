@@ -2,7 +2,7 @@
 #  *                       cloudFPGA
 #  *     Copyright IBM Research, All Rights Reserved
 #  *    =============================================
-#  *     Created: Mar 2022
+#  *     Created: Mar 2023
 #  *     Authors: NGL
 #  *
 #  *     Description:
@@ -17,7 +17,6 @@ import requests
 import glob
 import urllib.parse
 from datetime import datetime
-import time
 
 # from cFSPlib import cFSP
 from cFSPlib.cfsp_image import ImagesApi, ApiException, ApiClient, Configuration
@@ -107,28 +106,18 @@ def upload_app_logic(dcp_folder, user_dict, node_name, app_name, api_instance):
     return api_response.id
 
 
-def create_new_cluster(cluster_data, host_address, sw_rank, user_dict):
+def create_new_cluster(cluster_req, user_dict):
     # build cluster_req structure
     print("Creating FPGA cluster...")
-    cluster_req = []
-    rank0node = {'image_id': __NON_FPGA_IDENTIFIER__,
-                 'node_id': int(sw_rank),
-                 'node_ip': host_address}
-    cluster_req.append(rank0node)
-    for n in cluster_data['nodes']:
-        if n['type'] == __cf_device_name__:
-            for r in n['ranks']:
-                fpgaNode = {
-                    'image_id': n['image-id'],
-                    'node_id': int(r)
-                }
-                cluster_req.append(fpgaNode)
     print(json.dumps(cluster_req, indent=2))
 
     print("Executing POST ...")
     r1 = requests.post("http://" + __cf_manager_url__ + "/clusters?username={0}&password={1}&project_name={2}"
                                                         "&dont_verify_memory=1".format(
-        user_dict['user'], urllib.parse.quote(user_dict['pw']), user_dict['proj']),
+        user_dict['user'], urllib.parse.quote(user_dict['pw']),
+        # user_dict['proj']
+        'cf_Test_sled3'
+        ),
                        json=cluster_req)
 
     if r1.status_code != 200:
@@ -137,21 +126,30 @@ def create_new_cluster(cluster_data, host_address, sw_rank, user_dict):
 
     cluster_data = json.loads(r1.text)
     print("...done.")
-    print("Id of new cluster: {}".format(cluster_data['cluster_id']))
+    # print("Id of new cluster: {}".format(cluster_data['cluster_id']))
     return cluster_data
 
 
-def main(path_to_build_folder, user_file, host_address, use_pr_flow=True):
+def main(path_to_build_folder, user_file, host_addresses, use_pr_flow=True):
     cluster_json_path = path_to_build_folder + '/' + __cluster_filename__
     with open(cluster_json_path, 'r') as infile:
         cluster_data = json.load(infile)
     _, user_dict = load_user_credentials(user_file)
 
+    # check for enoug cpu addresses
+    cpu_addr = host_addresses.split(',')
+    necessary_cpu_ids = 0
+    for n in cluster_data['nodes']:
+        if n['type'] == __cpu_device_name__:
+            necessary_cpu_ids += len(n['ranks'])
+    if len(cpu_addr) != necessary_cpu_ids:
+        print(f'ERROR: {len(cpu_addr)} ip addresses for cpu nodes were given, but {necessary_cpu_ids} '
+              f'are required. More details can be found in {cluster_json_path}. STOP.')
+        exit(1)
     conf = Configuration()
     conf.host = __cf_manager_url__
     api_client = ApiClient(conf)
     api_instance = ImagesApi(api_client=api_client)
-    sw_rank = 0
     print_dict = {}
     for n in cluster_data['nodes']:
         if n['type'] == __cf_device_name__:
@@ -162,70 +160,49 @@ def main(path_to_build_folder, user_file, host_address, use_pr_flow=True):
                 bitfile_id = upload_image(dcp_folder, user_dict, n['folder'], cluster_data['name'], api_instance)
             n['image-id'] = bitfile_id
             print_dict[n['folder']] = bitfile_id
-        elif n['type'] == __cpu_device_name__:
-            sw_rank = n['ranks'][0]
+        # elif n['type'] == __cpu_device_name__:
+        #     sw_rank = n['ranks'][0]
 
     print('Images uploaded:')
     print(json.dumps(print_dict, indent=2))
-    cfrm_data = create_new_cluster(cluster_data, host_address, sw_rank, user_dict)
+
+    # create cluster dict
+    cluster_req = []
+    cpu_id = 0
+    for n in cluster_data['nodes']:
+        if n['type'] == __cf_device_name__:
+            for r in n['ranks']:
+                fpgaNode = {
+                    'image_id': n['image-id'],
+                    'node_id': int(r)
+                }
+                cluster_req.append(fpgaNode)
+        elif n['type'] == __cpu_device_name__:
+            for r in n['ranks']:
+                try:
+                    cpu_node = {'image_id': __NON_FPGA_IDENTIFIER__,
+                                 'node_id': int(r),
+                                 'node_ip': cpu_addr[cpu_id]}
+                except IndexError:
+                    print(f'ERROR: Only {len(cpu_addr)} ip addresses for cpu nodes were given, but at least '
+                          f'{len(cpu_addr) + 1} are required. More details can be found in {cluster_json_path}.')
+                    exit(1)
+                else:
+                    cpu_id += 1
+                    cluster_req.append(cpu_node)
+    assert cpu_id == len(cpu_addr)
+
+    cfrm_data = create_new_cluster(cluster_req, user_dict)
+
     print('Cluster details:')
     print(json.dumps(cfrm_data, indent=2))
+    print("Id of new cluster: {}".format(cfrm_data['cluster_id']))
     return 0
 
 
 if __name__ == '__main__':
     if len(sys.argv) != 4:
-        print("USAGE: {} <path/to/dosa/build_dir/> <path/to/user.json> <local_ip_addr>".format(sys.argv[0]))
+        print("USAGE: {} <path/to/dosa/build_dir/> <path/to/user.json> <cpu-ip-addresses,comma,separated>".format(sys.argv[0]))
         exit(1)
-    demo_version = False
-    if not demo_version:
-        main(os.path.abspath(sys.argv[1]), sys.argv[2], sys.argv[3], use_pr_flow=False)
-    else:
-        print(f"connecting to CloudFPGA Resource Manager at {__cf_manager_url__}")
-        print("upload images...")
-        time.sleep(0.5)
-        print('Images uploaded:\n        {\n            "node_1": "50ea22c8-82d9-46ac-86f2-5bf62cb25577",\n           '
-              ' "node_2": "5e548d42-10f3-4aca-b86b-9f7d55f79d66",\n            "node_3": '
-              '"b2677978-8d3e-40e5-aaa3-5096db19c28b",\n            "node_4": "a7a13c27-6025-41cc-a7d7-537bf33da321",'
-              '\n            "node_5": "4131bde5-1e2f-493c-a86a-a6cc0ea23914",\n            "node_6": '
-              '"f78325b3-f1db-4c06-bc79-92207b97d0f5"\n        }\n')
-        print('Creating FPGA cluster...')
-        cluster = [
-            {
-                "image_id": "NON_FPGA",
-                "node_id": 0,
-                "node_ip": "10.12.0.10"
-            },
-            {
-                "image_id": "50ea22c8-82d9-46ac-86f2-5bf62cb25577",
-                "node_id": 1
-            },
-            {
-                "image_id": "5e548d42-10f3-4aca-b86b-9f7d55f79d66",
-                "node_id": 2
-            },
-            {
-                "image_id": "b2677978-8d3e-40e5-aaa3-5096db19c28b",
-                "node_id": 3
-            },
-            {
-                "image_id": "a7a13c27-6025-41cc-a7d7-537bf33da321",
-                "node_id": 4
-            },
-            {
-                "image_id": "4131bde5-1e2f-493c-a86a-a6cc0ea23914",
-                "node_id": 5
-            },
-            {
-                "image_id": "f78325b3-f1db-4c06-bc79-92207b97d0f5",
-                "node_id": 6
-            }
-        ]
-        print(json.dumps(cluster, indent=2))
-        print('Executing POST ...')
-        time.sleep(len(cluster)/3)
-        print('<cut> (would take some minutes)')
-        time.sleep(len(cluster)/3)
-        print('...done.\nId of new cluster: 326\n')
-
+    main(os.path.abspath(sys.argv[1]), sys.argv[2], sys.argv[3], use_pr_flow=False)
 

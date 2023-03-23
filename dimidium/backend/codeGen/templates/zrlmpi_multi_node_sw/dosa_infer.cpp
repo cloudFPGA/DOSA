@@ -2,11 +2,12 @@
 //  *                       cloudFPGA
 //  *     Copyright IBM Research, All Rights Reserved
 //  *    =============================================
-//  *     Created: Feb 2022
+//  *     Created: Mar 2023
 //  *     Authors: NGL
 //  *
 //  *     Description:
 //  *        C++ module to wrap ZRLMPI communication library
+//  *        Multi-cpu-node version
 //  *
 //  *
 

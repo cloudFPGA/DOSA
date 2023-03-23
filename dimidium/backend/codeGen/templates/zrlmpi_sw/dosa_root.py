@@ -27,6 +27,7 @@ __openstack_user_template__ = {'credentials': {'username': "your user name", 'pa
                                'project': "default"}
 __cf_manager_url__ = "10.12.0.132:8080"
 __NON_FPGA_IDENTIFIER__ = "NON_FPGA"
+__rank_calling_FPGA_resets__ = 0
 
 
 def errorReqExit(msg, code):
@@ -144,6 +145,10 @@ class DosaRoot:
         self.minimum_input_batch_size = -1
         self.minimum_output_batch_size = -1
         self.pipeline_full_batch_size = -1
+        self.number_of_fpga_nodes = 0
+        self.number_of_cpu_nodes = 0
+        self.own_rank = -1
+        self._root_rank = 0
 
     # def _prepare_data(self, tmp_array):
     #     bin_str = ''
@@ -155,6 +160,45 @@ class DosaRoot:
     #             msg_len += 1
     #     ret = bytes(br, 'ascii')
     #     return ret, msg_len
+
+    def _get_host_address_and_cluster_list(self):
+        cpu_ranks = []
+        ip_dict = {}
+        possible_cpu_ip_addresses = []
+        for node in self.cluster['nodes']:
+            if node['image_id'] == __NON_FPGA_IDENTIFIER__:
+                cpu_ranks.append(node['node_id'])
+                possible_cpu_ip_addresses.append(node['node_ip'])
+                self.number_of_cpu_nodes += 1
+            else:
+                # other_ip_addresses.append(node['node_ip'])
+                self.number_of_fpga_nodes += 1
+            # in all cases
+            ip_dict[node['node_id']] = node['node_ip']
+        correct_line = ''
+        proc = subprocess.run('/usr/sbin/ip addr', shell=True, capture_output=True, text=True, check=True)
+        break_fors = False
+        for line in proc.stdout.splitlines():
+            for cip in possible_cpu_ip_addresses:
+                if cip in line:
+                    correct_line = line
+                    break_fors = True
+                    break
+            if break_fors:
+                break
+        host_address = correct_line.split()[1].split('/')[0]
+        me_id = possible_cpu_ip_addresses.index(host_address)
+        own_rank = cpu_ranks[me_id]
+        # del possible_cpu_ip_addresses[me_id]
+        # other_ip_addresses.extend(possible_cpu_ip_addresses)
+        other_ip_addresses = []
+        for rank in ip_dict:
+            if rank == own_rank:
+                continue
+            other_ip_addresses.append(ip_dict[rank])
+        self.own_rank = own_rank
+        self._root_rank = min(cpu_ranks)
+        return host_address, own_rank, other_ip_addresses
 
     def init(self, mpi_arg_list):
         argc = len(mpi_arg_list) + 1
@@ -176,7 +220,7 @@ class DosaRoot:
         # print("cluster properties: {} {} {} {}".format(self.pipeline_store_depth, self.minimum_input_batch_size,
         #                                             self.minimum_output_batch_size, self.pipeline_full_batch_size))
 
-    def init_from_action(self, action_name, host_address, json_file='./user.json', debug=False):
+    def init_from_action(self, action_name, json_file='./user.json', debug=False):
         _, user_dict = load_user_credentials(json_file)
         self.user_dict = user_dict
         action = get_action_data(action_name, user_dict)
@@ -190,41 +234,35 @@ class DosaRoot:
             print(f"INFO: Multimple clusters for the action {action_name} available, selected {cluster_id} at random.")
         else:
             print(f"INFO: Action {action_name} is deployed with cluster {cluster_id}.")
-        return self.init_from_cluster(cluster_id, host_address, json_file=json_file, debug=debug)
+        return self.init_from_cluster(cluster_id, json_file=json_file, debug=debug)
 
-    def init_from_cluster(self, cluster_id, host_address, json_file='./user.json', debug=False):
+    def init_from_cluster(self, cluster_id, json_file='./user.json', debug=False):
         _, user_dict = load_user_credentials(json_file)
         self.user_dict = user_dict
         cluster = get_cluster_data(cluster_id, user_dict)
         self.cluster = cluster
         self.cluster_id = cluster_id
         number_of_nodes = len(cluster['nodes'])
-        slot_ip_list = [0]*number_of_nodes
+        host_address, sw_node_id, other_ip_addresses = self._get_host_address_and_cluster_list()
         print("Initialize ZRLMPI...")
+        print(f"Using {host_address} as local IP address.")
+        print(f"DEBUG: other ip adresses are: {other_ip_addresses}")
         ping_cnt = 2
         if debug:
             print("Ping all nodes, build ARP table...")
             ping_cnt = 3
-        sw_node_id = 0
         # host_address = 'localhost'
         for node in cluster['nodes']:
-            if node['image_id'] == __NON_FPGA_IDENTIFIER__:
-                sw_node_id = node['node_id']
-                # if host_address != 'localhost':
-                #     print("Warning: More than one CPU host in cluster, that's unexpected...")
-                # host_address = node['node_ip']
-                slot_ip_list[sw_node_id] = __NON_FPGA_IDENTIFIER__
-                continue
+            # if node['image_id'] == __NON_FPGA_IDENTIFIER__:
+            if node['node_ip'] == sw_node_id:
+                    continue
             subprocess.call(["/usr/bin/ping","-I{}".format(host_address), "-c{}".format(ping_cnt), "{0}".format(node['node_ip'])],
                             stdout=subprocess.PIPE, cwd=os.getcwd())
-            # print("/usr/bin/ping","-I{}".format(str(host_address)) , "-c3", "{0}".format(node['node_ip']))
-            slot_ip_list[node['node_id']] = str(node['node_ip'])
         # init
         # Usage: ./zrlmpi_cpu_app <tcp|udp> <host-address> <cluster-size> <own-rank> <ip-rank-1> <ip-rank-2> <...>
         arg_list = ['udp', str(host_address), str(number_of_nodes), str(sw_node_id)]
-        for e in slot_ip_list:
-            if e != __NON_FPGA_IDENTIFIER__:
-                arg_list.append(e)
+        for e in other_ip_addresses:
+            arg_list.append(e)
         # print(arg_list)
         self.init(arg_list)
         print("...done.")
@@ -244,7 +282,7 @@ class DosaRoot:
         single_output_length = int(self.n_bytes)
         for d in output_shape:
             single_output_length *= d
-        if not processing_pipelines_filled:
+        if not processing_pipelines_filled and self.own_rank != self._root_rank:
             # now, adapt to minimum length requirements
             # added_zero_tensors = 0
             # batch_input = input_data
@@ -332,9 +370,10 @@ class DosaRoot:
         expected_output = output[0:expected_num_output]
         return expected_output
 
-    def reset(self):
+    def reset(self, force=False):
         self.c_lib.reset_state()
-        restart_app(self.cluster_id, self.user_dict)
+        if force or self.own_rank == __rank_calling_FPGA_resets__:
+            restart_app(self.cluster_id, self.user_dict)
 
     def cleanup(self):
         self.c_lib.cleanup()

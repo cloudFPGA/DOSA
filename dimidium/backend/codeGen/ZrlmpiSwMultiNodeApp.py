@@ -104,6 +104,8 @@ class ZrlmpiSwMultiNodeApp:
             # empty pipeline store at the end...done by dosa_root
             all_node_0_instr[cur_rank] = node_0_instr
         pipeline_store = total_send_repeat - total_recv_repeat
+        root_rank = all_ranks[0]
+        len_fill_instr = self.comm_plan.after_pipeline_full_instr_start//len(all_ranks)
         # 3. generate dosa_infer.cpp
         with open(os.path.join(self.templ_dir_path, 'dosa_infer.cpp'), 'r') as in_file, \
                 open(os.path.join(self.out_dir_path, 'dosa_infer.cpp'), 'w') as out_file:
@@ -120,33 +122,44 @@ class ZrlmpiSwMultiNodeApp:
                                '    saveCurData[{i}]          = {save_cur_data};\n'
                         prog_i = 0
                         outline += f'  if(rank == {cur_rank})\n  {{\n'
-                        outline += '    //pipeline-FILL part\n'
+                        if cur_rank == root_rank:
+                            outline += '    //pipeline-FILL part\n'
                         for mi in node_0_instr:
-                            instr = 'MPI_INSTR_SEND'
-                            if mi['instr'] == 'recv':
-                                instr = 'MPI_INSTR_RECV'
-                            rank = mi['rank']
-                            word_count = int((mi['count'] + 3) / 4)
-                            repeat = mi['repeat']
-                            save_cur_data = 'false'
-                            if mi['instr'] == 'send' and mi['combine'] is not None and mi['combine'] != 'finish':
-                                save_cur_data = 'true'
-                            outline += tmpl.format(i=prog_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
-                                                   save_cur_data=save_cur_data, byte_cnt=int(mi['count']))
+                            if cur_rank == root_rank or prog_i >= len_fill_instr:
+                                instr = 'MPI_INSTR_SEND'
+                                if mi['instr'] == 'recv':
+                                    instr = 'MPI_INSTR_RECV'
+                                rank = mi['rank']
+                                word_count = int((mi['count'] + 3) / 4)
+                                repeat = mi['repeat']
+                                save_cur_data = 'false'
+                                if mi['instr'] == 'send' and mi['combine'] is not None and mi['combine'] != 'finish':
+                                    save_cur_data = 'true'
+                                true_i = prog_i
+                                if cur_rank != root_rank:
+                                    true_i -= len_fill_instr
+                                outline += tmpl.format(i=true_i, instr=instr, rank=rank, count=word_count, repeat=repeat,
+                                                       save_cur_data=save_cur_data, byte_cnt=int(mi['count']))
                             prog_i += 1
-                            if prog_i == (self.comm_plan.after_pipeline_full_instr_start//len(all_ranks)):
+                            if prog_i == len_fill_instr:
                                 outline += '    //pipeline-FULL part\n'
-                        outline += f'    my_prog_length = {prog_i};\n'
+                        if cur_rank == root_rank:
+                            outline += f'    my_prog_length = {prog_i};\n'
+                        else:
+                            outline += f'    my_prog_length = {prog_i - len_fill_instr};\n'
                         outline += '  }\n\n'
                 elif 'DOSA_ADD_MPI_barrier' in line:
                     root_rank = all_ranks[0]
                     other_ranks = all_ranks[1:]
                     outline = "  // custom (poor man's...) barrier (because we have only MPI_COMM_WORLD)\n"
                     outline += f'  if(rank == {root_rank})\n  {{\n    int ignore = 1;\n'
+                    outline += '    printf("[DOSA:INFO] Trigger barrier...\\n");\n'
                     for otr in other_ranks:
                         outline += f'    MPI_Send(&ignore, 1, MPI_INTEGER, {otr}, rank, MPI_COMM_WORLD);\n'
                     outline += '  } else {\n    int ignore = 0;\n'
+                    outline += '    printf("[DOSA:INFO] Waiting for barrier...\\n");\n'
                     outline += f'    MPI_Recv(&ignore, 1, MPI_INTEGER, {root_rank}, rank, MPI_COMM_WORLD, &status);\n'
+                    outline += '    printf("[DOSA:INFO]\\t ...done. Start executing MPI commands...\\n");\n'
                     outline += '  }\n'
                 else:
                     outline = line
