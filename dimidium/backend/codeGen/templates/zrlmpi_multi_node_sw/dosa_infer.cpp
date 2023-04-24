@@ -20,6 +20,7 @@
 #include "dosa_infer.hpp"
 #include <sys/time.h>
 #include <time.h>
+#include <assert.h>
 
 
 //internal state
@@ -37,6 +38,7 @@ static bool is_init = false;
 static int rank;
 static int size;
 static uint32_t my_prog_length;
+static uint32_t my_jump_addr;
 
 static uint32_t nextCommandPtr = 0x0;
 static uint8_t curIterationCnt = 0x0;
@@ -47,6 +49,10 @@ static uint32_t curBytes = 0;
 static uint8_t curRep = 0;
 static bool save_cur_data = false;
 static bool processing_pipeline_filled = false;
+
+static uint32_t pipeline_depth[DOSA_MAX_PARALLEL_RANKS];
+static uint32_t batch_input_size[DOSA_MAX_PARALLEL_RANKS];
+static uint32_t batch_output_size[DOSA_MAX_PARALLEL_RANKS];
 
 
 typedef unsigned long long timestamp_t;
@@ -88,7 +94,12 @@ void init(int argc, char **argv)
     commandRepetitions[1]   = 1;
     saveCurData[1]          = false;
     my_prog_length = 2;
+    my_jump_addr = 0;
   }
+
+  pipeline_depth[0] = 1;
+  batch_input_size[0] = 1;
+  batch_output_size[0] = 1;
 
 #else
   //DOSA_ADD_mpi_config
@@ -121,19 +132,25 @@ void reset_state(void)
 
 uint32_t get_pipeline_store_depth(void)
 {
-  return DOSA_PIPELINE_STORE_DETPH;
+  assert(is_init);
+  return pipeline_depth[rank];
+  //return DOSA_PIPELINE_STORE_DETPH;
 }
 
 
 uint32_t get_batch_input_size(void)
 {
-  return DOSA_MINIMAL_INPUT_NUM;
+  assert(is_init);
+  return batch_input_size[rank];
+  //return DOSA_MINIMAL_INPUT_NUM;
 }
 
 
 uint32_t get_batch_output_size(void)
 {
-  return DOSA_MINIMAL_OUTPUT_NUM;
+  assert(is_init);
+  return batch_output_size[rank];
+  //return DOSA_MINIMAL_OUTPUT_NUM;
 }
 
 
@@ -153,38 +170,22 @@ bool are_processing_pipelines_filled(void)
 //int infer(int *input, uint32_t input_length, int *output, uint32_t output_length)
 int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_num)
 {
-  //if(input_num % DOSA_MINIMAL_INPUT_NUM != 0)
-  //{
-  //  fprintf(stderr, "[DOSA:ERROR] Invalid input_num. It must be a multiple of %d (c.f. get_batch_input_size).\n", DOSA_MINIMAL_INPUT_NUM);
-  //  return 1;
-  //}
-  //if(output_num % DOSA_MINIMAL_OUTPUT_NUM != 0)
-  //{
-  //  fprintf(stderr, "[DOSA:ERROR] Invalid output_num. It must be a multiple of %d (c.f. get_batch_output_size).\n", DOSA_MINIMAL_OUTPUT_NUM);
-  //  return 1;
-  //}
-  //if(input_num/DOSA_MINIMAL_INPUT_NUM != output_num/DOSA_MINIMAL_OUTPUT_NUM)
-  //{
-  //  //printf("%d %d  ", input_num, output_num);
-  //  fprintf(stderr, "[DOSA:ERROR] input_num and output_num must be the same multiple of each minmum size (for this cluster: %d for input and %d for output).\n", DOSA_MINIMAL_INPUT_NUM, DOSA_MINIMAL_OUTPUT_NUM);
-  //  return 1;
-  //}
   if(!processing_pipeline_filled)
   {
-    if(input_num < DOSA_MINIMAL_INPUT_NUM)
+    if(input_num < batch_input_size[rank])
     {
-      fprintf(stderr, "[DOSA:ERROR]  processing pipeline not yet filled: Invalid input_num. It must be a at least %d (c.f. get_batch_input_size).\n", DOSA_MINIMAL_INPUT_NUM);
+      fprintf(stderr, "[DOSA:ERROR]  processing pipeline not yet filled: Invalid input_num. It must be a at least %d (c.f. get_batch_input_size).\n", batch_input_size[rank]);
       return 1;
     }
-    if(output_num < DOSA_MINIMAL_OUTPUT_NUM)
+    if(output_num < batch_output_size[rank])
     {
-      fprintf(stderr, "[DOSA:ERROR]  processing pipeline not yet filled: Invalid output_num. It must be at least %d (c.f. get_batch_output_size).\n", DOSA_MINIMAL_OUTPUT_NUM);
+      fprintf(stderr, "[DOSA:ERROR]  processing pipeline not yet filled: Invalid output_num. It must be at least %d (c.f. get_batch_output_size).\n", batch_output_size[rank]);
       return 1;
     }
-    if(input_num - output_num != DOSA_PIPELINE_STORE_DETPH)
+    if(input_num - output_num != pipeline_depth[rank])
     {
       //printf("%d %d  ", input_num, output_num);
-      fprintf(stderr, "[DOSA:ERROR] processing pipeline not yet filled: input_num must be exactly %d larger than output_num.\n", DOSA_PIPELINE_STORE_DETPH);
+      fprintf(stderr, "[DOSA:ERROR] processing pipeline not yet filled: input_num must be exactly %d larger than output_num.\n", pipeline_depth[rank]);
       return 1;
     }
   } else {
@@ -240,9 +241,9 @@ int infer_batch(char *input, uint32_t input_num, char *output, uint32_t output_n
       nextCommandPtr++;
       if(nextCommandPtr >= my_prog_length)
       {
-        nextCommandPtr = DOSA_COMM_PLAN_AFTER_FILL_JUMP;
+        nextCommandPtr = my_jump_addr;
       }
-      if(nextCommandPtr >= DOSA_COMM_PLAN_AFTER_FILL_JUMP)
+      if(nextCommandPtr >= my_jump_addr)
       {
         processing_pipeline_filled = true;
       }

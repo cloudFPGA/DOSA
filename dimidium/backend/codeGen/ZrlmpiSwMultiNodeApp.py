@@ -50,6 +50,9 @@ class ZrlmpiSwMultiNodeApp:
         all_ranks = []
         total_send_repeat = 0
         total_recv_repeat = 0
+        rank_pipeline_store = {}
+        rank_min_in_repeat = {}
+        rank_min_out_repeat = {}
         for cur_rank in comm_instr_rank_wise.keys():
             all_ranks.append(cur_rank)
             comm_instr = comm_instr_rank_wise[cur_rank]
@@ -103,6 +106,9 @@ class ZrlmpiSwMultiNodeApp:
                 total_send_repeat = rank_send_repeat
             # empty pipeline store at the end...done by dosa_root
             all_node_0_instr[cur_rank] = node_0_instr
+            rank_min_in_repeat[cur_rank] = rank_send_repeat
+            rank_min_out_repeat[cur_rank] = rank_recv_repeat
+            rank_pipeline_store[cur_rank] = rank_send_repeat - rank_recv_repeat
         pipeline_store = total_send_repeat - total_recv_repeat
         root_rank = all_ranks[0]
         len_fill_instr = self.comm_plan.after_pipeline_full_instr_start//len(all_ranks)
@@ -121,6 +127,7 @@ class ZrlmpiSwMultiNodeApp:
                                '    commandRepetitions[{i}]   = {repeat};\n' + \
                                '    saveCurData[{i}]          = {save_cur_data};\n'
                         prog_i = 0
+                        my_jump_addr = 0
                         outline += f'  if(rank == {cur_rank})\n  {{\n'
                         # if cur_rank == root_rank:
                         outline += '    //pipeline-FILL part\n'
@@ -146,11 +153,23 @@ class ZrlmpiSwMultiNodeApp:
                                 prog_i += 1
                             if (prog_i + skipped_instr) == len_fill_instr:
                                 outline += '    //pipeline-FULL part\n'
+                                my_jump_addr = prog_i
                         # if cur_rank == root_rank:
                         outline += f'    my_prog_length = {prog_i};\n'
+                        outline += f'    my_jump_addr = {my_jump_addr};\n'
                         # else:
                         #     outline += f'    my_prog_length = {prog_i - len_fill_instr};\n'
                         outline += '  }\n\n'
+                    # add pipeline_depth and batch sizes
+                    outline += '  //define batch behaviour\n'
+                    for cur_rank in all_ranks:
+                        tmpl = '  pipeline_depth[{i}] = {pip_depth};\n' + \
+                               '  batch_input_size[{i}] = {min_input_batch};\n' +\
+                               '  batch_output_size[{i}] = {min_output_batch};\n'
+                        outline += tmpl.format(i=cur_rank, pip_depth=rank_pipeline_store[cur_rank],
+                                               min_input_batch=rank_min_in_repeat[cur_rank],
+                                               min_output_batch=rank_min_out_repeat[cur_rank])
+                    outline += '\n'
                 elif 'DOSA_ADD_MPI_barrier' in line:
                     root_rank = all_ranks[0]
                     other_ranks = all_ranks[1:]
@@ -174,16 +193,19 @@ class ZrlmpiSwMultiNodeApp:
                 if 'DOSA_ADD_APP_NODE_DEFINES' in line:
                     tmpl = ('#define DOSA_WRAPPER_MAX_PROG_LENGTH {total_l}\n' +
                             # '#define DOSA_MINIMAL_PROG_LENGTH {min_l}\n' +
-                            '#define DOSA_PIPELINE_STORE_DETPH {pip_store}\n' +
-                            '#define DOSA_MINIMAL_INPUT_NUM {min_in}\n' +
-                            '#define DOSA_MINIMAL_OUTPUT_NUM {min_out}\n' +
-                            '#define DOSA_COMM_PLAN_AFTER_FILL_JUMP {jump}\n' +
-                            '#define DOSA_PIPELINE_FULL_BATCH_SIZE {full_pip}\n')
+                            # '#define DOSA_PIPELINE_STORE_DETPH {pip_store}\n' +
+                            # '#define DOSA_MINIMAL_INPUT_NUM {min_in}\n' +
+                            # '#define DOSA_MINIMAL_OUTPUT_NUM {min_out}\n' +
+                            # '#define DOSA_COMM_PLAN_AFTER_FILL_JUMP {jump}\n' +
+                            '#define DOSA_PIPELINE_FULL_BATCH_SIZE {full_pip}\n' +
+                            '#define DOSA_MAX_PARALLEL_RANKS {max_ranks}\n')
                     # outline = tmpl.format(total_l=comm_plan_len, min_l=all_iterations)
-                    outline = tmpl.format(total_l=comm_plan_len, pip_store=pipeline_store,
-                                          min_in=total_send_repeat, min_out=total_recv_repeat,
-                                          jump=self.comm_plan.after_pipeline_full_instr_start,
-                                          full_pip=dosa_singleton.config.backend.comm_message_interleaving)
+                    outline = tmpl.format(total_l=comm_plan_len,
+                                          # pip_store=pipeline_store,
+                                          # min_in=total_send_repeat, min_out=total_recv_repeat,
+                                          # jump=self.comm_plan.after_pipeline_full_instr_start,
+                                          full_pip=dosa_singleton.config.backend.comm_message_interleaving,
+                                          max_ranks=len(all_ranks))
                                             # min_l=comm_plan_len
                     outline += '// ATTENTION: currently, only batch-wise inference is supported\n'
                 else:

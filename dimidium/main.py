@@ -39,12 +39,13 @@ __mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_
 def print_usage(sys_argv):
     print("USAGE: {} ./path/to/dosa_config.json ./path/to/nn.onnx ./path/to/constraint.json ./path/to/build_dir "
           .format(sys_argv[0]) +
-          "[--no-roofline|--no-build|--only-stats]")
+          "[--no-roofline|--no-build|--only-stats|--only-coverage]")
     exit(1)
 
 
 if __name__ == '__main__':
     if len(sys.argv) < 5 or len(sys.argv) > 6:
+        print(str(len(sys.argv)) + "\t:\t" + str(sys.argv))
         print_usage(sys.argv)
 
     # TODO: use argparse

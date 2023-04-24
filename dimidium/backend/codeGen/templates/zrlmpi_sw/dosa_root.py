@@ -258,7 +258,7 @@ class DosaRoot:
             # if node['image_id'] == __NON_FPGA_IDENTIFIER__:
             if node['node_ip'] == sw_node_id:
                     continue
-            subprocess.call(["/usr/bin/ping","-I{}".format(host_address), "-c{}".format(ping_cnt), "{0}".format(node['node_ip'])],
+            subprocess.call(["/usr/bin/ping", "-I{}".format(host_address), "-c{}".format(ping_cnt), "{0}".format(node['node_ip'])],
                             stdout=subprocess.PIPE, cwd=os.getcwd())
         # init
         # Usage: ./zrlmpi_cpu_app <tcp|udp> <host-address> <cluster-size> <own-rank> <ip-rank-1> <ip-rank-2> <...>
@@ -374,8 +374,8 @@ class DosaRoot:
 
     def reset(self, force=False):
         self.c_lib.reset_state()
-        # if force or self.own_rank == self._root_rank:
-        #     restart_app(self.cluster_id, self.user_dict)
+        if force or self.own_rank == self._root_rank:
+            restart_app(self.cluster_id, self.user_dict)
 
     def cleanup(self):
         self.c_lib.cleanup()

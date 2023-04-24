@@ -1947,7 +1947,7 @@ class ArchDraft(object):
         # then, populate
         need_to_parallelize, nodes_to_parallelize, split_factors = self._populate_communication_generation(
             draft_total_pipeline_store)
-        if need_to_parallelize:
+        if need_to_parallelize and dosa_singleton.config.backend.allow_multiple_cpu_clients:
             assert len(split_factors) == len(nodes_to_parallelize)
             for i in range(len(nodes_to_parallelize)):
                 pnn = nodes_to_parallelize[i]

@@ -39,6 +39,7 @@ def init_singleton(config_dict, main_path=None):
     config.backend.tmux_parallel_build = int(config_dict['build']['parallel_builds_tmux'])
     config.backend.clean_build = bool(config_dict['build']['start_from_clean_build'])
     config.backend.comm_message_max_buffer_interleaving = int(config_dict['build']['max_buffer_interleaving'])
+    config.backend.allow_multiple_cpu_clients = bool(config_dict['build']['allow_multiple_cpu_clients'])
 
     config.dtype = SimpleNamespace()
     config.dtype.default_dosa_flops_conv_factor = float(config_dict['dtypes']['default_flops_conv_factor'])
