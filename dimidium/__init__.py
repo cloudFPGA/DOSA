@@ -9,3 +9,6 @@
 #  *        Main folder for DOSA/dimidium
 #  *
 #  *
+
+from . main import dosa
+

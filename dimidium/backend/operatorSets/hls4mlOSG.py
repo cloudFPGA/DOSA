@@ -487,8 +487,9 @@ class Hls4mlOSG(BaseOSG):
             input_batch_shape[3] = arch_block.brick_list[0].ops[0].dims.inp[1]
         else:
             input_batch_shape = arch_block.brick_list[0].ops[0].dims.inp
-        if input_batch_shape[0] != 1:
-            print("[DOSA:OSG:ERROR] hls4ml only supports models with batch_size 1")
+        # TODO
+        if len(input_batch_shape) >2 and input_batch_shape[0] != 1:
+            print(f"[DOSA:OSG:ERROR] hls4ml only supports models with batch_size 1 (given shape: {input_batch_shape}).")
             exit(-1)
 
         # reuse_factor_stream = 1

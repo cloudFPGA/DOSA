@@ -43,37 +43,9 @@ def print_usage(sys_argv):
     exit(1)
 
 
-if __name__ == '__main__':
-    if len(sys.argv) < 5 or len(sys.argv) > 6:
-        print(str(len(sys.argv)) + "\t:\t" + str(sys.argv))
-        print_usage(sys.argv)
-
-    # TODO: use argparse
-    if len(sys.argv) == 6 and (sys.argv[5] != '--no-roofline' and sys.argv[5] != '--no-build'
-        and sys.argv[5] != '--only-stats' and sys.argv[5] != '--only-coverage'):
-        print_usage(sys.argv)
-
-    dosa_config_path = sys.argv[1]
-    onnx_path = sys.argv[2]
-    const_path = sys.argv[3]
-    global_build_dir = os.path.abspath(sys.argv[4])
-    show_graphics = True
-    generate_build = True
-    generate_only_stats = False  # default is part of build
-    generate_only_coverage = False
-    if len(sys.argv) == 6 and sys.argv[5] == '--no-roofline':
-        show_graphics = False
-    if len(sys.argv) == 6 and sys.argv[5] == '--no-build':
-        generate_build = False
-    if len(sys.argv) == 6 and sys.argv[5] == '--only-stats':
-        show_graphics = False
-        generate_build = False
-        generate_only_stats = True
-    if len(sys.argv) == 6 and sys.argv[5] == '--only-coverage':
-        show_graphics = False
-        generate_build = False
-        generate_only_stats = False
-        generate_only_coverage = True
+def dosa(dosa_config_path, onnx_path, const_path, global_build_dir, show_graphics=True, generate_build=True,
+         generate_only_stats=False, generate_only_coverage=False):
+    __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
     with open(dosa_config_path, 'r') as inp:
         dosa_config = json.load(inp)
@@ -82,7 +54,7 @@ if __name__ == '__main__':
         if k not in dosa_config:
             print("ERROR: Mandatory key {} is missing in the configuration file {}. Stop.".format(k, const_path))
             exit(1)
-    dosa_singelton.init_singleton(dosa_config, main_path=sys.argv[0])
+    dosa_singelton.init_singleton(dosa_config, main_path=__filedir__)
     dosa_singelton.add_global_build_dir(global_build_dir)
 
     debug_mode = False
@@ -205,3 +177,37 @@ if __name__ == '__main__':
     print("\nDOSA finished successfully.\n")
 
 
+if __name__ == '__main__':
+    if len(sys.argv) < 5 or len(sys.argv) > 6:
+        print(str(len(sys.argv)) + "\t:\t" + str(sys.argv))
+        print_usage(sys.argv)
+
+    # TODO: use argparse
+    if len(sys.argv) == 6 and (sys.argv[5] != '--no-roofline' and sys.argv[5] != '--no-build'
+                               and sys.argv[5] != '--only-stats' and sys.argv[5] != '--only-coverage'):
+        print_usage(sys.argv)
+
+    a_dosa_config_path = sys.argv[1]
+    a_onnx_path = sys.argv[2]
+    a_const_path = sys.argv[3]
+    a_global_build_dir = os.path.abspath(sys.argv[4])
+    a_show_graphics = True
+    a_generate_build = True
+    a_generate_only_stats = False  # default is part of build
+    a_generate_only_coverage = False
+    if len(sys.argv) == 6 and sys.argv[5] == '--no-roofline':
+        a_show_graphics = False
+    if len(sys.argv) == 6 and sys.argv[5] == '--no-build':
+        a_generate_build = False
+    if len(sys.argv) == 6 and sys.argv[5] == '--only-stats':
+        a_show_graphics = False
+        a_generate_build = False
+        a_generate_only_stats = True
+    if len(sys.argv) == 6 and sys.argv[5] == '--only-coverage':
+        a_show_graphics = False
+        a_generate_build = False
+        a_generate_only_stats = False
+        a_generate_only_coverage = True
+
+    dosa(a_dosa_config_path, a_onnx_path, a_const_path, a_global_build_dir, a_show_graphics, a_generate_build,
+         a_generate_only_stats, a_generate_only_coverage)
