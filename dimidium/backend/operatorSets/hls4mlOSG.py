@@ -702,6 +702,7 @@ class Hls4mlOSG(BaseOSG):
         wrapper_first_op = None
         wrapper_last_op = None
         contr_i = 0
+        max_effective_mult_limit = 0
         for bb in arch_block.brick_list:
             # for op in bb.local_op_iter_gen():
             if wrapper_first_brick is None:
@@ -760,7 +761,11 @@ class Hls4mlOSG(BaseOSG):
                         tmp_dict['variables'][str(t_cnt)] = e
                         t_cnt += 1
                     mult_limit = self.get_max_num_of_mult(tmp_dict)
-                conf['mult_limit'] = mult_limit * mult_limit_factor
+                # conf['mult_limit'] = mult_limit * mult_limit_factor
+                effective_mult_limit = mult_limit * mult_limit_factor
+                conf['mult_limit'] = effective_mult_limit
+                if effective_mult_limit > max_effective_mult_limit:
+                    max_effective_mult_limit = effective_mult_limit
                 exec_simple_s = op.flops * build_tool.target_device.clock_period_s
                 op_req_flops = op.flops * bb_speedup_req
                 # op_req_latency_s = 1/bb_speedup_req
@@ -781,6 +786,11 @@ class Hls4mlOSG(BaseOSG):
                 layer_confs.append(conf)
                 last_layer_name = layer_name
             contr_i += 1
+
+        # TODO (currently based on experience, better way?)
+        if max_effective_mult_limit > 1024:
+            hls_model_config['IOType'] = 'io_serial'
+            reader.config['IOType'] = 'io_serial'  # necessary?
 
         model_arch['config']['layers'].extend(layer_confs)
         model_arch['config']['output_layers'].append([last_layer_name, 0, 0])
