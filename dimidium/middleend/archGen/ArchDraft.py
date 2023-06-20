@@ -1992,8 +1992,8 @@ class ArchDraft(object):
                     if split_factor_up < 2:
                         split_factor_up = 2
                     split_factors.append(split_factor_up)
-                    print(f"[DOSA:CommGen:INFO] Split node {nn.node_id} vertically with factor {split_factor_up}, to fix "
-                          f"transaction limitations.")
+                    print(f"[DOSA:CommGen:INFO] Annotate node {nn.node_id} to split vertically with factor "
+                          f"{split_factor_up}, to fix transaction limitations (if enabled).")
         return need_to_parallelize, nodes_to_parallelize, split_factors
 
     def get_osg_coverage(self):
