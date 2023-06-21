@@ -79,6 +79,10 @@ class Hls4mlOSG(BaseOSG):
         self.avg_util_dict = {}
         self.pipeline_tensor_store = 1
 
+        self._serial_io_threshold = 1024
+        self._default_stream_reuse_factor = 32
+        self._default_engine_reuse_factor = 2
+
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
             util_data = json.load(infile)
@@ -488,13 +492,13 @@ class Hls4mlOSG(BaseOSG):
         else:
             input_batch_shape = arch_block.brick_list[0].ops[0].dims.inp
         # TODO
-        if len(input_batch_shape) >2 and input_batch_shape[0] != 1:
+        if len(input_batch_shape) > 2 and input_batch_shape[0] != 1:
             print(f"[DOSA:OSG:ERROR] hls4ml only supports models with batch_size 1 (given shape: {input_batch_shape}).")
             exit(-1)
 
         # reuse_factor_stream = 1
         # reuse_factor_stream = 4  # TODO
-        reuse_factor_stream = 32  # works so far...TODO
+        reuse_factor_stream = self._default_stream_reuse_factor  # works so far...TODO
         reuse_factor_temp = reuse_factor_stream
         for bb_c in selected_contracts:
             for op_c in bb_c.op_contracts:
@@ -514,7 +518,7 @@ class Hls4mlOSG(BaseOSG):
             reuse_factor_stream = 1  # i.e. deactivating? # TODO
             print("[DOSA:hls4mlOSG:INFO] Small input, using reuse_factor {}.".format(reuse_factor_stream))
 
-        reuse_factor_engine = 2
+        reuse_factor_engine = self._default_engine_reuse_factor
 
         precision_dict = {'default': precision_string,
                           'accum': accum_string}
@@ -538,143 +542,6 @@ class Hls4mlOSG(BaseOSG):
                             'HLSConfig': hls_config}  # ,
         # 'KerasJson': 'KERAS_3layer.json', 'KerasH5': 'KERAS_3layer_weights.h5'}  # TODO
 
-        model_arch2 = {'backend': 'tensorflow',
-                       'class_name': 'Model',
-                       'config': {'input_layers': [['input_1', 0, 0]], 'layers': [{'class_name': 'InputLayer',
-                                                                                   'config': {
-                                                                                       'batch_input_shape': [None, 16],
-                                                                                       'dtype': 'float32',
-                                                                                       'name': 'input_1',
-                                                                                       'sparse': False},
-                                                                                   'inbound_nodes': [],
-                                                                                   'name': 'input_1'},
-                                                                                  {'class_name': 'Dense',
-                                                                                   'config': {'activation': 'relu',
-                                                                                              'activity_regularizer': None,
-                                                                                              'bias_constraint': None,
-                                                                                              'bias_initializer':
-                                                                                                  {
-                                                                                                      'class_name': 'VarianceScaling',
-                                                                                                      'config': {
-                                                                                                          'distribution': 'uniform',
-                                                                                                          'mode': 'fan_in',
-                                                                                                          'scale': 1.0,
-                                                                                                          'seed': None}},
-                                                                                              'bias_regularizer': None,
-                                                                                              'kernel_constraint': None,
-                                                                                              'kernel_initializer': {
-                                                                                                  'class_name': 'VarianceScaling',
-                                                                                                  'config': {
-                                                                                                      'distribution': 'uniform',
-                                                                                                      'mode': 'fan_in',
-                                                                                                      'scale': 1.0,
-                                                                                                      'seed': None}},
-                                                                                              'kernel_regularizer': {
-                                                                                                  'class_name': 'L1L2',
-                                                                                                  'config': {'l1': 0.0,
-                                                                                                             'l2': 0.0}},
-                                                                                              'name': 'fc1_relu',
-                                                                                              'trainable': True,
-                                                                                              'units': 64,
-                                                                                              'use_bias': True},
-                                                                                   'inbound_nodes': [
-                                                                                       [['input_1', 0, 0, {}]]],
-                                                                                   'name': 'fc1_relu'},
-                                                                                  {'class_name': 'Dense',
-                                                                                   'config': {'activation': 'relu',
-                                                                                              'activity_regularizer': None,
-                                                                                              'bias_constraint': None,
-                                                                                              'bias_initializer': {
-                                                                                                  'class_name': 'VarianceScaling',
-                                                                                                  'config': {
-                                                                                                      'distribution': 'uniform',
-                                                                                                      'mode': 'fan_in',
-                                                                                                      'scale': 1.0,
-                                                                                                      'seed': None}},
-                                                                                              'bias_regularizer': None,
-                                                                                              'kernel_constraint': None,
-                                                                                              'kernel_initializer': {
-                                                                                                  'class_name': 'VarianceScaling',
-                                                                                                  'config': {
-                                                                                                      'distribution': 'uniform',
-                                                                                                      'mode': 'fan_in',
-                                                                                                      'scale': 1.0,
-                                                                                                      'seed': None}},
-                                                                                              'kernel_regularizer': {
-                                                                                                  'class_name': 'L1L2',
-                                                                                                  'config': {'l1': 0.0,
-                                                                                                             'l2': 0.0}},
-                                                                                              'name': 'fc2_relu',
-                                                                                              'trainable': True,
-                                                                                              'units': 32,
-                                                                                              'use_bias': True},
-                                                                                   'inbound_nodes': [
-                                                                                       [['fc1_relu', 0, 0, {}]]],
-                                                                                   'name': 'fc2_relu'},
-                                                                                  {'class_name': 'Dense',
-                                                                                   'config': {'activation': 'relu',
-                                                                                              'activity_regularizer': None,
-                                                                                              'bias_constraint': None,
-                                                                                              'bias_initializer': {
-                                                                                                  'class_name': 'VarianceScaling',
-                                                                                                  'config': {
-                                                                                                      'distribution': 'uniform',
-                                                                                                      'mode': 'fan_in',
-                                                                                                      'scale': 1.0,
-                                                                                                      'seed': None}},
-                                                                                              'bias_regularizer': None,
-                                                                                              'kernel_constraint': None,
-                                                                                              'kernel_initializer': {
-                                                                                                  'class_name': 'VarianceScaling',
-                                                                                                  'config': {
-                                                                                                      'distribution': 'uniform',
-                                                                                                      'mode': 'fan_in',
-                                                                                                      'scale': 1.0,
-                                                                                                      'seed': None}},
-                                                                                              'kernel_regularizer': {
-                                                                                                  'class_name': 'L1L2',
-                                                                                                  'config': {'l1': 0.0,
-                                                                                                             'l2': 0.0}},
-                                                                                              'name': 'fc3_relu',
-                                                                                              'trainable': True,
-                                                                                              'units': 32,
-                                                                                              'use_bias': True},
-                                                                                   'inbound_nodes': [
-                                                                                       [['fc2_relu', 0, 0, {}]]],
-                                                                                   'name': 'fc3_relu'},
-                                                                                  {'class_name': 'Dense',
-                                                                                   'config': {'activation': 'softmax',
-                                                                                              'activity_regularizer': None,
-                                                                                              'bias_constraint': None,
-                                                                                              'bias_initializer': {
-                                                                                                  'class_name': 'VarianceScaling',
-                                                                                                  'config': {
-                                                                                                      'distribution': 'uniform',
-                                                                                                      'mode': 'fan_in',
-                                                                                                      'scale': 1.0,
-                                                                                                      'seed': None}},
-                                                                                              'bias_regularizer': None,
-                                                                                              'kernel_constraint': None,
-                                                                                              'kernel_initializer': {
-                                                                                                  'class_name': 'VarianceScaling',
-                                                                                                  'config': {
-                                                                                                      'distribution': 'uniform',
-                                                                                                      'mode': 'fan_in',
-                                                                                                      'scale': 1.0,
-                                                                                                      'seed': None}},
-                                                                                              'kernel_regularizer': {
-                                                                                                  'class_name': 'L1L2',
-                                                                                                  'config': {'l1': 0.0,
-                                                                                                             'l2': 0.0}},
-                                                                                              'name': 'output_softmax',
-                                                                                              'trainable': True,
-                                                                                              'units': 5,
-                                                                                              'use_bias': True},
-                                                                                   'inbound_nodes': [
-                                                                                       [['fc3_relu', 0, 0, {}]]],
-                                                                                   'name': 'output_softmax'}],
-                                  'name': 'model_1', 'output_layers': [['output_softmax', 0, 0]]},
-                       'keras_version': '2.0.0'}
 
         reader = OsgDataReader(hls_model_config)
         model_arch = {'backend': 'dosa', 'class_name': 'Model',  # 'Model" to emulate TF >=2.3
@@ -788,7 +655,7 @@ class Hls4mlOSG(BaseOSG):
             contr_i += 1
 
         # TODO (currently based on experience, better way?)
-        if max_effective_mult_limit > 1024:
+        if max_effective_mult_limit > self._serial_io_threshold:
             hls_model_config['IOType'] = 'io_serial'
             reader.config['IOType'] = 'io_serial'  # necessary?
 
