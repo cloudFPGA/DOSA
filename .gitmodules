@@ -13,3 +13,6 @@
 [submodule "dimidium/backend/buildTools/lib/cFCreate"]
 	path = dimidium/backend/buildTools/lib/cFBuild1/cFCreate
 	url = https://github.com/cloudFPGA/cFCreate.git
+[submodule "dimidium/backend/codeGen/templates/tips"]
+	path = dimidium/backend/codeGen/templates/tips
+	url = git@github.ibm.com:cloudFPGA/TIPS.git
