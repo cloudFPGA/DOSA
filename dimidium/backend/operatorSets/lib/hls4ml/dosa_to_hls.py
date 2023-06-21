@@ -23,7 +23,14 @@ sys.path.insert(0, hls4ml_lib_path)
 
 import dimidium.backend.third_party_libs.hls4ml.hls4ml
 import dimidium.backend.third_party_libs.hls4ml.hls4ml.converters  # to initialize layer registration etc.
+# -----------------
+# for dosa hls4ml version (t.b.d.)
 from dimidium.backend.third_party_libs.hls4ml.hls4ml.model.hls_model import HLSModel, HLSConfig
+# -----------------
+# for latest hls4ml version (> 0.5)
+# from dimidium.backend.third_party_libs.hls4ml.hls4ml.model.graph import ModelGraph, HLSConfig
+# from dimidium.backend.third_party_libs.hls4ml.hls4ml.writer.vivado_writer import VivadoWriter
+# -----------------
 from dimidium.backend.third_party_libs.hls4ml.hls4ml.converters.keras_to_hls import get_supported_keras_layers
         # \, layer_handlers
 from dimidium.backend.third_party_libs.hls4ml.hls4ml.converters.keras_to_hls import keras_to_hls, \
@@ -157,7 +164,13 @@ def dosa_to_hls(config, reader, model_arch):
         else:
             input_names = None
 
+        # -----------------
+        # for dosa hls4ml version (t.b.d.)
         layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader, config)
+        # -----------------
+        # for latest hls4ml version (> 0.5)
+        # layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader)
+        # -----------------
 
         print('Layer name: {}, layer type: {}, input shapes: {}, output shape: {}'.format(layer['name'], layer['class_name'], input_shapes, output_shape))
         if keras_layer['class_name'] != 'InputLayer':
@@ -195,6 +208,13 @@ def dosa_to_hls(config, reader, model_arch):
     #################
 
     print('Creating HLS model')
+    # -----------------
+    # for dosa hls4ml version (t.b.d.)
     hls_model = HLSModel(config, reader, layer_list, input_layers, output_layers)
+    # -----------------
+    # for latest hls4ml version (> 0.5)
+    # config['Backend'] = 'vivado'
+    # hls_model = ModelGraph(config, layer_list, input_layers, output_layers)
+    # -----------------
     return hls_model
 
