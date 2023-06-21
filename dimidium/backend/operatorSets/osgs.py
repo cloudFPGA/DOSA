@@ -22,16 +22,13 @@ from dimidium.backend.operatorSets.VtaOSG import VtaOSG
 osg_hls4ml = Hls4mlOSG()
 osg_tvmCpu = TvmCpuOsg()
 osg_haddoc2 = Haddoc2OSG()
-osg_tips = TipsOSG()
-osg_vta = VtaOSG()
+# osg_tips = TipsOSG()
+# osg_vta = VtaOSG()
 
 
-fpga_OSGs = [osg_hls4ml, osg_haddoc2, osg_tips, osg_vta]
-
-# builtin_OSGs = fpga_OSGs
-# builtin_OSGs = [osg_hls4ml, osg_tvmCpu, osg_haddoc2, osg_tips, osg_vta]
-# builtin_OSGs = [osg_tips, osg_vta]
-# builtin_OSGs = [osg_hls4ml, osg_haddoc2, osg_tips]
+# fpga_OSGs = [osg_hls4ml, osg_haddoc2, osg_tips, osg_vta]
+fpga_OSGs = [osg_hls4ml, osg_haddoc2]
+# builtin_OSGs = [osg_hls4ml, osg_haddoc2, osg_tvmCpu]
 builtin_OSGs = [osg_hls4ml, osg_haddoc2]
 
 
