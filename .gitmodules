@@ -1,6 +1,3 @@
-[submodule "dimidium/backend/third_party_libs/haddoc2"]
-	path = dimidium/backend/third_party_libs/haddoc2
-	url = git@github.ibm.com:cloudFPGA/haddoc2-for-dosa.git
 [submodule "dimidium/backend/third_party_libs/hls4ml"]
 	path = dimidium/backend/third_party_libs/hls4ml
 	url = git@github.ibm.com:cloudFPGA/hls4ml-for-dosa.git
@@ -16,3 +13,6 @@
 [submodule "dimidium/backend/codeGen/templates/tips"]
 	path = dimidium/backend/codeGen/templates/tips
 	url = git@github.ibm.com:cloudFPGA/TIPS.git
+[submodule "imidium/backend/third_party_libs/vhdl4cnn"]
+	path = imidium/backend/third_party_libs/vhdl4cnn
+	url = git@github.ibm.com:cloudFPGA/haddoc2-for-dosa.git

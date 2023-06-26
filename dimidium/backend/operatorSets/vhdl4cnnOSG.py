@@ -6,7 +6,7 @@
 #  *     Authors: NGL
 #  *
 #  *     Description:
-#  *        DOSA OSG to implement haddoc2 on FPGAs
+#  *        DOSA OSG to implement vhdl4cnn on FPGAs
 #  *
 #  *        This OSG is based on https://github.com/DreamIP/haddoc2,
 #  *        licensed under Apache 2.0.
@@ -34,8 +34,8 @@ from dimidium.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype, DosaDt
 from dimidium.lib.util import BrickImplTypes
 from dimidium.middleend.archGen.ArchBrick import ArchBrick
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
-import dimidium.backend.operatorSets.lib.haddoc2.paramsParsing as paramParsing
-import dimidium.backend.operatorSets.lib.haddoc2.topologyParsing as topologyParsing
+import dimidium.backend.operatorSets.lib.vhdl4cnn.paramsParsing as paramParsing
+import dimidium.backend.operatorSets.lib.vhdl4cnn.topologyParsing as topologyParsing
 from dimidium.backend.codeGen.WrapperInterfaces import InterfaceAxisFifo, wrapper_default_interface_bitwidth
 from dimidium.middleend.archGen.OperationContract import OperationContract
 from dimidium.backend.operatorSets.lib.util import get_avg_util_dict_bytes_based, get_share_of_FPGA_resources
@@ -49,17 +49,17 @@ _part_bias_ = 0.15
 _part_act_ = 0.05
 
 
-class Haddoc2OSG(BaseOSG):
+class vhdl4cnnOSG(BaseOSG):
 
     def __init__(self):
-        super().__init__('haddoc2 OSG', [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx],
+        super().__init__('VHDL4CNN OSG', [DosaHwClasses.FPGA_generic, DosaHwClasses.FPGA_xilinx],
                          [DosaDtype.int2, DosaDtype.int3, DosaDtype.int4, DosaDtype.int8,
                           DosaDtype.int16, DosaDtype.int32],
                          # not uint8!
                          [BrickImplTypes.STREAM])
         self.priority = 99
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
-        self.my_hdl_template_folder = os.path.abspath(me_abs_dir + '/../third_party_libs/haddoc2/lib/hdl/')
+        self.my_hdl_template_folder = os.path.abspath(me_abs_dir + '/../third_party_libs/vhdl4cnn/lib/hdl/')
         self.existing_layer_names = []
         self.util_db = {}
         self.avg_util_dict = {}
@@ -158,7 +158,7 @@ class Haddoc2OSG(BaseOSG):
                 open(os.path.join(target_hdl_dir, 'cnn_types.vhd'), 'w') as out_file:
             line_num = 1
             for line in in_file.readlines():
-                if line_num == 9:
+                if line_num == 54:
                     outline = 'use work.bitwidths_b{}.all;\n'.format(block_id)
                 else:
                     outline = line
@@ -232,7 +232,7 @@ class Haddoc2OSG(BaseOSG):
                         # layer name will be ignored
                         wrapper_flatten_op = op
                         if op_i + 1 != len(bb.ops):
-                            print("[DOSA:Haddoc2OSG:ERROR] flatten is only supported as last layer!. STOP.")
+                            print("[DOSA:vhdl4cnnOSG:ERROR] flatten is only supported as last layer!. STOP.")
                             exit(1)
                     else:
                         osg_func = self._get_osg_func(op.op_call)
@@ -275,7 +275,7 @@ class Haddoc2OSG(BaseOSG):
                     #     # layer name will be ignored
                     #     wrapper_flatten_op = op
                     #     if op_i + 1 != len(bb.ops):
-                    #         print("[DOSA:Haddoc2OSG:ERROR] flatten is only supported as last layer!. STOP.")
+                    #         print("[DOSA:vhdl4cnnOSG:ERROR] flatten is only supported as last layer!. STOP.")
                     #         exit(1)
                     # elif 'dropout' in op.op_call:
                     #     print("[DOSA:OSG:ERROR] Not yet implemented!. STOP.")
