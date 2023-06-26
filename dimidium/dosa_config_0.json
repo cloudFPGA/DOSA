@@ -9,7 +9,7 @@
     "engine_saving_threshold": 1.5,
     "insert_debug_cores": true,
     "generate_testbenchs": 0,
-    "parallel_builds_tmux": 3,
+    "parallel_builds_tmux": 2,
     "start_from_clean_build": false,
     "allow_multiple_cpu_clients": true
   },
