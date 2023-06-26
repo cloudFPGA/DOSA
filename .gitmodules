@@ -14,5 +14,5 @@
 	path = dimidium/backend/codeGen/templates/tips
 	url = git@github.ibm.com:cloudFPGA/TIPS.git
 [submodule "imidium/backend/third_party_libs/vhdl4cnn"]
-	path = imidium/backend/third_party_libs/vhdl4cnn
+	path = dimidium/backend/third_party_libs/vhdl4cnn
 	url = git@github.ibm.com:cloudFPGA/haddoc2-for-dosa.git
