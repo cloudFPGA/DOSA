@@ -13,7 +13,7 @@
 from dimidium.backend.operatorSets.relay_ops import op as relay_op_list
 from dimidium.backend.operatorSets.hls4mlOSG import Hls4mlOSG
 from dimidium.backend.operatorSets.TvmCpuOsg import TvmCpuOsg
-from dimidium.backend.operatorSets.Haddoc2OSG import vhdl4cnnOSG
+from dimidium.backend.operatorSets.vhdl4cnnOSG import vhdl4cnnOSG
 from dimidium.backend.operatorSets.TipsOSG import TipsOSG
 from dimidium.backend.operatorSets.VtaOSG import VtaOSG
 
