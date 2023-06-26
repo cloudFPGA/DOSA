@@ -66,7 +66,9 @@ def upload_image(dcp_folder, user_dict, node_name, app_name, api_instance):
     if len(lt) == 0:
         # monolithic case?
         lt = glob.glob(dcp_folder + '/4_*{}_monolithic.bit'.format(node_name))
-    assert len(lt) == 1
+    if len(lt) != 1:
+        print(f"ERROR: unexpected or missing files in folder {dcp_folder}: {lt}")
+        exit(1)
     bit_file_name = os.path.basename(lt[0])
     assert 'partial' not in bit_file_name
     bit_file_path = os.path.abspath(dcp_folder + '/' + bit_file_name)
