@@ -17,7 +17,6 @@
 
 #  *
 #  *                       cloudFPGA
-#  *     Copyright IBM Research, All Rights Reserved
 #  *    =============================================
 #  *     Created: Dec 2021
 #  *     Authors: NGL

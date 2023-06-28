@@ -1,6 +1,5 @@
 #  *
 #  *                       cloudFPGA
-#  *     Copyright IBM Research, All Rights Reserved
 #  *    =============================================
 #  *     Created: Dec 2019
 #  *     Authors: FAB, WEI, NGL

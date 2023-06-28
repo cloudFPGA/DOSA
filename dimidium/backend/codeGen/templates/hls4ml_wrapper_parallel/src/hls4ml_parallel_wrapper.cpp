@@ -1,6 +1,5 @@
 //  *
 //  *                       cloudFPGA
-//  *     Copyright IBM Research, All Rights Reserved
 //  *    =============================================
 //  *     Created: Oct 2022
 //  *     Authors: NGL
