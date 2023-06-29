@@ -1,18 +1,15 @@
-[submodule "dimidium/backend/third_party_libs/hls4ml"]
-	path = dimidium/backend/third_party_libs/hls4ml
-	url = git@github.ibm.com:cloudFPGA/hls4ml-for-dosa.git
-[submodule "dimidium/backend/codeGen/templates/ZRLMPI"]
-	path = dimidium/backend/codeGen/templates/ZRLMPI
-	url = git@github.ibm.com:cloudFPGA/ZRLMPI.git
 [submodule "dimidium/backend/buildTools/lib/cFDK"]
 	path = dimidium/backend/buildTools/lib/cFBuild1/cFDK
 	url = https://github.com/cloudFPGA/cFDK.git
 [submodule "dimidium/backend/buildTools/lib/cFCreate"]
 	path = dimidium/backend/buildTools/lib/cFBuild1/cFCreate
 	url = https://github.com/cloudFPGA/cFCreate.git
-[submodule "dimidium/backend/codeGen/templates/tips"]
-	path = dimidium/backend/codeGen/templates/tips
-	url = git@github.ibm.com:cloudFPGA/TIPS.git
-[submodule "imidium/backend/third_party_libs/vhdl4cnn"]
+[submodule "dimidium/backend/codeGen/templates/ZRLMPI"]
+	path = dimidium/backend/codeGen/templates/ZRLMPI
+	url = https://github.com/cloudFPGA/ZRLMPI.git
+[submodule "dimidium/backend/third_party_libs/vhdl4cnn"]
 	path = dimidium/backend/third_party_libs/vhdl4cnn
-	url = git@github.ibm.com:cloudFPGA/haddoc2-for-dosa.git
+	url = https://github.com/cloudFPGA/VHDL4CNN.git
+[submodule "dimidium/backend/third_party_libs/hls4ml"]
+	path = dimidium/backend/third_party_libs/hls4ml
+	url = https://github.com/cloudFPGA/hls4ml-for-dosa.git
