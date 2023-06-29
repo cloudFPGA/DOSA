@@ -47,7 +47,6 @@ from dimidium.backend.devices.dosa_roofline import config_global_rf_ylim_max as 
 plt.rcParams.update({'figure.max_open_warning': 0})
 
 
-# https://stackoverflow.com/questions/44970010/axes-class-set-explicitly-size-width-height-of-axes-in-given-units
 # uses global variables...so better here instead of putting it in util
 def set_size(w, h, ax=None):
     """ w, h: width, height in inches """

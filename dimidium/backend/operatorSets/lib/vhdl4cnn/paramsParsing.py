@@ -22,7 +22,7 @@
 #  *     Authors: NGL
 #  *
 #  *     Description:
-#  *        Library for Haddoc2 code generation.
+#  *        Library for VHDL4CNN code generation.
 #  *        Please see the folder Readme.md for more information.
 #  *
 #  *

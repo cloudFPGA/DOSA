@@ -1,0 +1,5 @@
+{
+   "pynq_1x16_i8w8a32_15_15_18_17": {
+    "dtype": "int8", "LUTLOG": 23307, "LUTMEM": 2092, "Registers": 24964, "BRAM": 131.5, "DSPs": 220, "clock_period_ns": 10, "peak_flops": 51000000000, "peak_bw_Bs": 785000000, "comment": "default config, same as ASPLOS paper, some timing violations, bandwidth and perf taken from roofline in the paper"
+   }
+}

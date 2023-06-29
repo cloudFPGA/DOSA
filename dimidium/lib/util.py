@@ -65,7 +65,6 @@ def multiple_replce(text, repdict):
     return regex.sub(lambda match: repdict[match.group(0)], text)
 
 
-# based on: https://stackoverflow.com/questions/65542170/how-to-replace-all-occurence-of-string-in-a-nested-dict
 def replace_deep(dicttoreplace, repdict):
     if isinstance(dicttoreplace, str):
         return multiple_replce(dicttoreplace, repdict)
@@ -136,12 +135,10 @@ def bit_to_dtype(bit):
     return 'int32'  # default
 
 
-# https://stackoverflow.com/questions/51716916/built-in-module-to-calculate-the-least-common-multiple
 def my_lcm(a, b):
     return abs(a * b) // math.gcd(a, b)  # // is floor div
 
 
-# https://stackoverflow.com/questions/57154745/how-to-find-nearest-divisor-to-given-value-with-modulo-zero
 def get_next_larger_dividor(n, near, not_possible_factors=None, max_tries=100):
     if max_tries <= 0:
         return -1
