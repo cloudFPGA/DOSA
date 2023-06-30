@@ -38,6 +38,12 @@ Dosa requires an installation of TVM, including python bindings.
           ```
           and **update** the absolute paths in the `.pth` file!
 
+### FPGA build tools 
+
+To generate FPGA binaries, the corresponding HLS, synthesis, and place and route tools must be installed. 
+In case the Xilinx Vivado suite is used, ensure that the [Y2K22 patch](https://support.xilinx.com/s/article/76960?language=en_US
+) is installed. 
+
 Installation and Setup
 ------------------------------------
 
