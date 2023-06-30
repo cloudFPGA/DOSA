@@ -14,6 +14,8 @@ Therefore, we propose an organic compiler — DOSA — that drastically lowers t
 This repository contains the first proof-of-concept implementation of this organic compiler principle that can compile and partition an ONNX to multiple FPGAs with just a one command. Currently, the `dimidium` version of DOSA supports the [hls4ml](https://github.com/cloudFPGA/hls4ml-for-dosa) and [VHDL4CNN](https://github.com/cloudFPGA/VHDL4CNN) libraries for building, and additional [VTA](https://tvm.apache.org/vta) for analysis. [ZRLMPI](https://github.com/cloudFPGA/ZRLMPI) is used as hardware-agnostic communication protocol. The FPGA binaries are built using the [cFDK](https://github.com/cloudFPGA/cFDK). 
 Depending on the selected target device, the deployment of the  FPGA binaries requires access to the [IBM cloudFPGA platform](https://cloudfpga.github.io/Doc/index.html).
 
+This DOSA version assumes that the weights in the ONNX *are already fully quantized* (by tools like e.g. [Brevitas](https://github.com/Xilinx/brevitas) or [Aimet](https://github.com/quic/aimet)). The corresponding number representation must be configured in the input constraints. 
+
 More details of the supported libraries and flows are described in [./doc/DOSA_flow.md](./doc/DOSA_flow.md).
 A detailed description of concepts and research behind DOSA can be found [here (Chapter 4)](https://doi.org/10.5281/zenodo.7957659).
 
