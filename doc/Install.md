@@ -23,7 +23,7 @@ pip3 install -r requirements.txt
 
 Dosa requires an installation of TVM, including python bindings. 
 
-1. Please follow the steps in [TVM installation](https://tvm.apache.org/docs/install/from_source.html#)
+1. Please follow the steps in [TVM installation](https://tvm.apache.org/docs/install/from_source.html#) (some hints are also given in [./TVM-notes.md](./TVM-notes.md)).
 2. add local tvm installation to environment. You have two *alternatives*:
    1. updated `PYHTHONPATH` as it is described [here](https://tvm.apache.org/docs/install/from_source.html#tvm-package). (But we made the experience this is not always working with virutalenv or IDEs.)
    2. *OR*: add it as `.pth` to venv:
