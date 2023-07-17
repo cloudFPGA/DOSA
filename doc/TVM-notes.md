@@ -18,4 +18,14 @@ $ cmake ..
 $ make -j8
 ```
 
+*Note: GCC 11 is required for a build* (C++17 support and bugs in linking).
+
+On RHEL, this requires the following:
+```
+# yum install gcc-toolset-11
+$ scl enable gcc-toolset-11 "cmake .."
+$ scl enable gcc-toolset-11 "make -j 16"
+```
+
+
 
