@@ -26,5 +26,5 @@
 #  *
 #  *
 
-from . main import dosa
+from . dosa import dosa
 

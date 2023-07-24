@@ -39,7 +39,7 @@ Usage
 ### Compilation
 General usage:
 ```commandline
-./gradatim/main.py ./path/to/dosa_config.json ./path/to/nn.onnx ./path/to/constraint.json ./path/to/build_dir [--no-roofline|--no-build|--only-stats|--only-coverage]
+./gradatim/dosa.py ./path/to/dosa_config.json ./path/to/nn.onnx ./path/to/constraint.json ./path/to/build_dir [--no-roofline|--no-build|--only-stats|--only-coverage]
 ```
 The mandatory arguments are:
 - `dosa_config.json`: JSON file containing the general configuration of DOSA. In most cases the **default configuration** in [./config/dosa_config_0.json](./config/dosa_config_0.json) is sufficient. 
