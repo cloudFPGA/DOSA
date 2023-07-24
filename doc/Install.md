@@ -1,4 +1,4 @@
-Installation and Dependencies of DOSA (dimidium)
+Installation and Dependencies of DOSA (gradatim)
 ===================================================
 
 Requirements
@@ -67,9 +67,9 @@ How to retreive the latest static Shells for the FPGAs (i.e. the `.dcp` files) i
 Git submodules contained in DOSA
 -------------------------------------
 
-- [hls4ml](https://github.com/cloudFPGA/hls4ml-for-dosa) in `dimidium/backend/third_party_libs/`
-- [vhdl4cnn](https://github.com/cloudFPGA/VHDL4CNN) in `dimidium/backend/third_party_libs/`
-- [cFDK](https://github.com/cloudFPGA/cFDK) in `dimidium/backend/buildTools/lib/cFBuild1/`
-- [cFCreate](https://github.com/cloudFPGA/cFCreate) in `dimidium/backend/buildTools/lib/cFBuild1/`
-- [ZRLMPI](https://github.com/cloudFPGA/ZRLMPI) in `dimidium/backend/codeGen/templates/`
+- [hls4ml](https://github.com/cloudFPGA/hls4ml-for-dosa) in `gradatim/backend/third_party_libs/`
+- [vhdl4cnn](https://github.com/cloudFPGA/VHDL4CNN) in `gradatim/backend/third_party_libs/`
+- [cFDK](https://github.com/cloudFPGA/cFDK) in `gradatim/backend/buildTools/lib/cFBuild1/`
+- [cFCreate](https://github.com/cloudFPGA/cFCreate) in `gradatim/backend/buildTools/lib/cFBuild1/`
+- [ZRLMPI](https://github.com/cloudFPGA/ZRLMPI) in `gradatim/backend/codeGen/templates/`
 

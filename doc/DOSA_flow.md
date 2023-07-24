@@ -55,13 +55,13 @@ Please note that the OSG library in the center at the top of the Figure is not s
 Supported Target Platforms (as of today)
 ------------------------------------------
 
-The supported devices can be found in [dimidium/backend/devices/builtin.py](../dimidium/backend/devices/builtin.py). 
+The supported devices can be found in [gradatim/backend/devices/builtin.py](../gradatim/backend/devices/builtin.py). 
 Currently, DOSA supports multiple target devices for analysis and (simulated) partitioning and the generation of build files is implemented (and demonstrated) for the [IBM cloudFPGA platform](https://github.com/cloudFPGA). 
 
 To deploy FPGA binaries there, [access to the cloudFPGA platform](https://cloudfpga.github.io/Doc/index.html) is required. To test access and the deployment of files, we recommend testing the [partial reconfiguration flow on cloudFPGA](https://cloudfpga.github.io/Doc/pages/GETTING_STARTED/getting_started.html#how-to-partial-reconfiguration). 
 
-Further devices can be added by implementing the `DosaDevice` interface, which can be found in [dimidium/backend/devices/dosa_device.py](../dimidium/backend/devices/dosa_device.py). 
-Utilities like the [`VhdlEntity`](../dimidium/backend/codeGen/VhdlEntity.py) or the [`WrapperInterfaces`](../dimidium/backend/codeGen/WrapperInterfaces.py) classes are then used automatically.
+Further devices can be added by implementing the `DosaDevice` interface, which can be found in [gradatim/backend/devices/dosa_device.py](../gradatim/backend/devices/dosa_device.py). 
+Utilities like the [`VhdlEntity`](../gradatim/backend/codeGen/VhdlEntity.py) or the [`WrapperInterfaces`](../gradatim/backend/codeGen/WrapperInterfaces.py) classes are then used automatically.
 
 
 
