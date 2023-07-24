@@ -1,7 +1,7 @@
-[submodule "gradatim/backend/buildTools/lib/cFBuild1/cFDK"]
+[submodule "gradatim/backend/buildTools/lib/cFDK"]
 	path = gradatim/backend/buildTools/lib/cFBuild1/cFDK
 	url = https://github.com/cloudFPGA/cFDK.git
-[submodule "gradatim/backend/buildTools/lib/cFBuild1/cFCreate"]
+[submodule "gradatim/backend/buildTools/lib/cFCreate"]
 	path = gradatim/backend/buildTools/lib/cFBuild1/cFCreate
 	url = https://github.com/cloudFPGA/cFCreate.git
 [submodule "gradatim/backend/codeGen/templates/ZRLMPI"]
