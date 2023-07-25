@@ -181,7 +181,8 @@ def WriteInputSignal(target, layer_name, next_layer_name):
     target.write("signal " + layer_name + "_fv\t: std_logic;\n")
 
 
-def InstanceConvLayer(target, layer_name, previous_layer_name, use_relu_activation=False, use_tanh_activation=False):
+def InstanceConvLayer(target, layer_name, previous_layer_name, use_relu_activation=False, use_tanh_activation=False,
+                      use_multithreshold_activation=False, multi_threshold_id=-1):
     target.write(layer_name + ": ConvLayer\n")
     target.write("generic map (\n")
     target.write("  BITWIDTH   => BITWIDTH,\n")
@@ -198,6 +199,11 @@ def InstanceConvLayer(target, layer_name, previous_layer_name, use_relu_activati
         target.write("  USE_TANH_ACTIVATION => true,\n")
     else:
         target.write("  USE_TANH_ACTIVATION => false,\n")
+    if use_multithreshold_activation:
+        target.write("  USE_MULTI_THRESHOLD => true,\n")
+    else:
+        target.write("  USE_MULTI_THRESHOLD => false,\n")
+    target.write("  USED_MULTI_THRESHOLD_LAYER_ID => {},\n".format(multi_threshold_id))
     target.write("  KERNEL_VALUE => " + layer_name + "_KERNEL_VALUE,\n")
     target.write("  BIAS_VALUE   => " + layer_name + "_BIAS_VALUE\n")
     target.write(")\n")

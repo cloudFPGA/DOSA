@@ -75,11 +75,13 @@ class vhdl4cnnOSG(BaseOSG):
                          [BrickImplTypes.STREAM])
         self.priority = 99
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
-        self.my_hdl_template_folder = os.path.abspath(me_abs_dir + '/../third_party_libs/vhdl4cnn/lib/hdl/')
+        self.my_hdl_lib_folder = os.path.abspath(me_abs_dir + '/../third_party_libs/vhdl4cnn/lib/hdl/')
+        self.my_hdl_template_folder = os.path.abspath(me_abs_dir + '/../third_party_libs/vhdl4cnn/lib/templates/')
         self.existing_layer_names = []
         self.util_db = {}
         self.avg_util_dict = {}
         self.pipeline_tensor_store = 2
+        self._block_multi_threshold_used_id = 0
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
@@ -161,6 +163,9 @@ class vhdl4cnnOSG(BaseOSG):
                 self.relay2osg['nn'][e] = self._generate_hdl_flatten_instance, self._predict_flatten_drop
             elif 'dropout' in e:
                 self.relay2osg['nn'][e] = self._generate_hdl_dropout_instance, self._predict_flatten_drop
+            # in DOSA extension of TVM
+            elif 'multi_threshold' in e:
+                self.relay2osg['nn'][e] = self._generate_multithreshold, self._predict_multithreshold
         for e in self.relay2osg:
             if type(self.relay2osg[e]) == dict:
                 continue
@@ -168,9 +173,9 @@ class vhdl4cnnOSG(BaseOSG):
                 self.relay2osg[e] = self._generate_hdl_tanh_instance, self._predict_tanh
 
     def _copy_hdl_lib(self, target_hdl_dir, block_id):
-        os.system("cp -f {}/* {}/".format(self.my_hdl_template_folder, target_hdl_dir))
+        os.system("cp -f {}/* {}/".format(self.my_hdl_lib_folder, target_hdl_dir))
         # overwrite cnn_types, due to other lib name
-        with open(os.path.join(self.my_hdl_template_folder, 'cnn_types.vhd'), 'r') as in_file, \
+        with open(os.path.join(self.my_hdl_lib_folder, 'cnn_types.vhd'), 'r') as in_file, \
                 open(os.path.join(target_hdl_dir, 'cnn_types.vhd'), 'w') as out_file:
             line_num = 1
             for line in in_file.readlines():
@@ -182,7 +187,13 @@ class vhdl4cnnOSG(BaseOSG):
                 line_num += 1
         return 0
 
+    def _get_and_increment_multi_threshold_used_id(self):
+        ret = self._block_multi_threshold_used_id
+        self._block_multi_threshold_used_id += 1
+        return ret
+
     def build_block(self, arch_block, build_tool, selected_contracts):
+        self._block_multi_threshold_used_id = 0
         assert isinstance(build_tool, HwBuildTopVhdl)
         if isinstance(build_tool, cFBuild1):
             # for cF, everything under hdl/ will be included
@@ -202,6 +213,7 @@ class vhdl4cnnOSG(BaseOSG):
         paramFile = os.path.abspath(used_vhdl_dir_path + '/params.vhd')  # Configuration VHDL output
         topFile = os.path.abspath(used_vhdl_dir_path + '/cnn_process.vhd')  # Top level VHDL output
         bitwidthFile = os.path.abspath(used_vhdl_dir_path + '/bitwidths.vhd')  # Bitwidth  VHDL output
+        multiThresholdContainer_file = os.path.abspath(used_vhdl_dir_path + '/MultiThresholdOperation.vhd')  # Bitwidth  VHDL output
 
         used_dtype = DosaDtype.UNKNOWN
         layer_names_by_op_id = {}
@@ -213,6 +225,7 @@ class vhdl4cnnOSG(BaseOSG):
         wrapper_first_brick = None
         wrapper_last_brick = None
         total_delay = 1  # first internal register after DynInput
+        multi_threshold_op_list = []
         # as haddoc, we first take care of the params
         with open(paramFile, 'w') as vhdlf:
             paramParsing.write_fileHead(vhdlf, arch_block.block_uuid)
@@ -226,6 +239,9 @@ class vhdl4cnnOSG(BaseOSG):
                 for op_i in bb.ops.keys():
                     op = bb.ops[op_i]
                     layer_name = self._create_unique_layer_name(op.name)
+                    if 'multi_threshold' in op.op_call:
+                        multi_threshold_op_list.append(op)
+                        continue
                     if op_i in skip_i:
                         continue
 
@@ -320,6 +336,8 @@ class vhdl4cnnOSG(BaseOSG):
         self._generate_bitwidth(bitwidthFile, arch_block.block_uuid, used_bit_width, input_bit_width, output_bit_width)
         wrapper_first_op = ops_implemented_ordered[0]
         wrapper_last_op = None
+        # next, create global multi_threshold
+        self._generate_multi_threshold_container(multi_threshold_op_list, multiThresholdContainer_file)
         # finally, create the topology
         with open(topFile, 'w') as topf:
             topologyParsing.WriteLibs(topf, arch_block.block_uuid)
@@ -351,14 +369,19 @@ class vhdl4cnnOSG(BaseOSG):
                 if 'conv2d' in op.op_call:
                     use_relu_activation = False
                     use_tanh_activation = False
+                    use_multi_threshold_activation = False
                     if op.haddoc_activation == 'tanh':
                         use_tanh_activation = True
                     elif op.haddoc_activation == 'relu':
                         use_relu_activation = True
+                    elif op.haddoc_activation == 'multi_threshold':
+                        use_multi_threshold_activation = True
                     # else: default...
                     topologyParsing.InstanceConvLayer(topf, layer_name, previous_layer_name,
                                                       use_relu_activation=use_relu_activation,
-                                                      use_tanh_activation=use_tanh_activation)
+                                                      use_tanh_activation=use_tanh_activation,
+                                                      use_multithreshold_activation=use_multi_threshold_activation,
+                                                      multi_threshold_id=op.multi_threshold_used_id)
                 elif 'pool2d' in op.op_call:
                     topologyParsing.InstancePoolLayer(topf, layer_name, previous_layer_name)
                 else:
@@ -661,15 +684,22 @@ class vhdl4cnnOSG(BaseOSG):
             else:
                 print("[DOSA:OSG:WARNING] Strange non-constant bias value for op {}".format(repr(next_op)))
             consumed_opt_ops += 1
+        # in case there is no bias
+        elif next_op is not None and next_next_op is None:
+            next_next_op = next_op
 
+        op.multi_threshold_used_id = -1
+        op.haddoc_activation = 'none'
         if next_next_op is not None and next_next_op.op_call == 'nn.relu':
             op.haddoc_activation = 'relu'
             consumed_opt_ops += 1
         elif next_next_op is not None and (next_next_op.op_call == 'nn.tanh' or next_next_op.op_call == 'tanh'):
             op.haddoc_activation = 'tanh'
             consumed_opt_ops += 1
-        else:
-            op.haddoc_activation = 'none'
+        elif next_next_op is not None and next_next_op.op_call == 'nn.multi_threshold':
+            op.haddoc_activation = 'multi_threshold'
+            op.multi_threshold_used_id = self._get_and_increment_multi_threshold_used_id()
+            consumed_opt_ops += 1
 
         nbits = get_bitwidth_of_DosaDtype(op.used_dtype)
         target_fh.write("--" + layer_name + "\n")
@@ -745,3 +775,66 @@ class vhdl4cnnOSG(BaseOSG):
             f.write('  constant OUTPUT_BITWIDTH  : integer := ' + str(output_bitwidth) + ';\n')
             f.write('end bitwidths_b{};\n'.format(block_id))
         return
+
+    def _predict_multithreshold(self, op, target_hw, impl_type):
+        if impl_type != BrickImplTypes.STREAM or \
+                (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
+            return None
+        # TODO: update db?
+        util_dict, wrapper_dict, used_fallback = self._get_impl_prediction('max_pool2d', op.input_bytes, 0,
+                                                                           target_hw, consider_paramB=False)
+        proc_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], util_dict)
+        wrapper_share = get_share_of_FPGA_resources(target_hw.get_resource_dict()['FPGA_utility'], wrapper_dict)
+        # proc_comp_share = (proc_share['LUTLOG'] + proc_share['DSPs']) / 2
+        proc_comp_share = proc_share['LUTLOG']  # we know we hardly use DSPs..
+        proc_mem_share = (proc_share['LUTMEM'] + proc_share['Registers'] + proc_share['BRAM']) / 3
+        # wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
+        wrapper_comp_share = wrapper_share['LUTLOG']  # we know we hardly use DSPs...
+        wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
+        input_data_width = op.dims.inp[2]  # image_width
+        kernel_size = np.prod(op.dims.param)
+        internal_delay = 1 + input_data_width + kernel_size
+        cycles_used = internal_delay + np.prod(op.dims.inp)
+        # latency_ns = util_dict['latency_lim_per_tensor_cycl'] * target_hw.get_performance_dict()['fpga_clk_ns']
+        latency_ns = cycles_used * target_hw.get_performance_dict()['fpga_clk_ns']
+        iter_hz = 1 / (latency_ns * units.nanoU)
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
+                                  'basis', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
+        return offer
+
+    def _generate_multithreshold(self, op, target_fh, layer_name, next_op=None, next_next_op=None):
+        print("[DOSA:Build:ERROR] Currently, VHDL4CNN operators can only be implemented block-wise " +
+              "(i.e. use build_block). IGNORING.")
+        return
+
+    def _generate_multi_threshold_container(self, multi_threshold_op_list, multiThresholdContainer_file_path):
+        assert len(multi_threshold_op_list) == self._block_multi_threshold_used_id
+        with open(os.path.join(self.my_hdl_template_folder, 'MultiThresholdOperation_template.vhd'), 'r') as in_file, \
+                open(multiThresholdContainer_file_path, 'w') as out_file:
+            for line in in_file.readlines():
+                skip_write = False
+                if 'DOSA_INSERT_GENRICS_FOR_WHEN_ELSE' in line:
+                    cur_id = 0
+                    tab = '  '
+                    for op in multi_threshold_op_list:
+                        layer_data = op.tvm_args['vars'][0]['ref'].data.numpy()
+                        outline = '\n' + tab + f'multi_threshold_layer{cur_id}: if USED_LAYER_ID = {cur_id} generate\n'
+                        skip_write = True
+                        out_file.write(outline)
+                        for channel_id in range(layer_data.shape[0]):
+                            local_tab = tab * 2
+                            outline = local_tab + f'multi_threshold_layer{cur_id}_op{channel_id}: if USED_LAYER_CHANNEL_ID = {channel_id} generate\n'
+                            out_file.write(outline)
+                            paramParsing.write_multi_threshold(out_file, layer_data[channel_id].astype(int),
+                                                               int(op.input_bytes),
+                                                               get_bitwidth_of_DosaDtype(op.used_dtype),
+                                                               tab_factor=3)
+                        outline = local_tab + f'end generate multi_threshold_layer{cur_id}_op{channel_id};\n'
+                        out_file.write(outline)
+                    outline = tab + f'end generate multi_threshold_layer{cur_id};\n\n'
+                    out_file.write(outline)
+                else:
+                    outline = line
+                if not skip_write:
+                    out_file.write(outline)
+

@@ -166,6 +166,31 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
     target.write("\n);\n")
 
 
+def write_multi_threshold(target_file, vector_data, nbit_in, nbit_out, tab_factor=2):
+    tab = '  ' * tab_factor
+    upper_bound = np.power(2, nbit_out - 1) - 1
+    lower_bound = -np.power(2, nbit_out - 1)
+    out_values = np.arange(lower_bound, upper_bound)
+    assert len(out_values) == len(vector_data)
+    begin_str = tab + "out_data <= "
+    target_file.write(begin_str)
+    line_indent = ' ' * len(begin_str)
+    for out_value, threshold_value in zip(out_values, vector_data):
+        if out_value != lower_bound:
+            target_file.write(line_indent)
+        # nbit_out_adapted = nbit_out
+        # if out_value < 0:
+        #     nbit_out_adapted -= 1
+        # nbit_in_adapted = nbit_in
+        # if threshold_value < 0:
+        #     nbit_in_adapted -= 1
+        target_file.write('"{}"  when in_data <= "{}"'.format(
+            np.binary_repr(out_value, width=nbit_out), np.binary_repr(threshold_value, width=nbit_in)))
+        if out_value != upper_bound:
+            target_file.write(' else\n')
+        else:
+            target_file.write(';\n')
+
 # def parse_convLayer(target, cnn, layer_name, previous_layer_name, nbits):
 #     kernel_data = cnn.params[layer_name][0].data
 #     in_size = cnn.params[layer_name][0].data.shape[1]
