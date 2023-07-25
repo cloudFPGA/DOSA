@@ -826,7 +826,7 @@ class vhdl4cnnOSG(BaseOSG):
                             outline = local_tab + f'multi_threshold_layer{cur_id}_op{channel_id}: if USED_LAYER_CHANNEL_ID = {channel_id} generate\n'
                             out_file.write(outline)
                             paramParsing.write_multi_threshold(out_file, layer_data[channel_id].astype(int),
-                                                               int(op.input_bytes),
+                                                               2*get_bitwidth_of_DosaDtype(op.used_dtype),
                                                                get_bitwidth_of_DosaDtype(op.used_dtype),
                                                                tab_factor=3)
                         outline = local_tab + f'end generate multi_threshold_layer{cur_id}_op{channel_id};\n'

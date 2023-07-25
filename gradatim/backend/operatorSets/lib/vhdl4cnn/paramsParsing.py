@@ -184,8 +184,10 @@ def write_multi_threshold(target_file, vector_data, nbit_in, nbit_out, tab_facto
         # nbit_in_adapted = nbit_in
         # if threshold_value < 0:
         #     nbit_in_adapted -= 1
+        # FIXME
+        fixed_threshold_value = np.floor(threshold_value/2).astype(int)
         target_file.write('"{}"  when in_data <= "{}"'.format(
-            np.binary_repr(out_value, width=nbit_out), np.binary_repr(threshold_value, width=nbit_in)))
+            np.binary_repr(out_value, width=nbit_out), np.binary_repr(fixed_threshold_value, width=nbit_in)))
         if out_value != upper_bound:
             target_file.write(' else\n')
         else:
