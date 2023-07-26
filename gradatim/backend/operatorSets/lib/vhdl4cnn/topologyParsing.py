@@ -92,6 +92,8 @@ def WriteConvlayerComponent(target):
     target.write("  NB_OUT_FLOWS : integer;\n")
     target.write("  USE_RELU_ACTIVATION : boolean;\n")
     target.write("  USE_TANH_ACTIVATION : boolean;\n")
+    target.write("  USE_MULTI_THRESHOLD : boolean;\n")
+    target.write("  USED_MULTI_THRESHOLD_LAYER_ID : integer;\n")
     target.write("  KERNEL_VALUE : pixel_matrix;\n")
     target.write("  BIAS_VALUE   : pixel_array\n")
     target.write(");\n")
