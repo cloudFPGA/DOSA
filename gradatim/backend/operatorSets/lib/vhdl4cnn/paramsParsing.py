@@ -170,11 +170,19 @@ def write_multi_threshold(target_file, vector_data, nbit_in, nbit_out, tab_facto
     tab = '  ' * tab_factor
     upper_bound = np.power(2, nbit_out - 1) - 1
     lower_bound = -np.power(2, nbit_out - 1)
-    out_values = np.arange(lower_bound, upper_bound)
+    out_values = np.arange(lower_bound, upper_bound)  # excludes the upper bound
     assert len(out_values) == len(vector_data)
     begin_str = tab + "out_data <= "
     target_file.write(begin_str)
     line_indent = ' ' * len(begin_str)
+    last_fixed_threshold_value = None
+    upper_bound_in = np.power(2, nbit_in - 1) - 1
+    lower_bound_in = -np.power(2, nbit_in - 1)
+    fix_threshold_value = 1
+    while (np.max(vector_data)/fix_threshold_value) > upper_bound_in or \
+        (np.min(vector_data)/fix_threshold_value) < lower_bound_in:
+        fix_threshold_value += 1
+        print(f"[:VHDL4CNN:INFO] threshold vector contains to large value entries, need to floor by a factor of {fix_threshold_value}.")
     for out_value, threshold_value in zip(out_values, vector_data):
         if out_value != lower_bound:
             target_file.write(line_indent)
@@ -185,13 +193,12 @@ def write_multi_threshold(target_file, vector_data, nbit_in, nbit_out, tab_facto
         # if threshold_value < 0:
         #     nbit_in_adapted -= 1
         # FIXME
-        fixed_threshold_value = np.floor(threshold_value/2).astype(int)
-        target_file.write('"{}"  when in_data <= "{}"'.format(
+        fixed_threshold_value = np.floor(threshold_value/fix_threshold_value).astype(int)
+        target_file.write('"{}" when in_data <= "{}" else\n'.format(
             np.binary_repr(out_value, width=nbit_out), np.binary_repr(fixed_threshold_value, width=nbit_in)))
-        if out_value != upper_bound:
-            target_file.write(' else\n')
-        else:
-            target_file.write(';\n')
+        last_fixed_threshold_value = fixed_threshold_value
+    target_file.write('{}"{}" when in_data >  "{}";\n'.format(line_indent,
+        np.binary_repr(upper_bound, width=nbit_out), np.binary_repr(last_fixed_threshold_value, width=nbit_in)))
 
 # def parse_convLayer(target, cnn, layer_name, previous_layer_name, nbits):
 #     kernel_data = cnn.params[layer_name][0].data

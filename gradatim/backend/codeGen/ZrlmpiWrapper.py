@@ -163,11 +163,11 @@ class ZrlmpiWrapper(CommunicationWrapper):
                 open(os.path.join(self.out_dir_path, '../mpe2/src/mpe.hpp'), 'w') as out_file:
             line_num = 1
             for line in in_file.readlines():
-                if line_num == 9:
+                if line_num == 25:
                     outline = (
                             '#include "../../lib/axi_utils.hpp"\n#include "../../../../cFDK/SRA/LIB/hls/network.hpp"' +
                             '\n#include "../../../../cFDK/SRA/LIB/hls/cfdk.hpp"\n')
-                elif line_num in [10, 11]:
+                elif line_num in [26, 27]:
                     line_num += 1
                     continue
                 else:
