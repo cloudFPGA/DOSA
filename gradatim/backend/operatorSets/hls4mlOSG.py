@@ -42,7 +42,7 @@ from gradatim.backend.devices.dosa_device import DosaHwClasses
 from gradatim.backend.operatorSets.lib.util import get_avg_util_dict_bytes_based, get_share_of_FPGA_resources
 from gradatim.lib import units
 from gradatim.middleend.archGen.ArchBrick import ArchBrick
-from gradatim.lib.util import BrickImplTypes
+from gradatim.lib.util import BrickImplTypes, get_random_name_extension
 from gradatim.backend.operatorSets.relay_ops import op as relay_op_list
 from gradatim.backend.operatorSets.osgUtils import convert_IntImm_array
 from gradatim.lib.dosa_dtype import get_bitwidth_of_DosaDtype, DosaDtype, DosaDtype_is_signed, DosaDtype_to_string, \
@@ -98,6 +98,10 @@ class Hls4mlOSG(BaseOSG):
         self._serial_io_threshold = 1024
         self._default_stream_reuse_factor = 32
         self._default_engine_reuse_factor = 2
+
+        self._non_template_instances = {}
+        me_abs_dir = os.path.dirname(os.path.realpath(__file__))
+        self.my_template_folder = os.path.abspath(me_abs_dir + '/lib/hls4ml/templates/')
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
@@ -258,133 +262,139 @@ class Hls4mlOSG(BaseOSG):
         for e in self.relay2osg['nn']:
             if 'conv1d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_conv1d, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=True,
-                                                                                        consider_outB=True,
-                                                                                        fallback_ops=['conv2d',
-                                                                                                      'dense'],
-                                                                                        custom_byte_factor=1.8,
-                                                                                        max_param_dim=400)
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=True,
+                                                                  consider_outB=True,
+                                                                  fallback_ops=['conv2d',
+                                                                                'dense'],
+                                                                  custom_byte_factor=1.8,
+                                                                  max_param_dim=400)
             elif 'conv2d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_conv2d, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=True,
-                                                                                        consider_outB=True,
-                                                                                        fallback_ops=['conv1d',
-                                                                                                      'dense'],
-                                                                                        custom_byte_factor=1.8,
-                                                                                        max_param_dim=400)
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=True,
+                                                                  consider_outB=True,
+                                                                  fallback_ops=['conv1d',
+                                                                                'dense'],
+                                                                  custom_byte_factor=1.8,
+                                                                  max_param_dim=400)
             elif 'global' in e and 'pool1d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_globalPool1d, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=False,
-                                                                                        fallback_ops=['pool2d',
-                                                                                                      'pool1d', 'add'])
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=False,
+                                                                  fallback_ops=['pool2d',
+                                                                                'pool1d', 'add'])
             elif 'global' in e and 'pool2d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_globalPool2d, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=False,
-                                                                                        fallback_ops=['pool2d',
-                                                                                                      'pool1d', 'add'])
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=False,
+                                                                  fallback_ops=['pool2d',
+                                                                                'pool1d', 'add'])
             elif 'pool1d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_pool1d, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=False,
-                                                                                        fallback_ops=['pool2d',
-                                                                                                      'pool1d', 'add'])
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=False,
+                                                                  fallback_ops=['pool2d',
+                                                                                'pool1d', 'add'])
             elif 'pool2d' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_pool2d, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=False,
-                                                                                        fallback_ops=['pool2d',
-                                                                                                      'pool1d', 'add'])
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=False,
+                                                                  fallback_ops=['pool2d',
+                                                                                'pool1d', 'add'])
             elif 'prelu' in e:
                 self.relay2osg['nn'][e] = self._generatae_hls_prelu, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=False,
-                                                                                        fallback_ops=['relu',
-                                                                                                      'softmax'])
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=False,
+                                                                  fallback_ops=['relu',
+                                                                                'softmax'])
             elif 'relu' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_parAct, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=False,
-                                                                                        fallback_ops=['prelu',
-                                                                                                      'softmax'],
-                                                                                        custom_latency=int(
-                                                                                            op.dims.inp[-1] / 2))
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=False,
+                                                                  fallback_ops=['prelu',
+                                                                                'softmax'],
+                                                                  custom_latency=int(
+                                                                      op.dims.inp[-1] / 2))
             elif 'softmax' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_softmax, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=False,
-                                                                                        fallback_ops=['prelu', 'relu'],
-                                                                                        custom_latency=int(
-                                                                                            op.dims.inp[-1] / 2))
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=False,
+                                                                  fallback_ops=['prelu', 'relu'],
+                                                                  custom_latency=int(
+                                                                      op.dims.inp[-1] / 2))
             elif 'dense' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_dense, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=True,
-                                                                                        consider_outB=True,
-                                                                                        custom_byte_factor=1.2,
-                                                                                        fallback_ops=['conv1d',
-                                                                                                      'conv2d'])
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=True,
+                                                                  consider_outB=True,
+                                                                  custom_byte_factor=1.2,
+                                                                  fallback_ops=['conv1d',
+                                                                                'conv2d'])
             elif 'batch_norm' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_batchNorm, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=True,
-                                                                                        fallback_ops=None)
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=True,
+                                                                  fallback_ops=None)
             elif 'pad' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_padding, \
-                                          lambda op, thw, it: OperationContract(op, thw, self, it,
-                                                                                BaseOSG._pseudo_infinity_, 0.0,
-                                                                                0.0, 'dummy op', 0.0, 0.0)
+                    lambda op, thw, it: OperationContract(op, thw, self, it,
+                                                          BaseOSG._pseudo_infinity_, 0.0,
+                                                          0.0, 'dummy op', 0.0, 0.0)
             elif 'bias_add' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_biasAdd, \
-                                          lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                        consider_paramB=False,
-                                                                                        fallback_ops=None,
-                                                                                        custom_latency=int(
-                                                                                            op.dims.inp[-1] / 2))
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=False,
+                                                                  fallback_ops=None,
+                                                                  custom_latency=int(
+                                                                      op.dims.inp[-1] / 2))
             elif 'flatten' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_flatten, \
-                                          lambda op, thw, it: OperationContract(op, thw, self, it,
-                                                                                BaseOSG._pseudo_infinity_, 0.0,
-                                                                                0.0, 'dummy op', 0.0, 0.0)
+                    lambda op, thw, it: OperationContract(op, thw, self, it,
+                                                          BaseOSG._pseudo_infinity_, 0.0,
+                                                          0.0, 'dummy op', 0.0, 0.0)
             elif 'dropout' in e:
                 self.relay2osg['nn'][e] = self._generate_hls_dropout, \
-                                          lambda op, thw, it: OperationContract(op, thw, self, it,
-                                                                                BaseOSG._pseudo_infinity_, 0.0,
-                                                                                0.0, 'dummy op', 0.0, 0.0)
+                    lambda op, thw, it: OperationContract(op, thw, self, it,
+                                                          BaseOSG._pseudo_infinity_, 0.0,
+                                                          0.0, 'dummy op', 0.0, 0.0)
+            elif 'multi_threshold' in e:
+                self.relay2osg['nn'][e] = self._generate_hls_multiThresholdDummy, \
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=True,
+                                                                  fallback_ops=['pool2d',
+                                                                                'pool1d', 'add'])  # TODO
         for e in self.relay2osg:
             if type(self.relay2osg[e]) == dict:
                 continue
             if ('tan' in e or 'sin' in e or 'cos' in e) and 'is' not in e:
                 self.relay2osg[e] = self._generate_hls_act, \
-                                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                  consider_paramB=True,
-                                                                                  fallback_ops=['tan', 'sin', 'cos'],
-                                                                                  custom_latency=int(
-                                                                                      op.dims.inp[-1] / 2))
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=True,
+                                                                  fallback_ops=['tan', 'sin', 'cos'],
+                                                                  custom_latency=int(
+                                                                      op.dims.inp[-1] / 2))
             elif 'add' in e or 'sub' in e or 'mul' in e or 'avg' in e \
                     or 'max' in e or 'min' in e or 'concat' in e or 'sum' in e:
                 self.relay2osg[e] = self._generate_hls_merge, \
-                                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
-                                                                                  consider_paramB=False,
-                                                                                  fallback_ops=['add', 'sub', 'mul',
-                                                                                                'avg', 'max', 'min',
-                                                                                                'concat', 'sum'],
-                                                                                  custom_latency=int(
-                                                                                      op.dims.inp[-1] / 2))
+                    lambda op, thw, it: self._get_impl_prediction(op, thw, it,
+                                                                  consider_paramB=False,
+                                                                  fallback_ops=['add', 'sub', 'mul',
+                                                                                'avg', 'max', 'min',
+                                                                                'concat', 'sum'],
+                                                                  custom_latency=int(
+                                                                      op.dims.inp[-1] / 2))
             elif 'transpose' in e:
                 self.relay2osg[e] = self._generate_hls_transpose, \
-                                    lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_,
-                                                                          0.0,
-                                                                          0.0, 'dummy op', 0.0, 0.0)
+                    lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_,
+                                                          0.0,
+                                                          0.0, 'dummy op', 0.0, 0.0)
                 # TODO: is transpose really for free in hls4ml?
             elif 'reshape' in e or 'expand_dims' in e or 'squeeze' in e:
                 self.relay2osg[e] = self._generate_hls_reshape, \
-                                    lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_,
-                                                                          0.0,
-                                                                          0.0, 'dummy op', 0.0, 0.0)
+                    lambda op, thw, it: OperationContract(op, thw, self, it, BaseOSG._pseudo_infinity_,
+                                                          0.0,
+                                                          0.0, 'dummy op', 0.0, 0.0)
         # not covered hls4ml classes:
         #  GarNet, Resize, SeparableConv2D, DepthwiseConv2D
 
@@ -434,6 +444,9 @@ class Hls4mlOSG(BaseOSG):
             if -1e-20 < x < 1e20:
                 cnt += 1
         return cnt
+
+    def _add_non_template_instance_op(self, instance_name, ops):
+        self._non_template_instances[instance_name] = ops
 
     def get_max_num_of_mult(self, data_dict):
         max = 0
@@ -557,7 +570,6 @@ class Hls4mlOSG(BaseOSG):
                             # 'IOType': 'io_serial',  # is deprecated from version 0.5.0, but is the only one working
                             'HLSConfig': hls_config}  # ,
         # 'KerasJson': 'KERAS_3layer.json', 'KerasH5': 'KERAS_3layer_weights.h5'}  # TODO
-
 
         reader = OsgDataReader(hls_model_config)
         model_arch = {'backend': 'dosa', 'class_name': 'Model',  # 'Model" to emulate TF >=2.3
@@ -684,6 +696,10 @@ class Hls4mlOSG(BaseOSG):
         # hls_model.config.set_source_script('/opt/xilinx/Vivado/2019.2/settings64.sh')
         # synth_entry = {'ip_dir': used_dir_path, 'func': hls_model.build}
         # arch_block.add_synth_entry(synth_entry)
+
+        # for thresholding
+        self.create_non_template_instances(f'{used_dir_path}/firmware/nnet_utils')
+
         self.write_makefile(used_dir_path, project_name, reset=True)
         build_tool.add_makefile_entry(used_dir_path, 'all')
         # wrapper & interface generation
@@ -989,6 +1005,17 @@ class Hls4mlOSG(BaseOSG):
             layer_config['activity_regularizer'] = None
             # conv_config['activation'] = None  # don't put the key in
 
+        threshold_op = None
+        if next_op is not None and next_op.op_call == 'nn.multi_threshold':
+            threshold_op = next_op
+        elif next_next_op is not None and next_next_op.op_call == 'nn.multi_threshold':
+            threshold_op = next_op
+        if threshold_op is not None:
+            instance_name = get_random_name_extension()
+            layer_config['non_template_instantiation'] = instance_name
+            self._add_non_template_instance_op(instance_name, [op, threshold_op])
+            consumed_opt_ops += 1
+
         # assemble dict
         ret['config'] = layer_config
         return ret, data, consumed_opt_ops
@@ -1029,3 +1056,78 @@ class Hls4mlOSG(BaseOSG):
         # TODO: smth like op.tvm_node.attrs.rate
         #  but will anyhow be ignored
         return ret, None, 0
+
+    def _generate_hls_multiThresholdDummy(self, op, layer_name, next_op=None, next_next_op=None):
+        # we use it as activation, tho the layer will end up in skip_layers and this function will never be called...
+        return
+
+    def create_non_template_instances(self, target_path):
+        for instance_name, ops in self._non_template_instances.items():
+            combined_name = ''
+            for op in ops:
+                combined_name += op.op_call
+                combined_name += '_'
+            if combined_name == 'nn.dense_nn.multi_threshold_':
+                self._create_dense_threshold_instances(target_path, instance_name, ops)
+            else:
+                print(f"[OSG:hls4ml:ERROR] Asked to create a non-template instance for operation {combined_name}, "
+                      f"which can't be provided. STOP.")
+                exit(1)
+
+    def _create_dense_threshold_instances(self, target_path, instance_name, ops):
+        dense_op = ops[0] if ops[0].op_call == 'nn.dense' else ops[1]
+        threshold_op = ops[0] if ops[0].op_call == 'nn.multi_threshold' else ops[1]
+        out_file_path = os.path.abspath(f"{target_path}/custom_layer_{instance_name}.h")
+        with open(os.path.join(self.my_template_folder, 'nnet_dense_latency_with_threshold_template.h'), 'r') as in_file, \
+                open(out_file_path, 'w') as out_file:
+            skip_next = False
+            for line in in_file.readlines():
+                if skip_next:
+                    skip_next = False
+                    continue
+                if 'DOSA_infdef_define' in line:
+                    header_guard = f"_NNET_DENSE_LATENCY_THRESHOLD_DOSA_{instance_name.upper()}_H_"
+                    outline = f"#ifndef {header_guard}\n#define {header_guard}\n"
+                elif 'DOSA_insert_function_name' in line:
+                    outline = f"void dense_{instance_name}(\n"
+                    skip_next = True
+                elif 'DOSA_insert_thresholding' in line:
+                    layer_data = threshold_op.tvm_args['vars'][0]['ref'].data.numpy()
+                    channel_num = layer_data.shape[0]
+                    nbit_in = 2*get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
+                    nbit_out = get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
+                    upper_bound = np.power(2, nbit_out - 1) - 1
+                    lower_bound = -np.power(2, nbit_out - 1)
+                    out_values = np.arange(lower_bound, upper_bound)  # excludes the upper bound
+                    tab = '    '
+                    inner_tab = '  '
+                    outline = tab + '//"casting" of acc[] to res[] using multi_threshold operation'  # no \n
+                    for channel_id in range(channel_num):
+                        vector_data = layer_data[channel_id].astype(int)
+                        assert len(out_values) == len(vector_data)
+                        upper_bound_in = np.power(2, nbit_in - 1) - 1
+                        lower_bound_in = -np.power(2, nbit_in - 1)
+                        fix_threshold_value = 1
+                        while (np.max(vector_data) / fix_threshold_value) > upper_bound_in or \
+                                (np.min(vector_data) / fix_threshold_value) < lower_bound_in:
+                            fix_threshold_value += 1
+                            print(
+                                f"[OSG:hls4ml:INFO] threshold vector contains to large value entries, need to floor "
+                                f"by a factor of {fix_threshold_value}.")
+                            outline += f"\n{tab}switch(acc[{channel_id}])\n{tab}{{\n"
+                            last_fixed_threshold_value = lower_bound_in
+                            for out_value, threshold_value in zip(out_values, vector_data):
+                                fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
+                                outline += f"{tab}{inner_tab}case {last_fixed_threshold_value} ... {fixed_threshold_value}:\n" \
+                                           f"{tab}{inner_tab*2}res[{channel_id}] = {out_value}; break;\n"
+                                           # f"{np.binary_repr(last_fixed_threshold_value, width=nbit_in)} ... {np.binary_repr(fixed_threshold_value, width=nbit_in)}"
+                                last_fixed_threshold_value = fixed_threshold_value
+                            outline += f"{tab}{inner_tab}default:  // above {last_fixed_threshold_value}\n" \
+                                       f"{tab}{inner_tab * 2}res[{channel_id}] = {upper_bound}; break;\n"
+                            outline += tab + "}\n"
+                    # inst = (tab + "Result: for(int ires = 0; ires < CONFIG_T::n_out; ires++){\n" +
+                    #         tab + inner_tab + "#pragma HLS UNROLL\n" +  # TODO
+                    #         tab + '}\n')
+                else:
+                    outline = line
+                out_file.write(outline)

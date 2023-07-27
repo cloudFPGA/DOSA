@@ -142,6 +142,7 @@ def dosa_to_hls(config, reader, model_arch):
 
     output_shapes = {}
     output_shape = None
+    layers_with_non_template_instantiation = {}
 
     print('Topology:')
     for keras_layer in layer_config:
@@ -187,6 +188,10 @@ def dosa_to_hls(config, reader, model_arch):
         # for latest hls4ml version (> 0.5)
         # layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader)
         # -----------------
+        # for threshold
+        if 'non_template_instantiation' in keras_layer['config']:
+            layers_with_non_template_instantiation[layer['name']] = keras_layer['config']['non_template_instantiation']
+
 
         print('Layer name: {}, layer type: {}, input shapes: {}, output shape: {}'.format(layer['name'], layer['class_name'], input_shapes, output_shape))
         if keras_layer['class_name'] != 'InputLayer':
@@ -232,5 +237,19 @@ def dosa_to_hls(config, reader, model_arch):
     # config['Backend'] = 'vivado'
     # hls_model = ModelGraph(config, layer_list, input_layers, output_layers)
     # -----------------
+
+    # for threshold
+    #  1. layer.include_list need to include the new generated custom hedder file
+    #  2. layer.function_template (or so) needs to be the new name, like dense_1234
+    for name, graph_layer in hls_model.graph.items():
+        if name in layers_with_non_template_instantiation.keys():
+            instance_name = layers_with_non_template_instantiation[name]
+            include_str = f"nnet_utils/custom_layer_{instance_name}.h"
+            graph_layer.include_list.append(include_str)
+            orig_func_template = graph_layer._function_template
+            new_func_template = orig_func_template.replace('<', f'_{instance_name}<')
+            graph_layer._function_template = new_func_template
+
+
     return hls_model
 

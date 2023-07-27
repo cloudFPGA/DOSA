@@ -27,6 +27,8 @@
 #  *
 
 import re
+import string
+import random
 from enum import Enum
 import math
 import copy
@@ -165,4 +167,10 @@ def byte_width_to_tkeep(byte_width):
         tkeep = tkeep << 1
         tkeep |= 0b1
     return tkeep
+
+
+def get_random_name_extension(length=5):
+    alphabet = string.ascii_lowercase + string.ascii_uppercase
+    ret = ''.join(random.choice(alphabet) for i in range(length))
+    return ret
 
