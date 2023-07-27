@@ -1118,8 +1118,9 @@ class Hls4mlOSG(BaseOSG):
                             last_fixed_threshold_value = lower_bound_in
                             for out_value, threshold_value in zip(out_values, vector_data):
                                 fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
-                                outline += f"{tab}{inner_tab}case {last_fixed_threshold_value+1} ... {fixed_threshold_value}:\n" \
-                                           f"{tab}{inner_tab*2}res[{channel_id}] = {out_value}; break;\n"
+                                outline += f"{tab}{inner_tab}case {last_fixed_threshold_value+1} ... {fixed_threshold_value}: " \
+                                           f"res[{channel_id}] = {out_value}; break;\n"
+                                           # f"{tab}{inner_tab*2}res[{channel_id}] = {out_value}; break;\n"
                                            # f"{np.binary_repr(last_fixed_threshold_value, width=nbit_in)} ... {np.binary_repr(fixed_threshold_value, width=nbit_in)}"
                                 last_fixed_threshold_value = fixed_threshold_value
                             outline += f"{tab}{inner_tab}default:  // above {last_fixed_threshold_value}\n" \
