@@ -17,7 +17,7 @@ Depending on the selected target device, the deployment of the  FPGA binaries re
 This DOSA version assumes that the weights in the ONNX *are already fully quantized* (by tools like e.g. [Brevitas](https://github.com/Xilinx/brevitas) or [Aimet](https://github.com/quic/aimet)). The corresponding number representation must be configured in the input constraints. 
 
 More details of the supported libraries and flows are described in [./doc/DOSA_flow.md](./doc/DOSA_flow.md).
-A detailed description of concepts and research behind DOSA can be found [here (Chapter 4)](https://doi.org/10.5281/zenodo.7957659).
+A detailed description of concepts and research behind DOSA can be found [here (Chapter 4)](https://doi.org/10.5281/zenodo.7957659). More publications around DOSA are listed [below](#publications).
 
 Installation
 -----------------
@@ -135,6 +135,16 @@ Structure of this repository
 - [scripts/](./scripts): Contains further scripts helping to use DOSA.
 - [setup/](./setup): Contains files required during installation.
 - [dimidium.sh](./dimidium.sh): A script invoking DOSA.
+
+
+Publications
+------------------
+
+- [DOSA: Organic Compilation for Neural Network Inference on Distributed FPGAs](https://doi.org/10.1109/EDGE60047.2023.00019), 2023 IEEE International Conference On Edge Computing & Communications (EDGE 2023).
+  - recording of the conference presentation can be found [here](https://www.youtube.com/watch?v=i-E_Con7yLM)
+- [Advancing Compilation of DNNs for FPGAs Using Operation Set Architectures](https://ieeexplore.ieee.org/abstract/document/9984183), IEEE Computer Architecture Letters, 2023.
+  - video introduction can be found [here](https://www.youtube.com/watch?v=1bio46nxQMc)
+- [Compiling DNNs to Distributed FPGAs Using Operator Set Architectures (Chapter 4)](https://doi.org/10.5281/zenodo.7957659), PhD Thesis, Friedrich-Alexander University Erlangen-Nürnberg, 2022.
 
 
 * * * 
