@@ -22,9 +22,18 @@
 #  *     Authors: NGL
 #  *
 #  *     Description:
-#  *        module to support the quantization gradatim flow
+#  *        module to translate a torch script module to a brevitas module
 #  *
 #  *
 
+from gradatim.dnn_quant.models.quantized import QuantModule
 
+
+def translate_to_quantized_model(fp_model, bit_width):
+    # TODO:
+    #  1. count activations, weights and biases...for internal lists
+    #  2. then, append layer by layer (_append())
+    q_model = QuantModule(num_act=42)
+
+    return q_model
 

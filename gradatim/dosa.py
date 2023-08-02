@@ -60,7 +60,7 @@ class DosaModelType(Enum):
 
 def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_path: str, global_build_dir: str,
          show_graphics: bool = True, generate_build: bool = True, generate_only_stats: bool = False,
-         generate_only_coverage: bool = False):
+         generate_only_coverage: bool = False, calibration_data: str = None):
     __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
     with open(dosa_config_path, 'r') as inp:
@@ -124,6 +124,11 @@ def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_pat
     if model_type == DosaModelType.ONNX:
         print("DOSA: Importing ONNX...")
         mod, params = user_import_from_onnx(model_path, user_constraints, debug_mode)
+    elif model_type == DosaModelType.TORCHSCRIPT:
+        print("DOSA: Importing TorchScript...")
+    else:
+        print(f"ERROR: unsupported model type {model_type}.")
+        exit(1)
     print("\t...done.\n")
 
     # TODO: remove temporary guards
@@ -200,19 +205,23 @@ def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_pat
 
 def print_usage(sys_argv):
     print("USAGE: {} ./path/to/dosa_config.json onnx|torchscript ./path/to/model.file ./path/to/constraint.json "
-          "./path/to/build_dir [--no-roofline|--no-build|--only-stats|--only-coverage]"
+          "./path/to/build_dir [--calibration-data ./path/to/data.npy] "
+          "[--no-roofline|--no-build|--only-stats|--only-coverage]"
           .format(sys_argv[0]))
     exit(1)
 
 
 def cli():
-    if len(sys.argv) < 6 or len(sys.argv) > 7:
-        print(str(len(sys.argv)) + "\t:\t" + str(sys.argv))
+    if len(sys.argv) < 6 or len(sys.argv) > 9:
+        print(f"provided {str(len(sys.argv))} args:" + "\t:\t" + str(sys.argv))
         print_usage(sys.argv)
 
     # TODO: use argparse
-    if len(sys.argv) == 7 and (sys.argv[6] != '--no-roofline' and sys.argv[6] != '--no-build'
-                               and sys.argv[6] != '--only-stats' and sys.argv[6] != '--only-coverage'):
+    if (len(sys.argv) == 7 and (sys.argv[6] != '--no-roofline' and sys.argv[6] != '--no-build'
+                               and sys.argv[6] != '--only-stats' and sys.argv[6] != '--only-coverage')) or \
+            (len(sys.argv) == 9 and (sys.argv[8] != '--no-roofline' and sys.argv[8] != '--no-build'
+                               and sys.argv[8] != '--only-stats' and sys.argv[8] != '--only-coverage')) or \
+            (len(sys.argv) >= 8 and sys.argv[6][:18] != '--calibration-data'):
         print_usage(sys.argv)
 
     a_dosa_config_path = sys.argv[1]
@@ -233,24 +242,35 @@ def cli():
     a_generate_build = True
     a_generate_only_stats = False  # default is part of build
     a_generate_only_coverage = False
-    if len(sys.argv) == 7 and sys.argv[6] == '--no-roofline':
-        a_show_graphics = False
-    if len(sys.argv) == 7 and sys.argv[6] == '--no-build':
-        a_generate_build = False
-    if len(sys.argv) == 7 and sys.argv[6] == '--only-stats':
-        a_show_graphics = False
-        a_generate_build = False
-        a_generate_only_stats = True
-    if len(sys.argv) == 7 and sys.argv[6] == '--only-coverage':
-        a_show_graphics = False
-        a_generate_build = False
-        a_generate_only_stats = False
-        a_generate_only_coverage = True
+    a_calibration_data_path = None
 
-    dosa(a_dosa_config_path, a_model_type, a_model_path, a_const_path, a_global_build_dir, a_show_graphics, a_generate_build,
-         a_generate_only_stats, a_generate_only_coverage)
+    if len(sys.argv) == 8 or len(sys.argv) == 9:
+        if a_model_type != DosaModelType.TORCHSCRIPT:
+            print("ERROR: data calibration only supported for torch script flow")
+            exit(1)
+        a_calibration_data_path = sys.argv[7]
+
+    if len(sys.argv) == 7 or len(sys.argv) == 9:
+        opt_arg_index = 6
+        if len(sys.argv) == 9:
+            opt_arg_index = 8
+        if sys.argv[opt_arg_index] == '--no-roofline':
+            a_show_graphics = False
+        if sys.argv[opt_arg_index] == '--no-build':
+            a_generate_build = False
+        if sys.argv[opt_arg_index] == '--only-stats':
+            a_show_graphics = False
+            a_generate_build = False
+            a_generate_only_stats = True
+        if sys.argv[opt_arg_index] == '--only-coverage':
+            a_show_graphics = False
+            a_generate_build = False
+            a_generate_only_stats = False
+            a_generate_only_coverage = True
+
+    dosa(a_dosa_config_path, a_model_type, a_model_path, a_const_path, a_global_build_dir, a_show_graphics,
+         a_generate_build, a_generate_only_stats, a_generate_only_coverage, a_calibration_data_path)
 
 
 if __name__ == '__main__':
     cli()
-
