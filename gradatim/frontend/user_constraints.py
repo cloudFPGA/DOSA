@@ -37,7 +37,7 @@ import gradatim.lib.singleton as dosa_singleton
 __mandatory_user_keys__ = ['shape_dict', 'used_batch_n', 'name', 'target_sps', 'targeted_hw',
                            'target_resource_budget', 'arch_gen_strategy', 'fallback_hw', 'used_input_size_t',
                            'target_latency', 'quantization']
-__optional_user_keys__ = ['overwrite_dtypes', 'osg_allowlist']
+__optional_user_keys__ = ['overwrite_dtypes', 'osg_allowlist', 'use_tvm_quantization']
 __arch_gen_strategies__ = ['performance', 'resources', 'default', 'latency', 'throughput']
 # __valid_fallback_hws__ = ['None']
 # __valid_fallback_hws__.extend(dosa_devices.fallback_hw)

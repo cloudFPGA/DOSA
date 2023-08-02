@@ -29,11 +29,11 @@
 import os
 import sys
 import json
-import math
+from enum import Enum
 
 import gradatim.lib.singleton as dosa_singelton
 from gradatim.frontend.user_constraints import parse_uc_dict
-from gradatim.frontend.model_import import user_import
+from gradatim.frontend.model_import import user_import_from_onnx
 from gradatim.middleend.archGen.archGen import arch_gen
 import gradatim.lib.plot_2Droofline as plot_2Droofline
 import gradatim.lib.plot_3Droofline as plot_3Droofline
@@ -45,22 +45,22 @@ from gradatim.lib.plot_throughput import generate_throughput_plt_nodes, generate
 from gradatim.backend.commLibs.commlibs import builtin_comm_libs
 from gradatim.backend.commLibs.BaseCommLib import sort_commLib_list
 
-
 __mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_learning', 'build',
                              # 'engine_saving_threshold', 'generate_testbenchs', 'comm_message_pipeline_store',
                              # 'create_rank_0_for_io', 'insert_debug_cores'
                              'utilization', 'dse']
 
 
-def print_usage(sys_argv):
-    print("USAGE: {} ./path/to/dosa_config.json ./path/to/nn.onnx ./path/to/constraint.json ./path/to/build_dir "
-          .format(sys_argv[0]) +
-          "[--no-roofline|--no-build|--only-stats|--only-coverage]")
-    exit(1)
+class DosaModelType(Enum):
+    ONNX = 0
+    TORCHSCRIPT = 1
+    BREVITAS = 2
+    UNSUPORTED = 255
 
 
-def dosa(dosa_config_path, onnx_path, const_path, global_build_dir, show_graphics=True, generate_build=True,
-         generate_only_stats=False, generate_only_coverage=False):
+def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_path: str, global_build_dir: str,
+         show_graphics: bool = True, generate_build: bool = True, generate_only_stats: bool = False,
+         generate_only_coverage: bool = False):
     __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
     with open(dosa_config_path, 'r') as inp:
@@ -104,8 +104,9 @@ def dosa(dosa_config_path, onnx_path, const_path, global_build_dir, show_graphic
     print("\t...done.\n")
 
     print("DOSA: Parsing constraints...")
-    user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw, osg_allowlist = parse_uc_dict(const_path,
-                                                                                               available_devices)
+    user_constraints, arch_gen_strategy, arch_target_devices, arch_fallback_hw, osg_allowlist = parse_uc_dict(
+        const_path,
+        available_devices)
     dosa_singelton.add_user_constraints(user_constraints)
 
     if osg_allowlist is not None:
@@ -120,8 +121,9 @@ def dosa(dosa_config_path, onnx_path, const_path, global_build_dir, show_graphic
     used_sample_size = user_constraints['used_sample_size']
     print("\t...done.\n")
 
-    print("DOSA: Importing ONNX...")
-    mod, params = user_import(onnx_path, user_constraints, debug_mode)
+    if model_type == DosaModelType.ONNX:
+        print("DOSA: Importing ONNX...")
+        mod, params = user_import_from_onnx(model_path, user_constraints, debug_mode)
     print("\t...done.\n")
 
     # TODO: remove temporary guards
@@ -155,7 +157,7 @@ def dosa(dosa_config_path, onnx_path, const_path, global_build_dir, show_graphic
             plt2 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
                                                          show_ops=True, selected_only=False, print_debug=False)
         plt22 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
-                                                     show_ops=True, selected_only=True, print_debug=False)
+                                                      show_ops=True, selected_only=True, print_debug=False)
         plt23 = plot_2Droofline.generate_roofline_plt(archDict['draft'], show_splits=False, show_labels=True,
                                                       show_ops=True, selected_only=True, print_debug=False,
                                                       iter_based=True)
@@ -167,14 +169,17 @@ def dosa(dosa_config_path, onnx_path, const_path, global_build_dir, show_graphic
                 if nn.skip_in_roofline:
                     continue
                 new_plt = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
-                                                                         show_splits=True, show_labels=True, selected_only=True,
+                                                                         show_splits=True, show_labels=True,
+                                                                         selected_only=True,
                                                                          print_debug=False)
                 new_plt1 = plot_2Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
-                                                                         show_splits=False, show_labels=True, selected_only=True,
-                                                                         print_debug=False, iter_based=True)
+                                                                          show_splits=False, show_labels=True,
+                                                                          selected_only=True,
+                                                                          print_debug=False, iter_based=True)
                 new_plt2 = plot_3Droofline.generate_roofline_for_node_plt(nn, archDict['draft'],
-                                                                         show_splits=False, show_labels=True, selected_only=True,
-                                                                         print_debug=False)
+                                                                          show_splits=False, show_labels=True,
+                                                                          selected_only=True,
+                                                                          print_debug=False)
                 plt_nodes.append(new_plt)
             last_plt = plt_nodes[-1]
             if debug_mode:
@@ -193,37 +198,59 @@ def dosa(dosa_config_path, onnx_path, const_path, global_build_dir, show_graphic
     print("\nDOSA finished successfully.\n")
 
 
-if __name__ == '__main__':
-    if len(sys.argv) < 5 or len(sys.argv) > 6:
+def print_usage(sys_argv):
+    print("USAGE: {} ./path/to/dosa_config.json onnx|torchscript ./path/to/model.file ./path/to/constraint.json "
+          "./path/to/build_dir [--no-roofline|--no-build|--only-stats|--only-coverage]"
+          .format(sys_argv[0]))
+    exit(1)
+
+
+def cli():
+    if len(sys.argv) < 6 or len(sys.argv) > 7:
         print(str(len(sys.argv)) + "\t:\t" + str(sys.argv))
         print_usage(sys.argv)
 
     # TODO: use argparse
-    if len(sys.argv) == 6 and (sys.argv[5] != '--no-roofline' and sys.argv[5] != '--no-build'
-                               and sys.argv[5] != '--only-stats' and sys.argv[5] != '--only-coverage'):
+    if len(sys.argv) == 7 and (sys.argv[6] != '--no-roofline' and sys.argv[6] != '--no-build'
+                               and sys.argv[6] != '--only-stats' and sys.argv[6] != '--only-coverage'):
         print_usage(sys.argv)
 
     a_dosa_config_path = sys.argv[1]
-    a_onnx_path = sys.argv[2]
-    a_const_path = sys.argv[3]
-    a_global_build_dir = os.path.abspath(sys.argv[4])
+    model_type_str = sys.argv[2]
+    a_model_type = DosaModelType.UNSUPORTED
+    if model_type_str == 'onnx':
+        a_model_type = DosaModelType.ONNX
+    elif model_type_str == 'torchscript':
+        a_model_type = DosaModelType.TORCHSCRIPT
+    else:
+        print("ERROR: unsupported flow")
+        print_usage(sys.argv)
+
+    a_model_path = sys.argv[3]
+    a_const_path = sys.argv[4]
+    a_global_build_dir = os.path.abspath(sys.argv[5])
     a_show_graphics = True
     a_generate_build = True
     a_generate_only_stats = False  # default is part of build
     a_generate_only_coverage = False
-    if len(sys.argv) == 6 and sys.argv[5] == '--no-roofline':
+    if len(sys.argv) == 7 and sys.argv[6] == '--no-roofline':
         a_show_graphics = False
-    if len(sys.argv) == 6 and sys.argv[5] == '--no-build':
+    if len(sys.argv) == 7 and sys.argv[6] == '--no-build':
         a_generate_build = False
-    if len(sys.argv) == 6 and sys.argv[5] == '--only-stats':
+    if len(sys.argv) == 7 and sys.argv[6] == '--only-stats':
         a_show_graphics = False
         a_generate_build = False
         a_generate_only_stats = True
-    if len(sys.argv) == 6 and sys.argv[5] == '--only-coverage':
+    if len(sys.argv) == 7 and sys.argv[6] == '--only-coverage':
         a_show_graphics = False
         a_generate_build = False
         a_generate_only_stats = False
         a_generate_only_coverage = True
 
-    dosa(a_dosa_config_path, a_onnx_path, a_const_path, a_global_build_dir, a_show_graphics, a_generate_build,
+    dosa(a_dosa_config_path, a_model_type, a_model_path, a_const_path, a_global_build_dir, a_show_graphics, a_generate_build,
          a_generate_only_stats, a_generate_only_coverage)
+
+
+if __name__ == '__main__':
+    cli()
+

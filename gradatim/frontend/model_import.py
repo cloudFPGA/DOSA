@@ -98,14 +98,18 @@ def overwrite_dtypes(mod, params, user_constraints):
     return mod_2, params
 
 
-def user_import(onnx_path, user_constraints, debug_mode=False):
+def user_import_from_onnx(onnx_path, user_constraints, debug_mode=False):
     mod_i, params_i = onnx_import(onnx_path, user_constraints['shape_dict'],  repr(user_constraints['input_dtype']))
     print("\t...done.\n")
 
     if user_constraints['do_quantization']:
-        print("DOSA: Executing TVM quantization...")
-        mod_i, params_i = tvm_quantization(mod_i, params_i, user_constraints)
-        print("\t...done.\n")
+        if user_constraints['use_tvm_quantization']:
+            print("DOSA: Executing TVM quantization...")
+            mod_i, params_i = tvm_quantization(mod_i, params_i, user_constraints)
+            print("\t...done.\n")
+        else:
+            print('[DOSA:IMPORT:ERROR] quantization method not support within onnx flow. STOP.')
+            exit(1)
     # elif user_constraints['overwrite_imported_dtypes']:
     #     print("[DOSA:import:INFO] overwriting ONNX data types...")
     #     mod_i, params_i = overwrite_dtypes(mod_i, params_i, user_constraints)
