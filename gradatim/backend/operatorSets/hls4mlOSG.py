@@ -82,6 +82,63 @@ def get_loop_unrolling_factors(req_parallelization_grade):
     return outermost, outer, inner, innermost
 
 
+def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
+    layer_data = threshold_op.tvm_args['vars'][0]['ref'].data.numpy()
+    channel_num = layer_data.shape[0]
+    nbit_in = 2 * get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
+    nbit_out = get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
+    upper_bound = np.power(2, nbit_out - 1) - 1
+    lower_bound = -np.power(2, nbit_out - 1)
+    out_values = np.arange(lower_bound, upper_bound)  # excludes the upper bound
+    tab = '    '
+    inner_tab = '  '
+    # finding fix_threshold_value "globally"
+    fix_threshold_value = 1
+    upper_bound_in = np.power(2, nbit_in - 1) - 1
+    lower_bound_in = -np.power(2, nbit_in - 1)
+    for channel_id in range(channel_num):
+        vector_data = layer_data[channel_id].astype(int)
+        assert len(out_values) == len(vector_data)
+        while (np.max(vector_data) / fix_threshold_value) > upper_bound_in or \
+                (np.min(vector_data) / fix_threshold_value) < lower_bound_in:
+            fix_threshold_value += 1
+            print(
+                f"[OSG:hls4ml:INFO] threshold vector contains to large value entries, need to floor "
+                f"by a factor of {fix_threshold_value}.")
+    outline = tab + f'// "casting" of {in_var_name}[] to {out_var_name}[] using multi_threshold operation'  # no \n
+    for channel_id in range(channel_num):
+        vector_data = layer_data[channel_id].astype(int)
+        assert len(out_values) == len(vector_data)
+        outline += f"\n{tab}switch((int) {in_var_name}[{channel_id}])\n{tab}{{\n"
+        last_fixed_upper_threshold_value = lower_bound_in - 1
+        last_fixed_lower_threshold_value = lower_bound_in - 1
+        next_outline = ''
+        for out_value, threshold_value in zip(out_values, vector_data):
+            fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
+            new_lower_value = last_fixed_upper_threshold_value + 1
+            if fixed_threshold_value == last_fixed_upper_threshold_value:
+                # merge with previous and overwrite
+                new_lower_value = last_fixed_lower_threshold_value
+            else:
+                outline += next_outline
+            if fixed_threshold_value == new_lower_value:
+                next_outline = f"{tab}{inner_tab}case {fixed_threshold_value}: " \
+                           f"{out_var_name}[{channel_id}] = {out_value}; break;\n"
+                last_fixed_lower_threshold_value = fixed_threshold_value
+            else:
+                next_outline = f"{tab}{inner_tab}case {new_lower_value} ... {fixed_threshold_value}: " \
+                           f"{out_var_name}[{channel_id}] = {out_value}; break;\n"
+                last_fixed_lower_threshold_value = new_lower_value
+            # f"{tab}{inner_tab*2}res[{channel_id}] = {out_value}; break;\n"
+            # f"{np.binary_repr(last_fixed_upper_threshold_value, width=nbit_in)} ... {np.binary_repr(fixed_threshold_value, width=nbit_in)}"
+            last_fixed_upper_threshold_value = fixed_threshold_value
+        outline += next_outline
+        outline += f"{tab}{inner_tab}default:  // above {last_fixed_upper_threshold_value}\n" \
+                   f"{tab}{inner_tab * 2}{out_var_name}[{channel_id}] = {upper_bound}; break;\n"
+        outline += tab + "}\n"
+    return outline
+
+
 class Hls4mlOSG(BaseOSG):
 
     def __init__(self):
@@ -359,7 +416,7 @@ class Hls4mlOSG(BaseOSG):
                                                           BaseOSG._pseudo_infinity_, 0.0,
                                                           0.0, 'dummy op', 0.0, 0.0)
             elif 'multi_threshold' in e:
-                self.relay2osg['nn'][e] = self._generate_hls_multiThresholdDummy, \
+                self.relay2osg['nn'][e] = self._generate_hls_multiThreshold, \
                     lambda op, thw, it: self._get_impl_prediction(op, thw, it,
                                                                   consider_paramB=True,
                                                                   fallback_ops=['pool2d',
@@ -1057,9 +1114,15 @@ class Hls4mlOSG(BaseOSG):
         #  but will anyhow be ignored
         return ret, None, 0
 
-    def _generate_hls_multiThresholdDummy(self, op, layer_name, next_op=None, next_next_op=None):
+    def _generate_hls_multiThreshold(self, op, layer_name, next_op=None, next_next_op=None):
         # we use it as activation, tho the layer will end up in skip_layers and this function will never be called...
-        return
+        # update: it will if there are multiple thresholds after each other
+        instance_name = get_random_name_extension()
+        self._add_non_template_instance_op(instance_name, [op])
+        # use a fake relu node
+        ret = {'class_name': 'Activation', 'config': {'class_name': 'Activation', 'activation': 'relu',
+                                                      'name': layer_name, 'non_template_instantiation': instance_name}}
+        return ret, None, 0
 
     def create_non_template_instances(self, target_path):
         for instance_name, ops in self._non_template_instances.items():
@@ -1069,6 +1132,8 @@ class Hls4mlOSG(BaseOSG):
                 combined_name += '_'
             if combined_name == 'nn.dense_nn.multi_threshold_':
                 self._create_dense_threshold_instances(target_path, instance_name, ops)
+            elif combined_name == 'nn.multi_threshold_':
+                    self._create_standalone_threshold_instance(target_path, instance_name, ops)
             else:
                 print(f"[OSG:hls4ml:ERROR] Asked to create a non-template instance for operation {combined_name}, "
                       f"which can't be provided. STOP.")
@@ -1092,43 +1157,29 @@ class Hls4mlOSG(BaseOSG):
                     outline = f"void dense_{instance_name}(\n"
                     skip_next = True
                 elif 'DOSA_insert_thresholding' in line:
-                    layer_data = threshold_op.tvm_args['vars'][0]['ref'].data.numpy()
-                    channel_num = layer_data.shape[0]
-                    nbit_in = 2*get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
-                    nbit_out = get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
-                    upper_bound = np.power(2, nbit_out - 1) - 1
-                    lower_bound = -np.power(2, nbit_out - 1)
-                    out_values = np.arange(lower_bound, upper_bound)  # excludes the upper bound
-                    tab = '    '
-                    inner_tab = '  '
-                    outline = tab + '//"casting" of acc[] to res[] using multi_threshold operation'  # no \n
-                    for channel_id in range(channel_num):
-                        vector_data = layer_data[channel_id].astype(int)
-                        assert len(out_values) == len(vector_data)
-                        upper_bound_in = np.power(2, nbit_in - 1) - 1
-                        lower_bound_in = -np.power(2, nbit_in - 1)
-                        fix_threshold_value = 1
-                        while (np.max(vector_data) / fix_threshold_value) > upper_bound_in or \
-                                (np.min(vector_data) / fix_threshold_value) < lower_bound_in:
-                            fix_threshold_value += 1
-                            print(
-                                f"[OSG:hls4ml:INFO] threshold vector contains to large value entries, need to floor "
-                                f"by a factor of {fix_threshold_value}.")
-                            outline += f"\n{tab}switch((int) acc[{channel_id}])\n{tab}{{\n"
-                            last_fixed_threshold_value = lower_bound_in
-                            for out_value, threshold_value in zip(out_values, vector_data):
-                                fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
-                                outline += f"{tab}{inner_tab}case {last_fixed_threshold_value+1} ... {fixed_threshold_value}: " \
-                                           f"res[{channel_id}] = {out_value}; break;\n"
-                                           # f"{tab}{inner_tab*2}res[{channel_id}] = {out_value}; break;\n"
-                                           # f"{np.binary_repr(last_fixed_threshold_value, width=nbit_in)} ... {np.binary_repr(fixed_threshold_value, width=nbit_in)}"
-                                last_fixed_threshold_value = fixed_threshold_value
-                            outline += f"{tab}{inner_tab}default:  // above {last_fixed_threshold_value}\n" \
-                                       f"{tab}{inner_tab * 2}res[{channel_id}] = {upper_bound}; break;\n"
-                            outline += tab + "}\n"
-                    # inst = (tab + "Result: for(int ires = 0; ires < CONFIG_T::n_out; ires++){\n" +
-                    #         tab + inner_tab + "#pragma HLS UNROLL\n" +  # TODO
-                    #         tab + '}\n')
+                    outline = _generate_threshold_block(threshold_op, 'acc', 'res')
+                else:
+                    outline = line
+                out_file.write(outline)
+
+    def _create_standalone_threshold_instance(self, target_path, instance_name, ops):
+        threshold_op = ops[0]
+        out_file_path = os.path.abspath(f"{target_path}/custom_layer_{instance_name}.h")
+        with open(os.path.join(self.my_template_folder, 'nnet_thresholding_template.h'), 'r') as in_file, \
+                open(out_file_path, 'w') as out_file:
+            skip_next = False
+            for line in in_file.readlines():
+                if skip_next:
+                    skip_next = False
+                    continue
+                if 'DOSA_infdef_define' in line:
+                    header_guard = f"_NNET_STANDALONE_THRESHOLD_DOSA_{instance_name.upper()}_H_"
+                    outline = f"#ifndef {header_guard}\n#define {header_guard}\n"
+                elif 'DOSA_insert_function_name' in line:
+                    outline = f"//based on a fake-relu\nvoid relu_{instance_name}(\n"
+                    skip_next = True
+                elif 'DOSA_insert_thresholding' in line:
+                    outline = _generate_threshold_block(threshold_op, 'data', 'res')
                 else:
                     outline = line
                 out_file.write(outline)
