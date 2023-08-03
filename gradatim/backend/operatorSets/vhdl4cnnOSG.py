@@ -791,7 +791,7 @@ class vhdl4cnnOSG(BaseOSG):
         # wrapper_comp_share = (wrapper_share['LUTLOG'] + wrapper_share['DSPs']) / 2
         wrapper_comp_share = wrapper_share['LUTLOG']  # we know we hardly use DSPs...
         wrapper_mem_share = (wrapper_share['LUTMEM'] + wrapper_share['Registers'] + wrapper_share['BRAM']) / 3
-        input_data_width = op.dims.inp[2]  # image_width
+        input_data_width = op.dims.inp[-1]  # image_width
         kernel_size = np.prod(op.dims.param)
         internal_delay = 1 + input_data_width + kernel_size
         cycles_used = internal_delay + np.prod(op.dims.inp)

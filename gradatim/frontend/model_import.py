@@ -14,6 +14,7 @@
 #   * limitations under the License.
 #  *******************************************************************************/
 #
+import os.path
 
 #  *
 #  *                       cloudFPGA
@@ -30,12 +31,15 @@ import onnx
 import tvm
 import tvm.relay as relay
 import torch
+from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
 
+import gradatim.lib.singleton as dosa_singleton
 from gradatim.frontend.TvmPrintMeta import PrintMeta
 from gradatim.lib.dosa_dtype import get_bitwidth_of_DosaDtype
 from gradatim.frontend.TvmGlobalTypeCast import CorrectionPipeline
 from gradatim.frontend.translate_to_brevitas import translate_to_quantized_model
+from gradatim.dnn_quant.onnx.export_DOSA import export_DOSA_onnx
 
 
 def onnx_import(onnx_path, shape_dict, input_dtype, debug=False):
@@ -128,19 +132,42 @@ def user_import_from_torchscript(model_path, user_constraints, calibration_data_
     dnn.eval()
 
     if user_constraints['do_quantization']:
-        print("\t...done.\nStarting quantization and calibration...")
-        # call quant module first
-        calibration_data = np.load(calibration_data_path)
+        print("\t...done.\nDOSA: Starting quantization translation and calibration...")
         input_size_t = user_constraints['used_input_size_t']
         input_dtype = repr(user_constraints['input_dtype'])
+        in_shape_tupel = tuple([v for k,v in user_constraints['shape_dict'].items()][0])
         weight_dtype = repr(user_constraints['target_dtype'])
         weight_size_t = get_bitwidth_of_DosaDtype(user_constraints['target_dtype'])
 
         q_model = translate_to_quantized_model(dnn, weight_size_t)
-        # TODO: calibration
-        # TODO: if debug_mode: get_quant_description
+        # calibration
+        calibration_data = np.load(calibration_data_path).astype('float32')  # TODO?
+        ignore_labels = np.zeros(calibration_data.shape[0]).astype('float32')  # TODO?
+        torch_dataset = TensorDataset(torch.from_numpy(calibration_data), torch.from_numpy(ignore_labels))
+        torch_dataloader = DataLoader(torch_dataset)
+        num_steps = min(300, len(calibration_data))
+        q_model.load_state_and_calibrate(dnn, data_loader=torch_dataloader, num_steps=num_steps, seed=42)
+        q_model.cpu()
+        if debug_mode:
+            print(f"\n----- {q_model.name} Description -----")
+            print(q_model.get_quant_description(in_shape_tupel))
         # we cannot test for accuracy with just calibration data
-        # TODO: export to tmp-onnx, import from tmp-onnx (in build-dir/quantization?)
+        print("\t...done.\nDOSA: Building quantized AST...")
+        # export to tmp-onnx, import from tmp-onnx (in build-dir/quantization?)
+        onnx_folder_path = os.path.abspath(f"{dosa_singleton.config.global_build_dir}/quantized_model/")
+        os.system(f"mkdir -p {onnx_folder_path}")
+        onnx_model_path = f"{onnx_folder_path}/{q_model.name.replace(' ', '')}_quantized.onnx"
+        export_DOSA_onnx(module=q_model, input_shape=in_shape_tupel, export_path=onnx_model_path)
+        new_input_dict = {'global_in': list(in_shape_tupel)}
+        mod_i, params_i = onnx_import(onnx_model_path, new_input_dict, input_dtype, debug_mode)
+        # overwrite datatypes later
+        dosa_singleton.config.quant.overwrite_imported_dtypes = True
+        # TODO: allow different dtypes?
+        dosa_singleton.config.quant.activation_dtype = user_constraints['target_dtype']
+        dosa_singleton.config.quant.weight_dtype = user_constraints['target_dtype']
+        dosa_singleton.config.quant.bias_dtype = user_constraints['target_dtype']
+        dosa_singleton.config.quant.numbers_already_scaled = True
+        print("\t...done.\n")
     else:
         # import directly into tvm
         mod_i, params_i = relay.frontend.from_pytorch(dnn, user_constraints['shape_dict'], keep_quantized_weight=True)

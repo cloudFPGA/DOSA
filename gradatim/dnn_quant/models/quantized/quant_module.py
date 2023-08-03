@@ -97,15 +97,20 @@ class QuantModule(nn.Module, ABC):
 
 class GenericQuantModule(QuantModule):
 
-    def __init__(self, num_act=0, num_weighted=0, num_biased=0):
-        super(GenericQuantModule, self).__init__()
+    dropout = 0.2  # TODO?
+
+    def __init__(self,
+                 num_act=0,
+                 num_weighted=0,
+                 num_biased=0,
+                 # act_quant=None,
+                 # weight_quant=None,
+                 # bias_quant=None,
+                 # bit_width=None
+                 name=''):
+        super(GenericQuantModule, self).__init__(num_act=num_act, num_weighted=num_weighted, num_biased=num_biased)
         self.forward_step_index = 0
-        # TODO
-        # super(QTFCFixedPoint8, self).__init__(hidden1, hidden2, hidden3,
-        #                                       act_quant=Int8ActPerTensorFixedPoint,
-        #                                       weight_quant=Int8WeightPerTensorFixedPoint,
-        #                                       bias_quant=Int8Bias,
-        #                                       bit_width=8)
+        self.name = name
 
     def forward(self, x):
         for module in self.features:
@@ -121,4 +126,7 @@ class GenericQuantModule(QuantModule):
         out = module(x)
         self.forward_step_index += 1
         return x, module, out
+
+    def append(self, module):
+        self.features.append(module)
 

@@ -33,7 +33,7 @@ from enum import Enum
 
 import gradatim.lib.singleton as dosa_singelton
 from gradatim.frontend.user_constraints import parse_uc_dict
-from gradatim.frontend.model_import import user_import_from_onnx
+from gradatim.frontend.model_import import user_import_from_onnx, user_import_from_torchscript
 from gradatim.middleend.archGen.archGen import arch_gen
 import gradatim.lib.plot_2Droofline as plot_2Droofline
 import gradatim.lib.plot_3Droofline as plot_3Droofline
@@ -126,6 +126,7 @@ def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_pat
         mod, params = user_import_from_onnx(model_path, user_constraints, debug_mode)
     elif model_type == DosaModelType.TORCHSCRIPT:
         print("DOSA: Importing TorchScript...")
+        mod, params = user_import_from_torchscript(model_path, user_constraints, calibration_data, debug_mode)
     else:
         print(f"ERROR: unsupported model type {model_type}.")
         exit(1)
