@@ -1,8 +1,8 @@
 from brevitas import nn as qnn
 from torch import nn
 
-from dnn_quant.models.quantized.quant_module import QuantModule
-from dnn_quant.utils import Reshape
+from gradatim.dnn_quant.models.quantized.quant_module import QuantModule
+from gradatim.dnn_quant.utils import Reshape
 
 
 class QTFC(QuantModule):

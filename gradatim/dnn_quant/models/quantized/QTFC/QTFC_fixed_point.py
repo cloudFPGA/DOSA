@@ -2,9 +2,9 @@ from brevitas.quant import *
 from torch import nn
 import brevitas.nn as qnn
 
-from dnn_quant.models.quantized.QTFC.QTFC import QTFC
-from dnn_quant.models.quantized.quant_module import QuantModule
-from dnn_quant.quantizers import *
+from gradatim.dnn_quant.models.quantized.QTFC.QTFC import QTFC
+from gradatim.dnn_quant.models.quantized.quant_module import QuantModule
+from gradatim.dnn_quant.quantizers import *
 
 dropout = 0.2
 in_features = 28 * 28

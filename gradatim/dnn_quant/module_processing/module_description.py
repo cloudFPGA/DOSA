@@ -1,7 +1,7 @@
 from brevitas.quant_tensor import QuantTensor
 
 from .modules_repertory import weight_layers_all
-from dnn_quant.utils import Reshape, pad_left, features_descriptions_to_string
+from gradatim.dnn_quant.utils import Reshape, pad_left, features_descriptions_to_string
 
 
 def describe_module(module, x=None) -> str:
@@ -9,7 +9,7 @@ def describe_module(module, x=None) -> str:
     value_not_empty = False
 
     # special case: QuantModule
-    from dnn_quant.models.quantized import QuantModule
+    from gradatim.dnn_quant.models.quantized import QuantModule
     if isinstance(module, QuantModule):
         value += describe_quant_module(module, x)
         return value

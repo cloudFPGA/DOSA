@@ -4,10 +4,10 @@ from typing import Union, Tuple
 import torch
 from brevitas.quant_tensor import QuantTensor
 from torch import nn, Tensor
-import dnn_quant.module_processing.module_iterator as iterator
-from dnn_quant import calibrate
-from dnn_quant.module_processing import describe_module
-from dnn_quant.module_processing.module_statistics import ModuleStatsObserver
+import gradatim.dnn_quant.module_processing.module_iterator as iterator
+from gradatim.dnn_quant import calibrate
+from gradatim.dnn_quant.module_processing import describe_module
+from gradatim.dnn_quant.module_processing.module_statistics import ModuleStatsObserver
 
 
 class QuantModule(nn.Module, ABC):
@@ -93,4 +93,32 @@ class QuantModule(nn.Module, ABC):
             bias_quant = [bias_quant] * self._num_biased
 
         return act_quant, weight_quant, bias_quant, bit_width, return_quant_tensor, do_quantization
+
+
+class GenericQuantModule(QuantModule):
+
+    def __init__(self, num_act=0, num_weighted=0, num_biased=0):
+        super(GenericQuantModule, self).__init__()
+        self.forward_step_index = 0
+        # TODO
+        # super(QTFCFixedPoint8, self).__init__(hidden1, hidden2, hidden3,
+        #                                       act_quant=Int8ActPerTensorFixedPoint,
+        #                                       weight_quant=Int8WeightPerTensorFixedPoint,
+        #                                       bias_quant=Int8Bias,
+        #                                       bit_width=8)
+
+    def forward(self, x):
+        for module in self.features:
+            x = module(x)
+        return x
+
+    def forward_step(self, x):
+        if self.forward_step_index >= len(self.features):
+            self.forward_step_index = 0
+            return None, None, None
+
+        module = self.features[self.forward_step_index]
+        out = module(x)
+        self.forward_step_index += 1
+        return x, module, out
 

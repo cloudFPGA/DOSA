@@ -1,7 +1,7 @@
 from brevitas.quant import *
 
 from .QTFC import QTFC
-from dnn_quant.quantizers import ShiftedUint4ActPerTensorFloat, Int4WeightPerTensorFloat, Int4Bias
+from gradatim.dnn_quant.quantizers import ShiftedUint4ActPerTensorFloat, Int4WeightPerTensorFloat, Int4Bias
 
 dropout = 0.2
 in_features = 28 * 28

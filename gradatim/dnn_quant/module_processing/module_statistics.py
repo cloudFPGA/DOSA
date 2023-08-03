@@ -2,8 +2,8 @@ import torch
 from brevitas.quant_tensor import QuantTensor
 from torch.utils.tensorboard import SummaryWriter
 
-from dnn_quant.definitions import ROOT_DIR
-from dnn_quant.module_processing import modules_repertory
+from gradatim.dnn_quant.definitions import ROOT_DIR
+from gradatim.dnn_quant.module_processing import modules_repertory
 
 
 class ModuleStatsObserver:

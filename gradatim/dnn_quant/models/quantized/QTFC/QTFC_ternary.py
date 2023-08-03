@@ -1,7 +1,7 @@
 from brevitas.quant import SignedTernaryActPerTensorConst, SignedTernaryWeightPerTensorConst
 
 from .QTFC import QTFC
-from dnn_quant.quantizers import Int3Bias
+from gradatim.dnn_quant.quantizers import Int3Bias
 
 
 class QTFCTernary(QTFC):

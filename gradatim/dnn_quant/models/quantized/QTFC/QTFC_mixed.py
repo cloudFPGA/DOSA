@@ -1,6 +1,6 @@
 from brevitas.quant import SignedBinaryActPerTensorConst
 from .QTFC import QTFC
-from dnn_quant.quantizers import *
+from gradatim.dnn_quant.quantizers import *
 
 mixed1_acts_quants = [
     Int3ActPerTensorFloat,

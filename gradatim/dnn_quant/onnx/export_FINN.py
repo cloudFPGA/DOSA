@@ -5,7 +5,7 @@ from torch.nn import Module
 from brevitas.quant_tensor import QuantTensor
 import brevitas.onnx as bo
 
-from dnn_quant.onnx.fix_torch_export import fix_shared_initializers, fix_missing_opsets
+from gradatim.dnn_quant.onnx.fix_torch_export import fix_shared_initializers, fix_missing_opsets
 
 
 def export_FINN_onnx(module: Module,

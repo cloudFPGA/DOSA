@@ -2,7 +2,7 @@ import torch
 
 
 def calibrate(model, test_loader, num_steps=1, seed=None):
-    from dnn_quant.models.quantized.quant_module import QuantModule
+    from gradatim.dnn_quant.models.quantized.quant_module import QuantModule
     if isinstance(model, QuantModule):
         # ensures that the "normal" modules are _not_ in training mode, while setting the activation quantization
         #  modules into "training mode", which then collects statistics during the "inference" (line 24).

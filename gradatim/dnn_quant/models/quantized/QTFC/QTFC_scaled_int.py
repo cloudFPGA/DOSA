@@ -1,5 +1,5 @@
 from .QTFC import QTFC
-from dnn_quant.quantizers import *
+from gradatim.dnn_quant.quantizers import *
 
 
 class QTFCInt32(QTFC):

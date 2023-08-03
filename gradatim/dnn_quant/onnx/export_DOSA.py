@@ -7,8 +7,8 @@ from qonnx.core.modelwrapper import ModelWrapper
 from brevitas.quant_tensor import QuantTensor
 import brevitas.onnx as bo
 
-from dnn_quant.onnx.export_dataflow_steps import step_tidy_up, step_streamline, step_finn_to_DOSA
-from dnn_quant.onnx.fix_torch_export import fix_missing_opsets, fix_shared_initializers
+from gradatim.dnn_quant.onnx.export_dataflow_steps import step_tidy_up, step_streamline, step_finn_to_DOSA
+from gradatim.dnn_quant.onnx.fix_torch_export import fix_missing_opsets, fix_shared_initializers
 
 
 def delete_if_exists(path):

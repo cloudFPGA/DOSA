@@ -103,7 +103,7 @@ class QuantModuleIterator(ModuleIterator):
         return super(QuantModuleIterator, self).find_next_module_of_type(target_type, return_name)
 
     def sub_quant_modules(self, return_name=False, main_module=False):
-        from dnn_quant.models.quantized import QuantModule
+        from gradatim.dnn_quant.models.quantized import QuantModule
         return self.modules_of_type(QuantModule, return_name=return_name, main_module=main_module)
 
     def act_quant_modules(self, return_name=False, main_module=False):

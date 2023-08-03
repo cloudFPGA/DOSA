@@ -42,10 +42,10 @@ from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.transformation.remove import RemoveIdentityOps
 
-from dnn_quant.onnx.finn_to_DOSA import RemoveFloatPointNodes
-from dnn_quant.onnx.finn_to_DOSA.thresholds import *
-from dnn_quant.onnx.streamline import Streamline
-from dnn_quant.onnx.streamline import *
+from gradatim.dnn_quant.onnx.finn_to_DOSA import RemoveFloatPointNodes
+from gradatim.dnn_quant.onnx.finn_to_DOSA.thresholds import *
+from gradatim.dnn_quant.onnx.streamline import Streamline
+from gradatim.dnn_quant.onnx.streamline import *
 
 
 def step_tidy_up(model: ModelWrapper):
