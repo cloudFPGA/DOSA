@@ -127,6 +127,8 @@ class QuantModuleGenerator:
         self._bias_cnt = 0
 
         needs_identity = True
+        self._last_layer_name = ''
+        self._last_layer_shape = []
         for layer in self._forward_layers:
             ln = layer.original_name
             # before actual layer
@@ -137,6 +139,9 @@ class QuantModuleGenerator:
                 self._act_cnt += 1
             # actual layer:
             needs_identity = self.translate(layer, q_module)
+            self._last_layer_name = ln
+            if hasattr(layer, 'weight'):
+                self._last_layer_shape = tuple(layer.weight.shape)
 
         return q_module
 
@@ -174,7 +179,9 @@ class QuantModuleGenerator:
         exit(1)
 
     def translate_Linear(self, fp_layer, q_module):
-        q_module.append(Reshape(lambda x: (x.shape[0], -1)))
+        # if '2d' in self._last_layer_name:
+        if len(self._last_layer_shape) > 2:
+            q_module.append(Reshape(lambda x: (x.shape[0], -1)))
         in_features = fp_layer.weight.shape[1]
         out_features = fp_layer.weight.shape[0]
         bias = False
