@@ -29,18 +29,20 @@
 import torch.jit
 from brevitas import nn as qnn
 from torch import nn
+# from distutils.util import strtobool
 
 from gradatim.dnn_quant.models.quantized import GenericQuantModule
 from gradatim.dnn_quant.quantizers import *
+from gradatim.dnn_quant.utils import Reshape
 
 
 bitwidth_to_brevitas_defs = {
     8: {
-            'act_quant': Int8ActPerTensorFixedPoint,
-            'weight_quant' : Int8WeightPerTensorFixedPoint,
-            'bias_quant' : Int8Bias,
-            'bit_width' : 8
-        },
+        'act_quant': Int8ActPerTensorFixedPoint,
+        'weight_quant': Int8WeightPerTensorFixedPoint,
+        'bias_quant': Int8Bias,
+        'bit_width': 8
+    },
     5: {
         'act_quant': Int5ActPerTensorFixedPoint,
         'weight_quant': Int5WeightPerTensorFixedPoint,
@@ -130,7 +132,7 @@ class QuantModuleGenerator:
             # before actual layer
             if needs_identity:
                 q_module.append(qnn.QuantIdentity(act_quant=self._a_quant[self._act_cnt],
-                                               return_quant_tensor=self._return_qt))
+                                                  return_quant_tensor=self._return_qt))
                 q_module.append(nn.Dropout(p=GenericQuantModule.dropout))
                 self._act_cnt += 1
             # actual layer:
@@ -144,11 +146,8 @@ class QuantModuleGenerator:
         num_bias = 0
         for layer in self._forward_layers:
             ln = layer.original_name
-            # if ln in ['ReLU']:
-            #     num_act += 1
-            # el
             num_act += 1
-            if ln in ['Linear']:
+            if ln in ['Linear', 'Conv2d']:
                 num_weights += 1
                 if hasattr(layer, 'bias'):
                     num_bias += 1
@@ -175,6 +174,7 @@ class QuantModuleGenerator:
         exit(1)
 
     def translate_Linear(self, fp_layer, q_module):
+        q_module.append(Reshape(lambda x: (x.shape[0], -1)))
         in_features = fp_layer.weight.shape[1]
         out_features = fp_layer.weight.shape[0]
         bias = False
@@ -184,7 +184,7 @@ class QuantModuleGenerator:
             bias_quant = self._b_quant[self._bias_cnt]
             self._bias_cnt += 1
         q_module.append(qnn.QuantLinear(in_features, out_features, bias=bias, return_quant_tensor=False,
-                                         weight_quant=self._w_quant[self._weight_cnt], bias_quant=bias_quant))
+                                        weight_quant=self._w_quant[self._weight_cnt], bias_quant=bias_quant))
         self._weight_cnt += 1
         if fp_layer != self._forward_layers[-1]:
             q_module.append(nn.BatchNorm1d(out_features))
@@ -197,3 +197,58 @@ class QuantModuleGenerator:
             q_module.append(qnn.QuantReLU(act_quant=None))
         return False
 
+    def translate_Conv2d(self, fp_layer, q_module):
+        in_features = fp_layer.weight.shape[1]
+        out_features = fp_layer.weight.shape[0]
+        kernel_size = fp_layer.weight.shape[2]
+        stride = fp_layer.stride
+        padding = fp_layer.padding
+        dilation = fp_layer.dilation
+        groups = fp_layer.groups
+        bias = False
+        bias_quant = None
+        if hasattr(fp_layer, 'bias'):
+            bias = True
+            bias_quant = self._b_quant[self._bias_cnt]
+            self._bias_cnt += 1
+        q_module.append(qnn.QuantConv2d(in_features, out_features, kernel_size, stride=stride, padding=padding,
+                                        dilation=dilation, groups=groups,
+                                        bias=bias, return_quant_tensor=False,
+                                        weight_quant=self._w_quant[self._weight_cnt], bias_quant=bias_quant))
+        self._weight_cnt += 1
+        if fp_layer != self._forward_layers[-1]:
+            q_module.append(nn.BatchNorm2d(out_features))
+        return True
+
+    def translate_AvgPool2d(self, fp_layer, q_module):
+        raise NotImplementedError
+        # kernel_size = 42
+        # if self._do_quantization:
+        #     q_module.append(qnn.QuantAvgPool2d(kernel_size, bit_width=self._bit_width))
+        # else:
+        #     q_module.append(nn.AvgPool2d(kernel_size))
+        # return False
+
+    def translate_MaxPool2d(self, fp_layer, q_module):
+        # attr_s = fp_layer.code.split('(input, ')[1]
+        # dims_sl = attr_s.split('], ')
+        # kernel_size = int(dims_sl[0][1:].split(',')[0])
+        # stride = int(dims_sl[1][1:].split(',')[0])
+        # padding = int(dims_sl[2][1:].split(',')[0])
+        # dilation = int(dims_sl[3][1:].split(',')[0])
+        # ceil_mode = bool(strtobool(dims_sl[4][1:].split(',')[0].lower()))
+        # return_indices = bool(strtobool(dims_sl[4][1:].split(',')[1][1:].lower()))
+        kernel_size = fp_layer.kernel_size
+        stride = fp_layer.stride
+        padding = fp_layer.padding
+        dilation = fp_layer.dilation
+        ceil_mode = fp_layer.ceil_mode
+        return_indices = fp_layer.return_indices
+        if self._do_quantization:
+            q_module.append(qnn.QuantMaxPool2d(kernel_size, stride=stride, padding=padding, dilation=dilation,
+                                               return_indices=return_indices, ceil_mode=ceil_mode,
+                                               return_quant_tensor=self._return_qt))
+        else:
+            q_module.append(nn.MaxPool2d(kernel_size, stride=stride, padding=padding, dilation=dilation,
+                                         return_indices=return_indices, ceil_mode=ceil_mode))
+        return False

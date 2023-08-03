@@ -34,9 +34,12 @@ from gradatim.middleend.archGen.ArchOp import ArchOp
 from gradatim.lib.util import get_next_larger_dividor
 
 
-__ops_possible_to_paralleize__ = ['nn.conv2d', 'nn.bias_add', 'tanh', 'nn.relu', 'nn.max_pool2d', 'nn.batch_flatten']
-__force_to_split_inputs_after_op__ = [True,        False,      False,  False,       False,            False]
-__compatible_with_splitted_input__ = [False,       True,       True,   True,         True,            True]
+__ops_possible_to_paralleize__ = ['nn.conv2d', 'nn.bias_add', 'tanh', 'nn.relu', 'nn.max_pool2d', 'nn.batch_flatten',
+                                  'nn.multi_threshold']
+__force_to_split_inputs_after_op__ = [True,        False,      False,  False,       False,            False,
+                                      False]
+__compatible_with_splitted_input__ = [False,       True,       True,   True,         True,            True,
+                                      True]
 __min_factor__ = 2
 
 

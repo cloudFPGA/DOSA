@@ -131,7 +131,7 @@ def user_import_from_torchscript(model_path, user_constraints, calibration_data_
     dnn = torch.jit.load(model_path)
     dnn.eval()
 
-    if user_constraints['do_quantization']:
+    if user_constraints['do_quantization'] and calibration_data_path is not None:
         print("\t...done.\nDOSA: Starting quantization translation and calibration...")
         input_size_t = user_constraints['used_input_size_t']
         input_dtype = repr(user_constraints['input_dtype'])
@@ -174,7 +174,10 @@ def user_import_from_torchscript(model_path, user_constraints, calibration_data_
         # freeze params?
         if debug_mode:
             print(mod_i.astext(show_meta_data=False))
-        print("\t...done.\n")
+        if user_constraints['do_quantization']:
+            print("\t...done (Skipped quantization as requested).\n")
+        else:
+            print("\t...done (Skipped quantization due to MISSING CALIBRATION DATA).\n")
 
     print("DOSA: Executing TVM optimization passes...")
     mod, params = tvm_optimization_pass(mod_i, params_i, debug=debug_mode)

@@ -111,10 +111,15 @@ class GenericQuantModule(QuantModule):
         super(GenericQuantModule, self).__init__(num_act=num_act, num_weighted=num_weighted, num_biased=num_biased)
         self.forward_step_index = 0
         self.name = name
+        self._debug_layer_list = []
 
     def forward(self, x):
         for module in self.features:
             x = module(x)
+        # for debugging
+        # for i in range(len(self.features)):
+        #     module = self.features[i]
+        #     x = module(x)
         return x
 
     def forward_step(self, x):
@@ -129,4 +134,5 @@ class GenericQuantModule(QuantModule):
 
     def append(self, module):
         self.features.append(module)
+        self._debug_layer_list.append(module)
 
