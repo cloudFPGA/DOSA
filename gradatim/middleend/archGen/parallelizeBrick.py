@@ -537,3 +537,81 @@ class ParallelizeOpClass(object):
             new_ops_list.append(new_op)
         return new_ops_list
 
+    def parallelize_multi_threshold(self, orig_op, factor, with_inputs):
+        if orig_op.dims.param[0] % factor != 0:
+            # TODO: select then next best factor?
+            return None
+        orig_weights = orig_op.tvm_args['by_position'][1]['ref'].data.numpy()
+        new_weights_list = np.split(orig_weights, factor)
+        new_ops_list = []
+        for i in range(0, factor):
+            new_op = ArchOp()
+            new_op.name = orig_op.name + '_split_{}of{}'.format(i+1, factor)
+            new_op.op_call = orig_op.op_call
+            new_op.layer_name = orig_op.layer_name
+            new_op.parent_fn = orig_op.parent_fn
+            # new_op.tvm_dtype = orig_op.tvm_dtype
+            new_op.orig_dtype = orig_op.orig_dtype
+            new_op.need_to_cast_tvm_args = orig_op.need_to_cast_tvm_args
+            new_op.used_dtype = orig_op.used_dtype
+            new_op.flops_conv_factor = orig_op.flops_conv_factor
+            # FIXME: also adapt tvm_node
+            new_op.tvm_node = orig_op.tvm_node
+            if not with_inputs:
+                new_op.dims.inp = orig_op.dims.inp  # inp stays
+                new_op.input_bytes = orig_op.input_bytes
+            else:
+                new_op.dims.inp = []
+                # inp_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                inp_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+                for dp in range(0, len(orig_op.dims.inp)):
+                    d = orig_op.dims.inp[dp]
+                    if dp == 1:
+                        new_op.dims.inp.append(int(d/factor))
+                        inp_B *= int(d/factor)
+                    else:
+                        new_op.dims.inp.append(d)
+                        inp_B *= d
+                new_op.input_bytes = inp_B
+            new_op.dims.param = []
+            # param_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            param_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            # for d in orig_op.dims.param:
+            for dp in range(0, len(orig_op.dims.param)):
+                d = orig_op.dims.param[dp]
+                if dp == 0:
+                    new_op.dims.param.append(int(d/factor))
+                    param_B *= int(d/factor)
+                else:
+                    new_op.dims.param.append(d)
+                    param_B *= d
+            new_op.parameter_bytes = param_B
+            new_op.dims.out = []
+            # out_B = np.ceil(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            out_B = float(get_bitwidth_of_DosaDtype(new_op.used_dtype)/8)
+            # for d in orig_op.dims.out:
+            for dp in range(0, len(orig_op.dims.out)):
+                d = orig_op.dims.out[dp]
+                if dp == 1:
+                    new_op.dims.out.append(int(d/factor))
+                    out_B *= int(d/factor)
+                else:
+                    new_op.dims.out.append(d)
+                    out_B *= d
+            new_op.output_bytes = out_B
+            new_op.flops = orig_op.flops/factor
+            new_op.oi_stream = new_op.flops / new_op.input_bytes
+            new_op.oi_engine = new_op.flops / (new_op.input_bytes + new_op.parameter_bytes)
+            new_op.tvm_args = {'calls': [], 'constants': [], 'vars': [], 'else': [], 'by_position': []}
+            # input stays
+            new_op.tvm_args['by_position'] = [None, None]
+            new_op.tvm_args['by_position'][0] = orig_op.tvm_args['by_position'][0].copy()
+            orig_var = orig_op.tvm_args['by_position'][1]['node']
+            new_op.tvm_args['by_position'][1] = {'pos': 1,
+                                                 'node': relay.var(orig_var.name_hint, shape=new_op.dims.param,
+                                                                   dtype=new_op.orig_dtype),
+                                                 'ref': relay.const(new_weights_list[i],
+                                                                    dtype=new_op.orig_dtype)}
+            # we need new contracts
+            new_ops_list.append(new_op)
+        return new_ops_list

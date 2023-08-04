@@ -688,7 +688,6 @@ class vhdl4cnnOSG(BaseOSG):
         elif next_op is not None and next_next_op is None:
             next_next_op = next_op
 
-        op.multi_threshold_used_id = -1
         op.haddoc_activation = 'none'
         if next_next_op is not None and next_next_op.op_call == 'nn.relu':
             op.haddoc_activation = 'relu'
@@ -696,7 +695,14 @@ class vhdl4cnnOSG(BaseOSG):
         elif next_next_op is not None and (next_next_op.op_call == 'nn.tanh' or next_next_op.op_call == 'tanh'):
             op.haddoc_activation = 'tanh'
             consumed_opt_ops += 1
+
+        threshold_op = None
+        op.multi_threshold_used_id = -1
+        if next_op is not None and next_op.op_call == 'nn.multi_threshold':
+            threshold_op = next_op
         elif next_next_op is not None and next_next_op.op_call == 'nn.multi_threshold':
+            threshold_op = next_op
+        if threshold_op is not None:
             op.haddoc_activation = 'multi_threshold'
             op.multi_threshold_used_id = self._get_and_increment_multi_threshold_used_id()
             consumed_opt_ops += 1
