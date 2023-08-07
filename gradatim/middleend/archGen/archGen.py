@@ -46,7 +46,7 @@ from gradatim.middleend.astProc.oiVisitor import oiV_fn_main_str, oiV_input_str,
 from gradatim.backend.operatorSets.BaseOSG import BaseOSG
 from gradatim.backend.devices.dosa_roofline import RooflineRegionsOiPlane
 from gradatim.middleend.archGen.ArchFilter import OiThresholdFilter, OpCallSameDimFilter
-from gradatim.middleend.archGen.archOpt import merge_bricks_pass, delete_ops_pass
+from gradatim.middleend.archGen.archOpt import merge_bricks_pass, delete_ops_pass, merge_ops_within_brick_pass
 from gradatim.lib.dosa_exceptions import DosaImpossibleToProceed, DosaInvalidAction, DosaConstraintFail
 
 
@@ -130,9 +130,11 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     batch_flatten_ops = ['nn.batch_flatten']
     zero_oi_filter = OiThresholdFilter(0.0)
     useless_flatten_filter = OpCallSameDimFilter(batch_flatten_ops)
+    merge_threshold_filter = OpCallSameDimFilter(['nn.multi_threshold'])
     opt_draft_start = time.time()
     merge_bricks_pass(inital_draft, zero_oi_filter, work_on_copy=False)
     delete_ops_pass(inital_draft, useless_flatten_filter, work_on_copy=False)
+    merge_ops_within_brick_pass(inital_draft, merge_threshold_filter, work_on_copy=False)
     opt_draft_end = time.time()
 
     annotating_draft_start = time.time()
@@ -534,6 +536,3 @@ def find_best_draft(draft: ArchDraft, verbose=False) -> ArchDraft:
     draft.version = 'selected_best'
     return draft
 
-
-def optimize_draft(draft: ArchDraft) -> [ArchDraft]:
-    return False
