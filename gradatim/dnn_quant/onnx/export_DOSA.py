@@ -39,7 +39,8 @@ def export_DOSA_onnx(module: Module,
                      input_shape: Optional[Tuple[int, ...]] = None,
                      export_path: Optional[str] = None,
                      input_t: Optional[Union[Tensor, QuantTensor]] = None,
-                     export_intermediate_models=True):
+                     export_intermediate_models=True,
+                     returnlist_removed_inputs=None):
     export_intermediate_models = export_intermediate_models if export_path else False
 
     model_path_prefix = intermediate_models_path(export_path, export_intermediate_models)
@@ -48,7 +49,7 @@ def export_DOSA_onnx(module: Module,
     model = export_step_brevitas(module, model_path_prefix, input_shape, input_t)
     model = export_step_tidy_up(model, model_path_prefix)
     model = export_step_streamline(model, model_path_prefix)
-    return export_step_finn_to_DOSA(model, export_path)
+    return export_step_finn_to_DOSA(model, export_path, returnlist_removed_inputs)
 
 
 def export_step_brevitas(module, model_file_prefix, input_shape, input_t):
@@ -84,9 +85,9 @@ def export_step_streamline(model, model_file_prefix):
     return model
 
 
-def export_step_finn_to_DOSA(model, export_path):
+def export_step_finn_to_DOSA(model, export_path, returnlist_removed_inputs=None):
     print('step finn to DOSA')
-    model = step_finn_to_DOSA(model)
+    model = step_finn_to_DOSA(model, returnlist_removed_inputs)
     model = fix_missing_opsets(model)
     if export_path is not None:
         model.save(export_path)

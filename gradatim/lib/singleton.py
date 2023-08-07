@@ -38,6 +38,9 @@ config = SimpleNamespace()
 config.git_version = 'UNKNOWN'
 uc = {}
 
+# to store objects
+objects = SimpleNamespace()
+
 
 def init_singleton(config_dict, main_path=None):
     global config
@@ -112,6 +115,8 @@ def init_singleton(config_dict, main_path=None):
         repo = git.Repo(path=main_path, search_parent_directories=True)
         cur_sha = repo.git.describe()
         config.git_version = cur_sha
+
+    objects.quant_module = SimpleNamespace()
 
     is_initiated = True
     return 0

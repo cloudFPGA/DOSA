@@ -31,6 +31,7 @@ from pathlib import Path
 
 import gradatim.lib.singleton as dosa_singleton
 from gradatim.middleend.archGen.CommPlan import CommPlan
+from gradatim.backend.codeGen.ZrlmpiSwApp import generate_quantized_node_root
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
@@ -51,7 +52,12 @@ class ZrlmpiSwMultiNodeApp:
         os.system('cp {}/*.?pp {}/LIB/'.format(self.gitmodule_dir_path + '/LIB/COMMON/', self.out_dir_path))
         # 2. copy Makefile and python
         os.system('cp {}/Makefile {}/'.format(self.templ_dir_path, self.out_dir_path))
-        os.system('cp {}/dosa_root.py {}/'.format(self.templ_dir_path, self.out_dir_path))
+        os.system('cp {}/requirements.txt {}/'.format(self.templ_dir_path, self.out_dir_path))
+        tmp_bricks_len = len(self.comm_plan.node.predecessors[-1].bricks)
+        out_dims = self.comm_plan.node.predecessors[-1].bricks[tmp_bricks_len - 1].dims.out
+        generate_quantized_node_root(f'{self.templ_dir_path}/dosa_root.py', f'{self.out_dir_path}/dosa_root.py',
+                                     out_dims)
+        # os.system('cp {}/dosa_root.py {}/'.format(self.templ_dir_path, self.out_dir_path))
         # get comm_plan data
         all_comm_instr = self.comm_plan.get_comm_instr()
         # assert len(comm_instr) == 2  # this ist just the root app

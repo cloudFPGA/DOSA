@@ -1,0 +1,4 @@
+numpy
+fxpmath
+ctypes
+requests

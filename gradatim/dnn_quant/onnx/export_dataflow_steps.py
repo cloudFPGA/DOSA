@@ -152,7 +152,7 @@ def step_streamline(model: ModelWrapper, clean_step=True):
 #     return model
 
 
-def step_finn_to_DOSA(model: ModelWrapper):
+def step_finn_to_DOSA(model: ModelWrapper, returnlist_removed_inputs=None):
     """This step transforms finn custom nodes found in the model to ONNX standard operators, as DOSA doesn't support
     custom operators. Note however that DOSA will interpret the operator
 
@@ -162,7 +162,10 @@ def step_finn_to_DOSA(model: ModelWrapper):
     and then convert the QONNX model to the FINN-ONNX dialect.
     """
     model = model.transform(ThresMissingOutBiasToZero())
-    model = model.transform(RemoveFloatPointNodes())
+    if returnlist_removed_inputs is not None:
+        model = model.transform(RemoveFloatPointNodes(returnlist_removed_nodes=returnlist_removed_inputs))
+    else:
+        model = model.transform(RemoveFloatPointNodes())
     model = model.transform(GiveUniqueNodeNames())
     model = model.transform(GiveReadableTensorNames())
     model = model.transform(InferDataTypes())

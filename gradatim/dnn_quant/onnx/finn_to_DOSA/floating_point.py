@@ -1,5 +1,6 @@
 import numpy as np
 from onnx import helper as oh
+from onnx import numpy_helper
 from qonnx.core.datatype import DataType
 from qonnx.transformation.base import Transformation
 from qonnx.transformation.remove import remove_node_and_rewire
@@ -35,11 +36,25 @@ def involves_float_operation(model, node):
 class RemoveFloatPointNodes(Transformation):
     """Remove nodes involving full precision input data from the model."""
 
+    def __init__(self, returnlist_removed_nodes=None):
+        super().__init__()
+        self.returnlist_removed_nodes = returnlist_removed_nodes
+
     def apply(self, model):
         graph = model.graph
         graph_modified = False
         for n in graph.node:
             if involves_float_operation(model, n):
+                if self.returnlist_removed_nodes is not None:
+                    initializers = []
+                    numpy_data = []
+                    for inits_id in range(len(graph.initializer)):
+                        init = graph.initializer[inits_id]
+                        if init.name in n.input:
+                            initializers.append(init)
+                            numpy_data.append(numpy_helper.to_array(init))
+                    ne = {'node': n, 'initializers': initializers, 'numpy_data': numpy_data}
+                    self.returnlist_removed_nodes.append(ne)
                 remove_node_and_rewire(model, n)
                 graph_modified = True
                 break

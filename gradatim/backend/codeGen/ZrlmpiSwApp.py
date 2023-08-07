@@ -27,12 +27,67 @@
 #  *
 import math
 import os
+import sys
 from pathlib import Path
+import numpy as np
 
 import gradatim.lib.singleton as dosa_singleton
 from gradatim.middleend.archGen.CommPlan import CommPlan
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
+
+
+def generate_quantized_node_root(template_file_path, outfile_path, out_dims):
+    # default for out_shape?
+    # add input quantization
+    _default_infer_batch_signature_ = 'def infer_batch(self, x: np.ndarray, output_shape: tuple = (1, 1), debug=False):'
+    list_of_removed_float_transformations = None
+    if hasattr(dosa_singleton.objects.quant_module, 'list_of_removed_float_transformations'):
+        list_of_removed_float_transformations = dosa_singleton.objects.quant_module.list_of_removed_float_transformations
+    with open(template_file_path, 'r') as in_file, \
+            open(outfile_path, 'w') as out_file:
+        for line in in_file.readlines():
+            if _default_infer_batch_signature_ in line:
+                out_tuple = tuple(out_dims)
+                indent_len = len(line) - len(_default_infer_batch_signature_)
+                outline = ' ' * indent_len + \
+                          _default_infer_batch_signature_.replace('(1, 1)', str(out_tuple)) + '\n'
+            elif 'DOSA_REPLACE_input_flag' in line:
+                outline = line.split('self')[0]  # get indent
+                # if dosa_singleton.uc['do_quantization']:
+                if list_of_removed_float_transformations is not None:
+                    outline += 'self._quantize_input = True\n'
+                else:
+                    outline += 'self._quantize_input = False\n'
+            elif 'DOSA_REPLACE_thresholding_array' in line and list_of_removed_float_transformations is not None:
+                actual_array = []
+                for entry in list_of_removed_float_transformations:
+                    if 'global_in' in entry['node'].input:
+                        actual_array = entry['numpy_data'][0]
+                        break
+                np.set_printoptions(threshold=sys.maxsize)
+                base_indent = line.split('multi_')[0]
+                outline = base_indent + 'multi_thresholding_array = ['
+                indent = ' ' * len(outline)
+                # thresholding is always 2D
+                for vector in actual_array:
+                    strs_s = str(vector)
+                    strs = strs_s.split('\n')
+                    for ll in strs:
+                        outline += '\n' + indent
+                        lln = ll.split(' ')
+                        for number in lln:
+                            if len(number) == 0:
+                                continue
+                            if number[-1] != ']':
+                                outline += number + ', '
+                            else:
+                                outline += number
+                    outline += ',\n'
+                outline = outline[:-2] + '\n' + indent + ']\n'
+            else:
+                outline = line
+            out_file.write(outline)
 
 
 class ZrlmpiSwApp:
@@ -51,7 +106,12 @@ class ZrlmpiSwApp:
         os.system('cp {}/*.?pp {}/LIB/'.format(self.gitmodule_dir_path + '/LIB/COMMON/', self.out_dir_path))
         # 2. copy Makefile and python
         os.system('cp {}/Makefile {}/'.format(self.templ_dir_path, self.out_dir_path))
-        os.system('cp {}/dosa_root.py {}/'.format(self.templ_dir_path, self.out_dir_path))
+        os.system('cp {}/requirements.txt {}/'.format(self.templ_dir_path, self.out_dir_path))
+        tmp_bricks_len = len(self.comm_plan.node.predecessors[-1].bricks)
+        out_dims = self.comm_plan.node.predecessors[-1].bricks[tmp_bricks_len - 1].dims.out
+        generate_quantized_node_root(f'{self.templ_dir_path}/dosa_root.py', f'{self.out_dir_path}/dosa_root.py',
+                                     out_dims)
+        # os.system('cp {}/dosa_root.py {}/'.format(self.templ_dir_path, self.out_dir_path))
         # get comm_plan data
         comm_instr = self.comm_plan.get_comm_instr()
         # assert len(comm_instr) == 2  # this ist just the root app
@@ -209,7 +269,7 @@ class ZrlmpiSwApp:
                                           min_in=total_send_repeat, min_out=total_recv_repeat,
                                           jump=self.comm_plan.after_pipeline_full_instr_start,
                                           full_pip=dosa_singleton.config.backend.comm_message_interleaving)
-                                            # min_l=comm_plan_len
+                    # min_l=comm_plan_len
                     outline += '// ATTENTION: currently, only batch-wise inference is supported\n'
                 else:
                     outline = line

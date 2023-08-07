@@ -35,6 +35,7 @@ import subprocess
 import random
 
 # from cFSPlib import cFSP
+from fxpmath import Fxp
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 __so_lib_name__ = 'dosa_infer_pass.so'
@@ -47,7 +48,7 @@ __rank_calling_FPGA_resets__ = 0
 
 
 def errorReqExit(msg, code):
-    print("Request "+msg+" failed with HTTP code "+str(code)+".\n")
+    print("Request " + msg + " failed with HTTP code " + str(code) + ".\n")
     exit(1)
 
 
@@ -75,10 +76,9 @@ def load_user_credentials(json_file):
 
 
 def get_cluster_data(cluster_id, user_dict):
-
     print("Requesting FPGA cluster data...")
 
-    r1 = requests.get("http://"+__cf_manager_url__+"/clusters/"+str(cluster_id)+"?username={0}&password={1}"
+    r1 = requests.get("http://" + __cf_manager_url__ + "/clusters/" + str(cluster_id) + "?username={0}&password={1}"
                       .format(user_dict['user'], user_dict['pw']))
 
     if r1.status_code != 200:
@@ -90,10 +90,9 @@ def get_cluster_data(cluster_id, user_dict):
 
 
 def get_action_data(action_name, user_dict):
-
     print("Requesting action data...")
 
-    r1 = requests.get("http://"+__cf_manager_url__+"/actions/"+str(action_name)+"?username={0}&password={1}"
+    r1 = requests.get("http://" + __cf_manager_url__ + "/actions/" + str(action_name) + "?username={0}&password={1}"
                       .format(user_dict['user'], user_dict['pw']))
 
     if r1.status_code != 200:
@@ -106,8 +105,9 @@ def get_action_data(action_name, user_dict):
 
 def restart_app(cluster_id, user_dict):
     print("Reset all ROLEs (FPGAs)...")
-    r1 = requests.patch("http://"+__cf_manager_url__+"/clusters/"+str(cluster_id)+"/restart?username={0}&password={1}"
-                        .format(user_dict['user'], user_dict['pw']))
+    r1 = requests.patch(
+        "http://" + __cf_manager_url__ + "/clusters/" + str(cluster_id) + "/restart?username={0}&password={1}"
+        .format(user_dict['user'], user_dict['pw']))
 
     if r1.status_code != 200:
         # something went horrible wrong
@@ -115,6 +115,21 @@ def restart_app(cluster_id, user_dict):
 
     print("...done.")
     return
+
+
+def hex_comp2dec(h: str) -> int:
+    s = np.binary_repr(int(str(h), 16), 8)
+    if s[0] == '1':
+        return -1 * (int(''.join('1' if x == '0' else '0' for x in s), 2) + 1)
+    else:
+        return int(s, 2)
+
+
+def dec2hex(x: int, width=8) -> str:
+    enc = np.binary_repr(x, width=width)
+    # return hex(int(enc, 2))
+    fm_str = "0x{:0" + str(width//4) + "x}"
+    return fm_str.format(int(enc, 2))
 
 
 class DosaRoot:
@@ -165,6 +180,7 @@ class DosaRoot:
         self.number_of_cpu_nodes = 0
         self.own_rank = -1
         self._root_rank = 0
+        self._quantize_input = False  # DOSA_REPLACE_input_flag
 
     # def _prepare_data(self, tmp_array):
     #     bin_str = ''
@@ -273,9 +289,10 @@ class DosaRoot:
         for node in cluster['nodes']:
             # if node['image_id'] == __NON_FPGA_IDENTIFIER__:
             if node['node_ip'] == sw_node_id:
-                    continue
-            subprocess.call(["/usr/bin/ping", "-I{}".format(host_address), "-c{}".format(ping_cnt), "{0}".format(node['node_ip'])],
-                            stdout=subprocess.PIPE, cwd=os.getcwd())
+                continue
+            subprocess.call(
+                ["/usr/bin/ping", "-I{}".format(host_address), "-c{}".format(ping_cnt), "{0}".format(node['node_ip'])],
+                stdout=subprocess.PIPE, cwd=os.getcwd())
         # init
         # Usage: ./zrlmpi_cpu_app <tcp|udp> <host-address> <cluster-size> <own-rank> <ip-rank-1> <ip-rank-2> <...>
         arg_list = ['udp', str(host_address), str(number_of_nodes), str(sw_node_id)]
@@ -285,8 +302,58 @@ class DosaRoot:
         self.init(arg_list)
         print("...done.")
 
+    def _transform_input(self, batch_data: np.ndarray):
+        """function necessary in case of quantized inputs"""
+        multi_thresholding_array = []  # DOSA_REPLACE_thresholding_array
+
+        for cid in range(len(batch_data)):
+            vector_data = batch_data[cid]
+            assert len(vector_data) == len(multi_thresholding_array)
+
+            def thresholding_func(idx, x):
+            # def thresholding_func(channel_id, x):
+                res = 0
+                # as done by FINN:
+                #  https://github.com/Xilinx/finn-hlslib/blob/27fd7a2b50a031cbb97142e8c2d1f234671de579/activations.hpp#L218
+                for e in multi_thresholding_array[idx]:
+                    if x < e:
+                        res += 1
+                return res
+
+            # vfunc = np.vectorize(thresholding_func)
+            # new_data = vfunc(vector_data)
+            new_list = []
+            for i in range(len(vector_data)):
+                elem = vector_data[i]
+                ne = thresholding_func(i, elem)
+                new_list.append(ne)
+            new_data = np.array(new_list)
+            batch_data[cid] = new_data
+
+    def _encode_input(self, batch_data: np.array):
+
+        def encoding_func(x):
+            # TODO: allow custom fixed point formats?
+            enc = Fxp(x, signed=True, n_word=self.nbits, n_frac=(self.nbits - 1))
+            ret = hex_comp2dec(enc.hex())  # TODO: more efficient way
+            return ret
+
+        vfunc = np.vectorize(encoding_func)
+
+        for cid in range(len(batch_data)):
+            vector_data = batch_data[cid]
+            new_data = vfunc(vector_data)
+            batch_data[cid] = new_data
+
+    def _decode_output(self, output_data: np.array):
+        # TODO: allow custom fixed point formats?
+        dec = Fxp([0], signed=True, n_word=self.nbits, n_frac=(self.nbits - 1))
+        dec.set_val(output_data, raw=True)
+        rescaled = np.array(dec)
+        return rescaled
+
     # def infer(self, x: np.ndarray, output_shape, debug=False):
-    def infer_batch(self, x: np.ndarray, output_shape: tuple, debug=False):
+    def infer_batch(self, x: np.ndarray, output_shape: tuple = (1, 1), debug=False):
         if len(x.shape) < 2:
             print("[DOSA:infer_batch:ERROR] input array must be an array of arrays (i.e. [[1,2], [3,4]]).")
             return -1
@@ -296,6 +363,9 @@ class DosaRoot:
         za = np.zeros(x[0].shape, self.ndtype)
         batch_size = len(x)
         input_data = x.astype(self.ndtype)
+        if self._quantize_input:
+            self._transform_input(input_data)
+        self._encode_input(input_data)
         single_input_length = int(self.n_bytes * input_data[0].size)
         single_output_length = int(self.n_bytes)
         for d in output_shape:
@@ -305,12 +375,12 @@ class DosaRoot:
             # added_zero_tensors = 0
             # batch_input = input_data
             added_zero_tensors = self.pipeline_store_depth
-            batch_input = np.vstack([input_data, [za]*added_zero_tensors])
+            batch_input = np.vstack([input_data, [za] * added_zero_tensors])
             if (batch_size + added_zero_tensors - self.minimum_input_batch_size) % self.pipeline_full_batch_size != 0:
                 add_zt = self.pipeline_full_batch_size - ((batch_size + added_zero_tensors
                                                            - self.minimum_input_batch_size)
                                                           % self.pipeline_full_batch_size)
-                batch_input = np.vstack([batch_input, [za]*add_zt])
+                batch_input = np.vstack([batch_input, [za] * add_zt])
                 added_zero_tensors += add_zt
             output_batch_num = len(batch_input) - self.pipeline_store_depth
             # if batch_size % self.minimum_input_batch_size != 0:
@@ -325,7 +395,7 @@ class DosaRoot:
             # if batch_size < self.pipeline_full_batch_size:
             if batch_size % self.pipeline_full_batch_size != 0:
                 added_zero_tensors = self.pipeline_full_batch_size - (batch_size % self.pipeline_full_batch_size)
-                batch_input = np.vstack([input_data, [za]*added_zero_tensors])
+                batch_input = np.vstack([input_data, [za] * added_zero_tensors])
             else:
                 added_zero_tensors = 0
                 batch_input = input_data
@@ -353,14 +423,17 @@ class DosaRoot:
         c_input = batch_input.ctypes.data_as(ctypes.POINTER(ctypes.c_char))
         c_input_num = ctypes.c_uint32(input_num)
         # +4 to avoid SEGFAULT
-        output_placeholder = bytearray(output_total_length + 4*self.n_bytes)
-        output_array = self.ctype * int((output_total_length/self.n_bytes) + 4)
+        output_placeholder = bytearray(output_total_length + 4 * self.n_bytes)
+        output_array = self.ctype * int((output_total_length / self.n_bytes) + 4)
         c_output = output_array.from_buffer(output_placeholder)
         # output_placeholder = self.c_lib.malloc((output_total_length + 4) * ctypes.sizeof(self.ctype))
         c_output = ctypes.cast(c_output, ctypes.POINTER(ctypes.c_char))
         c_output_num = ctypes.c_uint32(output_batch_num)
         if debug:
-            print("[DOSA:DEBUG] c_input size {}; c_input_num: {}; c_output size {}; c_output_num {}; n_bytes {};".format(len(batch_input)*single_input_length, input_num, output_total_length + 4*self.n_bytes, output_batch_num, self.n_bytes))
+            print(
+                "[DOSA:DEBUG] c_input size {}; c_input_num: {}; c_output size {}; c_output_num {}; n_bytes {};".format(
+                    len(batch_input) * single_input_length, input_num, output_total_length + 4 * self.n_bytes,
+                    output_batch_num, self.n_bytes))
 
         infer_start = time.time()
 
@@ -379,14 +452,16 @@ class DosaRoot:
 
         output_deserialized = np.frombuffer(output_placeholder, dtype=self.ndtype)
         try:
-            output = np.reshape(output_deserialized[:-4], newshape=total_output_shape)  # -4 is sufficient, due to data-type!
+            output = np.reshape(output_deserialized[:-4],
+                                newshape=total_output_shape)  # -4 is sufficient, due to data-type!
         except Exception as e:
             print('[DOSA:runtime:ERROR] {}.\n'.format(e))
             print(output_deserialized)
             output = output_deserialized[:-4]
 
         expected_output = output[0:expected_num_output]
-        return expected_output
+        rescaled_output = self._decode_output(expected_output)
+        return rescaled_output
 
     def reset(self, force=False):
         self.c_lib.reset_state()
@@ -395,5 +470,3 @@ class DosaRoot:
 
     def cleanup(self):
         self.c_lib.cleanup()
-
-

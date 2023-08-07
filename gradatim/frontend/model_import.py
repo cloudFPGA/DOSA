@@ -157,7 +157,10 @@ def user_import_from_torchscript(model_path, user_constraints, calibration_data_
         onnx_folder_path = os.path.abspath(f"{dosa_singleton.config.global_build_dir}/quantized_model/")
         os.system(f"mkdir -p {onnx_folder_path}")
         onnx_model_path = f"{onnx_folder_path}/{q_model.name.replace(' ', '')}_quantized.onnx"
-        export_DOSA_onnx(module=q_model, input_shape=in_shape_tupel, export_path=onnx_model_path)
+        list_of_removed_float_transformations = []
+        export_DOSA_onnx(module=q_model, input_shape=in_shape_tupel, export_path=onnx_model_path,
+                         returnlist_removed_inputs=list_of_removed_float_transformations)
+        dosa_singleton.objects.quant_module.list_of_removed_float_transformations = list_of_removed_float_transformations
         new_input_dict = {'global_in': list(in_shape_tupel)}
         mod_i, params_i = onnx_import(onnx_model_path, new_input_dict, input_dtype, debug_mode)
         # overwrite datatypes later
