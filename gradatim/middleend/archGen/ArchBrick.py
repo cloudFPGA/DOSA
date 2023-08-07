@@ -242,7 +242,7 @@ class ArchBrick(object):
         self.flops_conv_factor = get_flops_conv_factor(self.used_dtype)
         self.update_dims()
 
-    def reconstruct_from_op_list(self, op_list, only_dims=False):
+    def reconstruct_from_op_list(self, op_list, only_dims=False, with_label=False):
         if not only_dims:
             self.oid_cnt = 0
             self.ops = {}
@@ -250,6 +250,7 @@ class ArchBrick(object):
         total_uinp = 0
         total_params = 0
         self.input_bytes = 0
+        new_label = 'fn('
         for op in op_list:
             if self.input_bytes == 0:
                 # first op
@@ -260,6 +261,7 @@ class ArchBrick(object):
             self.output_bytes = op.output_bytes
             if not only_dims:
                 self.add_arch_op(op)
+            new_label += op.op_call.split('.')[-1] + ', '
         # TODO: use total_uinp?
         # self.oi_engine = (total_uinp + total_params) / total_flops
         # self.oi_stream = total_uinp / total_flops
@@ -267,6 +269,8 @@ class ArchBrick(object):
         self.oi_stream = self.input_bytes / total_flops
         self.flops = total_flops
         self.parameter_bytes = total_params
+        if with_label:
+            self.fn_label = new_label[:-2] + ')'
         self.update_dims()
 
     def set_brick_id(self, brick_id):
@@ -284,7 +288,7 @@ class ArchBrick(object):
         op.set_local_op_id(o_id)
         self.ops[o_id] = op
         if not not_update_counters:
-            self.reconstruct_from_op_list(self.ops.values(), only_dims=True)
+            self.reconstruct_from_op_list(self.ops.values(), only_dims=True, with_label=True)
         already_considered_contr = []
         for opc in op.possible_contracts:
             for my_contr in self.available_contracts + [self.selected_contract]:

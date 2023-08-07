@@ -325,7 +325,7 @@ def annotate_required_performance(arch_draft: ArchDraft):
     # return arch_draft
 
 
-def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE):
+def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.STREAM):
     if draft.strategy == OptimizationStrategies.THROUGHPUT:
         target_throughput = draft.target_sps * draft.sample_size_B
         for node in draft.node_iter_gen():
@@ -410,7 +410,7 @@ def check_perf_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.E
     return False
 
 
-def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.ENGINE):
+def check_annotations(draft: ArchDraft, fallback_impl_type=BrickImplTypes.STREAM):
     perf_result = check_perf_annotations(draft, fallback_impl_type)
     if not perf_result:
         return False

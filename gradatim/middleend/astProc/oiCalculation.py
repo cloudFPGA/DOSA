@@ -299,4 +299,6 @@ class OiCalculator(object):
         oi_uinp = float(flop_total) / float(input_B)
         return oi_cmpl, oi_uinp, flop_total
 
-
+    def calc_multi_threshold(self, op_name, data_dim, param_dim, out_dim, attrs, size_b):
+        # for the FPGA, it should be done within 1 cycle  --> ignore for now
+        return 0.0, 0.0, 0.0
