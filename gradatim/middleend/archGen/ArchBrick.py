@@ -242,9 +242,10 @@ class ArchBrick(object):
         self.flops_conv_factor = get_flops_conv_factor(self.used_dtype)
         self.update_dims()
 
-    def reconstruct_from_op_list(self, op_list):
-        self.oid_cnt = 0
-        self.ops = {}
+    def reconstruct_from_op_list(self, op_list, only_dims=False):
+        if not only_dims:
+            self.oid_cnt = 0
+            self.ops = {}
         total_flops = 0
         total_uinp = 0
         total_params = 0
@@ -257,7 +258,8 @@ class ArchBrick(object):
             total_uinp += op.input_bytes
             total_params += op.parameter_bytes
             self.output_bytes = op.output_bytes
-            self.add_arch_op(op)
+            if not only_dims:
+                self.add_arch_op(op)
         # TODO: use total_uinp?
         # self.oi_engine = (total_uinp + total_params) / total_flops
         # self.oi_stream = total_uinp / total_flops
@@ -276,17 +278,13 @@ class ArchBrick(object):
     def set_tvm_args(self, tvm_arg_dict):
         self.tvm_args = tvm_arg_dict
 
-    def add_arch_op(self, op: ArchOp, update_counters=False):
+    def add_arch_op(self, op: ArchOp, not_update_counters=False):
         o_id = self.oid_cnt
         self.oid_cnt += 1
         op.set_local_op_id(o_id)
         self.ops[o_id] = op
-        if update_counters:
-            self.parameter_bytes += op.parameter_bytes
-            self.flops += op.flops
-            self.output_bytes = op.output_bytes
-            self.oi_engine = self.flops / (self.input_bytes + self.parameter_bytes)
-            self.oi_stream = self.flops / self.input_bytes
+        if not not_update_counters:
+            self.reconstruct_from_op_list(self.ops.values(), only_dims=True)
         already_considered_contr = []
         for opc in op.possible_contracts:
             for my_contr in self.available_contracts + [self.selected_contract]:

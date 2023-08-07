@@ -106,7 +106,7 @@ def write_bias_value(bias_data, name, nbits, target):
 
 
 def write_kernel_value(kernel_data, layer_name, nbits, target):
-    #kernel_data  = data
+    # kernel_data  = data
 
     scale_factor = to_scaleFactor(nbits)
     out_size = kernel_data.shape[0]
@@ -135,26 +135,28 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
 
     # In some Networks, such AlexNet, neurons from layer l are not totally connected to layer l+1
     # But only a group is connected. We manage this as follows:
-    #target.write(" (")
+    # target.write(" (")
     for n in range(out_size):
         target.write(f" {n} => (")
         for m in range(in_size):
             for i in range(0, kernel_size):
                 for j in range(0, kernel_size):
-            # for i in range(kernel_size - 1, -1, -1):
-            #     for j in range(kernel_size - 1, -1, -1):
+                    # for i in range(kernel_size - 1, -1, -1):
+                    #     for j in range(kernel_size - 1, -1, -1):
                     if kernel_fp[n][m][i][j] > upper_bound:
-                        print(f"[:HADDOC:INFO] weight at {n}, {m}, {i}, {j} above upper bound ({kernel_fp[n][m][i][j]}), setting to {upper_bound}.")
+                        print(
+                            f"[:HADDOC:INFO] weight at {n}, {m}, {i}, {j} above upper bound ({kernel_fp[n][m][i][j]}), setting to {upper_bound}.")
                         kernel_fp[n][m][i][j] = upper_bound
                     if kernel_fp[n][m][i][j] < lower_bound:
-                        print(f"[:HADDOC:INFO] weight at {n}, {m}, {i}, {j} below lower bound ({kernel_fp[n][m][i][j]}), setting to {lower_bound}.")
+                        print(
+                            f"[:HADDOC:INFO] weight at {n}, {m}, {i}, {j} below lower bound ({kernel_fp[n][m][i][j]}), setting to {lower_bound}.")
                         kernel_fp[n][m][i][j] = lower_bound
                     kernel_bin = np.binary_repr(
                         kernel_fp[n][m][i][j], width=nbits)
                     target.write("\"" + kernel_bin + "\"")
                     # if (m != in_size - 1 or i != 0 or j != 0):
                     if (m != in_size - 1) or (i != kernel_size - 1) or (j != kernel_size - 1):
-                            target.write(",")
+                        target.write(",")
             # if (m == in_size - 1):
             #     if (n != out_size - 1):
             #         target.write("),\n (")
@@ -179,26 +181,41 @@ def write_multi_threshold(target_file, vector_data, nbit_in, nbit_out, tab_facto
     upper_bound_in = np.power(2, nbit_in - 1) - 1
     lower_bound_in = -np.power(2, nbit_in - 1)
     fix_threshold_value = 1
-    while (np.max(vector_data)/fix_threshold_value) > upper_bound_in or \
-        (np.min(vector_data)/fix_threshold_value) < lower_bound_in:
+    # FIXME
+    while (np.max(vector_data) / fix_threshold_value) > upper_bound_in or \
+            (np.min(vector_data) / fix_threshold_value) < lower_bound_in:
         fix_threshold_value += 1
-        print(f"[:VHDL4CNN:INFO] threshold vector contains to large value entries, need to floor by a factor of {fix_threshold_value}.")
+    if fix_threshold_value != 1:
+        print(
+            f"[:VHDL4CNN:INFO] threshold vector contains to large value entries, need to floor by a factor of {fix_threshold_value}.")
+    next_outline = ''
+    outline = ''
+    first_line_written = False
     for out_value, threshold_value in zip(out_values, vector_data):
-        if out_value != lower_bound:
-            target_file.write(line_indent)
-        # nbit_out_adapted = nbit_out
-        # if out_value < 0:
-        #     nbit_out_adapted -= 1
-        # nbit_in_adapted = nbit_in
-        # if threshold_value < 0:
-        #     nbit_in_adapted -= 1
-        # FIXME
-        fixed_threshold_value = np.floor(threshold_value/fix_threshold_value).astype(int)
-        target_file.write('"{}" when in_data <= "{}" else\n'.format(
-            np.binary_repr(out_value, width=nbit_out), np.binary_repr(fixed_threshold_value, width=nbit_in)))
+        fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
+        if fixed_threshold_value != last_fixed_threshold_value:
+            outline += next_outline
+            if len(outline) > 2:
+                first_line_written = True
+        # else merge with previous and overwrite
+        next_outline = ''
+        if out_value != lower_bound and first_line_written:
+            # target_file.write(line_indent)
+            next_outline += line_indent
+        # target_file.write('"{}" when in_data < "{}" else\n'.format(
+        #     np.binary_repr(out_value, width=nbit_out), np.binary_repr(fixed_threshold_value, width=nbit_in)))
+        # it is exclusive, so < and then >=
+        next_outline += f'"{np.binary_repr(out_value, width=nbit_out)}" when in_data <  ' \
+                        f'"{np.binary_repr(fixed_threshold_value, width=nbit_in)}" else\n'
         last_fixed_threshold_value = fixed_threshold_value
-    target_file.write('{}"{}" when in_data >  "{}";\n'.format(line_indent,
-        np.binary_repr(upper_bound, width=nbit_out), np.binary_repr(last_fixed_threshold_value, width=nbit_in)))
+    outline += next_outline
+    target_file.write(outline)
+    target_file.write('{}"{}" when in_data >= "{}";\n'.format(line_indent,
+                                                              np.binary_repr(upper_bound, width=nbit_out),
+                                                              np.binary_repr(last_fixed_threshold_value,
+                                                                             width=nbit_in)
+                                                              ))
+
 
 # def parse_convLayer(target, cnn, layer_name, previous_layer_name, nbits):
 #     kernel_data = cnn.params[layer_name][0].data

@@ -337,7 +337,8 @@ class vhdl4cnnOSG(BaseOSG):
         wrapper_first_op = ops_implemented_ordered[0]
         wrapper_last_op = None
         # next, create global multi_threshold
-        self._generate_multi_threshold_container(multi_threshold_op_list, multiThresholdContainer_file)
+        if self._block_multi_threshold_used_id > 0:
+            self._generate_multi_threshold_container(multi_threshold_op_list, multiThresholdContainer_file)
         # finally, create the topology
         with open(topFile, 'w') as topf:
             topologyParsing.WriteLibs(topf, arch_block.block_uuid)
@@ -823,7 +824,8 @@ class vhdl4cnnOSG(BaseOSG):
                     cur_id = 0
                     tab = '  '
                     for op in multi_threshold_op_list:
-                        layer_data = op.tvm_args['vars'][0]['ref'].data.numpy()
+                        # layer_data = op.tvm_args['vars'][0]['ref'].data.numpy()
+                        layer_data = op.tvm_args['by_position'][1]['ref'].data.numpy()
                         outline = '\n' + tab + f'multi_threshold_layer{cur_id}: if USED_LAYER_ID = {cur_id} generate\n'
                         skip_write = True
                         out_file.write(outline)

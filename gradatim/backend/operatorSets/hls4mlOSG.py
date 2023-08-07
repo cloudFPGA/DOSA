@@ -102,9 +102,10 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
         while (np.max(vector_data) / fix_threshold_value) > upper_bound_in or \
                 (np.min(vector_data) / fix_threshold_value) < lower_bound_in:
             fix_threshold_value += 1
-            print(
-                f"[OSG:hls4ml:INFO] threshold vector contains to large value entries, need to floor "
-                f"by a factor of {fix_threshold_value}.")
+    if fix_threshold_value:
+        print(
+            f"[OSG:hls4ml:INFO] threshold vector contains to large value entries, need to floor "
+            f"by a factor of {fix_threshold_value}.")
     outline = tab + f'// "casting" of {in_var_name}[] to {out_var_name}[] using multi_threshold operation'  # no \n
     for channel_id in range(channel_num):
         vector_data = layer_data[channel_id].astype(int)
@@ -114,7 +115,9 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
         last_fixed_lower_threshold_value = lower_bound_in - 1
         next_outline = ''
         for out_value, threshold_value in zip(out_values, vector_data):
-            fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
+            # fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
+            # it is exclusive, so < and then >= ...meaning -1
+            fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int) - 1
             new_lower_value = last_fixed_upper_threshold_value + 1
             if fixed_threshold_value == last_fixed_upper_threshold_value:
                 # merge with previous and overwrite
