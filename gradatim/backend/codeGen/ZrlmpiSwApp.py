@@ -67,14 +67,16 @@ def generate_quantized_node_root(template_file_path, outfile_path, out_dims):
                         break
                 np.set_printoptions(threshold=sys.maxsize)
                 base_indent = line.split('multi_')[0]
-                outline = base_indent + 'multi_thresholding_array = ['
+                outline = base_indent + 'multi_thresholding_array = [\n'
                 indent = ' ' * len(outline)
                 # thresholding is always 2D
                 for vector in actual_array:
                     strs_s = str(vector)
                     strs = strs_s.split('\n')
                     for ll in strs:
-                        outline += '\n' + indent
+                        if ll[0] != '[':
+                            outline += '\n'
+                        outline += indent
                         lln = ll.split(' ')
                         for number in lln:
                             if len(number) == 0:
@@ -84,7 +86,7 @@ def generate_quantized_node_root(template_file_path, outfile_path, out_dims):
                             else:
                                 outline += number
                     outline += ',\n'
-                outline = outline[:-2] + '\n' + indent + ']\n'
+                outline = outline[:-2] + '\n' + indent[:-2] + ']\n'
             else:
                 outline = line
             out_file.write(outline)

@@ -181,6 +181,7 @@ class DosaRoot:
         self.own_rank = -1
         self._root_rank = 0
         self._quantize_input = False  # DOSA_REPLACE_input_flag
+        self._transform_vfunc_array = []
 
     # def _prepare_data(self, tmp_array):
     #     bin_str = ''
@@ -300,42 +301,63 @@ class DosaRoot:
             arg_list.append(e)
         # print(arg_list)
         self.init(arg_list)
+        if self._quantize_input:
+            self._transform_func_init()
         print("...done.")
+
+    def _transform_func_init(self):
+        self._transform_vfunc_array = []
+
+        multi_thresholding_array = []  # DOSA_REPLACE_thresholding_array
+
+        def thresholding_func(idx, x):
+            # def thresholding_func(channel_id, x):
+            res = 0
+            # as done by FINN:
+            #  https://github.com/Xilinx/finn-hlslib/blob/27fd7a2b50a031cbb97142e8c2d1f234671de579/activations.hpp#L218
+            for e in multi_thresholding_array[idx]:
+                if x < e:
+                    res += 1
+            return res
+
+        # for number_elem in multi_thresholding_array:
+        for i in range(len(multi_thresholding_array)):
+            vfunc_lambda = lambda x: thresholding_func(i, x)
+            vfunc = np.vectorize(vfunc_lambda)
+            self._transform_vfunc_array.append(vfunc)
 
     def _transform_input(self, batch_data: np.ndarray):
         """function necessary in case of quantized inputs"""
-        multi_thresholding_array = []  # DOSA_REPLACE_thresholding_array
 
-        for cid in range(len(batch_data)):
-            vector_data = batch_data[cid]
-            assert len(vector_data) == len(multi_thresholding_array)
-
-            def thresholding_func(idx, x):
-            # def thresholding_func(channel_id, x):
-                res = 0
-                # as done by FINN:
-                #  https://github.com/Xilinx/finn-hlslib/blob/27fd7a2b50a031cbb97142e8c2d1f234671de579/activations.hpp#L218
-                for e in multi_thresholding_array[idx]:
-                    if x < e:
-                        res += 1
-                return res
+        for bid in range(len(batch_data)):
+            one_batch_data = batch_data[bid]
+            # assert len(one_batch_data) == len(multi_thresholding_array)
+            assert one_batch_data.size == len(self._transform_vfunc_array)
 
             # vfunc = np.vectorize(thresholding_func)
             # new_data = vfunc(vector_data)
-            new_list = []
-            for i in range(len(vector_data)):
-                elem = vector_data[i]
-                ne = thresholding_func(i, elem)
-                new_list.append(ne)
-            new_data = np.array(new_list)
-            batch_data[cid] = new_data
+            # new_list = []
+            # # for i in range(len(vector_data)):
+            #     elem = vector_data[i]
+            #     ne = thresholding_func(i, elem)
+            #     new_list.append(ne)
+            # new_data = np.array(new_list)
+            ret_list = []
+            i = 0
+            # TODO: more efficient way? vectorize self._transform_vfunc?
+            for x in np.nditer(one_batch_data):
+                new_x = self._transform_vfunc_array[i](x)
+                ret_list.append(new_x)
+                i += 1
+            new_data = np.array(ret_list).reshape(one_batch_data.shape)
+            batch_data[bid] = new_data
 
     def _encode_input(self, batch_data: np.array):
 
         def encoding_func(x):
             # TODO: allow custom fixed point formats?
             enc = Fxp(x, signed=True, n_word=self.nbits, n_frac=(self.nbits - 1))
-            ret = hex_comp2dec(enc.hex())  # TODO: more efficient way
+            ret = hex_comp2dec(enc.hex())  # TODO: more efficient way?
             return ret
 
         vfunc = np.vectorize(encoding_func)
@@ -363,9 +385,16 @@ class DosaRoot:
         za = np.zeros(x[0].shape, self.ndtype)
         batch_size = len(x)
         input_data = x.astype(self.ndtype)
+        transform_time = 0.0
         if self._quantize_input:
+            transform_start = time.time()
             self._transform_input(input_data)
+            transform_stop = time.time()
+            transform_time = transform_stop - transform_start
+        encoding_start = time.time()
         self._encode_input(input_data)
+        encoding_stop = time.time()
+        encoding_time = encoding_stop - encoding_start
         single_input_length = int(self.n_bytes * input_data[0].size)
         single_output_length = int(self.n_bytes)
         for d in output_shape:
@@ -449,6 +478,7 @@ class DosaRoot:
         infer_time = infer_stop - infer_start
         if debug:
             print(f'DOSA inference run returned {rc} after {infer_time}s.')
+            print(f'\t(input quantization took {transform_time}s and fixpoint encoding took {encoding_time}s).')
 
         output_deserialized = np.frombuffer(output_placeholder, dtype=self.ndtype)
         try:
