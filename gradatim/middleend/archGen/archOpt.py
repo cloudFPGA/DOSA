@@ -215,6 +215,8 @@ class MergeOpClass:
         op_merge_receive.tvm_args['by_position'][1]['ref'] = new_c
         op_merge_receive.tvm_args['vars'][0]['ref'] = new_c
         op_merge_receive.merged_ops = [op_to_be_merged]
+        print(f"[DOSA:MergeOps:INFO] Merged multi_threshold {repr(op_to_be_merged)} into {repr(op_merge_receive)} "
+              f"successfully.")
         return op_merge_receive
 
 
