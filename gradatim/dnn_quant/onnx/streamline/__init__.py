@@ -32,9 +32,9 @@ from qonnx.transformation.general import ConvertSubToAdd, ConvertDivToMul, GiveU
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.remove import RemoveIdentityOps
 
-from dnn_quant.onnx.streamline.collapse_repeated import CollapseRepeatedAdd, CollapseRepeatedMul
-from dnn_quant.onnx.streamline.round_thresholds import RoundAndClipThresholds
-from dnn_quant.onnx.streamline.sign_to_thres import ConvertSignToThres
+from gradatim.dnn_quant.onnx.streamline.collapse_repeated import CollapseRepeatedAdd, CollapseRepeatedMul
+from gradatim.dnn_quant.onnx.streamline.round_thresholds import RoundAndClipThresholds
+from gradatim.dnn_quant.onnx.streamline.sign_to_thres import ConvertSignToThres
 
 from .absorb import (
     Absorb1BitMulIntoConv,

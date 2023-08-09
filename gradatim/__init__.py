@@ -26,5 +26,5 @@
 #  *
 #  *
 
-from . dosa import dosa
+from . dosa import dosa, DosaModelType
 
