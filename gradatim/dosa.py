@@ -220,9 +220,10 @@ IBM cloudFPGA Distributed Operator Set Architectures (DOSA) [version gradatim]
 
 Usage: 
     {arg0} onnx <path-to-dosa_config.json> <path-to-model.file> <path-to-constraints.json> \
-<path-to-build_dir> [--no-roofline|--no-build|--only-stats|--only-coverage]
+<path-to-build_dir> [--map-weights <path-to-weights_map.npy>] [--no-roofline|--no-build|--only-stats|--only-coverage]
     {arg0} torchscript <path-to-dosa_config.json> <path-to-model.file> <path-to-constraints.json> \
-<path-to-build_dir> [--calibration-data <pat-to-data.npy>] [--no-roofline|--no-build|--only-stats|--only-coverage]
+<path-to-build_dir> [--calibration-data <path-to-calibration_data.npy>] [--map-weights <path-to-weights_map.npy>] \
+[--no-roofline|--no-build|--only-stats|--only-coverage]
 
     {arg0} -h|--help
     {arg0} -v|--version
@@ -240,9 +241,13 @@ Options:
     <path-to-constraints.json>              Path the the constraints JSON.
     <path-to-build_dir>                     Path to the output build folder.
     
-    --calibration-data <pat-to-data.npy>    If the torchscript flow is used, post-training quantization is possible using
-                                            the specified numpy array as calibration data 
-                                            (i.e. training data without labels). 
+    --calibration-data <path-to-calibration_data.npy>   If the torchscript flow is used, post-training quantization 
+                                                        is possible using the specified numpy array as calibration data 
+                                                        (i.e. training data without labels). 
+    --map-weights <path-to-weights_map.npy> To indicate the weights to be mapped on the specified model. This is 
+                                            indicated if the model contains similar sub-graphs, but with different 
+                                            weights, and the resulting naïve model (ONNX/torchscript) would be too large. 
+                                            The weights in the provided model.file will be ignored. 
     
     --no-roofline                           Disables the display of Roofline plots.
     --no-build                              Disables the generation of build files (just Roofline plots are shown).
@@ -255,10 +260,12 @@ Contact: {{ngl,fab,wei,did,hle}}@zurich.ibm.com
 
 
 def cli(args):
-    # print(args)
+    print(args)
 
-    a_dosa_config_path = args['<path-to-dosa_config.json>']
-    a_calibration_data_path = args['--calibration-data']
+    a_dosa_config_path = os.path.abspath(args['<path-to-dosa_config.json>'])
+    a_calibration_data_path = None
+    if args['--calibration-data'] is not None:
+        a_calibration_data_path = os.path.abspath(args['--calibration-data'])
     a_model_type = DosaModelType.UNSUPORTED
     if args['onnx']:
         a_model_type = DosaModelType.ONNX
@@ -268,13 +275,16 @@ def cli(args):
     elif args['torchscript']:
         a_model_type = DosaModelType.TORCHSCRIPT
 
-    a_model_path = os.path.join(args['<path-to-model.file>'])
-    a_const_path = os.path.join(args['<path-to-constraints.json>'])
+    a_model_path = os.path.abspath(args['<path-to-model.file>'])
+    a_const_path = os.path.abspath(args['<path-to-constraints.json>'])
     a_global_build_dir = os.path.abspath(args['<path-to-build_dir>'])
     a_show_graphics = True
     a_generate_build = True
     a_generate_only_stats = False  # default is part of build
     a_generate_only_coverage = False
+    a_map_weights_path = None
+    if args['--map-weights'] is not None:
+        a_map_weights_path = os.path.abspath(args['--map-weights'])
 
     # invalid combinations are caught by docopt
     if args['--no-roofline']:
