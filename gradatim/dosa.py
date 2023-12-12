@@ -260,7 +260,7 @@ Contact: {{ngl,fab,wei,did,hle}}@zurich.ibm.com
 
 
 def cli(args):
-    print(args)
+    # print(args)
 
     a_dosa_config_path = os.path.abspath(args['<path-to-dosa_config.json>'])
     a_calibration_data_path = None
@@ -302,7 +302,8 @@ def cli(args):
         a_generate_only_coverage = True
 
     dosa(a_dosa_config_path, a_model_type, a_model_path, a_const_path, a_global_build_dir, a_show_graphics,
-         a_generate_build, a_generate_only_stats, a_generate_only_coverage, a_calibration_data_path)
+         a_generate_build, a_generate_only_stats, a_generate_only_coverage, a_calibration_data_path,
+         a_map_weights_path)
 
 
 if __name__ == '__main__':
