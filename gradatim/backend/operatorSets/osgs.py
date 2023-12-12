@@ -32,6 +32,7 @@ from gradatim.backend.operatorSets.TvmCpuOsg import TvmCpuOsg
 from gradatim.backend.operatorSets.vhdl4cnnOSG import vhdl4cnnOSG
 from gradatim.backend.operatorSets.TipsOSG import TipsOSG
 from gradatim.backend.operatorSets.VtaOSG import VtaOSG
+from gradatim.backend.operatorSets.olympusOSG import OlympusOSG
 
 
 # add all available OSGs here
@@ -40,12 +41,15 @@ osg_tvmCpu = TvmCpuOsg()
 osg_vhdl4cnn = vhdl4cnnOSG()
 # osg_tips = TipsOSG()
 # osg_vta = VtaOSG()
+osg_olympus = OlympusOSG()
 
 
 # fpga_OSGs = [osg_hls4ml, osg_vhdl4cnn, osg_tips, osg_vta]
-fpga_OSGs = [osg_hls4ml, osg_vhdl4cnn]
+# fpga_OSGs = [osg_hls4ml, osg_vhdl4cnn]
+fpga_OSGs = [osg_hls4ml, osg_vhdl4cnn, osg_olympus]
 # builtin_OSGs = [osg_hls4ml, osg_vhdl4cnn, osg_tvmCpu]
-builtin_OSGs = [osg_hls4ml, osg_vhdl4cnn]
+# builtin_OSGs = [osg_hls4ml, osg_vhdl4cnn]
+builtin_OSGs = [osg_hls4ml, osg_vhdl4cnn, osg_olympus]
 
 
 def merge_ops_dict(osgs):
