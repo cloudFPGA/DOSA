@@ -30,6 +30,7 @@ import os
 import sys
 import json
 from enum import Enum
+from docopt import docopt
 
 import gradatim.lib.singleton as dosa_singelton
 from gradatim.frontend.user_constraints import parse_uc_dict
@@ -45,6 +46,8 @@ from gradatim.lib.plot_throughput import generate_throughput_plt_nodes, generate
 from gradatim.backend.commLibs.commlibs import builtin_comm_libs
 from gradatim.backend.commLibs.BaseCommLib import sort_commLib_list
 
+
+__dosa_version__ = 0.6
 __mandatory_config_keys__ = ['input_latency', 'output_latency', 'dtypes', 'dosa_learning', 'build',
                              # 'engine_saving_threshold', 'generate_testbenchs', 'comm_message_pipeline_store',
                              # 'create_rank_0_for_io', 'insert_debug_cores'
@@ -60,7 +63,7 @@ class DosaModelType(Enum):
 
 def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_path: str, global_build_dir: str,
          show_graphics: bool = True, generate_build: bool = True, generate_only_stats: bool = False,
-         generate_only_coverage: bool = False, calibration_data: str = None):
+         generate_only_coverage: bool = False, calibration_data: str = None, map_weights_path: str = None):
     __filedir__ = os.path.dirname(os.path.abspath(__file__))
 
     with open(dosa_config_path, 'r') as inp:
@@ -212,66 +215,87 @@ def print_usage(sys_argv):
     exit(1)
 
 
-def cli():
-    if len(sys.argv) < 6 or len(sys.argv) > 9:
-        print(f"provided {str(len(sys.argv))} args:" + "\t:\t" + str(sys.argv))
-        print_usage(sys.argv)
+__dosa_doc_fstr__ = """
+IBM cloudFPGA Distributed Operator Set Architectures (DOSA) [version gradatim]
 
-    # TODO: use argparse
-    if (len(sys.argv) == 7 and (sys.argv[6] != '--no-roofline' and sys.argv[6] != '--no-build'
-                               and sys.argv[6] != '--only-stats' and sys.argv[6] != '--only-coverage')) or \
-            (len(sys.argv) == 9 and (sys.argv[8] != '--no-roofline' and sys.argv[8] != '--no-build'
-                               and sys.argv[8] != '--only-stats' and sys.argv[8] != '--only-coverage')) or \
-            (len(sys.argv) >= 8 and sys.argv[6][:18] != '--calibration-data'):
-        print_usage(sys.argv)
+Usage: 
+    {arg0} onnx <path-to-dosa_config.json> <path-to-model.file> <path-to-constraints.json> \
+<path-to-build_dir> [--no-roofline|--no-build|--only-stats|--only-coverage]
+    {arg0} torchscript <path-to-dosa_config.json> <path-to-model.file> <path-to-constraints.json> \
+<path-to-build_dir> [--calibration-data <pat-to-data.npy>] [--no-roofline|--no-build|--only-stats|--only-coverage]
 
-    a_dosa_config_path = sys.argv[1]
-    model_type_str = sys.argv[2]
+    {arg0} -h|--help
+    {arg0} -v|--version
+    
+Commands:
+    onnx            Uses the ONNX flow (this excludes post-training quantization).
+    torchscript     Uses the torchscript flow.
+
+Options:
+    -h --help       Show this screen.
+    -v --version    Show version.
+
+    <path-to-dosa_config.json>              Path to the DOSA config JSON.
+    <path-to-model.file>                    Path to the model to compile (either ONNX or torchscript).
+    <path-to-constraints.json>              Path the the constraints JSON.
+    <path-to-build_dir>                     Path to the output build folder.
+    
+    --calibration-data <pat-to-data.npy>    If the torchscript flow is used, post-training quantization is possible using
+                                            the specified numpy array as calibration data 
+                                            (i.e. training data without labels). 
+    
+    --no-roofline                           Disables the display of Roofline plots.
+    --no-build                              Disables the generation of build files (just Roofline plots are shown).
+    --only-stats                            Just print the architecture statistics (and disables all other outputs).
+    --only-coverage                         Just print the OSG coverage (and disable all other outputs).
+
+Copyright IBM Research, licensed under the Apache License 2.0.
+Contact: {{ngl,fab,wei,did,hle}}@zurich.ibm.com
+"""
+
+
+def cli(args):
+    # print(args)
+
+    a_dosa_config_path = args['<path-to-dosa_config.json>']
+    a_calibration_data_path = args['--calibration-data']
     a_model_type = DosaModelType.UNSUPORTED
-    if model_type_str == 'onnx':
+    if args['onnx']:
         a_model_type = DosaModelType.ONNX
-    elif model_type_str == 'torchscript':
+        if a_calibration_data_path is not None:
+            print("ERROR: data calibration only supported for torch script flow")
+            exit(1)
+    elif args['torchscript']:
         a_model_type = DosaModelType.TORCHSCRIPT
-    else:
-        print("ERROR: unsupported flow")
-        print_usage(sys.argv)
 
-    a_model_path = sys.argv[3]
-    a_const_path = sys.argv[4]
-    a_global_build_dir = os.path.abspath(sys.argv[5])
+    a_model_path = os.path.join(args['<path-to-model.file>'])
+    a_const_path = os.path.join(args['<path-to-constraints.json>'])
+    a_global_build_dir = os.path.abspath(args['<path-to-build_dir>'])
     a_show_graphics = True
     a_generate_build = True
     a_generate_only_stats = False  # default is part of build
     a_generate_only_coverage = False
-    a_calibration_data_path = None
 
-    if len(sys.argv) == 8 or len(sys.argv) == 9:
-        if a_model_type != DosaModelType.TORCHSCRIPT:
-            print("ERROR: data calibration only supported for torch script flow")
-            exit(1)
-        a_calibration_data_path = sys.argv[7]
-
-    if len(sys.argv) == 7 or len(sys.argv) == 9:
-        opt_arg_index = 6
-        if len(sys.argv) == 9:
-            opt_arg_index = 8
-        if sys.argv[opt_arg_index] == '--no-roofline':
-            a_show_graphics = False
-        if sys.argv[opt_arg_index] == '--no-build':
-            a_generate_build = False
-        if sys.argv[opt_arg_index] == '--only-stats':
-            a_show_graphics = False
-            a_generate_build = False
-            a_generate_only_stats = True
-        if sys.argv[opt_arg_index] == '--only-coverage':
-            a_show_graphics = False
-            a_generate_build = False
-            a_generate_only_stats = False
-            a_generate_only_coverage = True
+    # invalid combinations are caught by docopt
+    if args['--no-roofline']:
+        a_show_graphics = False
+    if args['--no-build']:
+        a_generate_build = False
+    if args['--only-stats']:
+        a_show_graphics = False
+        a_generate_build = False
+        a_generate_only_stats = True
+    if args['--only-coverage']:
+        a_show_graphics = False
+        a_generate_build = False
+        a_generate_only_stats = False
+        a_generate_only_coverage = True
 
     dosa(a_dosa_config_path, a_model_type, a_model_path, a_const_path, a_global_build_dir, a_show_graphics,
          a_generate_build, a_generate_only_stats, a_generate_only_coverage, a_calibration_data_path)
 
 
 if __name__ == '__main__':
-    cli()
+    docstr = __dosa_doc_fstr__.format(arg0=sys.argv[0])
+    arguments = docopt(docstr, version=__dosa_version__)
+    cli(arguments)
