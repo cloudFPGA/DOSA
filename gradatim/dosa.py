@@ -45,6 +45,7 @@ from gradatim.lib.plot_bandwidth import generate_bandwidth_plt
 from gradatim.lib.plot_throughput import generate_throughput_plt_nodes, generate_throughput_plt_bricks
 from gradatim.backend.commLibs.commlibs import builtin_comm_libs
 from gradatim.backend.commLibs.BaseCommLib import sort_commLib_list
+from gradatim.lib.util import BrickImplTypes
 
 
 __dosa_version__ = 0.6
@@ -85,6 +86,16 @@ def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_pat
     available_OSGs = sort_osg_list(all_OSGs, use_internal_prio=False)
     # TODO: extend this list with custom OSGs here
     print_osg_stats = False
+    if map_weights_path is not None:
+        print("\t...Weight mapping activated. Filtering non-compatible OSGs...")
+        filtered_osgs = []
+        for osg in available_OSGs:
+            if BrickImplTypes.ENGINE in osg.possible_impl_types:
+                filtered_osgs.append(osg)
+        if len(filtered_osgs) == 0:
+            print("ERROR: No compatible OSGs available. STOP.")
+            exit(-1)
+        available_OSGs = filtered_osgs
     # init osgs
     prio_int = 0  # get unique internal priorities
     for osg in available_OSGs:

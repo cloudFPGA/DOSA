@@ -158,6 +158,7 @@ class BrickContract(DosaContract):
             if self.impl_type != opc.impl_type or self.device != opc.device \
                     or self.osg.name != opc.osg.name:  # TODO: sometimes comparing the osg objects fails
                 print("[DOSA:contracts:ERROR] Trying to combine un-compatible contracts. STOP.")
+                print(f"The following contracts were tried to be combined to one BrickContract: {self.op_contracts}")
                 exit(1)
             if opc.switching_comp_share > self.switching_comp_share \
                     or opc.switching_mem_share > self.switching_mem_share:

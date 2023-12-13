@@ -148,7 +148,7 @@ class OlympusOSG(BaseOSG):
         super().__init__('olympus OSG', [DosaHwClasses.FPGA_xilinx], complete_dtype_list,
                          [BrickImplTypes.ENGINE])
         # no DosaHwClasses.FPGA_generic, since it is bound to xilinx?
-        self.priority = 92
+        self.priority = 42
         self.existing_layer_names = []
         # self.suggested_max_block_length = 1
         self.util_db = {}
@@ -158,7 +158,7 @@ class OlympusOSG(BaseOSG):
         self._serial_io_threshold = 1024
         self._default_stream_reuse_factor = 32
         self._default_engine_reuse_factor = 2
-        self._olympus_overhead = 1.2
+        self._olympus_overhead = 0.2
 
         self._non_template_instances = {}
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
@@ -168,6 +168,7 @@ class OlympusOSG(BaseOSG):
         with open(__db_path__, 'r') as infile:
             util_data = json.load(infile)
         # my_util = util_data[self.name]
+        # TODO
         my_util = util_data['hls4ml OSG']
         self.util_db = {}
         compl_list = []
@@ -185,7 +186,6 @@ class OlympusOSG(BaseOSG):
         #         (target_hw.hw_class != DosaHwClasses.FPGA_xilinx and target_hw.hw_class != DosaHwClasses.FPGA_generic):
         #     return None
         # for olympus overhead
-        custom_byte_factor *= self._olympus_overhead
         if max_param_dim > 0:
             op_param_dim = 1
             for d in op.dims.param:
@@ -269,8 +269,20 @@ class OlympusOSG(BaseOSG):
                 custom_latency = 1
             latency_ns = custom_latency * target_hw.get_performance_dict()['fpga_clk_ns']
             iter_hz = 1 / (latency_ns * units.nanoU)
-        offer = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz, proc_comp_share, proc_mem_share,
-                                  'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share)
+
+        # FIXME
+        engine_base_comp_share = self._olympus_overhead
+        engine_base_mem_share = self._olympus_overhead
+        detailed_FPGA_engine_base = {}
+        for k, v in proc_share.items():
+            detailed_FPGA_engine_base[k] = v * self._olympus_overhead
+        engine_max_ops = (0.5/proc_comp_share) * iter_hz
+        engine_limiting_bw_Bs = target_hw.get_performance_dict()['bw_dram_gBs'] * units.gigaU
+
+        offer = OperationContract(op, target_hw, self, BrickImplTypes.ENGINE, iter_hz, proc_comp_share, proc_mem_share,
+                                  'default', wrapper_comp_share, wrapper_mem_share, proc_share, wrapper_share,
+                                  engine_base_comp_share, engine_base_mem_share, detailed_FPGA_engine_base,
+                                  engine_max_ops, engine_limiting_bw_Bs)
         offer_list = [offer]
         if not used_fallback:
             updated_proc_share = {}
@@ -281,11 +293,13 @@ class OlympusOSG(BaseOSG):
             updated_proc_share['DSPs'] = proc_share['LUTLOG'] * 0.5
             # util_dict['latency_lim_per_tensor_cycl'] *= 2
             # wrapper stays
-            offer_05 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.5,
+            offer_05 = OperationContract(op, target_hw, self, BrickImplTypes.ENGINE, iter_hz * 0.5,
                                          proc_comp_share * 0.5,
                                          proc_mem_share * 0.5, 'conf:mult_limit=0.5', wrapper_comp_share,
                                          wrapper_mem_share,
-                                         updated_proc_share, wrapper_share)
+                                         updated_proc_share, wrapper_share,
+                                         engine_base_comp_share, engine_base_mem_share, detailed_FPGA_engine_base,
+                                         engine_max_ops * 0.5, engine_limiting_bw_Bs)
             offer_list.append(offer_05)
         updated_proc_share = {}
         updated_proc_share['LUTLOG'] = proc_share['LUTLOG'] * 0.5
@@ -293,11 +307,13 @@ class OlympusOSG(BaseOSG):
         updated_proc_share['Registers'] = proc_share['LUTLOG'] * 0.5
         updated_proc_share['BRAM'] = proc_share['LUTLOG'] * 0.5
         updated_proc_share['DSPs'] = proc_share['LUTLOG'] * 0.5
-        offer_05_2 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.5,
+        offer_05_2 = OperationContract(op, target_hw, self, BrickImplTypes.ENGINE, iter_hz * 0.5,
                                        proc_comp_share * 0.5,
                                        proc_mem_share * 0.5, 'conf:reuse_factor=2', wrapper_comp_share,
                                        wrapper_mem_share,
-                                       updated_proc_share, wrapper_share)
+                                       updated_proc_share, wrapper_share,
+                                       engine_base_comp_share, engine_base_mem_share, detailed_FPGA_engine_base,
+                                       engine_max_ops * 0.5, engine_limiting_bw_Bs)
         offer_list.append(offer_05_2)
 
         updated_proc_share = {}
@@ -306,11 +322,13 @@ class OlympusOSG(BaseOSG):
         updated_proc_share['Registers'] = proc_share['LUTLOG'] * 0.25
         updated_proc_share['BRAM'] = proc_share['LUTLOG'] * 0.25
         updated_proc_share['DSPs'] = proc_share['LUTLOG'] * 0.25
-        offer_025 = OperationContract(op, target_hw, self, BrickImplTypes.STREAM, iter_hz * 0.25,
+        offer_025 = OperationContract(op, target_hw, self, BrickImplTypes.ENGINE, iter_hz * 0.25,
                                       proc_comp_share * 0.25,
                                       proc_mem_share * 0.25, 'conf:reuse_factor=4', wrapper_comp_share,
                                       wrapper_mem_share,
-                                      updated_proc_share, wrapper_share)
+                                      updated_proc_share, wrapper_share,
+                                      engine_base_comp_share, engine_base_mem_share, detailed_FPGA_engine_base,
+                                      engine_max_ops * 0.25, engine_limiting_bw_Bs)
         offer_list.append(offer_025)
         # TODO: add alternative offers
         #  e.g. with alternative reuse factor?
@@ -461,6 +479,16 @@ class OlympusOSG(BaseOSG):
                                                           0.0, 'dummy op', 0.0, 0.0)
         # not covered hls4ml classes:
         #  GarNet, Resize, SeparableConv2D, DepthwiseConv2D
+
+    def _get_dyn_costs(self, contract, add_brick, target_hw):
+        # since we try to make one "instruction" for the complete network, it behaves like streaming?
+        new_brick_contr = self.annotate_brick(add_brick, target_hw, return_instead_annotate=True)
+        if new_brick_contr is None:
+            return -1, -1, -1
+        new_comp_util_share = new_brick_contr.comp_util_share + contract.comp_util_share
+        new_mem_util_share = new_brick_contr.mem_util_share + contract.mem_util_share
+        new_iter_hz = min(contract.iter_hz, new_brick_contr.iter_hz)
+        return new_comp_util_share, new_mem_util_share, new_iter_hz
 
     def _create_unique_layer_name(self, op_name):
         base_str = op_name.replace('.', '_')

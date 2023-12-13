@@ -166,8 +166,11 @@ class BaseOSG(metaclass=abc.ABCMeta):
             new_brick_contr = self.annotate_brick(add_brick, target_hw, return_instead_annotate=True)
             if new_brick_contr is None:
                 return -1, -1, -1
-            return new_brick_contr.comp_util_share, new_brick_contr.mem_util_share, \
-                   min(contract.iter_hz, new_brick_contr.iter_hz)
+            # TODO
+            new_comp_util_share = new_brick_contr.comp_util_share + contract.comp_util_share
+            new_mem_util_share = new_brick_contr.mem_util_share + contract.mem_util_share
+            new_iter_hz = min(contract.iter_hz, new_brick_contr.iter_hz)
+            return new_comp_util_share, new_mem_util_share, new_iter_hz
         elif contract.impl_type == BrickImplTypes.ENGINE:
             return self._get_dyn_costs(contract, add_brick, target_hw)
         return -1, -1, -1
