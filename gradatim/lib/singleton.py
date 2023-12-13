@@ -87,7 +87,9 @@ def init_singleton(config_dict, main_path=None):
     config.quant.bias_dtype = DosaDtype.UNKNOWN
     config.quant.fixed_point_fraction_bits = None
     # config.quant.per_layer_dtypes = {}
-
+    config.quant.max_calibration_steps = 300
+    if 'quant' in config_dict and 'max_calibration_steps' in config_dict['quant']:
+        config.quant.max_calibration_steps = int(config_dict['quant']['max_calibration_steps'])
 
     config.middleend = SimpleNamespace()
     config.middleend.engine_saving_threshold = float(config_dict['build']['engine_saving_threshold'])
