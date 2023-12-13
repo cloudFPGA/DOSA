@@ -162,7 +162,8 @@ class OlympusOSG(BaseOSG):
 
         self._non_template_instances = {}
         me_abs_dir = os.path.dirname(os.path.realpath(__file__))
-        self.my_template_folder = os.path.abspath(me_abs_dir + '/lib/olympus/templates/')
+        # self.my_template_folder = os.path.abspath(me_abs_dir + '/lib/olympus/templates/')
+        self.my_hls4ml_template_folder = os.path.abspath(me_abs_dir + '/lib/hls4ml/templates/')
 
     def _init_util_db_(self):
         with open(__db_path__, 'r') as infile:
@@ -806,62 +807,70 @@ class OlympusOSG(BaseOSG):
 
         self.write_makefile(used_dir_path, project_name, reset=True)
         build_tool.add_makefile_entry(used_dir_path, 'all')
-        # wrapper & interface generation
-        wrapper_input_fifo = InterfaceAxisFifo('input_{}'.format(arch_block.block_uuid),
-                                               wrapper_first_brick.input_bw_Bs, build_tool.target_device)
-        if build_tool.topVhdl.next_proc_comp_cnt == 0:
-            # i.e. we are connected to the input
-            wrapper_input_fifo.bitwidth = wrapper_default_interface_bitwidth
-        if_in_bitw = wrapper_input_fifo.get_if_bitwidth()
-        wrapper_output_fifo = InterfaceAxisFifo('output_{}'.format(arch_block.block_uuid),
-                                                wrapper_last_brick.output_bw_Bs, build_tool.target_device)
-        if len(arch_block.parent_node.arch_block_list) < 2:
-            # we are the only one, so output must also be set
-            wrapper_output_fifo.bitwidth = wrapper_default_interface_bitwidth
-        if_out_bitw = wrapper_output_fifo.get_if_bitwidth()
-        # if_fifo_name = wrapper_input_fifo.get_if_name()
-        if_axis_tcl = wrapper_input_fifo.get_tcl_lines()
-        build_tool.add_tcl_entry(if_axis_tcl)
 
-        wrapper_dir_path = build_tool.add_ip_dir('{}_wrapper'.format(arch_block.block_uuid))
-        if hls_model_config['IOType'] == 'io_serial':
-            block_wrapper = Hls4mlWrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_last_op.dims.out,
-                                          get_bitwidth_of_DosaDtype(wrapper_first_brick.used_dtype),
-                                          get_bitwidth_of_DosaDtype(wrapper_last_brick.used_dtype),
-                                          if_in_bitw, if_out_bitw, wrapper_dir_path)
-        elif hls_model_config['IOType'] == 'io_parallel':
-            block_wrapper = Hls4mlWrapper_Parallel(arch_block.block_uuid, wrapper_first_op.dims.inp,
-                                                   wrapper_last_op.dims.out,
-                                                   get_bitwidth_of_DosaDtype(wrapper_first_brick.used_dtype),
-                                                   get_bitwidth_of_DosaDtype(wrapper_last_brick.used_dtype),
-                                                   if_in_bitw, if_out_bitw, wrapper_dir_path,
-                                                   len(arch_block.brick_list))
-        else:
-            # io_stream
-            print("[DOSA:OSG:ERROR] Hls4mlOSG supports currently only 'io_serial' or 'io_parallel'. STOP.")
-            exit(-1)
-        block_wrapper.generate()
-        build_tool.add_makefile_entry(wrapper_dir_path, 'all')
-        wrapper_inst_tcl = block_wrapper.get_tcl_lines_wrapper_inst()
-        build_tool.add_tcl_entry(wrapper_inst_tcl)
-        wrapper_decl = block_wrapper.get_wrapper_vhdl_decl_lines()
-        wrapper_inst_tmpl = block_wrapper.get_vhdl_inst_tmpl()
+        # TODO
+        # # wrapper & interface generation
+        # wrapper_input_fifo = InterfaceAxisFifo('input_{}'.format(arch_block.block_uuid),
+        #                                        wrapper_first_brick.input_bw_Bs, build_tool.target_device)
+        # if build_tool.topVhdl.next_proc_comp_cnt == 0:
+        #     # i.e. we are connected to the input
+        #     wrapper_input_fifo.bitwidth = wrapper_default_interface_bitwidth
+        # if_in_bitw = wrapper_input_fifo.get_if_bitwidth()
+        # wrapper_output_fifo = InterfaceAxisFifo('output_{}'.format(arch_block.block_uuid),
+        #                                         wrapper_last_brick.output_bw_Bs, build_tool.target_device)
+        # if len(arch_block.parent_node.arch_block_list) < 2:
+        #     # we are the only one, so output must also be set
+        #     wrapper_output_fifo.bitwidth = wrapper_default_interface_bitwidth
+        # if_out_bitw = wrapper_output_fifo.get_if_bitwidth()
+        # # if_fifo_name = wrapper_input_fifo.get_if_name()
+        # if_axis_tcl = wrapper_input_fifo.get_tcl_lines()
+        # build_tool.add_tcl_entry(if_axis_tcl)
 
-        build_tool.topVhdl.add_proc_comp_inst(arch_block, wrapper_decl, wrapper_inst_tmpl, wrapper_input_fifo,
-                                              wrapper_output_fifo)
+        # wrapper_dir_path = build_tool.add_ip_dir('{}_wrapper'.format(arch_block.block_uuid))
+        # if hls_model_config['IOType'] == 'io_serial':
+        #     block_wrapper = Hls4mlWrapper(arch_block.block_uuid, wrapper_first_op.dims.inp, wrapper_last_op.dims.out,
+        #                                   get_bitwidth_of_DosaDtype(wrapper_first_brick.used_dtype),
+        #                                   get_bitwidth_of_DosaDtype(wrapper_last_brick.used_dtype),
+        #                                   if_in_bitw, if_out_bitw, wrapper_dir_path)
+        # elif hls_model_config['IOType'] == 'io_parallel':
+        #     block_wrapper = Hls4mlWrapper_Parallel(arch_block.block_uuid, wrapper_first_op.dims.inp,
+        #                                            wrapper_last_op.dims.out,
+        #                                            get_bitwidth_of_DosaDtype(wrapper_first_brick.used_dtype),
+        #                                            get_bitwidth_of_DosaDtype(wrapper_last_brick.used_dtype),
+        #                                            if_in_bitw, if_out_bitw, wrapper_dir_path,
+        #                                            len(arch_block.brick_list))
+        # else:
+        #     # io_stream
+        #     print("[DOSA:OSG:ERROR] Hls4mlOSG supports currently only 'io_serial' or 'io_parallel'. STOP.")
+        #     exit(-1)
+        # block_wrapper.generate()
+        # build_tool.add_makefile_entry(wrapper_dir_path, 'all')
+        # wrapper_inst_tcl = block_wrapper.get_tcl_lines_wrapper_inst()
+        # build_tool.add_tcl_entry(wrapper_inst_tcl)
+        # wrapper_decl = block_wrapper.get_wrapper_vhdl_decl_lines()
+        # wrapper_inst_tmpl = block_wrapper.get_vhdl_inst_tmpl()
 
-        # adding debug
-        tcl_tmp, decl_tmp, inst_tmp = wrapper_input_fifo.get_debug_lines()
-        build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
-        # unsure if output will be used --> add debug lines later
-        # tcl_tmp, decl_tmp, inst_tmp = wrapper_output_fifo.get_debug_lines()
+        # build_tool.topVhdl.add_proc_comp_inst(arch_block, wrapper_decl, wrapper_inst_tmpl, wrapper_input_fifo,
+        #                                       wrapper_output_fifo)
+
+        # # adding debug
+        # tcl_tmp, decl_tmp, inst_tmp = wrapper_input_fifo.get_debug_lines()
         # build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
-        tcl_tmp, decl_tmp, inst_tmp = block_wrapper.get_debug_lines()
-        build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
-        return 0
+        # # unsure if output will be used --> add debug lines later
+        # # tcl_tmp, decl_tmp, inst_tmp = wrapper_output_fifo.get_debug_lines()
+        # # build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
+        # tcl_tmp, decl_tmp, inst_tmp = block_wrapper.get_debug_lines()
+        # build_tool.topVhdl.debug_core.add_new_probes(tcl_tmp, decl_tmp, inst_tmp)
+        return 0, wrapper_first_op, wrapper_last_op, wrapper_first_brick, wrapper_last_brick, used_dir_path, project_name
 
     def build_container(self, container, build_tool, selected_contracts):
-        return -1
+        # TODO: how for Alveos?
+        rc, wrapper_first_op, wrapper_last_op, wrapper_first_brick, wrapper_last_brick, used_dir_path, project_name = \
+            self._build_compute_block(container.block_ref, build_tool, selected_contracts)
+        if rc != 0:
+            print("[DOSA:olympusOSG:ERROR] Couldn't create hls4ml base module. STOP")
+            exit(-1)
+        return 0
 
     # def generate_brick(self, brick_node: ArchBrick):
     #     pass
@@ -1188,7 +1197,7 @@ class OlympusOSG(BaseOSG):
         dense_op = ops[0] if ops[0].op_call == 'nn.dense' else ops[1]
         threshold_op = ops[0] if ops[0].op_call == 'nn.multi_threshold' else ops[1]
         out_file_path = os.path.abspath(f"{target_path}/custom_layer_{instance_name}.h")
-        with open(os.path.join(self.my_template_folder, 'nnet_dense_latency_with_threshold_template.h'), 'r') as in_file, \
+        with open(os.path.join(self.my_hls4ml_template_folder, 'nnet_dense_latency_with_threshold_template.h'), 'r') as in_file, \
                 open(out_file_path, 'w') as out_file:
             skip_next = False
             for line in in_file.readlines():
@@ -1210,7 +1219,7 @@ class OlympusOSG(BaseOSG):
     def _create_standalone_threshold_instance(self, target_path, instance_name, ops):
         threshold_op = ops[0]
         out_file_path = os.path.abspath(f"{target_path}/custom_layer_{instance_name}.h")
-        with open(os.path.join(self.my_template_folder, 'nnet_thresholding_template.h'), 'r') as in_file, \
+        with open(os.path.join(self.my_hls4ml_template_folder, 'nnet_thresholding_template.h'), 'r') as in_file, \
                 open(out_file_path, 'w') as out_file:
             skip_next = False
             for line in in_file.readlines():
