@@ -51,6 +51,8 @@ from gradatim.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
 from gradatim.backend.operatorSets.lib.hls4ml.DosaFileReader import OsgDataReader
 from gradatim.backend.operatorSets.lib.hls4ml.dosa_to_hls import dosa_to_hls
 from gradatim.middleend.archGen.OperationContract import OperationContract
+from gradatim.backend.codeGen.Hls4mlToEngineConverter import Hls4mlToEngineConverter
+
 
 __filedir__ = os.path.dirname(os.path.abspath(__file__))
 __db_path__ = __filedir__ + '/osg_impl_db.json'
@@ -140,6 +142,14 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
                    f"{tab}{inner_tab * 2}{out_var_name}[{channel_id}] = {upper_bound}; break;\n"
         outline += tab + "}\n"
     return outline
+
+
+def hls_type_to_mlir_type(hls_type):
+    l1 = hls_type.split('<')
+    l2 = l1[1].split('>')
+    w = int(l2[0])
+    mlir_type = f"i{w}"
+    return mlir_type
 
 
 class OlympusOSG(BaseOSG):
@@ -870,6 +880,10 @@ class OlympusOSG(BaseOSG):
         if rc != 0:
             print("[DOSA:olympusOSG:ERROR] Couldn't create hls4ml base module. STOP")
             exit(-1)
+        engine_converter = Hls4mlToEngineConverter(used_dir_path, project_name, build_tool)
+        engine_converter.convert_kernel()
+        channels = engine_converter.detected_channels
+        self._generate_olympus_mlir(channels, used_dir_path, project_name, build_tool, container.block_ref)
         return 0
 
     # def generate_brick(self, brick_node: ArchBrick):
@@ -884,6 +898,90 @@ class OlympusOSG(BaseOSG):
 
     # def estimate_flops_brick(self, brick_node: ArchBrick):
     #     pass
+
+    def _generate_olympus_mlir(self, channels, hls4ml_kernel_dir, hls4ml_project_name, build_tool, arch_block):
+        used_dir_path = build_tool.add_ip_dir(f"{arch_block.block_uuid}_olympus")
+        # index_depth = len(dosa_singleton.objects.map_weights.float_array)
+        index_depth = 10
+        input_channels = [c for c in channels if 'input' in c['dtype']]
+        output_channels = [c for c in channels if 'result' in c['dtype']]
+        weight_channels = [c for c in channels if c not in input_channels and c not in output_channels]
+
+        out_name = 'olympus.mlir'
+        sym_name = "run_inference"
+
+        mlir_text = ''
+        header = '"builtin.module"() ({\n        "func.func"() ({\n                ^bb0('
+        mlir_text += header
+        function_type = ''
+        for c in input_channels:
+            mlir_type = hls_type_to_mlir_type(c['hls_type'])
+            arg_line = f"%arg_{c['name']}: {mlir_type}, "
+            function_type += f"{mlir_type}, "
+        out_line = arg_line[:-2] + '):\n'
+        mlir_text += out_line
+        mlir_text += '\n'
+        indent = '                '
+        kernel_args = ''
+        kernel_type = ''
+        for c in input_channels:
+            mlir_type = hls_type_to_mlir_type(c['hls_type'])
+            nl = f'{indent}%{c["name"]} = "olympus.channel"() {{persistent = true, paramType = "small", depth = {c["depth"]} }} : ' \
+                 f'() -> (!olympus.channel<{mlir_type}>)\n'
+            mlir_text += nl
+            kernel_args += f'%{c["name"]}, '
+            kernel_type += f'!olympus.channel<{mlir_type}>, '
+        for c in weight_channels:
+            mlir_type = hls_type_to_mlir_type(c['hls_type'])
+            nl = f'{indent}%{c["name"]} = "olympus.channel"() {{persistent = true, paramType = "small", depth = {c["depth"]} }} : ' \
+                 f'() -> (!olympus.channel<{mlir_type}>)\n' \
+                 f'{indent}%{c["name"]}_i = "olympus.index"(%{c["name"]}) {{depth = {index_depth}}} : (!olympus.channel<{mlir_type}>) ' \
+                 f'-> (!olympus.index<i64>)\n'
+            mlir_text += nl
+            kernel_args += f'%{c["name"]}, %{c["name"]}_i, '
+            kernel_type += f'!olympus.channel<{mlir_type}>, !olympus.index<i64>, '
+        for c in output_channels:
+            mlir_type = hls_type_to_mlir_type(c['hls_type'])
+            nl = f'{indent}%{c["name"]} = "olympus.channel"() {{persistent = true, paramType = "small", depth = {c["depth"]} }}: ' \
+                 f'() -> (!olympus.channel<{mlir_type}>)\n'
+            mlir_text += nl
+            kernel_args += f'%{c["name"]}, '
+            kernel_type += f'!olympus.channel<{mlir_type}>, '
+        mlir_text += '\n'
+
+        for c in input_channels:
+            mlir_type = hls_type_to_mlir_type(c['hls_type'])
+            nl = f'"dfg.push"(%arg_{c["name"]}, %{c["name"]}): ({mlir_type}, !olympus.channel<{mlir_type}>) -> ()\n'
+            mlir_text += indent + nl
+        mlir_text += '\n'
+
+        evp_path = f'{os.path.relpath(hls4ml_kernel_dir, used_dir_path)}/firmware/{hls4ml_project_name}.cpp'
+        kernel_line = f'{indent}"olympus.kernel"({kernel_args[:-2]})\n{indent}    {{callee = "{hls4ml_project_name}", ' \
+                      f'evp.path = "{evp_path}", ' \
+                      f'latency = tba, ii = 1, bram = tba, dsp = tba, ff = tba, lut = tba, uram = tba, ' \
+                      f'\n{indent}    operandSegmentSizes = array<i32: {len(input_channels) + 2*len(weight_channels)}, {len(output_channels)}>}} ' \
+                      f': ({kernel_type[:-2]}) -> ()\n'
+        mlir_text += kernel_line
+        mlir_text += '\n'
+
+        return_args = ''
+        return_type = ''
+        for c in output_channels:
+            mlir_type = hls_type_to_mlir_type(c['hls_type'])
+            nl = f'%out_{c["name"]} = "dfg.pull"(%{c["name"]}) : (!olympus.channel<{mlir_type}>) -> {mlir_type}\n'
+            return_args += f'%out_{c["name"]}, '
+            return_type += f"{mlir_type}, "
+            mlir_text += indent + nl
+        mlir_text += '\n'
+
+        return_line = f'"func.return"({return_args[:-2]}) : ({return_type[:-2]}) -> ()\n'
+        mlir_text += indent + return_line
+        footer = f'        }}) {{function_type = ({function_type[:-2]}) -> ({return_type[:-2]}), ' \
+                 f'sym_name = "{sym_name}"}} : () -> ()\n}}) : () -> ()\n\n'
+        mlir_text += footer
+
+        with open(os.path.join(used_dir_path, out_name), 'w') as out_file:
+            out_file.write(mlir_text)
 
     def _generate_hls_conv1d(self, op, layer_name, next_op=None, next_next_op=None):
         return

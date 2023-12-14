@@ -119,6 +119,9 @@ def init_singleton(config_dict, main_path=None):
         config.git_version = cur_sha
 
     objects.quant_module = SimpleNamespace()
+    objects.map_weights = SimpleNamespace()
+    objects.map_weights.path = None
+    objects.map_weights.float_array = None
 
     is_initiated = True
     return 0

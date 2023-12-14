@@ -31,6 +31,7 @@ import sys
 import json
 from enum import Enum
 from docopt import docopt
+import numpy as np
 
 import gradatim.lib.singleton as dosa_singelton
 from gradatim.frontend.user_constraints import parse_uc_dict
@@ -96,6 +97,8 @@ def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_pat
             print("ERROR: No compatible OSGs available. STOP.")
             exit(-1)
         available_OSGs = filtered_osgs
+        dosa_singelton.objects.map_weights.path = map_weights_path
+        dosa_singelton.objects.map_weights.float_array = np.load(map_weights_path).astype('float32')
     # init osgs
     prio_int = 0  # get unique internal priorities
     for osg in available_OSGs:

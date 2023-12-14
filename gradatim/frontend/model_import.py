@@ -135,7 +135,7 @@ def user_import_from_torchscript(model_path, user_constraints, calibration_data_
         print("\t...done.\nDOSA: Starting quantization translation and calibration...")
         input_size_t = user_constraints['used_input_size_t']
         input_dtype = repr(user_constraints['input_dtype'])
-        in_shape_tupel = tuple([v for k,v in user_constraints['shape_dict'].items()][0])
+        in_shape_tupel = tuple([v for k, v in user_constraints['shape_dict'].items()][0])
         weight_dtype = repr(user_constraints['target_dtype'])
         weight_size_t = get_bitwidth_of_DosaDtype(user_constraints['target_dtype'])
 
