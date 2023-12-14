@@ -39,22 +39,27 @@ Usage
 ### Compilation
 General usage:
 ```commandline
-./gradatim/dosa.py ./path/to/dosa_config.json ./path/to/nn.onnx ./path/to/constraint.json ./path/to/build_dir [--no-roofline|--no-build|--only-stats|--only-coverage]
+./gradatim/dosa.py onnx <path-to-dosa_config.json> <path-to-model.file> <path-to-constraints.json> <path-to-build_dir> [--map-weights <path-to-weights_map.npy>] [--no-roofline|--no-build|--only-stats|--only-coverage]
+./gradatim/dosa.py torchscript <path-to-dosa_config.json> <path-to-model.file> <path-to-constraints.json> <path-to-build_dir> [--calibration-data <path-to-calibration_data.npy>] [--map-weights <path-to-weights_map.npy>] [--no-roofline|--no-build|--only-stats|--only-coverage]
 ```
 The mandatory arguments are:
 - `dosa_config.json`: JSON file containing the general configuration of DOSA. In most cases the **default configuration** in [./config/dosa_config_0.json](./config/dosa_config_0.json) is sufficient. 
-- `nn.onnx`: The [ONNX](https://onnx.ai) of the DNN that should be compiled.
+- `model.file`: The [ONNX](https://onnx.ai) or torchscript of the DNN that should be compiled.
 - `constraint.json`: The JSON file containing the target constraints. See examples in the [./examples/](./examples/) folder. 
 - `path/to/build_dir/`: The path to the directory where the FPGA build files should be emitted to. How to handle non-empty build directories can be configured in the `dosa_config.json`. 
 
-The optional arguments are:
+The optional arguments to change the output are:
 - `--no-roofline`: Deactivates the display of the Roofline analysis (could be up to 30 windows).
 - `--no-build`: Deactivates the generation of build files and just the Roofline analysis is shown.  
 - `--only-stats`: DOSA emits only the architecture draft including its characteristics. No build files are generated and no Roofline anlaysis is shown.
 - `--only-coverage`: DOSA emits only the coverage of each OSG of the given ONNX. No build files are generated, no Roofline anlaysis is shown, and no architecture draft is generated. 
-
-*Only one optional argument is allowed!*
+*Only one of those optional argument is allowed!*
 As default, DOSA shows the Roofline analysis, generates the build files, and prints the high-level architecture draft. 
+
+See more details:
+```commandline
+./gradatim/dosa.py -h
+```
 
 ### Build
 
