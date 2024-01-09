@@ -342,7 +342,7 @@ class vhdl4cnnOSG(BaseOSG):
             max_threshold_bitwidth = int(np.ceil(np.log2(max_number)))
             if max_threshold_bitwidth > prod_width:
                 prod_width = max_threshold_bitwidth
-        print(f"[DOSA:OSG:DEBUG] determined prod_with: {prod_width}")
+        print(f"[DOSA:vhdl4cnnOSG:DEBUG] determined prod_with: {prod_width}")
         self._generate_bitwidth(bitwidthFile, arch_block.block_uuid, used_bit_width, input_bit_width, output_bit_width,
                                 prod_width)
         wrapper_first_op = ops_implemented_ordered[0]

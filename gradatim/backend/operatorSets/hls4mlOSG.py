@@ -85,27 +85,36 @@ def get_loop_unrolling_factors(req_parallelization_grade):
 def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
     layer_data = threshold_op.tvm_args['vars'][0]['ref'].data.numpy()
     channel_num = layer_data.shape[0]
-    nbit_in = 2 * get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
+    # default prod_width
+    prod_width = get_bitwidth_of_DosaDtype(threshold_op.used_dtype) * 2 + 1  # sum of mult (adder tree...)
+    # determine prod_width based on brevitas results
+    max_number = max(np.max(layer_data), abs(np.min(layer_data)))
+    max_threshold_bitwidth = int(np.ceil(np.log2(max_number)))
+    if max_threshold_bitwidth > prod_width:
+        prod_width = max_threshold_bitwidth
+        print(f"[DOSA:hls4mlOSG:DEBUG] detected brevitas prod_with: {prod_width}")
+    print(f"[DOSA:hls4mlOSG:DEBUG] determined prod_with: {prod_width}")
+    # nbit_in = 2 * get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
     nbit_out = get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
     upper_bound = np.power(2, nbit_out - 1) - 1
     lower_bound = -np.power(2, nbit_out - 1)
     out_values = np.arange(lower_bound, upper_bound)  # excludes the upper bound
     tab = '    '
     inner_tab = '  '
-    # finding fix_threshold_value "globally"
-    fix_threshold_value = 1
-    upper_bound_in = np.power(2, nbit_in - 1) - 1
-    lower_bound_in = -np.power(2, nbit_in - 1)
-    for channel_id in range(channel_num):
-        vector_data = layer_data[channel_id].astype(int)
-        assert len(out_values) == len(vector_data)
-        while (np.max(vector_data) / fix_threshold_value) > upper_bound_in or \
-                (np.min(vector_data) / fix_threshold_value) < lower_bound_in:
-            fix_threshold_value += 1
-    if fix_threshold_value:
-        print(
-            f"[OSG:hls4ml:INFO] threshold vector contains to large value entries, need to floor "
-            f"by a factor of {fix_threshold_value}.")
+    upper_bound_in = np.power(2, prod_width - 1) - 1
+    lower_bound_in = -np.power(2, prod_width - 1)
+    # # finding fix_threshold_value "globally"
+    # fix_threshold_value = 1
+    # for channel_id in range(channel_num):
+    #     vector_data = layer_data[channel_id].astype(int)
+    #     assert len(out_values) == len(vector_data)
+    #     while (np.max(vector_data) / fix_threshold_value) > upper_bound_in or \
+    #             (np.min(vector_data) / fix_threshold_value) < lower_bound_in:
+    #         fix_threshold_value += 1
+    # if fix_threshold_value:
+    #     print(
+    #         f"[OSG:hls4ml:INFO] threshold vector contains to large value entries, need to floor "
+    #         f"by a factor of {fix_threshold_value}.")
     outline = tab + f'// "casting" of {in_var_name}[] to {out_var_name}[] using multi_threshold operation'  # no \n
     for channel_id in range(channel_num):
         vector_data = layer_data[channel_id].astype(int)
@@ -117,7 +126,8 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
         for out_value, threshold_value in zip(out_values, vector_data):
             # fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
             # it is exclusive, so < and then >= ...meaning -1
-            fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int) - 1
+            # fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int) - 1
+            fixed_threshold_value = np.floor(threshold_value).astype(int) - 1
             new_lower_value = last_fixed_upper_threshold_value + 1
             if fixed_threshold_value == last_fixed_upper_threshold_value:
                 # merge with previous and overwrite
