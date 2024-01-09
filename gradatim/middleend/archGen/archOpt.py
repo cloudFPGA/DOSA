@@ -98,7 +98,7 @@ def merge_bricks_pass(input_draft, arch_filter: ArchFilter, work_on_copy=False, 
                 print("[DOSA:archOpt:INFO] Merging brick {} into previous brick {}.".format(repr(bb), repr(prev_bb)))
             for op in bb.local_op_iter_gen():
                 op.original_brick_tvm_handle = bb.tvm_node
-                prev_bb.add_arch_op(op, update_counters=True)
+                prev_bb.add_arch_op(op, not_update_counters=False)
             bis_to_del.append(bi)
             # is done in arch_op
             # if prev_bb.selected_contract is not None:

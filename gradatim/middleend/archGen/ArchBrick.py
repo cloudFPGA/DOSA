@@ -265,8 +265,12 @@ class ArchBrick(object):
         # TODO: use total_uinp?
         # self.oi_engine = (total_uinp + total_params) / total_flops
         # self.oi_stream = total_uinp / total_flops
-        self.oi_engine = (self.input_bytes + total_params) / total_flops
-        self.oi_stream = self.input_bytes / total_flops
+        if total_flops != 0:
+            self.oi_engine = (self.input_bytes + total_params) / total_flops
+            self.oi_stream = self.input_bytes / total_flops
+        else:
+            self.oi_engine = 0
+            self.oi_stream = 0
         self.flops = total_flops
         self.parameter_bytes = total_params
         if with_label:
