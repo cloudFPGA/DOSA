@@ -28,7 +28,7 @@ git clone --recurse-submodules https://github.com/cloudFPGA/DOSA.git
 cd DOSA
 virtualenv venv -p /usr/bin/python3.8
 source venv/bin/activate
-pip3 install -r requirements.txt
+pip install -r requirements.txt --no-dependencies
 ```
 Besides this, DOSA requires `python3` and `llvm` development environment and a local installation of TVM. 
 The detailed requirements as well as all steps to setup DOSA are described in [./doc/Install.md](./doc/Install.md). 

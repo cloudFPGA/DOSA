@@ -53,7 +53,6 @@ matplotlib==3.5.3
 matplotlib-inline==0.1.6
 mpmath==1.2.1
 nest-asyncio==1.5.6
-netron==7.0.8
 numpy==1.23.2
 nvidia-cublas-cu11==11.10.3.66
 nvidia-cuda-nvrtc-cu11==11.7.99

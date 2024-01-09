@@ -16,7 +16,7 @@ yum install llvm-toolset llvm-devel llvm-libs cmake
 ```bash
 virtualenv venv -p /usr/bin/python3.8
 . venv/bin/activate
-pip3 install -r requirements.txt
+pip install -r requirements.txt --no-dependencies
 ```
 
 ### TVM
