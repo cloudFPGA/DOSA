@@ -128,7 +128,7 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     creating_draft_end = time.time()
 
     zero_oi_filter = OiThresholdFilter(0.0)
-    useless_flatten_filter = OpCallSameDimFilter(['nn.batch_flatten'])
+    useless_flatten_filter = OpCallSameDimFilter(['nn.batch_flatten'], reduce_dims=True)
     useless_reshape_filter = OpCallFilter(['reshape'])
     merge_threshold_filter = OpCallSameDimFilter(['nn.multi_threshold'])
     opt_draft_start = time.time()

@@ -27,6 +27,7 @@
 #  *
 
 import abc
+import numpy as np
 
 from gradatim.middleend.archGen.ArchBrick import ArchBrick
 from gradatim.middleend.archGen.ArchOp import ArchOp
@@ -73,8 +74,9 @@ class OiThresholdFilter(ArchFilter):
 class OpCallSameDimFilter(ArchFilter):
     """Matches operations of a list where input and output dimensions are same"""
 
-    def __init__(self, op_call_list):
+    def __init__(self, op_call_list, reduce_dims=False):
         self.op_call_list = op_call_list
+        self.reduce_dims = reduce_dims
 
     def match_brick(self, brick: ArchBrick):
         print("[DOSA:Filter:ERROR] Can't filter Bricks with op calls")
@@ -82,8 +84,12 @@ class OpCallSameDimFilter(ArchFilter):
 
     def match_op(self, op: ArchOp):
         if op.op_call in self.op_call_list:
-            if op.dims.inp == op.dims.out:
-                return True
+            if not self.reduce_dims:
+                if op.dims.inp == op.dims.out:
+                    return True
+            else:
+                if np.prod(op.dims.inp) == np.prod(op.dims.out):
+                    return True
         return False
 
 
