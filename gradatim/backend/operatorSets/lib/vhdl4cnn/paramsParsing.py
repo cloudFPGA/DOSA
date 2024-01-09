@@ -181,18 +181,19 @@ def write_multi_threshold(target_file, vector_data, nbit_in, nbit_out, tab_facto
     upper_bound_in = np.power(2, nbit_in - 1) - 1
     lower_bound_in = -np.power(2, nbit_in - 1)
     fix_threshold_value = 1
-    # FIXME
-    while (np.max(vector_data) / fix_threshold_value) > upper_bound_in or \
-            (np.min(vector_data) / fix_threshold_value) < lower_bound_in:
-        fix_threshold_value += 1
-    if fix_threshold_value != 1:
-        print(
-            f"[:VHDL4CNN:INFO] threshold vector contains to large value entries, need to floor by a factor of {fix_threshold_value}.")
+    # # FIXME
+    # while (np.max(vector_data) / fix_threshold_value) > upper_bound_in or \
+    #         (np.min(vector_data) / fix_threshold_value) < lower_bound_in:
+    #     fix_threshold_value += 1
+    # if fix_threshold_value != 1:
+    #     print(
+    #         f"[:VHDL4CNN:INFO] threshold vector contains to large value entries, need to floor by a factor of {fix_threshold_value}.")
     next_outline = ''
     outline = ''
     first_line_written = False
     for out_value, threshold_value in zip(out_values, vector_data):
-        fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
+        # fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
+        fixed_threshold_value = np.floor(threshold_value).astype(int)
         if fixed_threshold_value != last_fixed_threshold_value:
             outline += next_outline
             if len(outline) > 2:
