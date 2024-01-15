@@ -850,8 +850,8 @@ class vhdl4cnnOSG(BaseOSG):
                                                                prod_width,
                                                                get_bitwidth_of_DosaDtype(op.used_dtype),
                                                                tab_factor=3)
-                        outline = local_tab + f'end generate multi_threshold_layer{cur_id}_op{channel_id};\n'
-                        out_file.write(outline)
+                            outline = local_tab + f'end generate multi_threshold_layer{cur_id}_op{channel_id};\n'
+                            out_file.write(outline)
                     outline = tab + f'end generate multi_threshold_layer{cur_id};\n\n'
                     out_file.write(outline)
                 else:
