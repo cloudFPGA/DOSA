@@ -20,7 +20,13 @@ def is_float_mul(model, node):
 
 def is_float_multithreshold(model, node):
     assert node.op_type == "MultiThreshold"
-    return model.get_tensor_datatype(node.input[1]) == DataType["FLOAT32"]
+    # return model.get_tensor_datatype(node.input[1]) == DataType["FLOAT32"]
+    # to catch incorrect labelled brevitas nodes: all input nodes must be float
+    still_float = True
+    for i in range(len(node.input)):
+        if model.get_tensor_datatype(node.input[i]) != DataType["FLOAT32"]:
+            still_float = False
+    return still_float
 
 
 def involves_float_operation(model, node):
