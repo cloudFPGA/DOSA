@@ -14,7 +14,9 @@ Therefore, we propose an organic compiler — DOSA — that drastically lowers t
 This repository contains the enhanced proof-of-concept implementation of this organic compiler principle that can compile and partition an ONNX to multiple FPGAs with just a one command. Currently, the `gradatim` version of DOSA supports the [hls4ml](https://github.com/cloudFPGA/hls4ml-for-dosa) and [VHDL4CNN](https://github.com/cloudFPGA/VHDL4CNN) libraries for building, and additional [VTA](https://tvm.apache.org/vta) for analysis. [ZRLMPI](https://github.com/cloudFPGA/ZRLMPI) is used as hardware-agnostic communication protocol. The FPGA binaries are built using the [cFDK](https://github.com/cloudFPGA/cFDK). 
 Depending on the selected target device, the deployment of the  FPGA binaries requires access to the [IBM cloudFPGA platform](https://cloudfpga.github.io/Doc/index.html).
 
-This DOSA version assumes that the weights in the ONNX *are already fully quantized* (by tools like e.g. [Brevitas](https://github.com/Xilinx/brevitas) or [Aimet](https://github.com/quic/aimet)). The corresponding number representation must be configured in the input constraints. 
+DOSA supports two input file formats: ONNX and torchscript. 
+For the `onnx` flow, DOSA assumes that the weights in the ONNX *are already fully quantized* (by tools like e.g. [Brevitas](https://github.com/Xilinx/brevitas) or [Aimet](https://github.com/quic/aimet)). The corresponding number representation must be configured in the input constraints. 
+However, if using the `torchscript` flow in combination with `--calibration-data`, then DOSA does the post-training quantization using Brevitas automatically.
 
 More details of the supported libraries and flows are described in [./doc/DOSA_flow.md](./doc/DOSA_flow.md).
 A detailed description of concepts and research behind DOSA can be found [here (Chapter 4)](https://doi.org/10.5281/zenodo.7957659). More publications around DOSA are listed [below](#publications).
@@ -39,10 +41,34 @@ Usage
 ### Compilation
 General usage:
 ```commandline
-./gradatim/dosa.py onnx <path-to-dosa_config.json> <path-to-model.file> <path-to-constraints.json> <path-to-build_dir> [--map-weights <path-to-weights_map.npy>] [--no-roofline|--no-build|--only-stats|--only-coverage]
-./gradatim/dosa.py torchscript <path-to-dosa_config.json> <path-to-model.file> <path-to-constraints.json> <path-to-build_dir> [--calibration-data <path-to-calibration_data.npy>] [--map-weights <path-to-weights_map.npy>] [--no-roofline|--no-build|--only-stats|--only-coverage]
+Usage: 
+    ./gradatim.sh onnx <path-to-dosa_config.json> <path-to-model.file> <path-to-constraints.json> <path-to-build_dir> [--no-roofline|--no-build|--only-stats|--only-coverage]
+    ./gradatim.sh torchscript <path-to-dosa_config.json> <path-to-model.file> <path-to-constraints.json> <path-to-build_dir> [--calibration-data <path-to-calibration_data.npy>] [--no-roofline|--no-build|--only-stats|--only-coverage]
+
+Commands:
+    onnx            Uses the ONNX flow (this excludes post-training quantization).
+    torchscript     Uses the torchscript flow.
+
+Options:
+    -h --help       Show this screen.
+    -v --version    Show version.
+
+    <path-to-dosa_config.json>              Path to the DOSA config JSON.
+    <path-to-model.file>                    Path to the model to compile (either ONNX or torchscript).
+    <path-to-constraints.json>              Path the the constraints JSON.
+    <path-to-build_dir>                     Path to the output build folder.
+
+    --calibration-data <path-to-calibration_data.npy>   If the torchscript flow is used, post-training quantization 
+                                                        is possible using the specified numpy array as calibration data 
+                                                        (i.e. training data without labels). 
+
+    --no-roofline                           Disables the display of Roofline plots.
+    --no-build                              Disables the generation of build files (just Roofline plots are shown).
+    --only-stats                            Just print the architecture statistics (and disables all other outputs).
+    --only-coverage                         Just print the OSG coverage (and disable all other outputs).
 ```
 The mandatory arguments are:
+- the flow `onnx` or `torchscript`
 - `dosa_config.json`: JSON file containing the general configuration of DOSA. In most cases the **default configuration** in [./config/dosa_config_0.json](./config/dosa_config_0.json) is sufficient. 
 - `model.file`: The [ONNX](https://onnx.ai) or torchscript of the DNN that should be compiled.
 - `constraint.json`: The JSON file containing the target constraints. See examples in the [./examples/](./examples/) folder. 
@@ -56,9 +82,12 @@ The optional arguments to change the output are:
 *Only one of those optional argument is allowed!*
 As default, DOSA shows the Roofline analysis, generates the build files, and prints the high-level architecture draft. 
 
+Additional optional arguments are:
+- `--calibration-data`: To provide calibration data for the post-training quantization, if the `torchscript` flow is used.
+
 See more details:
 ```commandline
-./gradatim/dosa.py -h
+./gradatim.sh -h
 ```
 
 ### Build
@@ -134,7 +163,6 @@ Current limitations
 
 This is a research project and therefore  proof-of-concept prototype! So, naturally, there are some limitations regarding the features and supported use cases:
 
-- As stated above, this DOSA version assumes that the weights in the ONNX *are already fully quantized*.
 - While the architecture of DOSA is flexible, there is right now only one supported build tool: `cFBuild` for the cloudFPGA project. However, another build tool could be implemented by simply inherit the `HwBuildTopVhdl` in [dimidium/backend/buildTools/BaseBuild.py](./dimidium/backend/buildTools/BaseBuild.py).
 - Likewise, DOSA could support many *communication libraries*, but right now only the support for ZRLMPI is implemented. To add a new communication library, implement a new class and inherit from `BaseCommLib` [dimidium/backend/commLibs/BaseCommLib.py](./dimidium/backend/commLibs/BaseCommLib.py). The corresponding wrapper for the hardware and software cores, must then implement the `CommunicationWrapper` class in [dimidium/backend/codeGen/CommunicationWrapper.py](./dimidium/backend/codeGen/CommunicationWrapper.py).
 - DOSA depends on a custom TVM version, as explained in [./doc/Install.md](./doc/Install.md).
