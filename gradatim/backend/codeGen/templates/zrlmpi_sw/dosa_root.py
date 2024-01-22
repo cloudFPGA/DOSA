@@ -394,19 +394,22 @@ class DosaRoot:
             print("[DOSA:runtime:INFO] processing pipeline of DOSA is filled: {}".format(processing_pipelines_filled))
         za = np.zeros(x[0].shape, self.ndtype)
         batch_size = len(x)
-        input_data = x.astype(self.ndtype)
         transform_time = 0.0
+        encoding_time = 0.0
         if self._quantize_input:
             if debug:
                 print("[DOSA:runtime:INFO] starting input encoding...")
             transform_start = time.time()
+            input_data = x
             self._transform_input(input_data)
             transform_stop = time.time()
             transform_time = transform_stop - transform_start
-        encoding_start = time.time()
-        self._encode_input(input_data)
-        encoding_stop = time.time()
-        encoding_time = encoding_stop - encoding_start
+        else:
+            input_data = x.astype(self.ndtype)
+            encoding_start = time.time()
+            self._encode_input(input_data)
+            encoding_stop = time.time()
+            encoding_time = encoding_stop - encoding_start
         single_input_length = int(self.n_bytes * input_data[0].size)
         single_output_length = int(self.n_bytes)
         for d in output_shape:
@@ -491,7 +494,7 @@ class DosaRoot:
         infer_time = infer_stop - infer_start
         if debug:
             print(f'DOSA inference run returned {rc} after {infer_time}s.')
-            print(f'\t(input quantization took {transform_time}s and fixpoint encoding took {encoding_time}s).')
+            print(f'\t(input quantization took {transform_time}s; fixpoint encoding took {encoding_time}s).')
 
         output_deserialized = np.frombuffer(output_placeholder, dtype=self.ndtype)
         try:
