@@ -89,16 +89,24 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
     prod_width = get_bitwidth_of_DosaDtype(threshold_op.used_dtype) * 2 + 1  # sum of mult (adder tree...)
     # determine prod_width based on brevitas results
     max_number = max(np.max(layer_data), abs(np.min(layer_data)))
-    max_threshold_bitwidth = int(np.ceil(np.log2(max_number)))
+    max_threshold_bitwidth = int(np.ceil(np.log2(max_number))) + 1  # +1 for always signed!
     if max_threshold_bitwidth > prod_width:
         prod_width = max_threshold_bitwidth
         print(f"[DOSA:hls4mlOSG:DEBUG] detected brevitas prod_with: {prod_width}")
     print(f"[DOSA:hls4mlOSG:DEBUG] determined prod_with: {prod_width}")
     # nbit_in = 2 * get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
     nbit_out = get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
+    # upper_bound = np.power(2, nbit_out - 1) - 1
+    # lower_bound = -np.power(2, nbit_out - 1)
+    # out_values = np.arange(lower_bound, upper_bound)  # excludes the upper bound
+    # could be only positive!
+    lower_bound = 0
+    # upper_bound = np.power(2, nbit_out) - 1
+    # out_values = np.arange(0, upper_bound)
+    # TODO always signed!
     upper_bound = np.power(2, nbit_out - 1) - 1
-    lower_bound = -np.power(2, nbit_out - 1)
-    out_values = np.arange(lower_bound, upper_bound)  # excludes the upper bound
+    # FIXME: more precise way?
+    out_values = np.append(np.repeat(np.arange(0, upper_bound), 2), np.array([upper_bound]))
     tab = '    '
     inner_tab = '  '
     upper_bound_in = np.power(2, prod_width - 1) - 1

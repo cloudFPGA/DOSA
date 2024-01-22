@@ -339,7 +339,7 @@ class vhdl4cnnOSG(BaseOSG):
         for op in multi_threshold_op_list:
             layer_data = op.tvm_args['by_position'][1]['ref'].data.numpy()
             max_number = max(np.max(layer_data), abs(np.min(layer_data)))
-            max_threshold_bitwidth = int(np.ceil(np.log2(max_number)))
+            max_threshold_bitwidth = int(np.ceil(np.log2(max_number))) + 1  # +1 for always signed!
             if max_threshold_bitwidth > prod_width:
                 prod_width = max_threshold_bitwidth
         print(f"[DOSA:vhdl4cnnOSG:DEBUG] determined prod_with: {prod_width}")

@@ -170,9 +170,17 @@ def write_kernel_value(kernel_data, layer_name, nbits, target):
 
 def write_multi_threshold(target_file, vector_data, nbit_in, nbit_out, tab_factor=2):
     tab = '  ' * tab_factor
+    # upper_bound = np.power(2, nbit_out - 1) - 1
+    # lower_bound = -np.power(2, nbit_out - 1)
+    # out_values = np.arange(lower_bound, upper_bound)  # excludes the upper bound
+    # could be only positive!
+    lower_bound = 0
+    # upper_bound = np.power(2, nbit_out) - 1
+    # out_values = np.arange(0, upper_bound)
+    # TODO always signed!
     upper_bound = np.power(2, nbit_out - 1) - 1
-    lower_bound = -np.power(2, nbit_out - 1)
-    out_values = np.arange(lower_bound, upper_bound)  # excludes the upper bound
+    # FIXME: more precise way?
+    out_values = np.append(np.repeat(np.arange(0, upper_bound), 2), np.array([upper_bound]))
     assert len(out_values) == len(vector_data)
     begin_str = tab + "out_data <= "
     target_file.write(begin_str)

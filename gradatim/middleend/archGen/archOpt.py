@@ -186,6 +186,8 @@ class MergeOpClass:
         upper_bound = np.power(2, nbit_in - 1) - 1
         lower_bound = -np.power(2, nbit_in - 1)
         out_values = np.arange(lower_bound, upper_bound)
+        # upper_bound = np.power(2, nbit_in) - 1
+        # out_values = np.arange(0, upper_bound)
 
         # in_out_1 = np.vstack([op_merge_receive.tvm_args['by_position'][1]['ref'].data.numpy()[0], out_values])
         in_values_1 = op_merge_receive.tvm_args['by_position'][1]['ref'].data.numpy()
@@ -194,6 +196,7 @@ class MergeOpClass:
         orig_array_dtype = in_values_1.dtype
 
         out_array = []
+        # here, duplicate values are allowed!
         for channel_id in range(in_values_1.shape[0]):
             out_to_in_1 = {}
             vector_1 = in_values_1[channel_id]
@@ -207,6 +210,19 @@ class MergeOpClass:
                 new_entry = int(out_to_in_1[int(vector_2[i])])
                 out_vector.append(new_entry)
             out_array.append(out_vector)
+        # # next try...
+        # out_array = []
+        # # here, duplicate values are allowed!
+        # for channel_id in range(in_values_1.shape[0]):
+        #     vector_1 = in_values_1[channel_id]
+        #     vector_2 = in_values_2[channel_id]
+        #     assert len(out_values) == len(vector_1)
+        #     assert len(vector_1) == len(vector_2)
+        #     out_vector = []
+        #     for i in range(len(vector_1)):
+        #         new_entry = vector_1[int(vector_2[i])]
+        #         out_vector.append(new_entry)
+        #     out_array.append(out_vector)
         new_array = np.array(out_array)
         assert new_array.shape == in_values_1.shape
         new_c = relay.const(new_array, dtype=orig_array_dtype)
@@ -216,7 +232,8 @@ class MergeOpClass:
         op_merge_receive.tvm_args['vars'][0]['ref'] = new_c
         op_merge_receive.merged_ops = [op_to_be_merged]
         print(f"[DOSA:MergeOps:INFO] Merged multi_threshold {repr(op_to_be_merged)} into {repr(op_merge_receive)} "
-              f"successfully.")
+              f"successfully (parent: {op_merge_receive.parent_fn}).")
+        assert op_merge_receive.tvm_args['by_position'][1]['ref'] == new_c
         return op_merge_receive
 
 

@@ -41,7 +41,8 @@ def generate_quantized_node_root(template_file_path, outfile_path, out_dims):
     # default for out_shape?
     # add input quantization
     _default_infer_batch_signature_ = 'def infer_batch(self, x: np.ndarray, output_shape: tuple = (1, 1), debug=False, assume_scaled_input=False):'
-    list_of_removed_float_transformations = None
+    # list_of_removed_float_transformations = None
+    list_of_removed_float_transformations = []
     if hasattr(dosa_singleton.objects.quant_module, 'list_of_removed_float_transformations'):
         list_of_removed_float_transformations = dosa_singleton.objects.quant_module.list_of_removed_float_transformations
     with open(template_file_path, 'r') as in_file, \
@@ -55,11 +56,13 @@ def generate_quantized_node_root(template_file_path, outfile_path, out_dims):
             elif 'DOSA_REPLACE_input_flag' in line:
                 outline = line.split('self')[0]  # get indent
                 # if dosa_singleton.uc['do_quantization']:
-                if list_of_removed_float_transformations is not None:
+                # if list_of_removed_float_transformations is not None:
+                if len(list_of_removed_float_transformations) > 0:
                     outline += 'self._quantize_input = True\n'
                 else:
                     outline += 'self._quantize_input = False\n'
-            elif 'DOSA_REPLACE_thresholding_array' in line and list_of_removed_float_transformations is not None:
+            # elif 'DOSA_REPLACE_thresholding_array' in line and list_of_removed_float_transformations is not None:
+            elif 'DOSA_REPLACE_thresholding_array' in line and len(list_of_removed_float_transformations) > 0:
                 actual_array = []
                 for entry in list_of_removed_float_transformations:
                     if 'global_in' in entry['node'].input:
