@@ -334,6 +334,7 @@ class DosaRoot:
             # if bid % 100 == 0:
             #     print(bid)
             one_batch_data = batch_data[bid]
+            # print(one_batch_data.shape)
             # assert len(one_batch_data) == len(multi_thresholding_array)
             assert one_batch_data.shape[0] == len(self._transform_vfunc_array)
 
@@ -506,6 +507,7 @@ class DosaRoot:
             output = output_deserialized[:-4]
 
         expected_output = output[0:expected_num_output]
+        # fxp decoding is required in all cases! (even with thresholding)
         rescaled_output = self._decode_output(expected_output)
         return rescaled_output
 
