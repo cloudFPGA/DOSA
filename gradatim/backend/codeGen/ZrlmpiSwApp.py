@@ -49,7 +49,7 @@ def generate_quantized_node_root(template_file_path, outfile_path, out_dims):
         for line in in_file.readlines():
             if _default_infer_batch_signature_ in line:
                 out_tuple = tuple(out_dims)
-                indent_len = len(line) - len(_default_infer_batch_signature_)
+                indent_len = len(line) - len(_default_infer_batch_signature_) - 1  # newline etc?
                 outline = ' ' * indent_len + \
                           _default_infer_batch_signature_.replace('(1, 1)', str(out_tuple)) + '\n'
             elif 'DOSA_REPLACE_input_flag' in line:

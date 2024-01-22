@@ -329,10 +329,13 @@ class DosaRoot:
     def _transform_input(self, batch_data: np.ndarray):
         """function necessary in case of quantized inputs"""
 
+        # print(batch_data.shape)
         for bid in range(len(batch_data)):
+            # if bid % 100 == 0:
+            #     print(bid)
             one_batch_data = batch_data[bid]
             # assert len(one_batch_data) == len(multi_thresholding_array)
-            assert one_batch_data.size == len(self._transform_vfunc_array)
+            assert one_batch_data.shape[0] == len(self._transform_vfunc_array)
 
             # vfunc = np.vectorize(thresholding_func)
             # new_data = vfunc(vector_data)
@@ -342,15 +345,22 @@ class DosaRoot:
             #     ne = thresholding_func(i, elem)
             #     new_list.append(ne)
             # new_data = np.array(new_list)
+            batch_length = np.prod(np.array(one_batch_data.shape[1:]))
             ret_list = []
             i = 0
+            p_cnt = 0
             # TODO: more efficient way? vectorize self._transform_vfunc?
             for x in np.nditer(one_batch_data):
                 new_x = self._transform_vfunc_array[i](x)
                 ret_list.append(new_x)
-                i += 1
+                p_cnt += 1
+                if p_cnt >= batch_length:
+                    i += 1
+                    p_cnt = 0
             new_data = np.array(ret_list).reshape(one_batch_data.shape)
+            # print(new_data.shape)
             batch_data[bid] = new_data
+        # print("transform input done...")
 
     def _encode_input(self, batch_data: np.array):
 
@@ -387,6 +397,8 @@ class DosaRoot:
         input_data = x.astype(self.ndtype)
         transform_time = 0.0
         if self._quantize_input:
+            if debug:
+                print("[DOSA:runtime:INFO] starting input encoding...")
             transform_start = time.time()
             self._transform_input(input_data)
             transform_stop = time.time()
@@ -430,6 +442,7 @@ class DosaRoot:
                 batch_input = input_data
             output_batch_num = int(batch_size + added_zero_tensors)
 
+        # print(input_data)
         input_num = len(batch_input)
         # add one "line" to avoid SEGFAULT
         np.vstack([batch_input, [za]])
