@@ -40,7 +40,7 @@ __filedir__ = os.path.dirname(os.path.abspath(__file__))
 def generate_quantized_node_root(template_file_path, outfile_path, out_dims):
     # default for out_shape?
     # add input quantization
-    _default_infer_batch_signature_ = 'def infer_batch(self, x: np.ndarray, output_shape: tuple = (1, 1), debug=False):'
+    _default_infer_batch_signature_ = 'def infer_batch(self, x: np.ndarray, output_shape: tuple = (1, 1), debug=False, assume_scaled_input=False):'
     list_of_removed_float_transformations = None
     if hasattr(dosa_singleton.objects.quant_module, 'list_of_removed_float_transformations'):
         list_of_removed_float_transformations = dosa_singleton.objects.quant_module.list_of_removed_float_transformations

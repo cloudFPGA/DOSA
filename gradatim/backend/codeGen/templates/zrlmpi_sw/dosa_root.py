@@ -148,6 +148,7 @@ class DosaRoot:
         self.c_lib.are_processing_pipelines_filled.restype = ctypes.c_bool
         self.nbits = used_bitwidth
         self.n_bytes = int((used_bitwidth + 7) / 8)
+        self.max_value = float(np.power(2, used_bitwidth - 1))
         if used_bitwidth == 8:
             if signed:
                 self.ndtype = np.int8
@@ -363,11 +364,14 @@ class DosaRoot:
             batch_data[bid] = new_data
         # print("transform input done...")
 
-    def _encode_input(self, batch_data: np.array):
+    def _encode_input(self, batch_data: np.array, assume_scaled=False):
 
         def encoding_func(x):
             # TODO: allow custom fixed point formats?
-            enc = Fxp(x, signed=True, n_word=self.nbits, n_frac=(self.nbits - 1))
+            if not assume_scaled:
+                enc = Fxp(x / self.max_value, signed=True, n_word=self.nbits, n_frac=(self.nbits - 1))
+            else:
+                enc = Fxp(x, signed=True, n_word=self.nbits, n_frac=(self.nbits - 1))
             ret = hex_comp2dec(enc.hex())  # TODO: more efficient way?
             return ret
 
@@ -386,7 +390,7 @@ class DosaRoot:
         return rescaled
 
     # def infer(self, x: np.ndarray, output_shape, debug=False):
-    def infer_batch(self, x: np.ndarray, output_shape: tuple = (1, 1), debug=False):
+    def infer_batch(self, x: np.ndarray, output_shape: tuple = (1, 1), debug=False, assume_scaled_input=False):
         if len(x.shape) < 2:
             print("[DOSA:infer_batch:ERROR] input array must be an array of arrays (i.e. [[1,2], [3,4]]).")
             return -1
@@ -408,7 +412,7 @@ class DosaRoot:
         else:
             input_data = x.astype(self.ndtype)
             encoding_start = time.time()
-            self._encode_input(input_data)
+            self._encode_input(input_data, assume_scaled=assume_scaled_input)
             encoding_stop = time.time()
             encoding_time = encoding_stop - encoding_start
         single_input_length = int(self.n_bytes * input_data[0].size)
