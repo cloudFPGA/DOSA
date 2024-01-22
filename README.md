@@ -124,6 +124,17 @@ License
 DOSA is released under the Apache 2.0 License.
 
 
+Current limitations
+------------------------
+
+This is a research project and therefore  proof-of-concept prototype! So, naturally, there are some limitations regarding the features and supported use cases:
+
+- As stated above, this DOSA version assumes that the weights in the ONNX *are already fully quantized*.
+- While the architecture of DOSA is flexible, there is right now only one supported build tool: `cFBuild` for the cloudFPGA project. However, another build tool could be implemented by simply inherit the `HwBuildTopVhdl` in [dimidium/backend/buildTools/BaseBuild.py](./dimidium/backend/buildTools/BaseBuild.py).
+- Likewise, DOSA could support many *communication libraries*, but right now only the support for ZRLMPI is implemented. To add a new communication library, implement a new class and inherit from `BaseCommLib` [dimidium/backend/commLibs/BaseCommLib.py](./dimidium/backend/commLibs/BaseCommLib.py). The corresponding wrapper for the hardware and software cores, must then implement the `CommunicationWrapper` class in [dimidium/backend/codeGen/CommunicationWrapper.py](./dimidium/backend/codeGen/CommunicationWrapper.py).
+- DOSA depends on a custom TVM version, as explained in [./doc/Install.md](./doc/Install.md).
+
+
 Structure of this repository
 --------------------------------
 
@@ -149,4 +160,5 @@ Publications
 
 * * * 
 Trivia: The first version of DOSA is named after the [exoplanet Dimidium](https://en.wikipedia.org/wiki/Dimidium). 
-Also, "dimidium" means "half" in Latin and therefore points to the fact that is version is the first proof-of-concept implementation of the developed concept of distirubted operation set architectures and operator set generators. Consequently, this version does not contain all the features it could have and exploits maybe only "half" of the potential. 
+Also, "dimidium" means "half" in Latin and therefore points to the fact that is version is the first proof-of-concept implementation of the developed concept of distirubted operation set architectures and operator set generators. Consequently, this version does not contain all the features it could have and exploits maybe only "half" of the potential.
+
