@@ -185,7 +185,6 @@ def write_multi_threshold(target_file, vector_data, nbit_in, nbit_out, tab_facto
     begin_str = tab + "out_data <= "
     target_file.write(begin_str)
     line_indent = ' ' * len(begin_str)
-    last_fixed_threshold_value = None
     upper_bound_in = np.power(2, nbit_in - 1) - 1
     lower_bound_in = -np.power(2, nbit_in - 1)
     fix_threshold_value = 1
@@ -199,13 +198,16 @@ def write_multi_threshold(target_file, vector_data, nbit_in, nbit_out, tab_facto
     next_outline = ''
     outline = ''
     first_line_written = False
-    for out_value, threshold_value in zip(out_values, vector_data):
+    last_fixed_threshold_value = None
+    for out_value, threshold_value in zip(out_values[:-1], vector_data[:-1]):
         # fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
         fixed_threshold_value = np.floor(threshold_value).astype(int)
         if fixed_threshold_value != last_fixed_threshold_value:
             outline += next_outline
             if len(outline) > 2:
                 first_line_written = True
+        else:
+            continue
         # else merge with previous and overwrite
         next_outline = ''
         if out_value != lower_bound and first_line_written:
@@ -213,13 +215,18 @@ def write_multi_threshold(target_file, vector_data, nbit_in, nbit_out, tab_facto
             next_outline += line_indent
         # target_file.write('"{}" when in_data < "{}" else\n'.format(
         #     np.binary_repr(out_value, width=nbit_out), np.binary_repr(fixed_threshold_value, width=nbit_in)))
-        # it is exclusive, so < and then >=
-        next_outline += f'"{np.binary_repr(out_value, width=nbit_out)}" when in_data <  ' \
-                        f'"{np.binary_repr(fixed_threshold_value, width=nbit_in)}" else\n'
+        if last_fixed_threshold_value is None or not first_line_written:
+            # it is exclusive, so < and then >=
+            next_outline += f'"{np.binary_repr(out_value, width=nbit_out)}" when  in_data <  ' \
+                            f'"{np.binary_repr(fixed_threshold_value, width=nbit_in)}" else\n'
+        else:
+            next_outline += f'"{np.binary_repr(out_value, width=nbit_out)}" when (' \
+                            f'in_data >= "{np.binary_repr(last_fixed_threshold_value, width=nbit_in)}" and ' \
+                            f'in_data < "{np.binary_repr(fixed_threshold_value, width=nbit_in)}") else\n'
         last_fixed_threshold_value = fixed_threshold_value
     outline += next_outline
     target_file.write(outline)
-    target_file.write('{}"{}" when in_data >= "{}";\n'.format(line_indent,
+    target_file.write('{}"{}" when  in_data >= "{}";\n'.format(line_indent,
                                                               np.binary_repr(upper_bound, width=nbit_out),
                                                               np.binary_repr(last_fixed_threshold_value,
                                                                              width=nbit_in)

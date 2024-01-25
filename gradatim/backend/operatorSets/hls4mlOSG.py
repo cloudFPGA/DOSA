@@ -92,7 +92,7 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
     max_threshold_bitwidth = int(np.ceil(np.log2(max_number))) + 1  # +1 for always signed!
     if max_threshold_bitwidth > prod_width:
         prod_width = max_threshold_bitwidth
-        print(f"[DOSA:hls4mlOSG:DEBUG] detected brevitas prod_with: {prod_width}")
+        # print(f"[DOSA:hls4mlOSG:DEBUG] detected brevitas prod_with: {prod_width}")
     print(f"[DOSA:hls4mlOSG:DEBUG] determined prod_with: {prod_width}")
     # nbit_in = 2 * get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
     nbit_out = get_bitwidth_of_DosaDtype(threshold_op.used_dtype)
@@ -131,6 +131,7 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
         last_fixed_upper_threshold_value = lower_bound_in - 1
         last_fixed_lower_threshold_value = lower_bound_in - 1
         next_outline = ''
+        last_out_value = None
         for out_value, threshold_value in zip(out_values, vector_data):
             # fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
             # it is exclusive, so < and then >= ...meaning -1
@@ -153,7 +154,11 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
             # f"{tab}{inner_tab*2}res[{channel_id}] = {out_value}; break;\n"
             # f"{np.binary_repr(last_fixed_upper_threshold_value, width=nbit_in)} ... {np.binary_repr(fixed_threshold_value, width=nbit_in)}"
             last_fixed_upper_threshold_value = fixed_threshold_value
-        outline += next_outline
+            last_out_value = out_value
+        if last_out_value != out_values[-1]:
+            outline += next_outline
+        else:
+            last_fixed_upper_threshold_value = new_lower_value
         outline += f"{tab}{inner_tab}default:  // above {last_fixed_upper_threshold_value}\n" \
                    f"{tab}{inner_tab * 2}{out_var_name}[{channel_id}] = {upper_bound}; break;\n"
         outline += tab + "}\n"

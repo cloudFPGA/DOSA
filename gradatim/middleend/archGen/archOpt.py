@@ -183,11 +183,11 @@ class MergeOpClass:
 
         # actually, we only need to replace the constants?
         nbit_in = get_bitwidth_of_DosaDtype(op_merge_receive.used_dtype)
-        upper_bound = np.power(2, nbit_in - 1) - 1
-        lower_bound = -np.power(2, nbit_in - 1)
-        out_values = np.arange(lower_bound, upper_bound)
-        # upper_bound = np.power(2, nbit_in) - 1
-        # out_values = np.arange(0, upper_bound)
+        # upper_bound = np.power(2, nbit_in - 1) - 1
+        # lower_bound = -np.power(2, nbit_in - 1)
+        # out_values = np.arange(lower_bound, upper_bound)
+        upper_bound = np.power(2, nbit_in) - 1
+        out_values = np.arange(0, upper_bound)
 
         # in_out_1 = np.vstack([op_merge_receive.tvm_args['by_position'][1]['ref'].data.numpy()[0], out_values])
         in_values_1 = op_merge_receive.tvm_args['by_position'][1]['ref'].data.numpy()
@@ -207,7 +207,8 @@ class MergeOpClass:
                 out_to_in_1[int(out_values[i])] = vector_1[i]
             out_vector = []
             for i in range(len(vector_1)):
-                new_entry = int(out_to_in_1[int(vector_2[i])])
+                # new_entry = int(out_to_in_1[int(vector_2[i])])
+                new_entry = int(out_to_in_1[int(vector_2[i]) - 1])  # - 1 because it is >=
                 out_vector.append(new_entry)
             out_array.append(out_vector)
         # # next try...

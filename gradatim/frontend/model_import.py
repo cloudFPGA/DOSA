@@ -132,7 +132,7 @@ def user_import_from_torchscript(model_path, user_constraints, calibration_data_
     dnn.eval()
 
     if user_constraints['do_quantization'] and calibration_data_path is not None:
-        print("\t...done.\nDOSA: Starting quantization translation and calibration...")
+        print("\t...done.\nDOSA: Starting quantization translation...")
         input_size_t = user_constraints['used_input_size_t']
         input_dtype = repr(user_constraints['input_dtype'])
         in_shape_tupel = tuple([v for k,v in user_constraints['shape_dict'].items()][0])
@@ -145,7 +145,9 @@ def user_import_from_torchscript(model_path, user_constraints, calibration_data_
         ignore_labels = np.zeros(calibration_data.shape[0]).astype('float32')  # TODO?
         torch_dataset = TensorDataset(torch.from_numpy(calibration_data), torch.from_numpy(ignore_labels))
         torch_dataloader = DataLoader(torch_dataset)
-        num_steps = min(300, len(calibration_data))
+        # num_steps = min(300, len(calibration_data))
+        num_steps = len(calibration_data)
+        print(f"\t...done. Starting quantization calibration ({num_steps} steps) ...")
         q_model.load_state_and_calibrate(dnn, data_loader=torch_dataloader, num_steps=num_steps, seed=42)
         q_model.cpu()
         if debug_mode:
