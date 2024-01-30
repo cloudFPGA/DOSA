@@ -88,6 +88,10 @@ def init_singleton(config_dict, main_path=None):
     config.quant.fixed_point_fraction_bits = None
     # config.quant.per_layer_dtypes = {}
 
+    config.quant.run_on_cuda_device_if_available = True
+    if 'quantization' in config_dict:
+        if 'run_on_cuda_device' in config_dict['quantization']:
+            config.quant.run_on_cuda_device_if_available = bool(config_dict['quantization']['run_on_cuda_device'])
 
     config.middleend = SimpleNamespace()
     config.middleend.engine_saving_threshold = float(config_dict['build']['engine_saving_threshold'])

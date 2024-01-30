@@ -1,5 +1,7 @@
 import torch
 
+import gradatim.lib.singleton as dosa_singleton
+
 
 def calibrate(model, test_loader, num_steps=1, seed=None):
     from gradatim.dnn_quant.models.quantized.quant_module import QuantModule
@@ -34,8 +36,11 @@ def test(model, test_loader, seed=None, verbose=True):
     # switch to evaluate mode
     model.eval()
 
-    # run on GPU if available
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if dosa_singleton.config.quant.run_on_cuda_device_if_available:
+        # run on GPU if available
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    else:
+        device = torch.device('cpu')
     model.to(device)
 
     with torch.no_grad():

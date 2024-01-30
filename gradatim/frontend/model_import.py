@@ -147,7 +147,7 @@ def user_import_from_torchscript(model_path, user_constraints, calibration_data_
         torch_dataloader = DataLoader(torch_dataset)
         # num_steps = min(300, len(calibration_data))
         num_steps = len(calibration_data)
-        print(f"\t...done. Starting quantization calibration ({num_steps} steps) ...")
+        print(f"\t...done.\nDOSA: Starting quantization calibration ({num_steps} steps) ...")
         q_model.load_state_and_calibrate(dnn, data_loader=torch_dataloader, num_steps=num_steps, seed=42)
         q_model.cpu()
         if debug_mode:

@@ -48,5 +48,8 @@
   "dse": {
     "allow_throughput_degradation": true,
     "allowed_throughput_degradation": 0.1
+  },
+  "quantization": {
+    "run_on_cuda_device": false
   }
 }
