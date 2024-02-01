@@ -317,7 +317,7 @@ class DosaRoot:
             # as done by FINN:
             #  https://github.com/Xilinx/finn-hlslib/blob/27fd7a2b50a031cbb97142e8c2d1f234671de579/activations.hpp#L218
             for e in multi_thresholding_array[idx]:
-                if x < e:
+                if x >= e:
                     res += 1
             return res
 
@@ -399,6 +399,11 @@ class DosaRoot:
             print("[DOSA:runtime:INFO] processing pipeline of DOSA is filled: {}".format(processing_pipelines_filled))
         za = np.zeros(x[0].shape, self.ndtype)
         batch_size = len(x)
+        if output_shape[0] != batch_size:
+            tmp_shape = list(output_shape)
+            tmp_shape[0] = batch_size
+            output_shape = tuple(tmp_shape)
+            print(f"[DOSA:runtime:INFO] adapting output_shape to {output_shape}")
         transform_time = 0.0
         encoding_time = 0.0
         if self._quantize_input:
@@ -410,9 +415,9 @@ class DosaRoot:
             transform_stop = time.time()
             transform_time = transform_stop - transform_start
         else:
-            input_data = x.astype(self.ndtype)
             encoding_start = time.time()
-            self._encode_input(input_data, assume_scaled=assume_scaled_input)
+            self._encode_input(x, assume_scaled=assume_scaled_input)
+            input_data = x.astype(self.ndtype)
             encoding_stop = time.time()
             encoding_time = encoding_stop - encoding_start
         single_input_length = int(self.n_bytes * input_data[0].size)
@@ -450,6 +455,7 @@ class DosaRoot:
                 batch_input = input_data
             output_batch_num = int(batch_size + added_zero_tensors)
 
+        # print("input_data")
         # print(input_data)
         input_num = len(batch_input)
         # add one "line" to avoid SEGFAULT
@@ -511,6 +517,8 @@ class DosaRoot:
             output = output_deserialized[:-4]
 
         expected_output = output[0:expected_num_output]
+        # print("raw output")
+        # print(expected_output)
         # fxp decoding is required in all cases! (even with thresholding)
         rescaled_output = self._decode_output(expected_output)
         return rescaled_output
