@@ -19,6 +19,9 @@ virtualenv venv -p /usr/bin/python3.8
 pip install -r requirements.txt --no-dependencies
 ```
 
+(Please note, the `--no-dependencies` is necessary to be able to install all required packages. All packages and their 
+necessary dependencies are defined in the `requirements.txt`, but `pip` sometimes/often tries to solve it on its own and fails). 
+
 ### TVM
 
 Dosa requires an installation of TVM, including python bindings. 
