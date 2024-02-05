@@ -177,6 +177,7 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
         outline += '};\n'
         outline += f'{tab}typename CONFIG_T::accum_t {threshold_accum_name} = 0;\n'
         outline += f'{tab}for(unsigned int tt = 0; tt < {threshold_len}; tt++){{\n' \
+                   f'{tab}#pragma HLS unroll\n' \
                    f'{tab}    if({threshold_arr_name}[tt] < {in_var_name}[{channel_id}])\n' \
                    f'{tab}        {threshold_accum_name} += 1;\n' \
                    f'{tab}}}\n'
