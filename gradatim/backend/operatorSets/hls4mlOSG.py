@@ -26,6 +26,7 @@
 #  *
 #  *
 
+import sys
 import os
 import math
 import numpy as np
@@ -127,41 +128,59 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
     for channel_id in range(channel_num):
         vector_data = layer_data[channel_id].astype(int)
         assert len(out_values) == len(vector_data)
-        outline += f"\n{tab}switch((int) {in_var_name}[{channel_id}])\n{tab}{{\n"
-        last_fixed_upper_threshold_value = lower_bound_in - 1
-        last_fixed_lower_threshold_value = lower_bound_in - 1
-        next_outline = ''
-        last_out_value = None
-        for out_value, threshold_value in zip(out_values, vector_data):
-            # fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
-            # it is exclusive, so < and then >= ...meaning -1
-            # fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int) - 1
-            fixed_threshold_value = np.floor(threshold_value).astype(int) - 1
-            new_lower_value = last_fixed_upper_threshold_value + 1
-            if fixed_threshold_value == last_fixed_upper_threshold_value:
-                # merge with previous and overwrite
-                new_lower_value = last_fixed_lower_threshold_value
-            else:
-                outline += next_outline
-            if fixed_threshold_value == new_lower_value:
-                next_outline = f"{tab}{inner_tab}case {fixed_threshold_value}: " \
-                           f"{out_var_name}[{channel_id}] = {out_value}; break;\n"
-                last_fixed_lower_threshold_value = fixed_threshold_value
-            else:
-                next_outline = f"{tab}{inner_tab}case {new_lower_value} ... {fixed_threshold_value}: " \
-                           f"{out_var_name}[{channel_id}] = {out_value}; break;\n"
-                last_fixed_lower_threshold_value = new_lower_value
-            # f"{tab}{inner_tab*2}res[{channel_id}] = {out_value}; break;\n"
-            # f"{np.binary_repr(last_fixed_upper_threshold_value, width=nbit_in)} ... {np.binary_repr(fixed_threshold_value, width=nbit_in)}"
-            last_fixed_upper_threshold_value = fixed_threshold_value
-            last_out_value = out_value
-        if last_out_value != out_values[-1]:
-            outline += next_outline
-        else:
-            last_fixed_upper_threshold_value = new_lower_value
-        outline += f"{tab}{inner_tab}default:  // above {last_fixed_upper_threshold_value}\n" \
-                   f"{tab}{inner_tab * 2}{out_var_name}[{channel_id}] = {upper_bound}; break;\n"
-        outline += tab + "}\n"
+        # outline += f"\n{tab}switch((int) {in_var_name}[{channel_id}])\n{tab}{{\n"
+        # last_fixed_upper_threshold_value = lower_bound_in - 1
+        # last_fixed_lower_threshold_value = lower_bound_in - 1
+        # next_outline = ''
+        # last_out_value = None
+        # for out_value, threshold_value in zip(out_values, vector_data):
+        #     # fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int)
+        #     # it is exclusive, so < and then >= ...meaning -1
+        #     # fixed_threshold_value = np.floor(threshold_value / fix_threshold_value).astype(int) - 1
+        #     fixed_threshold_value = np.floor(threshold_value).astype(int) - 1
+        #     new_lower_value = last_fixed_upper_threshold_value + 1
+        #     if fixed_threshold_value == last_fixed_upper_threshold_value:
+        #         # merge with previous and overwrite
+        #         new_lower_value = last_fixed_lower_threshold_value
+        #     else:
+        #         outline += next_outline
+        #     if fixed_threshold_value == new_lower_value:
+        #         next_outline = f"{tab}{inner_tab}case {fixed_threshold_value}: " \
+        #                    f"{out_var_name}[{channel_id}] = {out_value}; break;\n"
+        #         last_fixed_lower_threshold_value = fixed_threshold_value
+        #     else:
+        #         next_outline = f"{tab}{inner_tab}case {new_lower_value} ... {fixed_threshold_value}: " \
+        #                    f"{out_var_name}[{channel_id}] = {out_value}; break;\n"
+        #         last_fixed_lower_threshold_value = new_lower_value
+        #     # f"{tab}{inner_tab*2}res[{channel_id}] = {out_value}; break;\n"
+        #     # f"{np.binary_repr(last_fixed_upper_threshold_value, width=nbit_in)} ... {np.binary_repr(fixed_threshold_value, width=nbit_in)}"
+        #     last_fixed_upper_threshold_value = fixed_threshold_value
+        #     last_out_value = out_value
+        # if last_out_value != out_values[-1]:
+        #     outline += next_outline
+        # else:
+        #     last_fixed_upper_threshold_value = new_lower_value
+        # outline += f"{tab}{inner_tab}default:  // above {last_fixed_upper_threshold_value}\n" \
+        #            f"{tab}{inner_tab * 2}{out_var_name}[{channel_id}] = {upper_bound}; break;\n"
+        # outline += tab + "}\n"
+
+        # next try
+        threshold_arr_name = f"thresholds_chan_{channel_id}"
+        threshold_accum_name = f"thresholds_accum_{channel_id}"
+        threshold_len = len(vector_data)
+        outline += f'\n{tab}typename CONFIG_T::accum_t {threshold_arr_name}[{threshold_len}] = {{'
+        np.set_printoptions(threshold=sys.maxsize)
+        tmp_outline = ''
+        for e in vector_data:
+            tmp_outline += f'{e}, '
+        outline += tmp_outline[:-2]
+        outline += '};\n'
+        outline += f'{tab}typename CONFIG_T::accum_t {threshold_accum_name} = 0;\n'
+        outline += f'{tab}for(unsigned int tt = 0; tt < {threshold_len}; tt++){{\n' \
+                   f'{tab}    if({threshold_arr_name}[tt] < {in_var_name}[{channel_id}])\n' \
+                   f'{tab}        {threshold_accum_name} += 1;\n' \
+                   f'{tab}}}\n'
+        outline += f'{tab}{out_var_name}[{channel_id}] = {threshold_accum_name};\n'
     return outline
 
 
