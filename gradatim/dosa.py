@@ -29,6 +29,7 @@
 import os
 import sys
 import json
+import time
 from enum import Enum
 from docopt import docopt
 
@@ -124,6 +125,7 @@ def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_pat
     used_sample_size = user_constraints['used_sample_size']
     print("\t...done.\n")
 
+    import_time_start = time.time()
     if model_type == DosaModelType.ONNX:
         print("DOSA: Importing ONNX...")
         mod, params = user_import_from_onnx(model_path, user_constraints, debug_mode)
@@ -133,6 +135,8 @@ def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_pat
     else:
         print(f"ERROR: unsupported model type {model_type}.")
         exit(1)
+    import_time_end = time.time()
+    model_import_time = import_time_end - import_time_start
     print("\t...done.\n")
 
     # TODO: remove temporary guards
@@ -144,7 +148,7 @@ def dosa(dosa_config_path, model_type: DosaModelType, model_path: str, const_pat
                         available_comm_libs, used_batch, used_sample_size, target_sps, target_latency,
                         target_resource_budget, arch_target_devices, arch_fallback_hw, debug=debug_mode, profiling=True,
                         verbose=True, generate_build=generate_build, generate_only_stats=generate_only_stats,
-                        write_only_osg_coverage=generate_only_coverage)
+                        write_only_osg_coverage=generate_only_coverage, model_import_time=model_import_time)
     print("\t...done.\n")
 
     all_plots = True

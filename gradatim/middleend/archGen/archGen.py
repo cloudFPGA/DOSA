@@ -53,7 +53,8 @@ from gradatim.lib.dosa_exceptions import DosaImpossibleToProceed, DosaInvalidAct
 def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs: [BaseOSG], available_devices,
              available_comm_libs: [BaseCommLib], batch_size=1, sample_size=1, target_sps=-1, target_latency=-1,
              target_resources=-1, arch_target_devices=None, arch_fallback_devices=None, debug=False, profiling=False,
-             verbose=False, generate_build=True, generate_only_stats=False, write_only_osg_coverage=False):
+             verbose=False, generate_build=True, generate_only_stats=False, write_only_osg_coverage=False,
+             model_import_time=0):
     verbose_arch_dump = True
     do_best_search = True
 
@@ -126,7 +127,9 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     inital_draft.available_osgs = available_osgs
 
     creating_draft_end = time.time()
+    print("\t...done.\n")
 
+    print("DOSA: Optimizing architecture...")
     zero_oi_filter = OiThresholdFilter(0.0)
     useless_flatten_filter = OpCallSameDimFilter(['nn.batch_flatten'], reduce_dims=True)
     useless_reshape_filter = OpCallFilter(['reshape'])
@@ -137,7 +140,9 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
     delete_ops_pass(inital_draft, useless_reshape_filter, work_on_copy=False)
     merge_ops_within_brick_pass(inital_draft, merge_threshold_filter, work_on_copy=False)
     opt_draft_end = time.time()
+    print("\t...done.\n")
 
+    print("DOSA: Find best architecture fulfilling target constraints...")
     annotating_draft_start = time.time()
     # annotated_draft = annotate_required_performance(inital_draft)
     annotated_draft = inital_draft
@@ -238,7 +243,9 @@ def arch_gen(mod, params, name, strategy: OptimizationStrategies, available_osgs
 
     arch_gen_end = time.time()
     if profiling:
-        prof_dict = {'archGen_time_total_s': arch_gen_end - arch_gen_start,
+        prof_dict = {
+                     'model_import_time_s': model_import_time,
+                     'archGen_time_total_s': arch_gen_end - arch_gen_start,
                      'tvm_pass_time_s': tvm_pass_end - tvm_pass_start,
                      'creating_draft_time_s': creating_draft_end - creating_draft_start,
                      'optimizing_draft_time_s': opt_draft_end - opt_draft_start,

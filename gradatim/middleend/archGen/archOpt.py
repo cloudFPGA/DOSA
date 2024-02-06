@@ -28,6 +28,7 @@
 
 import copy
 import numpy as np
+import time
 import tvm.relay as relay
 
 import gradatim.lib.singleton as dosa_singleton
@@ -176,6 +177,8 @@ class MergeOpClass:
             print(f"[DOSA:MergeOps:ERROR] Can't merge {repr(op_to_be_merged)} into multi_threshold "
                   f"{repr(op_merge_receive)}. STOP.")
             exit(1)
+        print(f"[DOSA:MergeOps:INFO] Start merging multi_threshold {repr(op_to_be_merged)} into {repr(op_merge_receive)}...")
+        merge_time_start = time.time()
         assert op_merge_receive.dims.out == op_to_be_merged.dims.inp
         assert op_to_be_merged.dims.inp == op_to_be_merged.dims.out
         assert op_merge_receive.dims.param == op_to_be_merged.dims.param
@@ -194,23 +197,27 @@ class MergeOpClass:
         in_values_2 = op_to_be_merged.tvm_args['by_position'][1]['ref'].data.numpy()
         assert len(in_values_1) == len(in_values_2)
         orig_array_dtype = in_values_1.dtype
+        max_number = abs(in_values_1[0][0])
+        max_threshold_bitwidth = int(np.ceil(np.log2(max_number)))
+        orig_in_values = np.arange(-np.power(2, max_threshold_bitwidth), np.power(2, max_threshold_bitwidth) -1)
 
         out_array = []
         # here, duplicate values are allowed!
-        for channel_id in range(in_values_1.shape[0]):
-            out_to_in_1 = {}
-            vector_1 = in_values_1[channel_id]
-            vector_2 = in_values_2[channel_id]
-            assert len(out_values) == len(vector_1)
-            assert len(vector_1) == len(vector_2)
-            for i in range(len(vector_1)):
-                out_to_in_1[int(out_values[i])] = vector_1[i]
-            out_vector = []
-            for i in range(len(vector_1)):
-                # new_entry = int(out_to_in_1[int(vector_2[i])])
-                new_entry = int(out_to_in_1[int(vector_2[i]) - 1])  # - 1 because it is >=
-                out_vector.append(new_entry)
-            out_array.append(out_vector)
+
+        # for channel_id in range(in_values_1.shape[0]):
+        #     out_to_in_1 = {}
+        #     vector_1 = in_values_1[channel_id]
+        #     vector_2 = in_values_2[channel_id]
+        #     assert len(out_values) == len(vector_1)
+        #     assert len(vector_1) == len(vector_2)
+        #     for i in range(len(vector_1)):
+        #         out_to_in_1[int(out_values[i])] = vector_1[i]
+        #     out_vector = []
+        #     for i in range(len(vector_1)):
+        #         # new_entry = int(out_to_in_1[int(vector_2[i])])
+        #         new_entry = int(out_to_in_1[int(vector_2[i]) - 1])  # - 1 because it is >=
+        #         out_vector.append(new_entry)
+        #     out_array.append(out_vector)
         # # next try...
         # out_array = []
         # # here, duplicate values are allowed!
@@ -224,6 +231,22 @@ class MergeOpClass:
         #         new_entry = vector_1[int(vector_2[i])]
         #         out_vector.append(new_entry)
         #     out_array.append(out_vector)
+
+        # now, simulate it
+        for channel_id in range(in_values_1.shape[0]):
+            vector_1 = in_values_1[channel_id]
+            vector_2 = in_values_2[channel_id]
+            assert len(out_values) == len(vector_1)
+            assert len(vector_1) == len(vector_2)
+            # ov_list_1, ov_dict_1 = execute_thresholding_par(vector_1, orig_in_values)
+            ov_list_1, ov_dict_1 = execute_thresholding_opt(vector_1, orig_in_values)
+            inp_v_2 = list(set(ov_list_1))
+            # ov_list_2, ov_dict_2 = execute_thresholding_par(vector_2, inp_v_2)
+            ov_list_2, ov_dict_2 = execute_thresholding_opt(vector_2, inp_v_2)
+            merged_dict, new_threshold_values = merge_threshold_dicts(ov_dict_1, ov_dict_2)
+            assert len(out_values) == len(new_threshold_values)
+            out_array.append(new_threshold_values)
+
         new_array = np.array(out_array)
         assert new_array.shape == in_values_1.shape
         new_c = relay.const(new_array, dtype=orig_array_dtype)
@@ -232,10 +255,89 @@ class MergeOpClass:
         op_merge_receive.tvm_args['by_position'][1]['ref'] = new_c
         op_merge_receive.tvm_args['vars'][0]['ref'] = new_c
         op_merge_receive.merged_ops = [op_to_be_merged]
+        merge_time_end = time.time()
         print(f"[DOSA:MergeOps:INFO] Merged multi_threshold {repr(op_to_be_merged)} into {repr(op_merge_receive)} "
-              f"successfully (parent: {op_merge_receive.parent_fn}).")
+              f"successfully (parent: {op_merge_receive.parent_fn}) (duration {merge_time_end-merge_time_start:.4f}s).")
         assert op_merge_receive.tvm_args['by_position'][1]['ref'] == new_c
         return op_merge_receive
+
+
+def threshold_op(threshold_values, value):
+    ret = 0
+    for tv in threshold_values:
+        if tv < value:
+            ret += 1
+    return ret
+
+
+def threshold_op_tup(input_tuple):
+    threshold_values = input_tuple[0]
+    value = input_tuple[1]
+    ret = 0
+    for tv in threshold_values:
+        if tv < value:
+            ret += 1
+    return value, ret
+
+
+def execute_thresholding(threshold_values, input_values):
+    output_values = []
+    output_dict = {}
+    for v in input_values:
+        ov = threshold_op(threshold_values, v)
+        output_values.append(ov)
+        output_dict[v] = ov
+    return output_values, output_dict
+
+
+def execute_thresholding_par(threshold_values, input_values):
+    import multiprocessing as mp
+    # vfunc_lambda = lambda x: (x, threshold_op(threshold_values, x))
+    output_values = []
+    output_dict = {}
+    with mp.Pool(processes=mp.cpu_count()) as p:
+        # results = p.map(vfunc_lambda, input_values)
+        results = p.map(threshold_op_tup, [(threshold_values, x) for x in input_values])
+    # print(results)
+    for rt in results:
+        output_values.append(rt[1])
+        output_dict[rt[0]] = rt[1]
+    return output_values, output_dict
+
+
+def execute_thresholding_opt(threshold_values, input_values):
+    output_values = []
+    output_dict = {}
+    cur_input_value = input_values[0]
+    co = 0
+    for tv in threshold_values:
+        for iv in range(int(cur_input_value), int(tv)+1):
+            output_values.append(co)
+            output_dict[iv] = co
+        co += 1
+        cur_input_value = tv+1
+    for iv in range(int(cur_input_value), int(input_values[-1]) + 1):
+        output_values.append(co)
+        output_dict[iv] = co
+    return output_values, output_dict
+
+
+def merge_threshold_dicts(dict_1, dict_2):
+    out_dict = {}
+    threshold_array = []
+    cur_outval = 0
+    old_threshold = None
+    ti = 0
+    for k, v in dict_1.items():
+        ov = dict_2[v]
+        out_dict[k] = ov
+        if ov != cur_outval:
+            # threshold_array.append(old_threshold)
+            threshold_array.extend([old_threshold] * (ov - ti))
+            ti = len(threshold_array)
+            cur_outval = ov
+        old_threshold = k
+    return out_dict, threshold_array
 
 
 def merge_ops_within_brick_pass(input_draft, arch_filter: ArchFilter, work_on_copy=False):
