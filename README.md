@@ -112,7 +112,7 @@ The [./examples/](./examples/) folder contains some ONNX files and their corresp
 For example, to show the Roofline analysis of the PTTCNN example (CNN fom the [pytorch tutorial](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html)) without generating build files, execute the following command:
 ```bash
 . venv/bin/activate
-./gradatim.sh onnx ./config/dosa_config_0.json ./examples/PTTCNN_int8.onnx ./examples/PTTCNN_meta.json ./my_build_dirs/pttcnn/ --no-build
+./gradatim.sh onnx ./config/dosa_config_default.json ./examples/PTTCNN_int8.onnx ./examples/PTTCNN_meta.json ./my_build_dirs/pttcnn/ --no-build
 # maybe `export PYTHONPATH=.` is necessary before
 ```
 
