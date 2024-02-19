@@ -189,8 +189,9 @@ def _generate_threshold_block_single(threshold_op, in_var_name, out_var_name):
         # outline += tab + "}\n"
 
         # next try
-        threshold_arr_name = f"thresholds_chan_{channel_id}"
-        threshold_accum_name = f"thresholds_accum_{channel_id}"
+        unique_op_name = get_random_name_extension()
+        threshold_arr_name = f"thresholds_{unique_op_name}_chan_{channel_id}"
+        threshold_accum_name = f"thresholds_{unique_op_name}_accum_{channel_id}"
         threshold_len = len(vector_data)
         outline += f'\n{tab}typename CONFIG_T::accum_t {threshold_arr_name}[{threshold_len}] = {{'
         np.set_printoptions(threshold=sys.maxsize)
