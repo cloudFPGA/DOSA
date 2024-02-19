@@ -147,6 +147,7 @@ class DosaRoot:
         self.c_lib.get_pipeline_full_batch_size.restype = ctypes.c_uint32
         self.c_lib.are_processing_pipelines_filled.restype = ctypes.c_bool
         self.nbits = used_bitwidth
+        self.int_bits_output = 0
         self.n_bytes = int((used_bitwidth + 7) / 8)
         self.max_value = float(np.power(2, used_bitwidth - 1))
         if used_bitwidth == 8:
@@ -384,7 +385,7 @@ class DosaRoot:
 
     def _decode_output(self, output_data: np.array):
         # TODO: allow custom fixed point formats?
-        dec = Fxp([0], signed=True, n_word=self.nbits, n_frac=(self.nbits - 1))
+        dec = Fxp([0], signed=True, n_word=self.nbits, n_frac=(self.nbits - 1 - self.int_bits_output))
         dec.set_val(output_data, raw=True)
         rescaled = np.array(dec)
         return rescaled

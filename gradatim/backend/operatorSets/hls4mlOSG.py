@@ -124,7 +124,8 @@ def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
     #     print(
     #         f"[OSG:hls4ml:INFO] threshold vector contains to large value entries, need to floor "
     #         f"by a factor of {fix_threshold_value}.")
-    outline = tab + f'// "casting" of {in_var_name}[] to {out_var_name}[] using multi_threshold operation'  # no \n
+    outline = f'{tab}// "casting" of {in_var_name}[] to {out_var_name}[] using multi_threshold operation\n' \
+              f'{tab}// (due to impossible type-casting we can not implement it as switch-case.)'  # no \n
     for channel_id in range(channel_num):
         vector_data = layer_data[channel_id].astype(int)
         assert len(out_values) == len(vector_data)
