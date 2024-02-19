@@ -69,7 +69,7 @@ Options:
 ```
 The mandatory arguments are:
 - the flow `onnx` or `torchscript`
-- `dosa_config.json`: JSON file containing the general configuration of DOSA. In most cases the **default configuration** in [./config/dosa_config_0.json](./config/dosa_config_0.json) is sufficient. 
+- `dosa_config.json`: JSON file containing the general configuration of DOSA. In most cases the **default configuration** in [./config/dosa_config_default.json](./config/dosa_config_default.json) is sufficient. 
 - `model.file`: The [ONNX](https://onnx.ai) or torchscript of the DNN that should be compiled.
 - `constraint.json`: The JSON file containing the target constraints. See examples in the [./examples/](./examples/) folder. 
 - `path/to/build_dir/`: The path to the directory where the FPGA build files should be emitted to. How to handle non-empty build directories can be configured in the `dosa_config.json`. 
