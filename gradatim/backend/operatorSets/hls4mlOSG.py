@@ -131,6 +131,7 @@ def _generate_threshold_block_single(threshold_op, in_var_name, out_var_name):
     upper_bound = np.power(2, nbit_out - 1) - 1
     # FIXME: more precise way?
     out_values = np.append(np.repeat(np.arange(0, upper_bound), 2), np.array([upper_bound]))
+    unique_op_name = get_random_name_extension()
     tab = '    '
     inner_tab = '  '
     upper_bound_in = np.power(2, prod_width - 1) - 1
@@ -189,7 +190,6 @@ def _generate_threshold_block_single(threshold_op, in_var_name, out_var_name):
         # outline += tab + "}\n"
 
         # next try
-        unique_op_name = get_random_name_extension()
         threshold_arr_name = f"thresholds_{unique_op_name}_chan_{channel_id}"
         threshold_accum_name = f"thresholds_{unique_op_name}_accum_{channel_id}"
         threshold_len = len(vector_data)
