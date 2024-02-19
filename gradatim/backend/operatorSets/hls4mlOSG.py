@@ -84,6 +84,29 @@ def get_loop_unrolling_factors(req_parallelization_grade):
 
 
 def _generate_threshold_block(threshold_op, in_var_name, out_var_name):
+    if hasattr(threshold_op, 'subsequent_thresholding'):
+        assert len(threshold_op.subsequent_thresholding) > 0
+        tab = '    '
+        tmp_out_var_name = 'multi_thresh_tmp_0'
+        outlines = f'{tab}res_T     {tmp_out_var_name}[CONFIG_T::n_out];\n'
+        outlines += _generate_threshold_block_single(threshold_op, in_var_name, tmp_out_var_name)
+        outlines += f'\n{tab}// applying subsequent multi_threshold operations ' \
+                    f'(e.g. optimized implementations of activation functions in the original DNN)\n'
+        for i, s_thres_op in enumerate(threshold_op.subsequent_thresholding):
+            tmp_in_var_name = tmp_out_var_name
+            if i == len(threshold_op.subsequent_thresholding) - 1:
+                tmp_out_var_name = out_var_name
+            else:
+                tmp_out_var_name = f'multi_thresh_tmp_{i+1}'
+                outlines += f'{tab}res_T     {tmp_out_var_name}[CONFIG_T::n_out];\n'
+            outlines += _generate_threshold_block_single(s_thres_op, tmp_in_var_name, tmp_out_var_name)
+            outlines += '\n'
+        return outlines
+    else:
+        return _generate_threshold_block_single(threshold_op, in_var_name, out_var_name)
+
+
+def _generate_threshold_block_single(threshold_op, in_var_name, out_var_name):
     layer_data = threshold_op.tvm_args['vars'][0]['ref'].data.numpy()
     channel_num = layer_data.shape[0]
     # default prod_width

@@ -184,81 +184,90 @@ class MergeOpClass:
         assert op_merge_receive.dims.param == op_to_be_merged.dims.param
         assert op_merge_receive.used_dtype == op_to_be_merged.used_dtype
 
-        # actually, we only need to replace the constants?
-        nbit_in = get_bitwidth_of_DosaDtype(op_merge_receive.used_dtype)
-        # upper_bound = np.power(2, nbit_in - 1) - 1
-        # lower_bound = -np.power(2, nbit_in - 1)
-        # out_values = np.arange(lower_bound, upper_bound)
-        upper_bound = np.power(2, nbit_in) - 1
-        out_values = np.arange(0, upper_bound)
+        if dosa_singleton.config.quant.try_optimizing_threshold_ops:
+            # actually, we only need to replace the constants?
+            nbit_in = get_bitwidth_of_DosaDtype(op_merge_receive.used_dtype)
+            # upper_bound = np.power(2, nbit_in - 1) - 1
+            # lower_bound = -np.power(2, nbit_in - 1)
+            # out_values = np.arange(lower_bound, upper_bound)
+            upper_bound = np.power(2, nbit_in) - 1
+            out_values = np.arange(0, upper_bound)
 
-        # in_out_1 = np.vstack([op_merge_receive.tvm_args['by_position'][1]['ref'].data.numpy()[0], out_values])
-        in_values_1 = op_merge_receive.tvm_args['by_position'][1]['ref'].data.numpy()
-        in_values_2 = op_to_be_merged.tvm_args['by_position'][1]['ref'].data.numpy()
-        assert len(in_values_1) == len(in_values_2)
-        orig_array_dtype = in_values_1.dtype
-        max_number = abs(in_values_1[0][0])
-        max_threshold_bitwidth = int(np.ceil(np.log2(max_number)))
-        orig_in_values = np.arange(-np.power(2, max_threshold_bitwidth), np.power(2, max_threshold_bitwidth) -1)
+            # in_out_1 = np.vstack([op_merge_receive.tvm_args['by_position'][1]['ref'].data.numpy()[0], out_values])
+            in_values_1 = op_merge_receive.tvm_args['by_position'][1]['ref'].data.numpy()
+            in_values_2 = op_to_be_merged.tvm_args['by_position'][1]['ref'].data.numpy()
+            assert len(in_values_1) == len(in_values_2)
+            orig_array_dtype = in_values_1.dtype
+            max_number = abs(in_values_1[0][0])
+            max_threshold_bitwidth = int(np.ceil(np.log2(max_number)))
+            orig_in_values = np.arange(-np.power(2, max_threshold_bitwidth), np.power(2, max_threshold_bitwidth) -1)
 
-        out_array = []
-        # here, duplicate values are allowed!
+            out_array = []
+            # here, duplicate values are allowed!
 
-        # for channel_id in range(in_values_1.shape[0]):
-        #     out_to_in_1 = {}
-        #     vector_1 = in_values_1[channel_id]
-        #     vector_2 = in_values_2[channel_id]
-        #     assert len(out_values) == len(vector_1)
-        #     assert len(vector_1) == len(vector_2)
-        #     for i in range(len(vector_1)):
-        #         out_to_in_1[int(out_values[i])] = vector_1[i]
-        #     out_vector = []
-        #     for i in range(len(vector_1)):
-        #         # new_entry = int(out_to_in_1[int(vector_2[i])])
-        #         new_entry = int(out_to_in_1[int(vector_2[i]) - 1])  # - 1 because it is >=
-        #         out_vector.append(new_entry)
-        #     out_array.append(out_vector)
-        # # next try...
-        # out_array = []
-        # # here, duplicate values are allowed!
-        # for channel_id in range(in_values_1.shape[0]):
-        #     vector_1 = in_values_1[channel_id]
-        #     vector_2 = in_values_2[channel_id]
-        #     assert len(out_values) == len(vector_1)
-        #     assert len(vector_1) == len(vector_2)
-        #     out_vector = []
-        #     for i in range(len(vector_1)):
-        #         new_entry = vector_1[int(vector_2[i])]
-        #         out_vector.append(new_entry)
-        #     out_array.append(out_vector)
+            # for channel_id in range(in_values_1.shape[0]):
+            #     out_to_in_1 = {}
+            #     vector_1 = in_values_1[channel_id]
+            #     vector_2 = in_values_2[channel_id]
+            #     assert len(out_values) == len(vector_1)
+            #     assert len(vector_1) == len(vector_2)
+            #     for i in range(len(vector_1)):
+            #         out_to_in_1[int(out_values[i])] = vector_1[i]
+            #     out_vector = []
+            #     for i in range(len(vector_1)):
+            #         # new_entry = int(out_to_in_1[int(vector_2[i])])
+            #         new_entry = int(out_to_in_1[int(vector_2[i]) - 1])  # - 1 because it is >=
+            #         out_vector.append(new_entry)
+            #     out_array.append(out_vector)
+            # # next try...
+            # out_array = []
+            # # here, duplicate values are allowed!
+            # for channel_id in range(in_values_1.shape[0]):
+            #     vector_1 = in_values_1[channel_id]
+            #     vector_2 = in_values_2[channel_id]
+            #     assert len(out_values) == len(vector_1)
+            #     assert len(vector_1) == len(vector_2)
+            #     out_vector = []
+            #     for i in range(len(vector_1)):
+            #         new_entry = vector_1[int(vector_2[i])]
+            #         out_vector.append(new_entry)
+            #     out_array.append(out_vector)
 
-        # now, simulate it
-        for channel_id in range(in_values_1.shape[0]):
-            vector_1 = in_values_1[channel_id]
-            vector_2 = in_values_2[channel_id]
-            assert len(out_values) == len(vector_1)
-            assert len(vector_1) == len(vector_2)
-            # ov_list_1, ov_dict_1 = execute_thresholding_par(vector_1, orig_in_values)
-            ov_list_1, ov_dict_1 = execute_thresholding_opt(vector_1, orig_in_values)
-            inp_v_2 = list(set(ov_list_1))
-            # ov_list_2, ov_dict_2 = execute_thresholding_par(vector_2, inp_v_2)
-            ov_list_2, ov_dict_2 = execute_thresholding_opt(vector_2, inp_v_2)
-            merged_dict, new_threshold_values = merge_threshold_dicts(ov_dict_1, ov_dict_2)
-            assert len(out_values) == len(new_threshold_values)
-            out_array.append(new_threshold_values)
+            # now, simulate it
+            for channel_id in range(in_values_1.shape[0]):
+                vector_1 = in_values_1[channel_id]
+                vector_2 = in_values_2[channel_id]
+                assert len(out_values) == len(vector_1)
+                assert len(vector_1) == len(vector_2)
+                # ov_list_1, ov_dict_1 = execute_thresholding_par(vector_1, orig_in_values)
+                ov_list_1, ov_dict_1 = execute_thresholding_opt(vector_1, orig_in_values)
+                inp_v_2 = list(set(ov_list_1))
+                # ov_list_2, ov_dict_2 = execute_thresholding_par(vector_2, inp_v_2)
+                ov_list_2, ov_dict_2 = execute_thresholding_opt(vector_2, inp_v_2)
+                merged_dict, new_threshold_values = merge_threshold_dicts(ov_dict_1, ov_dict_2)
+                assert len(out_values) == len(new_threshold_values)
+                out_array.append(new_threshold_values)
 
-        new_array = np.array(out_array)
-        assert new_array.shape == in_values_1.shape
-        new_c = relay.const(new_array, dtype=orig_array_dtype)
+            new_array = np.array(out_array)
+            assert new_array.shape == in_values_1.shape
+            new_c = relay.const(new_array, dtype=orig_array_dtype)
 
-        # replace old constant
-        op_merge_receive.tvm_args['by_position'][1]['ref'] = new_c
-        op_merge_receive.tvm_args['vars'][0]['ref'] = new_c
-        op_merge_receive.merged_ops = [op_to_be_merged]
+            # replace old constant
+            op_merge_receive.tvm_args['by_position'][1]['ref'] = new_c
+            op_merge_receive.tvm_args['vars'][0]['ref'] = new_c
+            op_merge_receive.merged_ops = [op_to_be_merged]
+            assert op_merge_receive.tvm_args['by_position'][1]['ref'] == new_c
+        else:
+            # op_merge_receive.op_call += '_nested'
+            op_merge_receive.merged_ops = [op_to_be_merged]
+            op_merge_receive.subsequent_thresholding = [op_to_be_merged]
+            # move all subsequent nested thresholding ops to toplevel op
+            if hasattr(op_to_be_merged, 'subsequent_thresholding'):
+                op_merge_receive.subsequent_thresholding.extend(op_to_be_merged.subsequent_thresholding)
+                op_to_be_merged.subsequent_thresholding = []
         merge_time_end = time.time()
         print(f"[DOSA:MergeOps:INFO] Merged multi_threshold {repr(op_to_be_merged)} into {repr(op_merge_receive)} "
               f"successfully (parent: {op_merge_receive.parent_fn}) (duration {merge_time_end-merge_time_start:.4f}s).")
-        assert op_merge_receive.tvm_args['by_position'][1]['ref'] == new_c
         return op_merge_receive
 
 
