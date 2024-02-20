@@ -302,6 +302,10 @@ class Hls4mlOSG(BaseOSG):
         if consider_outB:
             bytes_total += op.output_bytes
         bytes_total *= custom_byte_factor
+        # FIXME: get relevant examples in util db, then remove
+        if 'threshold' in op.op_call:
+            bytes_total *= 6
+
         util_dict = {}
         util_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
         util_dict['LUTMEM'] = res_dict['LUTMEM'] * bytes_total
