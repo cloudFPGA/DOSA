@@ -241,6 +241,13 @@ def dosa_to_hls(config, reader, model_arch):
     # for threshold
     #  1. layer.include_list need to include the new generated custom hedder file
     #  2. layer.function_template (or so) needs to be the new name, like dense_1234
+    # we need to make it thread safe multi-call safe...I don't know why
+    for name, graph_layer in hls_model.graph.items():
+        clear_include_list = []
+        for e in graph_layer.include_list:
+            if 'custom_layer' not in e:
+                clear_include_list.append(e)
+        graph_layer.include_list = clear_include_list
     for name, graph_layer in hls_model.graph.items():
         if name in layers_with_non_template_instantiation.keys():
             instance_name = layers_with_non_template_instantiation[name]
