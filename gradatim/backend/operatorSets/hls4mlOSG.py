@@ -150,9 +150,10 @@ def _generate_threshold_block_single(threshold_op, in_var_name, out_var_name):
     #         f"by a factor of {fix_threshold_value}.")
     outline = f'{tab}// "casting" of {in_var_name}[] to {out_var_name}[] using multi_threshold operation\n' \
               f'{tab}// (due to impossible type-casting we can not implement it as switch-case.)'  # no \n
-    for channel_id in range(channel_num):
-        vector_data = layer_data[channel_id].astype(int)
-        assert len(out_values) == len(vector_data)
+    threshold_len = len(out_values)
+    # for channel_id in range(channel_num):
+    #     vector_data = layer_data[channel_id].astype(int)
+    #     assert len(out_values) == len(vector_data)
         # outline += f"\n{tab}switch((int) {in_var_name}[{channel_id}])\n{tab}{{\n"
         # last_fixed_upper_threshold_value = lower_bound_in - 1
         # last_fixed_lower_threshold_value = lower_bound_in - 1
@@ -190,23 +191,46 @@ def _generate_threshold_block_single(threshold_op, in_var_name, out_var_name):
         # outline += tab + "}\n"
 
         # next try
+        # threshold_arr_name = f"thresholds_{unique_op_name}_chan_{channel_id}"
+        # threshold_accum_name = f"thresholds_{unique_op_name}_accum_{channel_id}"
+        # threshold_len = len(vector_data)
+        # outline += f'\n{tab}typename CONFIG_T::accum_t {threshold_arr_name}[{threshold_len}] = {{'
+        # np.set_printoptions(threshold=sys.maxsize)
+        # tmp_outline = ''
+        # for e in vector_data:
+        #     tmp_outline += f'{e}, '
+        # outline += tmp_outline[:-2]
+        # outline += '};\n'
+        # outline += f'{tab}typename CONFIG_T::accum_t {threshold_accum_name} = 0;\n'
+        # outline += f'{tab}for(unsigned int tt = 0; tt < {threshold_len}; tt++){{\n' \
+        #            f'{tab}#pragma HLS unroll\n' \
+        #            f'{tab}    if({threshold_arr_name}[tt] < {in_var_name}[{channel_id}])\n' \
+        #            f'{tab}        {threshold_accum_name} += 1;\n' \
+        #            f'{tab}}}\n'
+        # outline += f'{tab}{out_var_name}[{channel_id}] = {threshold_accum_name};\n'
+
+    # another try
+    for channel_id in range(channel_num):
+        vector_data = layer_data[channel_id].astype(int)
+        assert len(out_values) == len(vector_data)
         threshold_arr_name = f"thresholds_{unique_op_name}_chan_{channel_id}"
-        threshold_accum_name = f"thresholds_{unique_op_name}_accum_{channel_id}"
-        threshold_len = len(vector_data)
         outline += f'\n{tab}typename CONFIG_T::accum_t {threshold_arr_name}[{threshold_len}] = {{'
+        assert threshold_len == len(vector_data)
         np.set_printoptions(threshold=sys.maxsize)
         tmp_outline = ''
         for e in vector_data:
             tmp_outline += f'{e}, '
         outline += tmp_outline[:-2]
         outline += '};\n'
-        outline += f'{tab}typename CONFIG_T::accum_t {threshold_accum_name} = 0;\n'
-        outline += f'{tab}for(unsigned int tt = 0; tt < {threshold_len}; tt++){{\n' \
-                   f'{tab}#pragma HLS unroll\n' \
-                   f'{tab}    if({threshold_arr_name}[tt] < {in_var_name}[{channel_id}])\n' \
-                   f'{tab}        {threshold_accum_name} += 1;\n' \
-                   f'{tab}}}\n'
-        outline += f'{tab}{out_var_name}[{channel_id}] = {threshold_accum_name};\n'
+    outline += f'\n{tab}for(unsigned int tt = 0; tt < {threshold_len}; tt++) {{\n' \
+               f'{tab}    if (CONFIG_T::reuse_factor > 1)\n{tab}    {{\n' \
+               f'{tab}        #pragma HLS PIPELINE II=CONFIG_T::reuse_factor\n' \
+               f'{tab}    }} else {{\n{tab}        #pragma HLS UNROLL\n{tab}    }}\n'
+    for channel_id in range(channel_num):
+        threshold_arr_name = f"thresholds_{unique_op_name}_chan_{channel_id}"
+        outline += f'{tab}    if({threshold_arr_name}[tt] < {in_var_name}[{channel_id}])\n{tab}    {{\n' \
+                   f'{tab}        {out_var_name}[{channel_id}] += 1;\n{tab}    }}\n'
+    outline += f'{tab}}}\n'
     return outline
 
 
@@ -600,6 +624,8 @@ class Hls4mlOSG(BaseOSG):
         assert len(selected_contracts) == len(arch_block.brick_list)
         used_dir_path = build_tool.add_ip_dir(arch_block.block_uuid)
         project_name = 'ArchBlock_{}'.format(arch_block.block_uuid)
+        # reset non_template_instances
+        self._non_template_instances = {}
         used_dtype = DosaDtype.int32
         cur_w = 0
         for bb in arch_block.brick_list:
