@@ -119,9 +119,14 @@ def init_singleton(config_dict, main_path=None):
     config.dse.max_vertical_split = 500
 
     if main_path is not None:
-        repo = git.Repo(path=main_path, search_parent_directories=True)
-        cur_sha = repo.git.describe()
-        config.git_version = cur_sha
+        cur_sha = '(gradatim: version unknown)'
+        try:
+            repo = git.Repo(path=main_path, search_parent_directories=True)
+            cur_sha = repo.git.describe()
+        except Exception as e:
+            print(f"[DOSA:config:DEBUG] Could not determine git version ({e}).")
+        finally:
+            config.git_version = cur_sha
 
     objects.quant_module = SimpleNamespace()
 
