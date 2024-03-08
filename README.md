@@ -192,6 +192,12 @@ Publications
 - [Compiling DNNs to Distributed FPGAs Using Operator Set Architectures (Chapter 4)](https://doi.org/10.5281/zenodo.7957659), PhD Thesis, Friedrich-Alexander University Erlangen-Nürnberg, 2022.
 
 
+Funding
+-------------
+
+> This research was supported in part by the Horizon 2020 EU Research & Innovation programme under GA No 957269 (EVEREST project).
+
+
 * * *
 Trivia: The second version of DOSA is named after the Latin word for "one step after the other".
 (The first version of DOSA was named after one popular [exoplanet](https://en.wikipedia.org/wiki/Dimidium) while at the same time meaning "half" in Latin.)
