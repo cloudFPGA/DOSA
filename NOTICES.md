@@ -2,7 +2,7 @@ NOTICES
 ============
 
 IBM cloudFPGA -- Distributed Operator Set Architectures (DOSA) [version gradatim]
-Copyright 2019 -- 2023 IBM Corporation
+Copyright 2019 -- 2024 IBM Corporation
 
 This product includes software developed at [IBM Corporation](http://www.ibm.com/).
 
