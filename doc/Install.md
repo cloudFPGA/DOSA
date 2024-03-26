@@ -24,7 +24,8 @@ necessary dependencies are defined in the `requirements.txt`, but `pip` sometime
 
 ### TVM
 
-Dosa requires an installation of TVM, including python bindings. 
+Dosa requires an installation of TVM, including python bindings.
+To be able to use the post-quantization feature of DOSA, our custom version of TVM is required: https://github.com/cloudFPGA/tvm-for-dosa
 
 1. Please follow the steps in [TVM installation](https://tvm.apache.org/docs/install/from_source.html#) (some hints are also given in [./TVM-notes.md](./TVM-notes.md)).
 2. add local tvm installation to environment. You have two *alternatives*:
@@ -75,4 +76,24 @@ Git submodules contained in DOSA
 - [cFDK](https://github.com/cloudFPGA/cFDK) in `gradatim/backend/buildTools/lib/cFBuild1/`
 - [cFCreate](https://github.com/cloudFPGA/cFCreate) in `gradatim/backend/buildTools/lib/cFBuild1/`
 - [ZRLMPI](https://github.com/cloudFPGA/ZRLMPI) in `gradatim/backend/codeGen/templates/`
+
+
+Docker
+---------------------------------------
+
+DOSA, without the FPGA build tools, can also be build and run inside a docker container:
+```commandline
+cd DOSA/doc
+docker build -f Dockerfile -t dosa-build .
+```
+
+Afterwards, DOSA CLI can be started via:
+```commandline
+docker run -it dosa-build -v ./my_in_and_out_dir/:/scratch
+# use DOSA CLI as described in usage
+./gradatim -h
+# the /scratch folder should then contain also the static dcps, if necessay
+export DOSA_cFBuild1_used_dcps_path=/scratch/dcp_folder_with_shell_STATIC.dcp/
+```
+(Naturally, this disables the roofline diagram feature of DOSA, which requires a GUI.)
 

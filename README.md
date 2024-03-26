@@ -20,6 +20,7 @@ However, if using the `torchscript` flow in combination with `--calibration-data
 
 More details of the supported libraries and flows are described in [./doc/DOSA_flow.md](./doc/DOSA_flow.md).
 A detailed description of concepts and research behind DOSA can be found [here (Chapter 4)](https://doi.org/10.5281/zenodo.7957659). More publications around DOSA are listed [below](#publications).
+Please also note the [known limitations](#known-limitations). 
 
 Installation
 -----------------
@@ -32,8 +33,10 @@ virtualenv venv -p /usr/bin/python3.8
 source venv/bin/activate
 pip install -r requirements.txt --no-dependencies
 ```
-Besides this, DOSA requires `python3` and `llvm` development environment and a local installation of TVM. 
+Besides this, DOSA requires `python3` and `llvm` development environment and a local installation of [our TVM fork](https://github.com/cloudFPGA/tvm-for-dosa/). 
 The detailed requirements as well as all steps to setup DOSA are described in [./doc/Install.md](./doc/Install.md). 
+
+Alternatively, DOSA can also be run inside a docker container, see [Docker section in ./doc/Install.md](./doc/Install.md#docker). 
 
 Usage
 -----------------
@@ -116,6 +119,19 @@ For example, to show the Roofline analysis of the PTTCNN example (CNN fom the [p
 # maybe `export PYTHONPATH=.` is necessary before
 ```
 
+Known Limitations
+-------------------
+
+This is a research project and therefore proof-of-concept prototype! So, naturally, there are some limitations regarding the features and supported use cases:
+
+- While the architecture of DOSA is flexible, there is right now only one supported build tool: `cFBuild` for the cloudFPGA project. However, another build tool could be implemented by simply inherit the `HwBuildTopVhdl` in [gradatim/backend/buildTools/BaseBuild.py](./gradatim/backend/buildTools/BaseBuild.py).
+- Likewise, DOSA could support many *communication libraries*, but right now only the support for ZRLMPI is implemented. To add a new communication library, implement a new class and inherit from `BaseCommLib` [gradatim/backend/commLibs/BaseCommLib.py](./gradatim/backend/commLibs/BaseCommLib.py). The corresponding wrapper for the hardware and software cores, must then implement the `CommunicationWrapper` class in [gradatim/backend/codeGen/CommunicationWrapper.py](./gradatim/backend/codeGen/CommunicationWrapper.py).
+- The post-training quantization feature of DOSA depend on a custom TVM version, as explained in [./doc/Install.md](./doc/Install.md). 
+- The OSG `hls4ml` depends on Vivado 2019.2, due to incompatibilities between Vivado version and HLS4ML major internal architecture change. Also, `hls4ml` cannot generate all sizes of the `multi_threshold` operation required for post-training quantized networks. 
+
+On one hand, the above listed limitations highlight the difficulty to create and maintain an open-source framework within the FPGA community. Two reasons for this (among many others) is the fact that there are no commonly used APIs between IP cores or other components (e.g. Shell and Role) and a limited commitment to true open-source tool chains. We discussed this at multiple workshops with the community (cf. [cFDevOps20](https://cfdevops.github.io/cFDevOps20/), [cFDevOps21](https://cfdevops.github.io/cFDevOps21/), [cFDevOps22](https://cfdevops.github.io/cFDevOps22/)) and also tried to push for common ["POSIX-like" interfaces within the FPGA](https://www.youtube.com/watch?v=XvKjlw2w7Jw). 
+On the other hand, we conclude that the concept of Operation Set Architectures did overcome many typical "road blocks" of FPGA tool chains and exhibits great flexibility and efficiency. 
+
 Citation
 -----------------
 
@@ -156,17 +172,6 @@ License
 -----------------
 
 DOSA is released under the Apache 2.0 License.
-
-
-Current limitations
-------------------------
-
-This is a research project and therefore  proof-of-concept prototype! So, naturally, there are some limitations regarding the features and supported use cases:
-
-- While the architecture of DOSA is flexible, there is right now only one supported build tool: `cFBuild` for the cloudFPGA project. However, another build tool could be implemented by simply inherit the `HwBuildTopVhdl` in [dimidium/backend/buildTools/BaseBuild.py](./dimidium/backend/buildTools/BaseBuild.py).
-- Likewise, DOSA could support many *communication libraries*, but right now only the support for ZRLMPI is implemented. To add a new communication library, implement a new class and inherit from `BaseCommLib` [dimidium/backend/commLibs/BaseCommLib.py](./dimidium/backend/commLibs/BaseCommLib.py). The corresponding wrapper for the hardware and software cores, must then implement the `CommunicationWrapper` class in [dimidium/backend/codeGen/CommunicationWrapper.py](./dimidium/backend/codeGen/CommunicationWrapper.py).
-- DOSA depends on a custom TVM version, as explained in [./doc/Install.md](./doc/Install.md).
-
 
 Structure of this repository
 --------------------------------

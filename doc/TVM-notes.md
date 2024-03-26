@@ -3,13 +3,13 @@ TVM notes
 
 Install from source: https://tvm.apache.org/docs/install/from_source.html
 
+To be able to use the post-quantization feature of DOSA, our custom version of TVM is required: https://github.com/cloudFPGA/tvm-for-dosa
+
 Usually, it means the following steps:
 
 ```
-$ git clone --recurse-submodules https://github.com/apache/tvm tvm
-$ git submodule init
-$ git submodule update
-$ mkdir tvm/build
+$ git clone --recurse-submodules https://github.com/cloudFPGA/tvm-for-dosa.git tvm
+$ mkdir -p tvm/build
 $ cd tvm/build
 $ cp ../cmake/config.cmake ./
 $ which llvm-config  # update config.cmake with the respective llvm path
