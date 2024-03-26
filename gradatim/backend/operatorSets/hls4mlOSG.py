@@ -211,7 +211,8 @@ def _generate_threshold_block_single(threshold_op, in_var_name, out_var_name, la
     #     # outline += f'{tab}{out_var_name}[{channel_id}] = {threshold_accum_name};\n'
 
     # if last_op_in_node and channel_num <= 64:
-    if last_op_in_node and channel_num <= 8:
+    # if last_op_in_node and channel_num <= 8:
+    if last_op_in_node and channel_num <= 32:
         # another try
         for channel_id in range(channel_num):
             vector_data = layer_data[channel_id].astype(int)
@@ -244,36 +245,42 @@ def _generate_threshold_block_single(threshold_op, in_var_name, out_var_name, la
         # f'{tab}        #pragma HLS PIPELINE II=CONFIG_T::reuse_factor\n' \
         # f'{tab}    }} else {{\n{tab}        #pragma HLS UNROLL\n{tab}    }}\n'
     else:
-        # yet another try, for thresholds with many channels
-        threshold_arr_name = f"thresholds_{unique_op_name}"
-        outline += f'\n{tab}typename CONFIG_T::accum_t {threshold_arr_name}[{threshold_len * channel_num}] = {{'
-        tmp_outline = ''
-        np.set_printoptions(threshold=sys.maxsize)
-        for channel_id in range(channel_num):
-            vector_data = layer_data[channel_id].astype(int)
-            assert len(out_values) == len(vector_data)
-            assert threshold_len == len(vector_data)
-            for e in vector_data:
-                tmp_outline += f'{e}, '
-        outline += tmp_outline[:-2]
-        outline += '};\n'
-        threshold_accum_array = f"thresholds_{unique_op_name}_accum"
-        outline += f'{tab}res_T     {threshold_accum_array}[CONFIG_T::n_out];\n'
-        outline += f'{tab}for(unsigned int ct = 0; ct < {channel_num}; ct++)\n{tab}{{\n'
-        itab = f'{tab}{tab}'
-        outline += f'{itab}for(unsigned int tt = 0; tt < {threshold_len}; tt++)\n{itab}{{\n'
-        if channel_num <= 16:
-            outline += f'{itab}    #pragma HLS unroll\n'
-        outline += f'{itab}    if(thresholds_{unique_op_name}[(ct * {threshold_len}) + tt] < {in_var_name}[ct])\n' \
-                   f'{itab}    {{\n' \
-                   f'{itab}        {threshold_accum_array}[ct] += 1;\n' \
-                   f'{itab}    }}\n'
-        outline += f'{itab}}}\n'
-        outline += f'{tab}}}\n'
-        outline += f'\n{tab}for(int ires = 0; ires < CONFIG_T::n_out; ires++) {{\n' \
-                   f'{tab}    #pragma HLS unroll\n' \
-                   f'{tab}    {out_var_name}[ires] = {threshold_accum_array}[ires];\n'
-        outline += f'{tab}}}\n'
+        # vivado HLS can't synthesize thresholding for more channels or if it is not the last operation in block
+        # (I don't know why, it just creates then constant values instead of the thresholding computation)
+        reason = 'not last operation in block' if not last_op_in_node else 'too many channels'
+        print(f"[DOSA:Hls4mlOSG:ERROR] hls4ml OSG can't generate required threshold_op, due to limitations of "
+              f"compatible Vivado HLS versions (reason: '{reason}'). STOP.")
+        exit(1)
+        # # yet another try, for thresholds with many channels
+        # threshold_arr_name = f"thresholds_{unique_op_name}"
+        # outline += f'\n{tab}typename CONFIG_T::accum_t {threshold_arr_name}[{threshold_len * channel_num}] = {{'
+        # tmp_outline = ''
+        # np.set_printoptions(threshold=sys.maxsize)
+        # for channel_id in range(channel_num):
+        #     vector_data = layer_data[channel_id].astype(int)
+        #     assert len(out_values) == len(vector_data)
+        #     assert threshold_len == len(vector_data)
+        #     for e in vector_data:
+        #         tmp_outline += f'{e}, '
+        # outline += tmp_outline[:-2]
+        # outline += '};\n'
+        # threshold_accum_array = f"thresholds_{unique_op_name}_accum"
+        # outline += f'{tab}res_T     {threshold_accum_array}[CONFIG_T::n_out];\n'
+        # outline += f'{tab}for(unsigned int ct = 0; ct < {channel_num}; ct++)\n{tab}{{\n'
+        # itab = f'{tab}{tab}'
+        # outline += f'{itab}for(unsigned int tt = 0; tt < {threshold_len}; tt++)\n{itab}{{\n'
+        # if channel_num <= 16:
+        #     outline += f'{itab}    #pragma HLS unroll\n'
+        # outline += f'{itab}    if(thresholds_{unique_op_name}[(ct * {threshold_len}) + tt] < {in_var_name}[ct])\n' \
+        #            f'{itab}    {{\n' \
+        #            f'{itab}        {threshold_accum_array}[ct] += 1;\n' \
+        #            f'{itab}    }}\n'
+        # outline += f'{itab}}}\n'
+        # outline += f'{tab}}}\n'
+        # outline += f'\n{tab}for(int ires = 0; ires < CONFIG_T::n_out; ires++) {{\n' \
+        #            f'{tab}    #pragma HLS unroll\n' \
+        #            f'{tab}    {out_var_name}[ires] = {threshold_accum_array}[ires];\n'
+        # outline += f'{tab}}}\n'
     return outline
 
 
@@ -373,6 +380,11 @@ class Hls4mlOSG(BaseOSG):
         # FIXME: get relevant examples in util db, then remove
         if 'threshold' in op.op_call:
             bytes_total *= 6
+            if len(op.dims.inp) >= 3 and op.dims.inp[1] > 32:
+                # vivado HLS can't synthesize thresholding for more channels
+                print(f"[DOSA:Hls4mlOSG:DEBUG] can't offer thresholding implementation for operation with input shape"
+                      f"{op.dims.inp} due to limitations in compatible Vivado HLS versions.")
+                return None
 
         util_dict = {}
         util_dict['LUTLOG'] = res_dict['LUTLOG'] * bytes_total
@@ -800,6 +812,7 @@ class Hls4mlOSG(BaseOSG):
         wrapper_last_op = None
         contr_i = 0
         max_effective_mult_limit = 0
+        self._total_ops = 0
         for bb in arch_block.brick_list:
             # for op in bb.local_op_iter_gen():
             if wrapper_first_brick is None:
@@ -963,7 +976,6 @@ class Hls4mlOSG(BaseOSG):
     def build_container(self, container, build_tool, selected_contracts):
         print("[DOSA:Build:ERROR] hls4ml OSG was asked to build an engine container, but it can't. STOP.")
         exit(1)
-        return -1
 
     # def generate_brick(self, brick_node: ArchBrick):
     #     pass
