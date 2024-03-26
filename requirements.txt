@@ -25,7 +25,6 @@ constantly==15.1.0
 contourpy==1.1.0
 cryptography==3.4.8
 cycler==0.11.0
-dbus-python==1.2.18
 debugpy==1.6.3
 decorator==5.1.1
 dependencies==2.0.1
@@ -87,7 +86,7 @@ mpmath==1.2.1
 msgpack==1.0.3
 nest-asyncio==1.5.6
 netifaces==0.11.0
-numpy==1.23.2
+numpy==1.22.4
 nvidia-cublas-cu11==11.10.3.66
 nvidia-cuda-nvrtc-cu11==11.7.99
 nvidia-cuda-runtime-cu11==11.7.99
@@ -117,10 +116,8 @@ pure-eval==0.2.2
 py==1.10.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
-pycairo==1.20.1
 pycparser==2.21
 Pygments==2.13.0
-pykerberos==1.1.14
 pymacaroons==0.13.0
 PyNaCl==1.5.0
 pynvim==0.4.2
@@ -159,9 +156,7 @@ synr==0.6.0
 tensorboard==2.11.2
 tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.8.1
-tensorflow==2.7.0
-tensorflow-estimator==2.7.0
-tensorflow-io-gcs-filesystem==0.22.0
+tensorflow==2.8.0
 termcolor==1.1.0
 tokenize-rt==5.0.0
 toml==0.10.2
