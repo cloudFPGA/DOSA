@@ -89,11 +89,12 @@ docker build -f Dockerfile -t dosa-build .
 
 Afterwards, DOSA CLI can be started via:
 ```commandline
-docker run -it dosa-build -v ./my_in_and_out_dir/:/scratch
+docker run -it -v ./my_in_and_out_dir/:/scratch:Z -v ./folder_with_current_shell_STATIC/:/current_dcps/:Z dosa-build
 # use DOSA CLI as described in usage
 ./gradatim -h
-# the /scratch folder should then contain also the static dcps, if necessay
-export DOSA_cFBuild1_used_dcps_path=/scratch/dcp_folder_with_shell_STATIC.dcp/
+# for example, build one design with an example ONNX
+./gradatim.sh onnx ./config/dosa_config_default.json ./examples/PTTCNN_int8.onnx ./examples/PTTCNN_meta.json /app/scratch/pttcnn/ --no-roofline
 ```
+If building for the cloudFPGA target, the required `Shell_STATIC.dcp` files (as described above) should then be mounted to the `/current_dcps/` folder inside the container. 
 (Naturally, this disables the roofline diagram feature of DOSA, which requires a GUI.)
 
