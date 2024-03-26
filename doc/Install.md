@@ -98,3 +98,11 @@ docker run -it -v ./my_in_and_out_dir/:/scratch:Z -v ./folder_with_current_shell
 If building for the cloudFPGA target, the required `Shell_STATIC.dcp` files (as described above) should then be mounted to the `/current_dcps/` folder inside the container. 
 (Naturally, this disables the roofline diagram feature of DOSA, which requires a GUI.)
 
+If DOSA should be called outside the docker container using the [Pyro library](https://pyro4.readthedocs.io/en/stable/index.html), then the container should be started as follows:
+```commandline
+docker run -it -v ./my_in_and_out_dir/:/scratch:Z -v ./folder_with_current_shell_STATIC/:/current_dcps/:Z dosa-build
+# inside the container
+python3 -m gradatim.pyro_server
+```
+This prints out a PYRO-URI that should be used by connected tools.
+Please note, that paths to e.g. the constraint file etc. then must be `/scratch/path_to_file.json`. 
