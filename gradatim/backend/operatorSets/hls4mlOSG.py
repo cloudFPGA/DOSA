@@ -212,7 +212,7 @@ def _generate_threshold_block_single(threshold_op, in_var_name, out_var_name, la
 
     # if last_op_in_node and channel_num <= 64:
     # if last_op_in_node and channel_num <= 8:
-    if last_op_in_node and channel_num <= 32:
+    if last_op_in_node and channel_num <= 16:
         # another try
         for channel_id in range(channel_num):
             vector_data = layer_data[channel_id].astype(int)
@@ -244,43 +244,44 @@ def _generate_threshold_block_single(threshold_op, in_var_name, out_var_name, la
         # f'{tab}    if (CONFIG_T::reuse_factor > 1)\n{tab}    {{\n' \
         # f'{tab}        #pragma HLS PIPELINE II=CONFIG_T::reuse_factor\n' \
         # f'{tab}    }} else {{\n{tab}        #pragma HLS UNROLL\n{tab}    }}\n'
+    elif channel_num <= 32:
+        # yet another try, for thresholds with many channels
+        threshold_arr_name = f"thresholds_{unique_op_name}"
+        outline += f'\n{tab}typename CONFIG_T::accum_t {threshold_arr_name}[{threshold_len * channel_num}] = {{'
+        tmp_outline = ''
+        np.set_printoptions(threshold=sys.maxsize)
+        for channel_id in range(channel_num):
+            vector_data = layer_data[channel_id].astype(int)
+            assert len(out_values) == len(vector_data)
+            assert threshold_len == len(vector_data)
+            for e in vector_data:
+                tmp_outline += f'{e}, '
+        outline += tmp_outline[:-2]
+        outline += '};\n'
+        threshold_accum_array = f"thresholds_{unique_op_name}_accum"
+        outline += f'{tab}res_T     {threshold_accum_array}[CONFIG_T::n_out];\n'
+        outline += f'{tab}for(unsigned int ct = 0; ct < {channel_num}; ct++)\n{tab}{{\n'
+        itab = f'{tab}{tab}'
+        outline += f'{itab}for(unsigned int tt = 0; tt < {threshold_len}; tt++)\n{itab}{{\n'
+        if channel_num <= 16:
+            outline += f'{itab}    #pragma HLS unroll\n'
+        outline += f'{itab}    if(thresholds_{unique_op_name}[(ct * {threshold_len}) + tt] < {in_var_name}[ct])\n' \
+                   f'{itab}    {{\n' \
+                   f'{itab}        {threshold_accum_array}[ct] += 1;\n' \
+                   f'{itab}    }}\n'
+        outline += f'{itab}}}\n'
+        outline += f'{tab}}}\n'
+        outline += f'\n{tab}for(int ires = 0; ires < CONFIG_T::n_out; ires++) {{\n' \
+                   f'{tab}    #pragma HLS unroll\n' \
+                   f'{tab}    {out_var_name}[ires] = {threshold_accum_array}[ires];\n'
+        outline += f'{tab}}}\n'
     else:
         # vivado HLS can't synthesize thresholding for more channels or if it is not the last operation in block
         # (I don't know why, it just creates then constant values instead of the thresholding computation)
         reason = 'not last operation in block' if not last_op_in_node else 'too many channels'
         print(f"[DOSA:Hls4mlOSG:ERROR] hls4ml OSG can't generate required threshold_op, due to limitations of "
-              f"compatible Vivado HLS versions (reason: '{reason}'). STOP.")
+          f"compatible Vivado HLS versions (reason: '{reason}'). STOP.")
         exit(1)
-        # # yet another try, for thresholds with many channels
-        # threshold_arr_name = f"thresholds_{unique_op_name}"
-        # outline += f'\n{tab}typename CONFIG_T::accum_t {threshold_arr_name}[{threshold_len * channel_num}] = {{'
-        # tmp_outline = ''
-        # np.set_printoptions(threshold=sys.maxsize)
-        # for channel_id in range(channel_num):
-        #     vector_data = layer_data[channel_id].astype(int)
-        #     assert len(out_values) == len(vector_data)
-        #     assert threshold_len == len(vector_data)
-        #     for e in vector_data:
-        #         tmp_outline += f'{e}, '
-        # outline += tmp_outline[:-2]
-        # outline += '};\n'
-        # threshold_accum_array = f"thresholds_{unique_op_name}_accum"
-        # outline += f'{tab}res_T     {threshold_accum_array}[CONFIG_T::n_out];\n'
-        # outline += f'{tab}for(unsigned int ct = 0; ct < {channel_num}; ct++)\n{tab}{{\n'
-        # itab = f'{tab}{tab}'
-        # outline += f'{itab}for(unsigned int tt = 0; tt < {threshold_len}; tt++)\n{itab}{{\n'
-        # if channel_num <= 16:
-        #     outline += f'{itab}    #pragma HLS unroll\n'
-        # outline += f'{itab}    if(thresholds_{unique_op_name}[(ct * {threshold_len}) + tt] < {in_var_name}[ct])\n' \
-        #            f'{itab}    {{\n' \
-        #            f'{itab}        {threshold_accum_array}[ct] += 1;\n' \
-        #            f'{itab}    }}\n'
-        # outline += f'{itab}}}\n'
-        # outline += f'{tab}}}\n'
-        # outline += f'\n{tab}for(int ires = 0; ires < CONFIG_T::n_out; ires++) {{\n' \
-        #            f'{tab}    #pragma HLS unroll\n' \
-        #            f'{tab}    {out_var_name}[ires] = {threshold_accum_array}[ires];\n'
-        # outline += f'{tab}}}\n'
     return outline
 
 
